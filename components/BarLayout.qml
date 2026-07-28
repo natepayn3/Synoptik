@@ -420,40 +420,58 @@ Variants {
                         }
 
                         Rectangle {
-                            implicitWidth: dateRow.implicitWidth + 20; implicitHeight: 32; radius: 10
+                            // Dynamic dimensions for vertical layout stacking
+                            implicitWidth: 32
+                            implicitHeight: dateCol.implicitHeight + 12
+                            radius: 10
                             color: (Config.showCalendar || clockHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
                             Behavior on color { ColorAnimation { duration: 150 } }
 
-                            RowLayout {
-                                id: dateRow
+                            ColumnLayout {
+                                id: dateCol
                                 anchors.centerIn: parent
-                                spacing: 8
+                                spacing: 2
 
+                                // Line 1: Hour
                                 Text {
-                                    text: (shellRoot.vertHour || (new Date().getHours() % 12 || 12).toString()) + ":" + (shellRoot.vertMinute || Qt.formatTime(new Date(), "mm"))
+                                    text: shellRoot.vertHour || (new Date().getHours() % 12 || 12).toString()
                                     color: Config.showCalendar ? Config.accent : Config.textMain
                                     font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: Config.size(Config.fontTitle)
-                                    Layout.alignment: Qt.AlignVCenter
+                                    Layout.alignment: Qt.AlignHCenter
                                 }
 
+                                // Line 2: Minute
+                                Text {
+                                    text: shellRoot.vertMinute || Qt.formatTime(new Date(), "mm")
+                                    color: Config.showCalendar ? Config.accent : Config.textMain
+                                    font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: Config.size(Config.fontTitle)
+                                    Layout.alignment: Qt.AlignHCenter
+                                }
+
+                                // Line 3: AM / PM
                                 Text {
                                     text: shellRoot.vertAmPm || Qt.formatTime(new Date(), "ap").toLowerCase()
                                     color: Config.accent
-                                    font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: Config.size(Config.fontSubhead)
-                                    Layout.alignment: Qt.AlignVCenter
+                                    font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: Config.size(Config.fontCaption)
+                                    Layout.alignment: Qt.AlignHCenter
                                 }
 
+                                // Line 4: Date
                                 Text {
                                     text: (shellRoot.vertMonth || Qt.formatDate(new Date(), "MMM")) + " " + (shellRoot.vertDay || Qt.formatDate(new Date(), "d"))
                                     color: Config.showCalendar ? Config.accent : Config.textMuted
-                                    font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: Config.size(Config.fontSubhead)
-                                    Layout.alignment: Qt.AlignVCenter
+                                    font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: Config.size(Config.fontCaption)
+                                    Layout.alignment: Qt.AlignHCenter
                                 }
                             }
+
                             TapHandler { 
                                 onTapped: {
                                     if (!Config.showCalendar) {
-                                        Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false; Config.showNotifications = false; Config.showAudio = false; Config.showNetwork = false; Config.showSystemMonitor = false; Config.showBattery = false; Config.showClipboard = false; Config.showControlCenter = false; Config.showWorkspacePreview = false;
+                                        Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; 
+                                        Config.showAppLauncher = false; Config.showNotifications = false; Config.showAudio = false; 
+                                        Config.showNetwork = false; Config.showSystemMonitor = false; Config.showBattery = false; 
+                                        Config.showClipboard = false; Config.showControlCenter = false; Config.showWorkspacePreview = false;
                                     }
                                     Config.showCalendar = !Config.showCalendar
                                 }
