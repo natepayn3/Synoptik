@@ -8,10 +8,6 @@ import Quickshell.Io
 Item {
     id: appLauncherModule
 
-    // Dynamically bind module implicit bounds for UnifiedSurface
-    implicitWidth: 420
-    implicitHeight: 472
-
     property string pinFilePath: ""
     property var allApps: []
     property var filteredApps: []
