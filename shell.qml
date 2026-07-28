@@ -1,0 +1,393 @@
+//@ pragma UseQApplication
+import QtQuick
+import QtQuick.Layouts
+import QtQuick.Controls
+import QtQuick.Shapes
+import Quickshell
+import Quickshell.Widgets
+import Quickshell.Wayland
+import Quickshell.Hyprland
+import Quickshell.Io
+import Quickshell.Services.Notifications as Notifs
+import "components"
+
+ShellRoot {
+    id: shellRoot
+
+    // --- GLOBAL STATUS LISTENERS ---
+    property bool wifiPowered: true
+    property string wifiSsid: ""
+    
+    property bool btPowered: true
+    property bool btConnected: false
+    
+    property bool audioMuted: false
+    property int audioVolume: 50
+    
+    property bool vpnActive: false
+
+    // Battery State
+    property bool hasBattery: false
+    property string battName: "BAT0"
+    property int battCapacity: 100
+    property string battStatus: "Discharging"
+
+    // Continuous Palette Loop / Animation
+    property real animOffset: 0.0
+    NumberAnimation on animOffset {
+        from: 0.0
+        to: 1.0
+        duration: 4000
+        loops: Animation.Infinite
+        running: Config.showBorders
+    }
+
+    // Dynamic Palette Interpolation
+    readonly property color currentBorderColor: {
+        if (!Config.showBorders) return "transparent"
+        let c1 = Qt.color(Config.borderStart)
+        let c2 = Qt.color(Config.borderEnd)
+        let progress = (Math.sin(shellRoot.animOffset * Math.PI * 2) + 1.0) / 2.0
+        
+        return Qt.rgba(
+            c1.r + (c2.r - c1.r) * progress,
+            c1.g + (c2.g - c1.g) * progress,
+            c1.b + (c2.b - c1.b) * progress,
+            1.0
+        )
+    }
+
+    // Guard IPC Toggles
+    readonly property bool isFocusedBarEnabled: {
+        let activeMon = Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""
+        return activeMon === "" || Config.isBarEnabledForScreen(activeMon)
+    }
+
+    // Detect if BAT0 or BAT1 exists
+    Process {
+        id: battDetectProc
+        command: ["fish", "-c", "test -d /sys/class/power_supply/BAT0 && echo 'BAT0'; or test -d /sys/class/power_supply/BAT1 && echo 'BAT1'"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let name = this.text.trim()
+                if (name.length > 0) {
+                    shellRoot.hasBattery = true
+                    shellRoot.battName = name
+                    battStateProc.running = true
+                } else {
+                    shellRoot.hasBattery = false
+                }
+            }
+        }
+    }
+
+    // Read Battery Capacity and Charging Status
+    Process {
+        id: battStateProc
+        running: false
+        command: ["fish", "-c", "cat /sys/class/power_supply/" + shellRoot.battName + "/capacity; and cat /sys/class/power_supply/" + shellRoot.battName + "/status"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let lines = this.text.trim().split("\n")
+                if (lines.length >= 2) {
+                    shellRoot.battCapacity = parseInt(lines[0]) || 0
+                    shellRoot.battStatus = lines[1].trim()
+                }
+            }
+        }
+    }
+
+    // 1. Wi-Fi Status Query
+    Process {
+        id: wifiStateProc
+        command: ["fish", "-c", "nmcli radio wifi"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let status = this.text.trim()
+                if (status === "enabled") {
+                    shellRoot.wifiPowered = true
+                    wifiActiveProc.running = true
+                } else {
+                    shellRoot.wifiPowered = false
+                    shellRoot.wifiSsid = ""
+                }
+            }
+        }
+    }
+
+    Process {
+        id: wifiActiveProc
+        running: false
+        command: ["fish", "-c", "nmcli -t -f ACTIVE,SSID dev wifi"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let text = this.text.trim()
+                let activeMatch = text.match(/yes:(.*)/)
+                shellRoot.wifiSsid = activeMatch ? activeMatch[1] : ""
+            }
+        }
+    }
+
+    // 2. Audio Status Query via PipeWire
+    Process {
+        id: audioStateProc
+        command: ["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let cleaned = this.text.trim()
+                let match = cleaned.match(/Volume:\s+([0-9.]+)/)
+                if (match) {
+                    shellRoot.audioVolume = Math.round(parseFloat(match[1]) * 100)
+                    shellRoot.audioMuted = cleaned.includes("[MUTED]")
+                }
+            }
+        }
+    }
+
+    // Event-driven Audio Poller via Pactl Subscribe
+    Process {
+        id: audioSubscribeProc
+        command: ["stdbuf", "-oL", "pactl", "subscribe"]
+        running: true
+        stdout: SplitParser {
+            onRead: data => {
+                if (data.includes("sink")) audioStateProc.running = true
+            }
+        }
+    }
+
+    // 3. Bluetooth Status Query
+    Process {
+        id: btStateProc
+        command: ["fish", "-c", "bluetoothctl show | grep -q 'Powered: yes' && echo 'ON' || echo 'OFF'"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                shellRoot.btPowered = this.text.trim() === "ON"
+            }
+        }
+    }
+
+    // 4. Network / VPN Connection Query
+    Process {
+        id: vpnStateProc
+        command: ["nmcli", "-t", "-f", "TYPE,STATE", "connection", "show", "--active"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let text = this.text.trim()
+                shellRoot.vpnActive = text.includes("vpn") || text.includes("wireguard") || text.includes("tun")
+            }
+        }
+    }
+
+    // Global Status Poller Timer
+    Timer {
+        interval: 3000
+        running: true
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: {
+            wifiStateProc.running = true
+            audioStateProc.running = true
+            btStateProc.running = true
+            vpnStateProc.running = true
+            if (shellRoot.hasBattery) battStateProc.running = true
+        }
+    }
+
+    // --- NATIVE NOTIFICATION SERVER ---
+    Notifs.NotificationServer {
+        id: notifServer
+        property bool dnd: false
+        bodySupported: true
+        actionsSupported: true
+
+        onNotification: notif => {
+            if (notif) {
+                notif.tracked = true
+            }
+        }
+    }
+
+    // --- SCREEN-AWARE IPC HANDLERS ---
+    IpcHandler {
+        target: "power"
+        function toggle(): void {
+            if (!shellRoot.isFocusedBarEnabled) return;
+            if (!Config.showPower) {
+                Config.showSettings = false
+                Config.showWallpaper = false
+                Config.showAppLauncher = false
+                Config.showCalendar = false
+                Config.showNotifications = false
+                Config.showBattery = false
+                Config.showWorkspacePreview = false
+            }
+            Config.showPower = !Config.showPower
+        }
+    }
+
+    IpcHandler {
+        target: "launcher"
+        function toggle(): void {
+            if (!shellRoot.isFocusedBarEnabled) return;
+            if (!Config.showAppLauncher) {
+                Config.showPower = false
+                Config.showSettings = false
+                Config.showWallpaper = false
+                Config.showCalendar = false
+                Config.showNotifications = false
+                Config.showBattery = false
+                Config.showWorkspacePreview = false
+            }
+            Config.showAppLauncher = !Config.showAppLauncher
+        }
+    }
+
+    IpcHandler {
+        target: "wallpaper"
+        function toggle(): void {
+            if (!shellRoot.isFocusedBarEnabled) return;
+            if (!Config.showWallpaper) {
+                Config.showPower = false;
+                Config.showSettings = false;
+                Config.showAppLauncher = false;
+                Config.showCalendar = false;
+                Config.showNotifications = false;
+                Config.showBattery = false;
+                Config.showWorkspacePreview = false;
+            }
+            Config.showWallpaper = !Config.showWallpaper
+        }
+    }
+
+    IpcHandler {
+        target: "notifications"
+        function toggle(): void {
+            if (!shellRoot.isFocusedBarEnabled) return;
+            if (!Config.showNotifications) {
+                Config.showPower = false;
+                Config.showSettings = false;
+                Config.showWallpaper = false;
+                Config.showAppLauncher = false;
+                Config.showCalendar = false;
+                Config.showBattery = false;
+                Config.showWorkspacePreview = false;
+            }
+            Config.showNotifications = !Config.showNotifications
+        }
+    }
+
+    IpcHandler {
+        target: "workspaceoverview"
+        function toggle(): void {
+            if (!shellRoot.isFocusedBarEnabled) return;
+            if (!Config.showWorkspacePreview) {
+                Config.showPower = false;
+                Config.showSettings = false;
+                Config.showWallpaper = false;
+                Config.showAppLauncher = false;
+                Config.showCalendar = false;
+                Config.showNotifications = false;
+                Config.showBattery = false;
+                Config.showControlCenter = false;
+            }
+            Config.showWorkspacePreview = !Config.showWorkspacePreview
+        }
+    }
+
+    IpcHandler {
+        target: "settings"
+        function toggle(): void {
+            if (!shellRoot.isFocusedBarEnabled) return;
+            if (!Config.showSettings) {
+                Config.showPower = false
+                Config.showWallpaper = false
+                Config.showAppLauncher = false
+                Config.showCalendar = false
+                Config.showNotifications = false
+                Config.showBattery = false
+                Config.showWorkspacePreview = false
+            }
+            Config.showSettings = !Config.showSettings
+        }
+    }
+
+    IpcHandler {
+        target: "satty"
+        function screenshot(): void {
+            Quickshell.execDetached(["fish", "-c", "sleep 0.1; and grim -g (slurp) -t ppm - | satty --filename -"])
+        }
+    }
+
+    IpcHandler {
+        target: "clipboard"
+        function toggle(): void {
+            if (!shellRoot.isFocusedBarEnabled) return;
+            if (!Config.showClipboard) {
+                Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
+                Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false;
+                Config.showBattery = false; Config.showWorkspacePreview = false;
+            }
+            Config.showClipboard = !Config.showClipboard
+        }
+    }
+
+    // --- CLOCK & DATE FORMATTING ---
+    property string timeStr: Qt.formatTime(new Date(), "h:mm ap")
+    property string shortDateStr: Qt.formatDate(new Date(), "MMM d")
+
+    // Vertical Bar Clock Components
+    property string vertHour: {
+        var h = new Date().getHours() % 12
+        return (h === 0 ? 12 : h).toString()
+    }
+    property string vertMinute: Qt.formatTime(new Date(), "mm")
+    property string vertAmPm: Qt.formatTime(new Date(), "ap").toLowerCase()
+    property string vertMonth: Qt.formatDate(new Date(), "MMM")
+    property string vertDay: Qt.formatDate(new Date(), "d")
+
+    Timer {
+        interval: 1000
+        running: true
+        repeat: true
+        onTriggered: {
+            var d = new Date()
+            timeStr = Qt.formatTime(d, "h:mm ap")
+            shortDateStr = Qt.formatDate(d, "MMM d")
+
+            var h = d.getHours() % 12
+            vertHour = (h === 0 ? 12 : h).toString()
+            vertMinute = Qt.formatTime(d, "mm")
+            vertAmPm = Qt.formatTime(d, "ap").toLowerCase()
+            vertMonth = Qt.formatDate(d, "MMM")
+            vertDay = Qt.formatDate(d, "d")
+        }
+    }
+
+    // --- BAR LAYOUT INSTANTIATION ---
+    BarLayout {}
+
+    // --- OVERLAY FLYOUT INSTANTIATIONS ---
+    Power { id: powerFlyout }
+    Settings { id: settingsFlyout }
+    Wallpaper { id: wallpaperFlyout }
+    AppLauncher { id: launcherFlyout }
+    Calendar { id: calendarFlyout }
+    Notifications { id: notificationsFlyout }
+    Network { id: networkFlyout }
+    Audio { id: audioFlyout }
+    VolumeOSD { id: volumeOSD }
+    WorkspacePreview { id: workspacePreviewFlyout }
+    NotificationOSD { id: notificationOSD }
+    ControlCenter { id: controlCenterFlyout }
+    Battery { id: batteryFlyout }
+    SystemMonitor { id: systemMonitorFlyout }
+    Mascot { id: mascotFlyout }
+    OSK { id: oskFlyout }
+    Clipboard { id: clipboardFlyout }
+} 
