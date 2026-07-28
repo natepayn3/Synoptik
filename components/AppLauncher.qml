@@ -5,34 +5,41 @@ import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Io
 
-MorphingFlyout {
-    id: appLauncherFlyout
+Item {
+    id: appLauncherModule
 
-    isOpen: Config.showAppLauncher
-    panelWidth: 500
-    panelHeight: mainLayout.implicitHeight + 40
+    // Dynamically bind module implicit bounds for UnifiedSurface
+    implicitWidth: 420
+    implicitHeight: 472
 
     property string pinFilePath: ""
+    property var allApps: []
+    property var filteredApps: []
+    property var localPins: []
+
+    // Clear search and refresh models when opened
+    Connections {
+        target: Config
+        function onShowAppLauncherChanged() {
+            if (Config.showAppLauncher) {
+                searchInput.text = ""
+                searchInput.forceActiveFocus()
+                pinCacheReader.reload()
+                appLauncherModule.updateModel()
+            }
+        }
+    }
 
     Process {
         id: initPinFile
-        command: ["fish", "-c", "if not test -f ~/.cache/quickshell_launcher_pins.json; echo '{\"pins\":[]}' > ~/.cache/quickshell_launcher_pins.json; end"]
+        command: ["fish", "-c", "if not test -f ~/.cache/quickshell_launcher_pins.json; echo '{\"pins\":[]}'> ~/.cache/quickshell_launcher_pins.json; end"]
         running: true
-        onExited: appLauncherFlyout.pinFilePath = Quickshell.env("HOME") + "/.cache/quickshell_launcher_pins.json"
-    }
-
-    onIsOpenChanged: {
-        if (isOpen) {
-            searchInput.text = ""
-            searchInput.forceActiveFocus()
-            pinCacheReader.reload()
-            appLauncherModule.updateModel()
-        }
+        onExited: appLauncherModule.pinFilePath = Quickshell.env("HOME") + "/.cache/quickshell_launcher_pins.json"
     }
 
     FileView {
         id: pinCacheReader
-        path: appLauncherFlyout.pinFilePath 
+        path: appLauncherModule.pinFilePath 
         onTextChanged: {
             let cleanText = text().trim();
             if (!cleanText || cleanText === "[]") return; 
@@ -120,12 +127,58 @@ print(json.dumps(apps))
         }
     }
 
+    function togglePin(appPath) {
+        let currentPins = appLauncherModule.localPins.slice();
+        let idx = currentPins.indexOf(appPath); 
+        if (idx !== -1) {
+            currentPins.splice(idx, 1);
+        } else { 
+            currentPins.push(appPath);
+        } 
+        appLauncherModule.localPins = currentPins;
+        appLauncherModule.updateModel();
+        
+        let jsonStr = JSON.stringify({ "pins": currentPins }); 
+        Quickshell.execDetached(["fish", "-c", "echo '" + jsonStr + "' > ~/.cache/quickshell_launcher_pins.json"]);
+    } 
+
+    function updateModel() {
+        let query = searchInput.text.trim().toLowerCase();
+        let pins = []; 
+        let others = [];
+
+        for (let i = 0; i < appLauncherModule.allApps.length; i++) {
+            let app = appLauncherModule.allApps[i];
+            if (query !== "" && !app.name.toLowerCase().includes(query) && !app.desc.toLowerCase().includes(query)) continue; 
+            if (appLauncherModule.localPins.includes(app.path)) {
+                pins.push(app);
+            } else { 
+                others.push(app);
+            } 
+        }
+
+        pins.sort((a,b) => a.name.localeCompare(b.name));
+        others.sort((a,b) => a.name.localeCompare(b.name)); 
+        appLauncherModule.filteredApps = pins.concat(others);
+        
+        appListView.currentIndex = 0;
+        appListView.positionViewAtBeginning();
+    } 
+
+    function launchApp(execString) {
+        let cleanExec = execString.replace(/%[uUfFkKcCiI]/g, "").trim();
+        Quickshell.execDetached(["fish", "-c", cleanExec]);
+        Config.showAppLauncher = false;
+    }
+
     ColumnLayout {
         id: mainLayout
+        
+        anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.margins: 20
+        anchors.margins: 16
+        
         spacing: 12
 
         // ==========================================
@@ -139,8 +192,12 @@ print(json.dumps(apps))
 
             ColumnLayout {
                 id: cardContentLayout
-                anchors.fill: parent
+                
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
                 anchors.margins: 12
+                
                 spacing: 12
 
                 Text {
@@ -152,261 +209,215 @@ print(json.dumps(apps))
                     Layout.fillWidth: true
                 }
 
-                Item {
-                    id: appLauncherModule
+                ColumnLayout {
+                    id: innerColumn
                     Layout.fillWidth: true
-                    implicitHeight: innerColumn.implicitHeight
+                    spacing: 12
 
-                    property var allApps: []
-                    property var filteredApps: []
-                    property var localPins: []
+                    // Search Input Surface
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: 40
+                        radius: Config.cornerRadius / 2
+                        color: searchHover.hovered || searchInput.activeFocus ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.25)
+                        Behavior on color { ColorAnimation { duration: 150 } }
 
-                    function togglePin(appPath) {
-                        let currentPins = appLauncherModule.localPins.slice();
-                        let idx = currentPins.indexOf(appPath); 
-                        if (idx !== -1) {
-                            currentPins.splice(idx, 1);
-                        } else { 
-                            currentPins.push(appPath);
-                        } 
-                        appLauncherModule.localPins = currentPins;
-                        appLauncherModule.updateModel();
-                        
-                        let jsonStr = JSON.stringify({ "pins": currentPins }); 
-                        Quickshell.execDetached(["fish", "-c", "echo '" + jsonStr + "' > ~/.cache/quickshell_launcher_pins.json"]);
-                    } 
+                        HoverHandler { id: searchHover }
 
-                    function updateModel() {
-                        let query = searchInput.text.trim().toLowerCase();
-                        let pins = []; 
-                        let others = [];
-
-                        for (let i = 0; i < appLauncherModule.allApps.length; i++) {
-                            let app = appLauncherModule.allApps[i];
-                            if (query !== "" && !app.name.toLowerCase().includes(query) && !app.desc.toLowerCase().includes(query)) continue; 
-                            if (appLauncherModule.localPins.includes(app.path)) {
-                                pins.push(app);
-                            } else { 
-                                others.push(app);
-                            } 
+                        TapHandler {
+                            onTapped: searchInput.forceActiveFocus()
                         }
 
-                        pins.sort((a,b) => a.name.localeCompare(b.name));
-                        others.sort((a,b) => a.name.localeCompare(b.name)); 
-                        appLauncherModule.filteredApps = pins.concat(others);
-                        
-                        appListView.currentIndex = 0;
-                        appListView.positionViewAtBeginning();
-                    } 
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 12
+                            anchors.rightMargin: 12
+                            spacing: 8
 
-                    function launchApp(execString) {
-                        let cleanExec = execString.replace(/%[uUfFkKcCiI]/g, "").trim();
-                        Quickshell.execDetached(["fish", "-c", cleanExec]);
-                        Config.showAppLauncher = false;
-                    }
-
-                    ColumnLayout {
-                        id: innerColumn
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                        spacing: 12
-
-                        // Search Input Surface
-                        Rectangle {
-                            Layout.fillWidth: true
-                            implicitHeight: 40
-                            radius: Config.cornerRadius / 2
-                            color: searchHover.hovered || searchInput.activeFocus ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.25)
-                            Behavior on color { ColorAnimation { duration: 150 } }
-
-                            HoverHandler { id: searchHover }
-
-                            TapHandler {
-                                onTapped: searchInput.forceActiveFocus()
+                            Text {
+                                text: "search"
+                                color: searchInput.activeFocus ? Config.accent : Config.textMuted
+                                font { family: "Material Symbols Outlined"; pixelSize: 18 }
+                                Behavior on color { ColorAnimation { duration: 150 } }
                             }
 
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.leftMargin: 12
-                                anchors.rightMargin: 12
-                                spacing: 8
+                            TextInput {
+                                id: searchInput
+                                Layout.fillWidth: true
+                                color: Config.textMain
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontBody)
+                                font.bold: true
+                                clip: true
+                                selectByMouse: true
+                                focus: true
+                                Timer {
+                                    running: true
+                                    interval: 50
+                                    onTriggered: searchInput.forceActiveFocus()
+                                }
+
+                                HoverHandler { cursorShape: Qt.IBeamCursor }
 
                                 Text {
-                                    text: "search"
-                                    color: searchInput.activeFocus ? Config.accent : Config.textMuted
-                                    font { family: "Material Symbols Outlined"; pixelSize: 18 }
-                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                    text: "Search apps..."
+                                    color: Qt.rgba(255, 255, 255, 0.3)
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontCaption)
+                                    font.italic: true
+                                    visible: parent.text === "" && !parent.activeFocus
                                 }
 
-                                TextInput {
-                                    id: searchInput
-                                    Layout.fillWidth: true
-                                    color: Config.textMain
-                                    font.family: Config.sysFont
-                                    font.pixelSize: Config.size(Config.fontBody)
-                                    font.bold: true
-                                    clip: true
-                                    selectByMouse: true
+                                onTextChanged: appLauncherModule.updateModel() 
 
-                                    HoverHandler { cursorShape: Qt.IBeamCursor }
-
-                                    Text {
-                                        text: "Search apps..."
-                                        color: Qt.rgba(255, 255, 255, 0.3)
-                                        font.family: Config.sysFont
-                                        font.pixelSize: Config.size(Config.fontCaption)
-                                        font.italic: true
-                                        visible: parent.text === "" && !parent.activeFocus
-                                    }
-
-                                    onTextChanged: appLauncherModule.updateModel() 
-
-                                    Keys.onPressed: (event) => {
-                                        if (event.key === Qt.Key_Down) {
-                                            appListView.incrementCurrentIndex();
-                                            event.accepted = true;
-                                        } else if (event.key === Qt.Key_Up) {
-                                            appListView.decrementCurrentIndex();
-                                            event.accepted = true; 
-                                        } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                                            if (appListView.currentItem) {
-                                                appLauncherModule.launchApp(appListView.currentItem.appExec);
-                                            } 
-                                            event.accepted = true;
-                                        }
+                                Keys.onPressed: (event) => {
+                                    if (event.key === Qt.Key_Down) {
+                                        appListView.incrementCurrentIndex();
+                                        event.accepted = true;
+                                    } else if (event.key === Qt.Key_Up) {
+                                        appListView.decrementCurrentIndex();
+                                        event.accepted = true; 
+                                    } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                                        if (appListView.currentItem) {
+                                            appLauncherModule.launchApp(appListView.currentItem.appExec);
+                                        } 
+                                        event.accepted = true;
+                                    } else if (event.key === Qt.Key_Escape) {
+                                        // Dismiss the launcher when Escape is pressed
+                                        Config.showAppLauncher = false;
+                                        event.accepted = true;
                                     }
                                 }
                             }
                         }
+                    }
 
-                        // App List View Frame Surface
-                        Rectangle {
-                            Layout.fillWidth: true
-                            implicitHeight: 380
-                            radius: Config.cornerRadius / 2
-                            color: Qt.rgba(0, 0, 0, 0.2)
-                            clip: true
+                    // App List View Frame Surface
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: 340
+                        radius: Config.cornerRadius / 2
+                        color: Qt.rgba(0, 0, 0, 0.2)
+                        clip: true
 
-                            ListView {
-                                id: appListView
-                                anchors.fill: parent
-                                anchors.margins: 6
-                                spacing: 2 
-                                keyNavigationEnabled: false
-                                boundsBehavior: Flickable.StopAtBounds
-                                model: appLauncherModule.filteredApps 
+                        ListView {
+                            id: appListView
+                            anchors.fill: parent
+                            anchors.margins: 6
+                            spacing: 2 
+                            keyNavigationEnabled: false
+                            boundsBehavior: Flickable.StopAtBounds
+                            model: appLauncherModule.filteredApps 
+                            
+                            delegate: Rectangle {
+                                id: appDelegate
+                                width: appListView.width 
+                                implicitHeight: 54 
+                                radius: Config.cornerRadius / 2
+                                color: appListView.currentIndex === index 
+                                    ? Qt.rgba(255, 255, 255, 0.12) 
+                                    : (itemHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : "transparent")
                                 
-                                delegate: Rectangle {
-                                    id: appDelegate
-                                    width: appListView.width 
-                                    implicitHeight: 54 
-                                    radius: Config.cornerRadius / 2
-                                    color: appListView.currentIndex === index 
-                                        ? Qt.rgba(255, 255, 255, 0.12) 
-                                        : (itemHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : "transparent")
-                                    
-                                    property string appExec: modelData.exec
-                                    property bool isPinned: appLauncherModule.localPins.includes(modelData.path)
+                                property string appExec: modelData.exec
+                                property bool isPinned: appLauncherModule.localPins.includes(modelData.path)
 
-                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                Behavior on color { ColorAnimation { duration: 150 } }
 
-                                    RowLayout {
-                                        anchors.fill: parent
-                                        anchors.leftMargin: 10
-                                        anchors.rightMargin: 10
-                                        spacing: 12
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 10
+                                    anchors.rightMargin: 10
+                                    spacing: 12
 
-                                        Image { 
-                                            Layout.preferredWidth: 32 
-                                            Layout.preferredHeight: 32
-                                            sourceSize.width: 64 
-                                            sourceSize.height: 64
-                                            source: modelData.icon ? modelData.icon : "file:///usr/share/icons/hicolor/scalable/apps/utilities-terminal.svg"
-                                            fillMode: Image.PreserveAspectFit
-                                            asynchronous: true
-                                        }
+                                    Image { 
+                                        Layout.preferredWidth: 32 
+                                        Layout.preferredHeight: 32
+                                        sourceSize.width: 64 
+                                        sourceSize.height: 64
+                                        source: modelData.icon ? modelData.icon : "file:///usr/share/icons/hicolor/scalable/apps/utilities-terminal.svg"
+                                        fillMode: Image.PreserveAspectFit
+                                        asynchronous: true
+                                    }
 
-                                        ColumnLayout {
-                                            Layout.fillWidth: true 
-                                            spacing: 2
-                                            Layout.alignment: Qt.AlignVCenter 
+                                    ColumnLayout {
+                                        Layout.fillWidth: true 
+                                        spacing: 2
+                                        Layout.alignment: Qt.AlignVCenter 
 
-                                            Text { 
-                                                text: modelData.name
-                                                font.family: Config.sysFont 
-                                                font.pixelSize: Config.size(Config.fontBody)
-                                                color: Config.textMain 
-                                                font.bold: appDelegate.isPinned
-                                                Layout.fillWidth: true
-                                                elide: Text.ElideRight
-                                            }
-
-                                            Text {
-                                                text: modelData.desc !== "" ? modelData.desc : "Application" 
-                                                font.family: Config.sysFont
-                                                font.pixelSize: Config.size(Config.fontCaption)
-                                                color: Config.textMuted
-                                                Layout.fillWidth: true
-                                                elide: Text.ElideRight
-                                            }
+                                        Text { 
+                                            text: modelData.name
+                                            font.family: Config.sysFont 
+                                            font.pixelSize: Config.size(Config.fontBody)
+                                            color: Config.textMain 
+                                            font.bold: appDelegate.isPinned
+                                            Layout.fillWidth: true
+                                            elide: Text.ElideRight
                                         }
 
                                         Text {
-                                            text: "keep" 
-                                            font.family: "Material Symbols Outlined"
-                                            font.pixelSize: 18
-                                            color: Config.accent
-                                            visible: appDelegate.isPinned 
-                                            Layout.alignment: Qt.AlignVCenter
+                                            text: modelData.desc !== "" ? modelData.desc : "Application" 
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontCaption)
+                                            color: Config.textMuted
+                                            Layout.fillWidth: true
+                                            elide: Text.ElideRight
                                         }
-                                    } 
+                                    }
 
-                                    MouseArea {
-                                        id: itemHover
-                                        anchors.fill: parent 
-                                        acceptedButtons: Qt.LeftButton | Qt.RightButton 
-                                        cursorShape: Qt.PointingHandCursor
-                                        hoverEnabled: true
+                                    Text {
+                                        text: "keep" 
+                                        font.family: "Material Symbols Outlined"
+                                        font.pixelSize: 18
+                                        color: Config.accent
+                                        visible: appDelegate.isPinned 
+                                        Layout.alignment: Qt.AlignVCenter
+                                    }
+                                } 
 
-                                        property int lastScreenX: -1 
-                                        property int lastScreenY: -1
+                                MouseArea {
+                                    id: itemHover
+                                    anchors.fill: parent 
+                                    acceptedButtons: Qt.LeftButton | Qt.RightButton 
+                                    cursorShape: Qt.PointingHandCursor
+                                    hoverEnabled: true
 
-                                        onPositionChanged: (mouse) => { 
-                                            let currentX = Math.floor(mouse.screenX);
-                                            let currentY = Math.floor(mouse.screenY);
-                                            let deltaX = Math.abs(currentX - lastScreenX); 
-                                            let deltaY = Math.abs(currentY - lastScreenY);
-                                            if (lastScreenX !== -1 && (deltaX > 2 || deltaY > 2)) {
-                                                if (appListView.currentIndex !== index) { 
-                                                    appListView.currentIndex = index;
-                                                }
+                                    property int lastScreenX: -1 
+                                    property int lastScreenY: -1
+
+                                    onPositionChanged: (mouse) => { 
+                                        let currentX = Math.floor(mouse.screenX);
+                                        let currentY = Math.floor(mouse.screenY);
+                                        let deltaX = Math.abs(currentX - lastScreenX); 
+                                        let deltaY = Math.abs(currentY - lastScreenY);
+                                        if (lastScreenX !== -1 && (deltaX > 2 || deltaY > 2)) {
+                                            if (appListView.currentIndex !== index) { 
+                                                appListView.currentIndex = index;
                                             }
-                                            lastScreenX = currentX;
-                                            lastScreenY = currentY; 
                                         }
+                                        lastScreenX = currentX;
+                                        lastScreenY = currentY; 
+                                    }
 
-                                        onExited: {
-                                            lastScreenX = -1;
-                                            lastScreenY = -1; 
-                                        }
+                                    onExited: {
+                                        lastScreenX = -1;
+                                        lastScreenY = -1; 
+                                    }
 
-                                        onClicked: (mouse) => {
-                                            if (mouse.button === Qt.RightButton) {
-                                                appLauncherModule.togglePin(modelData.path);
-                                            } else { 
-                                                appLauncherModule.launchApp(modelData.exec);
-                                            }
+                                    onClicked: (mouse) => {
+                                        if (mouse.button === Qt.RightButton) {
+                                            appLauncherModule.togglePin(modelData.path);
+                                        } else { 
+                                            appLauncherModule.launchApp(modelData.exec);
                                         }
                                     }
                                 }
+                            }
 
-                                ScrollBar.vertical: ScrollBar {
-                                    active: appListView.moving || appListView.flickableDirection
-                                    policy: ScrollBar.AsNeeded
-                                }
-                            } 
-                        }
+                            ScrollBar.vertical: ScrollBar {
+                                active: appListView.moving || appListView.flickableDirection
+                                policy: ScrollBar.AsNeeded
+                            }
+                        } 
                     }
                 }
             }

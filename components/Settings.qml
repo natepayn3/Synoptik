@@ -1,0 +1,553 @@
+import QtQuick
+import QtQuick.Layouts
+import QtQuick.Controls
+import Qt.labs.folderlistmodel
+import Quickshell
+import Quickshell.Wayland
+import Quickshell.Hyprland
+import "./settings"
+
+PanelWindow {
+    id: settingsWindow
+    visible: Config.showSettings || closeTransition.running || openTransition.running
+
+    screen: {
+        let activeName = Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""
+        let found = Quickshell.screens.find(s => s.name === activeName)
+        return found ? found : Quickshell.screens[0]
+    }
+
+    anchors {
+        top: true; bottom: true; left: true; right: true
+    }
+
+    color: "transparent"
+
+    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.keyboardFocus: Config.showSettings ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+
+    property int activeSection: 0
+    property bool visualsExpanded: false
+    property bool connectivityExpanded: false
+    property bool widgetsExpanded: false
+
+    HyprlandFocusGrab {
+        id: focusGrab
+        active: Config.showSettings && (settingsWindow.WlrLayershell.keyboardFocus !== WlrKeyboardFocus.None)
+        windows: [settingsWindow]
+        onCleared: {
+            Config.showSettings = false
+            mascotSettingsView.showBrowser = false
+        }
+    }
+
+    Shortcut {
+        sequences: ["Escape"]
+        enabled: Config.showSettings
+        onActivated: {
+            if (mascotSettingsView.showBrowser) {
+                mascotSettingsView.showBrowser = false
+            } else {
+                Config.showSettings = false
+            }
+        }
+    }
+
+    MouseArea {
+        anchors.fill: parent
+        onClicked: Config.showSettings = false
+    }
+
+    Item {
+        id: breathingContainer
+        width: 820
+        height: 540
+        anchors.centerIn: parent
+        transformOrigin: Item.Center
+
+        states: [
+            State {
+                name: "open"
+                when: Config.showSettings
+                PropertyChanges { target: breathingContainer; scale: 1.0; opacity: 1.0 }
+            },
+            State {
+                name: "closed"
+                when: !Config.showSettings
+                PropertyChanges { target: breathingContainer; scale: 0.8; opacity: 0.0 }
+            }
+        ]
+
+        transitions: [
+            Transition {
+                id: openTransition
+                from: "closed"; to: "open"
+                ParallelAnimation {
+                    NumberAnimation { properties: "opacity"; duration: 250; easing.type: Easing.OutQuart }
+                    NumberAnimation { properties: "scale"; duration: 450; easing.type: Easing.OutBack; easing.overshoot: 1.8 }
+                }
+            },
+            Transition {
+                id: closeTransition
+                from: "open"; to: "closed"
+                ParallelAnimation {
+                    NumberAnimation { properties: "opacity"; duration: 200; easing.type: Easing.InCubic }
+                    NumberAnimation { properties: "scale"; duration: 250; easing.type: Easing.InQuad }
+                }
+            }
+        ]
+
+        Rectangle {
+            anchors.fill: parent
+            color: Config.bgPanel
+            radius: Config.cornerRadius
+            border.width: Config.showBorders ? 3 : 0
+            border.color: Config.showBorders ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+
+            MouseArea {
+                anchors.fill: parent
+                onClicked: (mouse) => mouse.accepted = true
+            }
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 20
+                spacing: 16
+
+                // HEADER
+                RowLayout {
+                    Layout.fillWidth: true
+
+                    Text {
+                        text: "SETTINGS"
+                        color: Config.textMain
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontTitle)
+                        font.bold: true
+                        Layout.fillWidth: true
+                    }
+
+                    Rectangle {
+                        implicitWidth: 28; implicitHeight: 28; radius: 14
+                        color: closeHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "close"
+                            color: Config.textMain
+                            font.family: "Material Symbols Outlined"
+                            font.pixelSize: 18
+                        }
+
+                        TapHandler { 
+                            onTapped: {
+                                Config.showSettings = false
+                                mascotSettingsView.showBrowser = false
+                            }
+                        }
+                        HoverHandler { id: closeHover; cursorShape: Qt.PointingHandCursor }
+                    }
+                }
+
+                // MASTER-DETAIL TWO-COLUMN LAYOUT
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    spacing: 14
+
+                    // LEFT NAVIGATION CARD
+                    Rectangle {
+                        Layout.preferredWidth: 170
+                        Layout.maximumWidth: 170
+                        Layout.fillHeight: true
+                        color: Qt.rgba(255, 255, 255, 0.03)
+                        radius: Config.cornerRadius
+                        clip: true
+
+                        Flickable {
+                            anchors.fill: parent
+                            anchors.margins: 10
+                            contentHeight: leftNavColumn.implicitHeight
+                            clip: true
+                            boundsBehavior: Flickable.StopAtBounds
+
+                            ColumnLayout {
+                                id: leftNavColumn
+                                width: parent.width
+                                spacing: 6
+
+                                // CATEGORY 1: VISUALS
+                                Rectangle {
+                                    Layout.fillWidth: true; implicitHeight: 32; radius: Config.cornerRadius / 2
+                                    color: visualsCatHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : "transparent"
+
+                                    RowLayout {
+                                        anchors.fill: parent; anchors.leftMargin: 6; anchors.rightMargin: 6; spacing: 4
+                                        Text { text: settingsWindow.visualsExpanded ? "expand_more" : "chevron_right"; color: Config.textMuted; font.family: "Material Symbols Outlined"; font.pixelSize: 18 }
+                                        Text { text: "VISUALS"; color: Config.textMuted; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); font.bold: true; Layout.fillWidth: true }
+                                    }
+
+                                    TapHandler { onTapped: settingsWindow.visualsExpanded = !settingsWindow.visualsExpanded }
+                                    HoverHandler { id: visualsCatHover; cursorShape: Qt.PointingHandCursor }
+                                }
+
+                                ColumnLayout {
+                                    visible: settingsWindow.visualsExpanded
+                                    Layout.fillWidth: true; Layout.leftMargin: 6; spacing: 3
+
+                                    Repeater {
+                                        model: [
+                                            { id: 0, name: "Orientation", icon: "aspect_ratio" },
+                                            { id: 1, name: "Appearance",  icon: "palette" },
+                                            { id: 2, name: "Typography",  icon: "match_case" },
+                                            { id: 3, name: "Wallpaper",   icon: "wallpaper" }
+                                        ]
+
+                                        delegate: Rectangle {
+                                            id: navDelegate1
+                                            Layout.fillWidth: true; implicitHeight: 34; radius: Config.cornerRadius / 2
+                                            readonly property bool isSelected: settingsWindow.activeSection === modelData.id
+                                            color: navDelegate1.isSelected ? Qt.rgba(255, 255, 255, 0.12) : (navHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent")
+
+                                            RowLayout {
+                                                anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8; spacing: 6
+                                                Text { text: modelData.icon; color: navDelegate1.isSelected ? Config.accent : Config.textMuted; font.family: "Material Symbols Outlined"; font.pixelSize: 16 }
+                                                Text { text: modelData.name; color: navDelegate1.isSelected ? Config.accent : Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); font.bold: navDelegate1.isSelected; Layout.fillWidth: true; elide: Text.ElideRight }
+                                            }
+
+                                            TapHandler { 
+                                                onTapped: {
+                                                    settingsWindow.activeSection = modelData.id
+                                                    mascotSettingsView.showBrowser = false
+                                                }
+                                            }
+                                            HoverHandler { id: navHover; cursorShape: Qt.PointingHandCursor }
+                                        }
+                                    }
+                                }
+
+                                // CATEGORY 2: CONNECTIVITY
+                                Rectangle {
+                                    Layout.fillWidth: true; implicitHeight: 32; radius: Config.cornerRadius / 2
+                                    color: connCatHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : "transparent"
+
+                                    RowLayout {
+                                        anchors.fill: parent; anchors.leftMargin: 6; anchors.rightMargin: 6; spacing: 4
+                                        Text { text: settingsWindow.connectivityExpanded ? "expand_more" : "chevron_right"; color: Config.textMuted; font.family: "Material Symbols Outlined"; font.pixelSize: 18 }
+                                        Text { text: "CONNECTIVITY"; color: Config.textMuted; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); font.bold: true; Layout.fillWidth: true }
+                                    }
+
+                                    TapHandler { onTapped: settingsWindow.connectivityExpanded = !settingsWindow.connectivityExpanded }
+                                    HoverHandler { id: connCatHover; cursorShape: Qt.PointingHandCursor }
+                                }
+
+                                ColumnLayout {
+                                    visible: settingsWindow.connectivityExpanded
+                                    Layout.fillWidth: true; Layout.leftMargin: 6; spacing: 3
+
+                                    Repeater {
+                                        model: [
+                                            { id: 4, name: "VPN",       icon: "vpn_key" },
+                                            { id: 5, name: "Wi-Fi",     icon: "wifi" },
+                                            { id: 6, name: "Bluetooth", icon: "bluetooth" },
+                                            { id: 7, name: "Weather",   icon: "thermostat" }
+                                        ]
+
+                                        delegate: Rectangle {
+                                            id: navDelegate2
+                                            Layout.fillWidth: true; implicitHeight: 34; radius: Config.cornerRadius / 2
+                                            readonly property bool isSelected: settingsWindow.activeSection === modelData.id
+                                            color: navDelegate2.isSelected ? Qt.rgba(255, 255, 255, 0.12) : (navConnHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent")
+
+                                            RowLayout {
+                                                anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8; spacing: 6
+                                                Text { text: modelData.icon; color: navDelegate2.isSelected ? Config.accent : Config.textMuted; font.family: "Material Symbols Outlined"; font.pixelSize: 16 }
+                                                Text { text: modelData.name; color: navDelegate2.isSelected ? Config.accent : Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); font.bold: navDelegate2.isSelected; Layout.fillWidth: true; elide: Text.ElideRight }
+                                            }
+
+                                            TapHandler { 
+                                                onTapped: {
+                                                    settingsWindow.activeSection = modelData.id
+                                                    mascotSettingsView.showBrowser = false
+                                                } 
+                                            }
+                                            HoverHandler { id: navConnHover; cursorShape: Qt.PointingHandCursor }
+                                        }
+                                    }
+                                }
+
+                                // CATEGORY 3: WIDGETS
+                                Rectangle {
+                                    Layout.fillWidth: true; implicitHeight: 32; radius: Config.cornerRadius / 2
+                                    color: widgetsCatHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : "transparent"
+
+                                    RowLayout {
+                                        anchors.fill: parent; anchors.leftMargin: 6; anchors.rightMargin: 6; spacing: 4
+                                        Text { text: settingsWindow.widgetsExpanded ? "expand_more" : "chevron_right"; color: Config.textMuted; font.family: "Material Symbols Outlined"; font.pixelSize: 18 }
+                                        Text { text: "WIDGETS"; color: Config.textMuted; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); font.bold: true; Layout.fillWidth: true }
+                                    }
+
+                                    TapHandler { onTapped: settingsWindow.widgetsExpanded = !settingsWindow.widgetsExpanded }
+                                    HoverHandler { id: widgetsCatHover; cursorShape: Qt.PointingHandCursor }
+                                }
+
+                                ColumnLayout {
+                                    visible: settingsWindow.widgetsExpanded
+                                    Layout.fillWidth: true; Layout.leftMargin: 6; spacing: 3
+
+                                    Repeater {
+                                        model: [
+                                            { id: 8, name: "Mascot", icon: "smart_toy" },
+                                            { id: 9, name: "Keyboard", icon: "keyboard" }
+                                        ]
+
+                                        delegate: Rectangle {
+                                            id: navDelegate3
+                                            Layout.fillWidth: true; implicitHeight: 34; radius: Config.cornerRadius / 2
+                                            readonly property bool isSelected: settingsWindow.activeSection === modelData.id
+                                            color: navDelegate3.isSelected ? Qt.rgba(255, 255, 255, 0.12) : (navWidgetsHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent")
+
+                                            RowLayout {
+                                                anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8; spacing: 6
+                                                Text { text: modelData.icon; color: navDelegate3.isSelected ? Config.accent : Config.textMuted; font.family: "Material Symbols Outlined"; font.pixelSize: 16 }
+                                                Text { text: modelData.name; color: navDelegate3.isSelected ? Config.accent : Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); font.bold: navDelegate3.isSelected; Layout.fillWidth: true; elide: Text.ElideRight }
+                                            }
+
+                                            TapHandler { 
+                                                onTapped: {
+                                                    settingsWindow.activeSection = modelData.id
+                                                    mascotSettingsView.showBrowser = false
+                                                } 
+                                            }
+                                            HoverHandler { id: navWidgetsHover; cursorShape: Qt.PointingHandCursor }
+                                        }
+                                    }
+                                }
+
+                                // BOTTOM NAV ITEM: ABOUT
+                                Rectangle {
+                                    id: aboutBtn
+                                    Layout.fillWidth: true; implicitHeight: 34; radius: Config.cornerRadius / 2
+                                    Layout.topMargin: 6
+                                    readonly property bool isSelected: settingsWindow.activeSection === 10
+                                    color: aboutBtn.isSelected ? Qt.rgba(255, 255, 255, 0.12) : (aboutNavHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent")
+
+                                    RowLayout {
+                                        anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8; spacing: 6
+                                        Text { 
+                                            text: "info"
+                                            color: aboutBtn.isSelected ? Config.accent : Config.textMuted
+                                            font.family: "Material Symbols Outlined"
+                                            font.pixelSize: 16 
+                                        }
+                                        Text { 
+                                            text: "About"
+                                            color: aboutBtn.isSelected ? Config.accent : Config.textMain
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontCaption)
+                                            font.bold: aboutBtn.isSelected
+                                            Layout.fillWidth: true
+                                            elide: Text.ElideRight 
+                                        }
+                                    }
+
+                                    TapHandler {
+                                        onTapped: {
+                                            settingsWindow.activeSection = 10
+                                            mascotSettingsView.showBrowser = false
+                                        }
+                                    }
+                                    HoverHandler { id: aboutNavHover; cursorShape: Qt.PointingHandCursor }
+                                }
+                            }
+                        }
+                    }
+
+                    // RIGHT CONTENT CONTAINER
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        color: Qt.rgba(255, 255, 255, 0.03)
+                        radius: Config.cornerRadius
+                        clip: true
+
+                        Item {
+                            anchors.fill: parent
+                            anchors.margins: 16
+
+                            OrientationSettings { anchors.fill: parent; visible: settingsWindow.activeSection === 0 }
+                            AppearanceSettings  { anchors.fill: parent; visible: settingsWindow.activeSection === 1 }
+                            TypographySettings  { anchors.fill: parent; visible: settingsWindow.activeSection === 2 }
+                            WallpaperSettings   { anchors.fill: parent; visible: settingsWindow.activeSection === 3 }
+                            VpnSettings         { anchors.fill: parent; visible: settingsWindow.activeSection === 4 }
+                            WifiSettings        { anchors.fill: parent; visible: settingsWindow.activeSection === 5 }
+                            BluetoothSettings   { anchors.fill: parent; visible: settingsWindow.activeSection === 6 }
+
+                            // INLINE WEATHER SETTINGS SECTION
+                            ColumnLayout {
+                                anchors.fill: parent
+                                visible: settingsWindow.activeSection === 7
+                                spacing: 14
+
+                                Text {
+                                    text: "LOCATION & WEATHER"
+                                    color: Config.textMain
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontSubhead)
+                                    font.bold: true
+                                }
+
+                                Text {
+                                    text: "Specify a zipcode or city name to override IP-based geolocation for the weather widget. Leave blank to reset to automatic IP location."
+                                    color: Config.textMuted
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontCaption)
+                                    Layout.fillWidth: true
+                                    wrapMode: Text.WordWrap
+                                }
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    implicitHeight: 40
+                                    color: Qt.rgba(0, 0, 0, 0.2)
+                                    radius: Config.cornerRadius / 2
+
+                                    TextInput {
+                                        id: zipInput
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 12
+                                        anchors.rightMargin: 12
+                                        verticalAlignment: Text.AlignVCenter
+                                        color: Config.textMain
+                                        font.family: Config.sysFont
+                                        font.pixelSize: Config.size(Config.fontBody)
+                                        text: Config.locationQuery || ""
+                                        selectByMouse: true
+
+                                        HoverHandler {
+                                            cursorShape: Qt.IBeamCursor
+                                        }
+
+                                        Text {
+                                            anchors.fill: parent
+                                            verticalAlignment: Text.AlignVCenter
+                                            text: "e.g., 84040, London, or leave blank..."
+                                            color: Config.textMuted
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontBody)
+                                            visible: zipInput.text === ""
+                                        }
+
+                                        onEditingFinished: {
+                                            Config.locationQuery = zipInput.text.trim()
+                                        }
+                                    }
+                                }
+
+                                Item { Layout.fillHeight: true }
+                            }
+
+                            // MODULAR MASCOT SETTINGS SECTION
+                            MascotSettings {
+                                id: mascotSettingsView
+                                anchors.fill: parent
+                                visible: settingsWindow.activeSection === 8
+                            }
+
+                            // MODULAR ON-SCREEN KEYBOARD SETTINGS SECTION
+                            OskSettings {
+                                anchors.fill: parent
+                                visible: settingsWindow.activeSection === 9
+                            }
+
+                            // MATCHED ABOUT PAGE SECTION
+                            ColumnLayout {
+                                anchors.fill: parent
+                                visible: settingsWindow.activeSection === 10
+                                spacing: 14
+
+                                Text {
+                                    text: "TEST SHELL"
+                                    color: Config.textMain
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontTitle)
+                                    font.bold: true
+                                }
+
+                                Text {
+                                    text: "A modular, hardware-accelerated desktop environment shell built for Hyprland on Arch Linux using Quickshell & QML."
+                                    color: Config.textMuted
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontCaption)
+                                    Layout.fillWidth: true
+                                    wrapMode: Text.WordWrap
+                                }
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    implicitHeight: 48
+                                    radius: Config.cornerRadius / 2
+                                    color: gitHubHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2)
+                                    border.width: 1
+                                    border.color: gitHubHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+
+                                    Behavior on border.color { ColorAnimation { duration: 150 } }
+                                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 12
+                                        anchors.rightMargin: 12
+                                        spacing: 10
+
+                                        Text {
+                                            text: "code"
+                                            color: Config.accent
+                                            font.family: "Material Symbols Outlined"
+                                            font.pixelSize: 20
+                                        }
+
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 1
+
+                                            Text {
+                                                text: "GitHub Repository"
+                                                color: Config.textMain
+                                                font.family: Config.sysFont
+                                                font.pixelSize: Config.size(Config.fontBody)
+                                                font.bold: true
+                                            }
+
+                                            Text {
+                                                text: "github.com/natepayn3/Test"
+                                                color: Config.textMuted
+                                                font.family: Config.sysFont
+                                                font.pixelSize: Config.size(Config.fontCaption)
+                                                elide: Text.ElideRight
+                                            }
+                                        }
+
+                                        Text {
+                                            text: "open_in_new"
+                                            color: Config.textMuted
+                                            font.family: "Material Symbols Outlined"
+                                            font.pixelSize: 18
+                                        }
+                                    }
+
+                                    TapHandler {
+                                        onTapped: Quickshell.execDetached(["xdg-open", "https://github.com/natepayn3/Test"])
+                                    }
+                                    HoverHandler { id: gitHubHover; cursorShape: Qt.PointingHandCursor }
+                                }
+
+                                Item { Layout.fillHeight: true }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
