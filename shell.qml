@@ -417,4 +417,6 @@ ShellRoot {
     Component { id: batteryComp; Battery {} }
     Component { id: clipboardComp; Clipboard {} }
     Component { id: controlCenterComp; ControlCenter {} }
+
+    Settings { id: settings }
 }
