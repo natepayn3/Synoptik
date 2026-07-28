@@ -13,11 +13,14 @@ PanelWindow {
 
     property bool isOpen: false
     property real popoutXOffset: screen.width / 2.0
+    property real popoutYOffset: screen.height / 2.0
     property bool isCentered: false
 
     // Configured Bar Edge Position: "top" | "bottom" | "left" | "right"
     readonly property string barPosition: Config.barPosition || "top"
     readonly property bool isHorizontal: barPosition === "top" || barPosition === "bottom"
+    readonly property bool isBottom: barPosition === "bottom"
+    readonly property bool isRight: barPosition === "right"
 
     // Corner radius for main bar shell
     readonly property real barRadius: Config.cornerRadius || 12
@@ -48,6 +51,7 @@ PanelWindow {
     readonly property real wingW: 16 * animScale
     readonly property real wingH: 16 * animScale
     readonly property real radius: 18 * animScale
+    readonly property real currentWidth: targetWidth * animScale
     readonly property real currentHeight: targetHeight * animScale
     readonly property real borderWidth: 3
     readonly property real halfB: borderWidth / 2.0
@@ -70,6 +74,7 @@ PanelWindow {
     readonly property real barH: Config.barHeight || 46
     readonly property real barBottomY: barH - halfB
 
+    // Static window dimensions
     implicitHeight: isHorizontal ? Math.max(barH, targetHeight + barH + 32) : screen.height
     implicitWidth: isHorizontal ? screen.width : Math.max(barH, targetWidth + barH + 32)
     color: "transparent"
@@ -99,32 +104,33 @@ PanelWindow {
 
     // Outer edge boundaries
     readonly property real minPossibleLeft: root.halfB
-    readonly property real maxPossibleRight: root.width - root.halfB
+    readonly property real maxPossibleRight: (isHorizontal ? root.width : root.height) - root.halfB
 
     // Centered vs Edge Docking Logic
-    readonly property bool isLeftFlush: !isCentered && (popoutXOffset < (root.width * 0.35))
-    readonly property bool isRightFlush: !isCentered && (popoutXOffset > (root.width * 0.65))
+    readonly property bool isLeftFlush: !isCentered && ((isHorizontal ? popoutXOffset : popoutYOffset) < ((isHorizontal ? root.width : root.height) * 0.35))
+    readonly property bool isRightFlush: !isCentered && ((isHorizontal ? popoutXOffset : popoutYOffset) > ((isHorizontal ? root.width : root.height) * 0.65))
 
-    readonly property real targetCenteredLeft: Math.max(minPossibleLeft + 16, Math.min(maxPossibleRight - targetWidth - 16, (root.width - targetWidth) / 2.0))
+    readonly property real targetCenteredLeft: Math.max(minPossibleLeft + 16, Math.min(maxPossibleRight - (isHorizontal ? targetWidth : targetHeight) - 16, ((isHorizontal ? root.width : root.height) - (isHorizontal ? targetWidth : targetHeight)) / 2.0))
 
     readonly property real staticLeft: {
+        let span = isHorizontal ? targetWidth : targetHeight
+        let offset = isHorizontal ? popoutXOffset : popoutYOffset
         if (isCentered) return targetCenteredLeft
         if (isLeftFlush) return minPossibleLeft
-        if (isRightFlush) return maxPossibleRight - targetWidth
-        return Math.max(minPossibleLeft + 16, Math.min(maxPossibleRight - targetWidth - 16, popoutXOffset - (targetWidth / 2.0)))
+        if (isRightFlush) return maxPossibleRight - span
+        return Math.max(minPossibleLeft + 16, Math.min(maxPossibleRight - span - 16, offset - (span / 2.0)))
     }
 
-    readonly property real staticRight: staticLeft + targetWidth
+    readonly property real staticRight: staticLeft + (isHorizontal ? targetWidth : targetHeight)
 
     readonly property real pLeft: staticLeft
     readonly property real pRight: staticRight
 
-    // Active View State Machine: ensures only one panel type is ever active
+    // Active View State Machine
     property string activeView: "none"
 
     function updateActiveView() {
         if (Config.showWorkspacePreview) activeView = "workspacePreview"
-        else if (Config.showSettings) activeView = "settings"
         else if (Config.showPower) activeView = "power"
         else if (Config.showWallpaper) activeView = "wallpaper"
         else if (Config.showAppLauncher) activeView = "appLauncher"
@@ -141,6 +147,15 @@ PanelWindow {
         root.isOpen = (activeView !== "none")
     }
 
+    function setPopoutPos(item) {
+        root.isCentered = false
+        if (isHorizontal) {
+            root.popoutXOffset = item.mapToItem(mainContainer, item.width / 2, 0).x
+        } else {
+            root.popoutYOffset = item.mapToItem(mainContainer, 0, item.height / 2).y
+        }
+    }
+
     Connections {
         target: Config
         ignoreUnknownSignals: true
@@ -150,125 +165,28 @@ PanelWindow {
                 closeOthers("workspacePreview")
                 root.isCentered = true
                 root.popoutXOffset = root.width / 2.0
+                root.popoutYOffset = root.height / 2.0
             } else if (activeView === "workspacePreview") {
                 root.isCentered = false
             }
             updateActiveView()
         }
 
-        function onShowAppLauncherChanged() {
-            if (Config.showAppLauncher) {
-                closeOthers("appLauncher")
-                root.isCentered = false
-                // Anchor to the launcher button even when triggered via IPC
-                root.popoutXOffset = btnLauncher.mapToItem(mainContainer, btnLauncher.width / 2, 0).x
-            }
-            updateActiveView()
-        }
-
-        function onShowSettingsChanged() {
-            if (Config.showSettings) {
-                closeOthers("settings")
-                root.isCentered = false
-                root.popoutXOffset = btnSettings.mapToItem(mainContainer, btnSettings.width / 2, 0).x
-            }
-            updateActiveView()
-        }
-
-        function onShowPowerChanged() {
-            if (Config.showPower) {
-                closeOthers("power")
-                root.isCentered = false
-                root.popoutXOffset = btnPower.mapToItem(mainContainer, btnPower.width / 2, 0).x
-            }
-            updateActiveView()
-        }
-
-        function onShowWallpaperChanged() {
-            if (Config.showWallpaper) {
-                closeOthers("wallpaper")
-                root.isCentered = false
-                root.popoutXOffset = btnWallpaper.mapToItem(mainContainer, btnWallpaper.width / 2, 0).x
-            }
-            updateActiveView()
-        }
-
-        function onShowCalendarChanged() {
-            if (Config.showCalendar) {
-                closeOthers("calendar")
-                root.isCentered = false
-                root.popoutXOffset = btnClock.mapToItem(mainContainer, btnClock.width / 2, 0).x
-            }
-            updateActiveView()
-        }
-
-        function onShowNotificationsChanged() {
-            if (Config.showNotifications) {
-                closeOthers("notifications")
-                root.isCentered = false
-                root.popoutXOffset = btnNotifications.mapToItem(mainContainer, btnNotifications.width / 2, 0).x
-            }
-            updateActiveView()
-        }
-
-        function onShowAudioChanged() {
-            if (Config.showAudio) {
-                closeOthers("audio")
-                root.isCentered = false
-                root.popoutXOffset = btnAudio.mapToItem(mainContainer, btnAudio.width / 2, 0).x
-            }
-            updateActiveView()
-        }
-
-        function onShowNetworkChanged() {
-            if (Config.showNetwork) {
-                closeOthers("network")
-                root.isCentered = false
-                root.popoutXOffset = btnNetwork.mapToItem(mainContainer, btnNetwork.width / 2, 0).x
-            }
-            updateActiveView()
-        }
-
-        function onShowSystemMonitorChanged() {
-            if (Config.showSystemMonitor) {
-                closeOthers("systemMonitor")
-                root.isCentered = false
-                root.popoutXOffset = btnSys.mapToItem(mainContainer, btnSys.width / 2, 0).x
-            }
-            updateActiveView()
-        }
-
-        function onShowBatteryChanged() {
-            if (Config.showBattery) {
-                closeOthers("battery")
-                root.isCentered = false
-                root.popoutXOffset = btnBatt.mapToItem(mainContainer, btnBatt.width / 2, 0).x
-            }
-            updateActiveView()
-        }
-
-        function onShowClipboardChanged() {
-            if (Config.showClipboard) {
-                closeOthers("clipboard")
-                root.isCentered = false
-                root.popoutXOffset = btnClipboard.mapToItem(mainContainer, btnClipboard.width / 2, 0).x
-            }
-            updateActiveView()
-        }
-
-        function onShowControlCenterChanged() {
-            if (Config.showControlCenter) {
-                closeOthers("controlCenter")
-                root.isCentered = false
-                root.popoutXOffset = btnCC.mapToItem(mainContainer, btnCC.width / 2, 0).x
-            }
-            updateActiveView()
-        }
+        function onShowAppLauncherChanged() { if (Config.showAppLauncher) { closeOthers("appLauncher"); setPopoutPos(btnLauncher); } updateActiveView() }
+        function onShowPowerChanged() { if (Config.showPower) { closeOthers("power"); setPopoutPos(btnPower); } updateActiveView() }
+        function onShowWallpaperChanged() { if (Config.showWallpaper) { closeOthers("wallpaper"); setPopoutPos(btnWallpaper); } updateActiveView() }
+        function onShowCalendarChanged() { if (Config.showCalendar) { closeOthers("calendar"); setPopoutPos(btnClock); } updateActiveView() }
+        function onShowNotificationsChanged() { if (Config.showNotifications) { closeOthers("notifications"); setPopoutPos(btnNotifications); } updateActiveView() }
+        function onShowAudioChanged() { if (Config.showAudio) { closeOthers("audio"); setPopoutPos(btnAudio); } updateActiveView() }
+        function onShowNetworkChanged() { if (Config.showNetwork) { closeOthers("network"); setPopoutPos(btnNetwork); } updateActiveView() }
+        function onShowSystemMonitorChanged() { if (Config.showSystemMonitor) { closeOthers("systemMonitor"); setPopoutPos(btnSys); } updateActiveView() }
+        function onShowBatteryChanged() { if (Config.showBattery) { closeOthers("battery"); setPopoutPos(btnBatt); } updateActiveView() }
+        function onShowClipboardChanged() { if (Config.showClipboard) { closeOthers("clipboard"); setPopoutPos(btnClipboard); } updateActiveView() }
+        function onShowControlCenterChanged() { if (Config.showControlCenter) { closeOthers("controlCenter"); setPopoutPos(btnCC); } updateActiveView() }
     }
 
     function closeOthers(except) {
         if (except !== "workspacePreview") Config.showWorkspacePreview = false
-        if (except !== "settings") Config.showSettings = false
         if (except !== "power") Config.showPower = false
         if (except !== "wallpaper") Config.showWallpaper = false
         if (except !== "appLauncher") Config.showAppLauncher = false
@@ -302,19 +220,11 @@ PanelWindow {
         transitions: [
             Transition {
                 from: "closed"; to: "open"
-                NumberAnimation {
-                    property: "progress"
-                    duration: 300
-                    easing.type: Easing.OutCubic
-                }
+                NumberAnimation { property: "progress"; duration: 300; easing.type: Easing.OutCubic }
             },
             Transition {
                 from: "open"; to: "closed"
-                NumberAnimation {
-                    property: "progress"
-                    duration: 220
-                    easing.type: Easing.InQuad
-                }
+                NumberAnimation { property: "progress"; duration: 220; easing.type: Easing.InQuad }
             }
         ]
 
@@ -323,11 +233,17 @@ PanelWindow {
 
             // 1. CLOSED STATE
             Shape {
+                id: closedShape
                 anchors.fill: parent
                 visible: root.progress === 0
                 layer.enabled: true
                 layer.samples: 4
 
+                readonly property real bX: root.isRight ? (root.width - root.barH + root.halfB) : root.halfB
+                readonly property real bY: root.isBottom ? (root.height - root.barH + root.halfB) : root.halfB
+                readonly property real bW: root.isHorizontal ? (root.width - root.halfB) : (root.isRight ? (root.width - root.halfB) : (root.barH - root.halfB))
+                readonly property real bH: root.isHorizontal ? (root.isBottom ? (root.height - root.halfB) : (root.barH - root.halfB)) : (root.height - root.halfB)
+
                 ShapePath {
                     fillColor: Config.bgPanel
                     strokeWidth: root.borderWidth
@@ -335,44 +251,28 @@ PanelWindow {
                     joinStyle: ShapePath.RoundJoin
                     capStyle: ShapePath.RoundCap
 
-                    startX: root.halfB + root.barRadius
-                    startY: root.halfB
+                    startX: closedShape.bX + root.barRadius
+                    startY: closedShape.bY
 
-                    PathLine { x: root.width - root.halfB - root.barRadius; y: root.halfB }
-                    PathArc {
-                        x: root.width - root.halfB; y: root.halfB + root.barRadius
-                        radiusX: root.barRadius; radiusY: root.barRadius
-                        direction: PathArc.Clockwise
-                    }
+                    PathLine { x: closedShape.bW - root.barRadius; y: closedShape.bY }
+                    PathArc { x: closedShape.bW; y: closedShape.bY + root.barRadius; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
 
-                    PathLine { x: root.width - root.halfB; y: root.barBottomY - root.barRadius }
-                    PathArc {
-                        x: root.width - root.halfB - root.barRadius; y: root.barBottomY
-                        radiusX: root.barRadius; radiusY: root.barRadius
-                        direction: PathArc.Clockwise
-                    }
+                    PathLine { x: closedShape.bW; y: closedShape.bH - root.barRadius }
+                    PathArc { x: closedShape.bW - root.barRadius; y: closedShape.bH; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
 
-                    PathLine { x: root.halfB + root.barRadius; y: root.barBottomY }
-                    PathArc {
-                        x: root.halfB; y: root.barBottomY - root.barRadius
-                        radiusX: root.barRadius; radiusY: root.barRadius
-                        direction: PathArc.Clockwise
-                    }
+                    PathLine { x: closedShape.bX + root.barRadius; y: closedShape.bH }
+                    PathArc { x: closedShape.bX; y: closedShape.bH - root.barRadius; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
 
-                    PathLine { x: root.halfB; y: root.halfB + root.barRadius }
-                    PathArc {
-                        x: root.halfB + root.barRadius; y: root.halfB
-                        radiusX: root.barRadius; radiusY: root.barRadius
-                        direction: PathArc.Clockwise
-                    }
+                    PathLine { x: closedShape.bX; y: closedShape.bY + root.barRadius }
+                    PathArc { x: closedShape.bX + root.barRadius; y: closedShape.bY; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
                 }
             }
 
-            // 2. OPEN / ANIMATING STATE
+            // 2. OPEN STATE - TOP POSITION
             Shape {
-                id: openShape
+                id: openShapeTop
                 anchors.fill: parent
-                visible: root.progress > 0
+                visible: root.barPosition === "top" && root.progress > 0
                 layer.enabled: true
                 layer.samples: 4
 
@@ -386,15 +286,9 @@ PanelWindow {
                     startX: root.halfB + root.barRadius
                     startY: root.halfB
 
-                    // Top Edge -> Top-Right Arc
                     PathLine { x: root.width - root.halfB - root.barRadius; y: root.halfB }
-                    PathArc {
-                        x: root.width - root.halfB; y: root.halfB + root.barRadius
-                        radiusX: root.barRadius; radiusY: root.barRadius
-                        direction: PathArc.Clockwise
-                    }
+                    PathArc { x: root.width - root.halfB; y: root.halfB + root.barRadius; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
 
-                    // Right Bar Edge & Bottom-Right Arc
                     PathLine { 
                         x: root.width - root.halfB
                         y: root.isRightFlush ? (root.barBottomY + root.wingH + root.currentHeight - root.radius) : (root.barBottomY - root.barRadius)
@@ -408,7 +302,6 @@ PanelWindow {
                         direction: PathArc.Clockwise
                     }
 
-                    // Right Wing
                     PathLine {
                         x: root.isRightFlush ? (root.width - root.halfB) : (root.pRight + root.wingW)
                         y: root.isRightFlush ? (root.barBottomY + root.wingH + root.currentHeight - root.radius) : root.barBottomY
@@ -423,7 +316,6 @@ PanelWindow {
                         control2Y: root.isRightFlush ? (root.barBottomY + root.wingH + root.currentHeight - root.radius) : (root.barBottomY + (root.wingH * 0.5))
                     }
 
-                    // Drawer Right Wall & Bottom-Right Arc
                     PathLine { 
                         x: root.isRightFlush ? (root.width - root.halfB) : root.pRight
                         y: root.barBottomY + root.wingH + root.currentHeight - root.radius 
@@ -437,7 +329,6 @@ PanelWindow {
                         direction: PathArc.Clockwise
                     }
 
-                    // Drawer Bottom Wall & Bottom-Left Arc
                     PathLine { 
                         x: root.isLeftFlush ? (root.halfB + root.radius) : (root.pLeft + root.radius)
                         y: root.barBottomY + root.wingH + root.currentHeight 
@@ -451,7 +342,6 @@ PanelWindow {
                         direction: PathArc.Clockwise
                     }
 
-                    // Left Wing
                     PathLine { 
                         x: root.isLeftFlush ? root.halfB : root.pLeft
                         y: root.isLeftFlush ? (root.halfB + root.barRadius) : (root.barBottomY + root.wingH)
@@ -466,7 +356,6 @@ PanelWindow {
                         control2Y: root.isLeftFlush ? root.barBottomY : root.barBottomY
                     }
 
-                    // Bar Bottom Left Line & Arc
                     PathLine { 
                         x: root.isLeftFlush ? root.halfB : (root.halfB + root.barRadius)
                         y: root.isLeftFlush ? (root.halfB + root.barRadius) : root.barBottomY 
@@ -480,7 +369,6 @@ PanelWindow {
                         direction: PathArc.Clockwise
                     }
 
-                    // Left Wall -> Top-Left Arc
                     PathLine { x: root.halfB; y: root.halfB + root.barRadius }
                     PathArc {
                         x: root.halfB + root.barRadius; y: root.halfB
@@ -489,27 +377,258 @@ PanelWindow {
                     }
                 }
             }
+
+            // 3. OPEN STATE - BOTTOM POSITION
+            Shape {
+                id: openShapeBottom
+                anchors.fill: parent
+                visible: root.barPosition === "bottom" && root.progress > 0
+                layer.enabled: true
+                layer.samples: 4
+
+                readonly property real bY: root.height - root.barH
+
+                ShapePath {
+                    fillColor: Config.bgPanel
+                    strokeWidth: root.borderWidth
+                    strokeColor: shellRoot.currentBorderColor
+                    joinStyle: ShapePath.RoundJoin
+                    capStyle: ShapePath.RoundCap
+
+                    startX: root.halfB; startY: openShapeBottom.bY + root.barRadius
+
+                    PathArc { x: root.halfB + root.barRadius; y: openShapeBottom.bY + root.halfB; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
+                    PathLine { x: root.pLeft - root.wingW; y: openShapeBottom.bY + root.halfB }
+
+                    PathCubic {
+                        x: root.pLeft; y: openShapeBottom.bY + root.halfB - root.wingH
+                        control1X: root.pLeft - (root.wingW * 0.5); control1Y: openShapeBottom.bY + root.halfB
+                        control2X: root.pLeft; control2Y: openShapeBottom.bY + root.halfB - (root.wingH * 0.5)
+                    }
+
+                    PathLine { x: root.pLeft; y: openShapeBottom.bY + root.halfB - root.wingH - root.currentHeight + root.radius }
+                    PathArc { x: root.pLeft + root.radius; y: openShapeBottom.bY + root.halfB - root.wingH - root.currentHeight; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
+
+                    PathLine { x: root.pRight - root.radius; y: openShapeBottom.bY + root.halfB - root.wingH - root.currentHeight }
+                    PathArc { x: root.pRight; y: openShapeBottom.bY + root.halfB - root.wingH - root.currentHeight + root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
+
+                    PathLine { x: root.pRight; y: openShapeBottom.bY + root.halfB - root.wingH }
+                    PathCubic {
+                        x: root.pRight + root.wingW; y: openShapeBottom.bY + root.halfB
+                        control1X: root.pRight; control1Y: openShapeBottom.bY + root.halfB - (root.wingH * 0.5)
+                        control2X: root.pRight + (root.wingW * 0.5); control2Y: openShapeBottom.bY + root.halfB
+                    }
+
+                    PathLine { x: root.width - root.halfB - root.barRadius; y: openShapeBottom.bY + root.halfB }
+                    PathArc { x: root.width - root.halfB; y: openShapeBottom.bY + root.halfB + root.barRadius; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
+
+                    PathLine { x: root.width - root.halfB; y: root.height - root.halfB - root.barRadius }
+                    PathArc { x: root.width - root.halfB - root.barRadius; y: root.height - root.halfB; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
+
+                    PathLine { x: root.halfB + root.barRadius; y: root.height - root.halfB }
+                    PathArc { x: root.halfB; y: root.height - root.halfB - root.barRadius; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
+
+                    PathLine { x: root.halfB; y: openShapeBottom.bY + root.barRadius }
+                }
+            }
+
+            // 4. OPEN STATE - LEFT POSITION
+            Shape {
+                id: openShapeLeft
+                anchors.fill: parent
+                visible: root.barPosition === "left" && root.progress > 0
+                layer.enabled: true
+                layer.samples: 4
+
+                ShapePath {
+                    fillColor: Config.bgPanel
+                    strokeWidth: root.borderWidth
+                    strokeColor: shellRoot.currentBorderColor
+                    joinStyle: ShapePath.RoundJoin
+                    capStyle: ShapePath.RoundCap
+
+                    startX: root.halfB + root.barRadius
+                    startY: root.halfB
+
+                    PathLine { 
+                        x: root.isLeftFlush ? (root.barH - root.halfB) : (root.barH - root.halfB - root.barRadius)
+                        y: root.halfB 
+                    }
+
+                    PathArc { 
+                        x: root.barH - root.halfB
+                        y: root.isLeftFlush ? root.halfB : (root.halfB + root.barRadius)
+                        radiusX: root.isLeftFlush ? 0 : root.barRadius
+                        radiusY: root.isLeftFlush ? 0 : root.barRadius
+                        direction: PathArc.Clockwise 
+                    }
+
+                    PathLine { 
+                        x: root.barH - root.halfB
+                        y: root.isLeftFlush ? root.pLeft : (root.pLeft - root.wingW) 
+                    }
+
+                    PathCubic {
+                        x: root.barH - root.halfB + root.wingW
+                        y: root.pLeft
+                        control1X: root.barH - root.halfB
+                        control1Y: root.isLeftFlush ? root.pLeft : (root.pLeft - (root.wingW * 0.5))
+                        control2X: root.barH - root.halfB + (root.wingW * 0.5)
+                        control2Y: root.pLeft
+                    }
+
+                    PathLine { x: root.barH - root.halfB + root.wingW + root.currentWidth - root.radius; y: root.pLeft }
+                    PathArc { x: root.barH - root.halfB + root.wingW + root.currentWidth; y: root.pLeft + root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
+
+                    PathLine { x: root.barH - root.halfB + root.wingW + root.currentWidth; y: root.pRight - root.radius }
+                    PathArc { x: root.barH - root.halfB + root.wingW + root.currentWidth - root.radius; y: root.pRight; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
+
+                    PathLine { x: root.barH - root.halfB + root.wingW; y: root.pRight }
+                    PathCubic {
+                        x: root.barH - root.halfB
+                        y: root.isRightFlush ? root.pRight : (root.pRight + root.wingW)
+                        control1X: root.barH - root.halfB + (root.wingW * 0.5)
+                        control1Y: root.pRight
+                        control2X: root.barH - root.halfB
+                        control2Y: root.isRightFlush ? root.pRight : (root.pRight + (root.wingW * 0.5))
+                    }
+
+                    PathLine { 
+                        x: root.barH - root.halfB
+                        y: root.isRightFlush ? (root.height - root.halfB) : (root.height - root.halfB - root.barRadius)
+                    }
+
+                    PathArc { 
+                        x: root.barH - root.halfB - (root.isRightFlush ? 0 : root.barRadius)
+                        y: root.height - root.halfB
+                        radiusX: root.isRightFlush ? 0 : root.barRadius
+                        radiusY: root.isRightFlush ? 0 : root.barRadius
+                        direction: PathArc.Clockwise 
+                    }
+
+                    PathLine { x: root.halfB + root.barRadius; y: root.height - root.halfB }
+                    PathArc { 
+                        x: root.halfB
+                        y: root.height - root.halfB - root.barRadius
+                        radiusX: root.barRadius
+                        radiusY: root.barRadius
+                        direction: PathArc.Clockwise 
+                    }
+
+                    PathLine { x: root.halfB; y: root.halfB + root.barRadius }
+                    PathArc { 
+                        x: root.halfB + root.barRadius
+                        y: root.halfB
+                        radiusX: root.barRadius
+                        radiusY: root.barRadius
+                        direction: PathArc.Clockwise 
+                    }
+                }
+            }
+
+            // 5. OPEN STATE - RIGHT POSITION
+            Shape {
+                id: openShapeRight
+                anchors.fill: parent
+                visible: root.barPosition === "right" && root.progress > 0
+                layer.enabled: true
+                layer.samples: 4
+
+                readonly property real rX: root.width - root.barH
+
+                ShapePath {
+                    fillColor: Config.bgPanel
+                    strokeWidth: root.borderWidth
+                    strokeColor: shellRoot.currentBorderColor
+                    joinStyle: ShapePath.RoundJoin
+                    capStyle: ShapePath.RoundCap
+
+                    startX: openShapeRight.rX + root.halfB + root.barRadius; startY: root.halfB
+
+                    PathLine { x: root.width - root.halfB - root.barRadius; y: root.halfB }
+                    PathArc { x: root.width - root.halfB; y: root.halfB + root.barRadius; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
+
+                    PathLine { x: root.width - root.halfB; y: root.height - root.halfB - root.barRadius }
+                    PathArc { x: root.width - root.halfB - root.barRadius; y: root.height - root.halfB; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
+
+                    PathLine { x: openShapeRight.rX + root.halfB + root.barRadius; y: root.height - root.halfB }
+                    PathArc { x: openShapeRight.rX + root.halfB; y: root.height - root.halfB - root.barRadius; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
+
+                    PathLine { x: openShapeRight.rX + root.halfB; y: Math.min(root.height - root.halfB - root.barRadius, root.pRight + root.wingW) }
+                    PathCubic {
+                        x: openShapeRight.rX + root.halfB - root.wingW; y: root.pRight
+                        control1X: openShapeRight.rX + root.halfB; control1Y: root.pRight + (root.wingW * 0.5)
+                        control2X: openShapeRight.rX + root.halfB - (root.wingW * 0.5); control2Y: root.pRight
+                    }
+
+                    PathLine { x: openShapeRight.rX + root.halfB - root.wingW - root.currentWidth + root.radius; y: root.pRight }
+                    PathArc { x: openShapeRight.rX + root.halfB - root.wingW - root.currentWidth; y: root.pRight - root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
+
+                    PathLine { x: openShapeRight.rX + root.halfB - root.wingW - root.currentWidth; y: root.pLeft + root.radius }
+                    PathArc { x: openShapeRight.rX + root.halfB - root.wingW - root.currentWidth + root.radius; y: root.pLeft; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
+
+                    PathLine { x: openShapeRight.rX + root.halfB - root.wingW; y: root.pLeft }
+                    PathCubic {
+                        x: openShapeRight.rX + root.halfB; y: Math.max(root.halfB + root.barRadius, root.pLeft - root.wingW)
+                        control1X: openShapeRight.rX + root.halfB - (root.wingW * 0.5); control1Y: root.pLeft
+                        control2X: openShapeRight.rX + root.halfB; control2Y: root.pLeft - (root.wingW * 0.5)
+                    }
+
+                    PathLine { x: openShapeRight.rX + root.halfB; y: root.halfB + root.barRadius }
+                    PathArc { x: openShapeRight.rX + root.halfB + root.barRadius; y: root.halfB; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
+                }
+            }
         }
 
-        // TOP BAR CONTROLS
+        // BAR CONTROLS
         Item {
             id: barContent
-            anchors {
-                top: parent.top
-                left: parent.left
-                right: parent.right
-            }
-            height: root.barH
+            x: root.isRight ? (root.width - root.barH + root.halfB) : root.halfB
+            // FIX: Removed the rogue "- 2" offset pushing the bottom bounds out of sync
+            y: root.isBottom ? (root.height - root.barH + root.halfB) : root.halfB
+            
+            // FIX: Consistently subtract the border width on the cross-axis
+            width: root.isHorizontal ? (root.width - root.borderWidth) : (root.barH - root.borderWidth)
+            height: root.isHorizontal ? (root.barH - root.borderWidth) : (root.height - root.borderWidth)
 
-            // Left Side Actions
-            RowLayout {
+            // Left / Top Actions
+            GridLayout {
                 id: leftModules
-                anchors {
-                    left: parent.left
-                    verticalCenter: parent.verticalCenter
-                    leftMargin: 10
-                }
-                spacing: 8
+                
+                // DELETED: All inline anchors (left, top, horizontalCenter, verticalCenter)
+                
+                anchors.leftMargin: root.isHorizontal ? 10 : 0
+                anchors.topMargin: !root.isHorizontal ? 10 : 0
+                columns: root.isHorizontal ? 99 : 1
+                rows: root.isHorizontal ? 1 : 99
+                columnSpacing: 8
+                rowSpacing: 8
+
+                // Natively swap constraints without ghosting
+                states: [
+                    State {
+                        name: "horizontal"
+                        when: root.isHorizontal
+                        AnchorChanges {
+                            target: leftModules
+                            anchors.left: leftModules.parent.left
+                            anchors.verticalCenter: leftModules.parent.verticalCenter
+                            anchors.top: undefined
+                            anchors.horizontalCenter: undefined
+                        }
+                    },
+                    State {
+                        name: "vertical"
+                        when: !root.isHorizontal
+                        AnchorChanges {
+                            target: leftModules
+                            anchors.top: leftModules.parent.top
+                            anchors.horizontalCenter: leftModules.parent.horizontalCenter
+                            anchors.left: undefined
+                            anchors.verticalCenter: undefined
+                        }
+                    }
+                ]
 
                 Rectangle {
                     id: btnSettings
@@ -524,13 +643,7 @@ PanelWindow {
                         font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
                     }
 
-                    TapHandler {
-                        onTapped: {
-                            root.isCentered = false
-                            root.popoutXOffset = btnSettings.mapToItem(mainContainer, btnSettings.width / 2, 0).x
-                            Config.showSettings = !Config.showSettings
-                        }
-                    }
+                    TapHandler { onTapped: { setPopoutPos(btnSettings); Config.showSettings = !Config.showSettings; } }
                     HoverHandler { id: settingsHover; cursorShape: Qt.PointingHandCursor }
                 }
 
@@ -547,13 +660,7 @@ PanelWindow {
                         font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
                     }
 
-                    TapHandler {
-                        onTapped: {
-                            root.isCentered = false
-                            root.popoutXOffset = btnPower.mapToItem(mainContainer, btnPower.width / 2, 0).x
-                            Config.showPower = !Config.showPower
-                        }
-                    }
+                    TapHandler { onTapped: { setPopoutPos(btnPower); Config.showPower = !Config.showPower; } }
                     HoverHandler { id: powerHover; cursorShape: Qt.PointingHandCursor }
                 }
 
@@ -570,13 +677,7 @@ PanelWindow {
                         font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
                     }
 
-                    TapHandler {
-                        onTapped: {
-                            root.isCentered = false
-                            root.popoutXOffset = btnWallpaper.mapToItem(mainContainer, btnWallpaper.width / 2, 0).x
-                            Config.showWallpaper = !Config.showWallpaper
-                        }
-                    }
+                    TapHandler { onTapped: { setPopoutPos(btnWallpaper); Config.showWallpaper = !Config.showWallpaper; } }
                     HoverHandler { id: wallpaperHover; cursorShape: Qt.PointingHandCursor }
                 }
 
@@ -593,13 +694,7 @@ PanelWindow {
                         font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
                     }
 
-                    TapHandler {
-                        onTapped: {
-                            root.isCentered = false
-                            root.popoutXOffset = btnLauncher.mapToItem(mainContainer, btnLauncher.width / 2, 0).x
-                            Config.showAppLauncher = !Config.showAppLauncher
-                        }
-                    }
+                    TapHandler { onTapped: { setPopoutPos(btnLauncher); Config.showAppLauncher = !Config.showAppLauncher; } }
                     HoverHandler { id: launcherHover; cursorShape: Qt.PointingHandCursor }
                 }
 
@@ -615,11 +710,7 @@ PanelWindow {
                         font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
                     }
 
-                    TapHandler {
-                        onTapped: {
-                            Quickshell.execDetached(["fish", "-c", "sleep 0.1; and grim -g (slurp) -t ppm - | satty --filename -"])
-                        }
-                    }
+                    TapHandler { onTapped: Quickshell.execDetached(["fish", "-c", "sleep 0.1; and grim -g (slurp) -t ppm - | satty --filename -"]) }
                     HoverHandler { id: screenshotHover; cursorShape: Qt.PointingHandCursor }
                 }
 
@@ -636,13 +727,7 @@ PanelWindow {
                         font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
                     }
 
-                    TapHandler {
-                        onTapped: {
-                            root.isCentered = false
-                            root.popoutXOffset = btnClipboard.mapToItem(mainContainer, btnClipboard.width / 2, 0).x
-                            Config.showClipboard = !Config.showClipboard
-                        }
-                    }
+                    TapHandler { onTapped: { setPopoutPos(btnClipboard); Config.showClipboard = !Config.showClipboard; } }
                     HoverHandler { id: clipHover; cursorShape: Qt.PointingHandCursor }
                 }
             }
@@ -650,24 +735,27 @@ PanelWindow {
             // Center Workspace Indicators & Taskbar
             Rectangle {
                 anchors.centerIn: parent
-                implicitHeight: 32
-                implicitWidth: centerGroup.implicitWidth + 24
+                implicitHeight: isHorizontal ? 32 : centerGroup.implicitHeight + 16
+                implicitWidth: isHorizontal ? centerGroup.implicitWidth + 24 : 32
                 radius: Config.cornerRadius / 2
                 color: Qt.rgba(255, 255, 255, 0.05)
 
-                RowLayout {
+                GridLayout {
                     id: centerGroup
                     anchors.centerIn: parent
-                    spacing: 16
+                    columns: isHorizontal ? -1 : 1
+                    rows: isHorizontal ? 1 : -1
+                    columnSpacing: 16
+                    rowSpacing: 16
 
                     WorkspaceIndicators {
-                        isVertical: false
-                        Layout.alignment: Qt.AlignVCenter
+                        isVertical: !root.isHorizontal
+                        Layout.alignment: Qt.AlignCenter
                     }
 
                     Item {
                         id: taskbarContainerH
-                        Layout.alignment: Qt.AlignVCenter
+                        Layout.alignment: Qt.AlignCenter
                         implicitWidth: horizTaskbarLoader.item ? horizTaskbarLoader.item.implicitWidth : 0
                         implicitHeight: horizTaskbarLoader.item ? horizTaskbarLoader.item.implicitHeight : 0
 
@@ -685,7 +773,7 @@ PanelWindow {
                             anchors.fill: parent
 
                             sourceComponent: Taskbar {
-                                isVertical: false
+                                isVertical: !root.isHorizontal
                                 activeScreenName: root.screen ? root.screen.name : ""
                             }
                         }
@@ -693,14 +781,43 @@ PanelWindow {
                 }
             }
 
-            // Right Status Indicators & Clock
-            RowLayout {
-                anchors {
-                    right: parent.right
-                    verticalCenter: parent.verticalCenter
-                    rightMargin: 10
-                }
-                spacing: 8
+            // Right / Bottom Status Indicators & Clock
+            GridLayout {
+                id: rightModules
+                
+                // Keep dynamic margins and flow rules
+                anchors.rightMargin: root.isHorizontal ? 10 : 0
+                anchors.bottomMargin: !root.isHorizontal ? 10 : 0
+                columns: root.isHorizontal ? 99 : 1
+                rows: root.isHorizontal ? 1 : 99
+                columnSpacing: 8
+                rowSpacing: 8
+
+                // Natively swap anchors without ghosting constraints
+                states: [
+                    State {
+                        name: "horizontal"
+                        when: root.isHorizontal
+                        AnchorChanges {
+                            target: rightModules
+                            anchors.right: rightModules.parent.right
+                            anchors.verticalCenter: rightModules.parent.verticalCenter
+                            anchors.bottom: undefined
+                            anchors.horizontalCenter: undefined
+                        }
+                    },
+                    State {
+                        name: "vertical"
+                        when: !root.isHorizontal
+                        AnchorChanges {
+                            target: rightModules
+                            anchors.right: undefined
+                            anchors.verticalCenter: undefined
+                            anchors.bottom: rightModules.parent.bottom
+                            anchors.horizontalCenter: rightModules.parent.horizontalCenter
+                        }
+                    }
+                ]
 
                 Rectangle {
                     id: btnAudio
@@ -715,13 +832,7 @@ PanelWindow {
                         font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
                     }
 
-                    TapHandler {
-                        onTapped: {
-                            root.isCentered = false
-                            root.popoutXOffset = btnAudio.mapToItem(mainContainer, btnAudio.width / 2, 0).x
-                            Config.showAudio = !Config.showAudio
-                        }
-                    }
+                    TapHandler { onTapped: { setPopoutPos(btnAudio); Config.showAudio = !Config.showAudio; } }
                     HoverHandler { id: audioHover; cursorShape: Qt.PointingHandCursor }
                 }
 
@@ -738,13 +849,7 @@ PanelWindow {
                         font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
                     }
 
-                    TapHandler {
-                        onTapped: {
-                            root.isCentered = false
-                            root.popoutXOffset = btnNotifications.mapToItem(mainContainer, btnNotifications.width / 2, 0).x
-                            Config.showNotifications = !Config.showNotifications
-                        }
-                    }
+                    TapHandler { onTapped: { setPopoutPos(btnNotifications); Config.showNotifications = !Config.showNotifications; } }
                     HoverHandler { id: notificationsHover; cursorShape: Qt.PointingHandCursor }
                 }
 
@@ -761,13 +866,7 @@ PanelWindow {
                         font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
                     }
 
-                    TapHandler {
-                        onTapped: {
-                            root.isCentered = false
-                            root.popoutXOffset = btnNetwork.mapToItem(mainContainer, btnNetwork.width / 2, 0).x
-                            Config.showNetwork = !Config.showNetwork
-                        }
-                    }
+                    TapHandler { onTapped: { setPopoutPos(btnNetwork); Config.showNetwork = !Config.showNetwork; } }
                     HoverHandler { id: networkHover; cursorShape: Qt.PointingHandCursor }
                 }
 
@@ -784,13 +883,7 @@ PanelWindow {
                         font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
                     }
 
-                    TapHandler {
-                        onTapped: {
-                            root.isCentered = false
-                            root.popoutXOffset = btnSys.mapToItem(mainContainer, btnSys.width / 2, 0).x
-                            Config.showSystemMonitor = !Config.showSystemMonitor
-                        }
-                    }
+                    TapHandler { onTapped: { setPopoutPos(btnSys); Config.showSystemMonitor = !Config.showSystemMonitor; } }
                     HoverHandler { id: sysHover; cursorShape: Qt.PointingHandCursor }
                 }
 
@@ -818,13 +911,7 @@ PanelWindow {
                         font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
                     }
 
-                    TapHandler {
-                        onTapped: {
-                            root.isCentered = false
-                            root.popoutXOffset = btnBatt.mapToItem(mainContainer, btnBatt.width / 2, 0).x
-                            Config.showBattery = !Config.showBattery
-                        }
-                    }
+                    TapHandler { onTapped: { setPopoutPos(btnBatt); Config.showBattery = !Config.showBattery; } }
                     HoverHandler { id: battHover; cursorShape: Qt.PointingHandCursor }
                 }
 
@@ -841,24 +928,21 @@ PanelWindow {
                         font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
                     }
 
-                    TapHandler {
-                        onTapped: {
-                            root.isCentered = false
-                            root.popoutXOffset = btnCC.mapToItem(mainContainer, btnCC.width / 2, 0).x
-                            Config.showControlCenter = !Config.showControlCenter
-                        }
-                    }
+                    TapHandler { onTapped: { setPopoutPos(btnCC); Config.showControlCenter = !Config.showControlCenter; } }
                     HoverHandler { id: ccHover; cursorShape: Qt.PointingHandCursor }
                 }
 
                 Rectangle {
                     id: btnClock
-                    implicitWidth: dateRow.implicitWidth + 20; implicitHeight: 32; radius: 10
+                    implicitWidth: isHorizontal ? dateRow.implicitWidth + 20 : 32
+                    implicitHeight: isHorizontal ? 32 : dateColumn.implicitHeight + 16
+                    radius: 10
                     color: (Config.showCalendar || clockHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
                     Behavior on color { ColorAnimation { duration: 150 } }
 
                     RowLayout {
                         id: dateRow
+                        visible: root.isHorizontal
                         anchors.centerIn: parent
                         spacing: 8
 
@@ -883,13 +967,29 @@ PanelWindow {
                             Layout.alignment: Qt.AlignVCenter
                         }
                     }
-                    TapHandler {
-                        onTapped: {
-                            root.isCentered = false
-                            root.popoutXOffset = btnClock.mapToItem(mainContainer, btnClock.width / 2, 0).x
-                            Config.showCalendar = !Config.showCalendar
+
+                    ColumnLayout {
+                        id: dateColumn
+                        visible: !root.isHorizontal
+                        anchors.centerIn: parent
+                        spacing: 2
+
+                        Text {
+                            text: shellRoot.vertHour || (new Date().getHours() % 12 || 12).toString()
+                            color: Config.showCalendar ? Config.accent : Config.textMain
+                            font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 13
+                            Layout.alignment: Qt.AlignHCenter
+                        }
+
+                        Text {
+                            text: shellRoot.vertMinute || Qt.formatTime(new Date(), "mm")
+                            color: Config.showCalendar ? Config.accent : Config.textMain
+                            font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 13
+                            Layout.alignment: Qt.AlignHCenter
                         }
                     }
+
+                    TapHandler { onTapped: { setPopoutPos(btnClock); Config.showCalendar = !Config.showCalendar; } }
                     HoverHandler { id: clockHover; cursorShape: Qt.PointingHandCursor }
                 }
             }
@@ -898,13 +998,13 @@ PanelWindow {
         // FLYOUT DRAWER CONTENT CONTAINER
         Item {
             id: contentContainer
-            x: root.pLeft
-            y: root.barH
-            width: root.targetWidth
-            height: root.currentHeight
+            x: isHorizontal ? root.pLeft : (isRight ? (root.width - root.barH - root.currentWidth - 4) : (root.barH + 4))
+            y: isHorizontal ? (isBottom ? (root.height - root.barH - root.currentHeight + root.halfB) : (root.barH + 4)) : root.pLeft
+            width: isHorizontal ? root.targetWidth : root.currentWidth
+            height: isHorizontal ? root.currentHeight : root.targetHeight
             clip: true
             opacity: root.animScale
-            focus: true // Bridge the focus chain
+            focus: true
         }
     }
 }
