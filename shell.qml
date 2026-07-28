@@ -240,7 +240,7 @@ ShellRoot {
                 Config.showSettings = false
                 Config.showWallpaper = false
                 Config.showCalendar = false
-                Config.showNotifications = false
+                Config.showNotifications = false;
                 Config.showBattery = false
                 Config.showWorkspacePreview = false
             }
@@ -369,25 +369,52 @@ ShellRoot {
         }
     }
 
-    // --- BAR LAYOUT INSTANTIATION ---
-    BarLayout {}
+    // --- SINGLE TOP-LEVEL UNIFIED SURFACE ---
+    UnifiedSurface {
+        id: mainSurface
 
-    // --- OVERLAY FLYOUT INSTANTIATIONS ---
-    Power { id: powerFlyout }
-    Settings { id: settingsFlyout }
-    Wallpaper { id: wallpaperFlyout }
-    AppLauncher { id: launcherFlyout }
-    Calendar { id: calendarFlyout }
-    Notifications { id: notificationsFlyout }
-    Network { id: networkFlyout }
-    Audio { id: audioFlyout }
-    VolumeOSD { id: volumeOSD }
-    WorkspacePreview { id: workspacePreviewFlyout }
-    NotificationOSD { id: notificationOSD }
-    ControlCenter { id: controlCenterFlyout }
-    Battery { id: batteryFlyout }
-    SystemMonitor { id: systemMonitorFlyout }
-    Mascot { id: mascotFlyout }
-    OSK { id: oskFlyout }
-    Clipboard { id: clipboardFlyout }
-} 
+        Loader {
+            id: drawerLoader
+            anchors.fill: parent
+            active: mainSurface.activeView !== "none"
+            focus: true // Bridge the focus chain
+
+            onLoaded: {
+                if (item && typeof item.forceActiveFocus === "function") {
+                    item.forceActiveFocus()
+                }
+            }
+
+            sourceComponent: {
+                switch (mainSurface.activeView) {
+                    case "workspacePreview": return workspacePreviewComp;
+                    case "power": return powerComp;
+                    case "wallpaper": return wallpaperComp;
+                    case "appLauncher": return appLauncherComp;
+                    case "calendar": return calendarComp;
+                    case "notifications": return notificationsComp;
+                    case "audio": return audioComp;
+                    case "network": return networkComp;
+                    case "systemMonitor": return systemMonitorComp;
+                    case "battery": return batteryComp;
+                    case "clipboard": return clipboardComp;
+                    case "controlCenter": return controlCenterComp;
+                    default: return null;
+                }
+            }
+        }
+    }
+
+    Component { id: workspacePreviewComp; WorkspacePreview {} }
+    Component { id: powerComp; Power {} }
+    Component { id: wallpaperComp; Wallpaper {} }
+    Component { id: appLauncherComp; AppLauncher {} }
+    Component { id: calendarComp; Calendar {} }
+    Component { id: notificationsComp; Notifications {} }
+    Component { id: audioComp; Audio {} }
+    Component { id: networkComp; Network {} }
+    Component { id: systemMonitorComp; SystemMonitor {} }
+    Component { id: batteryComp; Battery {} }
+    Component { id: clipboardComp; Clipboard {} }
+    Component { id: controlCenterComp; ControlCenter {} }
+}
