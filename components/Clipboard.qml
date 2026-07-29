@@ -22,7 +22,7 @@ Item {
         id: fetchProc
         running: false
         
-        command: ["fish", "-c", "mkdir -p /tmp/cliphist; cliphist list | awk -F'\\t' '/binary data|image|\\[\\[/ {print $1}' | while read -l id; if not test -f /tmp/cliphist/$id.png; set -l tmp_raw /tmp/cliphist/raw_$id; printf '%s\\t' \"$id\" | cliphist decode > $tmp_raw 2>/dev/null; if test -s $tmp_raw; magick $tmp_raw /tmp/cliphist/$id.png 2>/dev/null; or cp $tmp_raw /tmp/cliphist/$id.png 2>/dev/null; end; rm -f $tmp_raw; end; end; cliphist list"]
+        command: ["fish", "-c", "mkdir -p /tmp/cliphist; cliphist list | awk -F'\\t' '/binary data|image|\\[\\[/ {print $1}' | while read -l id; if not test -f /tmp/cliphist/$id.png; set -l tmp_raw /tmp/cliphist/raw_$id; printf '%s\\t' \"$id\" | cliphist decode > $tmp_raw 2>/dev/null; if test -s $tmp_raw; magick $tmp_raw PNG:/tmp/cliphist/$id.png 2>/dev/null; or rm -f /tmp/cliphist/$id.png; end; rm -f $tmp_raw; end; end; cliphist list"]
         
         stdout: StdioCollector {
             onStreamFinished: {
@@ -47,7 +47,7 @@ Item {
                             finalImgPath = "file:///tmp/cliphist/" + id + ".png"
                         } else if (isBase64) {
                             let b64Data = text.replace(/^data:image\/[^;]+;base64,/, "")
-                            decodeB64Proc.command = ["fish", "-c", "echo '" + b64Data + "' | base64 -d > /tmp/cliphist/raw_" + id + "; and magick /tmp/cliphist/raw_" + id + " /tmp/cliphist/" + id + ".png; and rm -f /tmp/cliphist/raw_" + id]
+                            decodeB64Proc.command = ["fish", "-c", "echo '" + b64Data + "' | base64 -d > /tmp/cliphist/raw_" + id + "; and magick /tmp/cliphist/raw_" + id + " PNG:/tmp/cliphist/" + id + ".png; and rm -f /tmp/cliphist/raw_" + id]
                             decodeB64Proc.running = true
                             finalImgPath = "file:///tmp/cliphist/" + id + ".png"
                         } else if (isWebUrl) {
@@ -182,24 +182,25 @@ Item {
                         boundsBehavior: Flickable.StopAtBounds
 
                         delegate: Rectangle {
+                            id: delegateRoot
                             required property string itemId
                             required property string previewText
                             required property bool isImage
                             required property string imagePath
 
                             width: ListView.view.width
-                            implicitHeight: isImage ? 110 : 38
+                            implicitHeight: (delegateRoot.isImage && imgPreview.status === Image.Ready) ? 110 : 38
                             radius: 8
                             color: itemHover.hovered ? Qt.rgba(255, 255, 255, 0.1) : Qt.rgba(255, 255, 255, 0.03)
 
                             Text {
-                                visible: !parent.isImage
+                                visible: !delegateRoot.isImage || imgPreview.status !== Image.Ready
                                 anchors {
                                     left: parent.left; right: parent.right
                                     verticalCenter: parent.verticalCenter
                                     leftMargin: 10; rightMargin: 10
                                 }
-                                text: parent.previewText
+                                text: delegateRoot.previewText
                                 color: Config.textMain
                                 font.family: Config.sysFont
                                 font.pixelSize: Config.size(Config.fontBody)
@@ -207,12 +208,13 @@ Item {
                             }
 
                             Image {
-                                visible: parent.isImage
+                                id: imgPreview
+                                visible: delegateRoot.isImage && status === Image.Ready
                                 anchors {
                                     fill: parent
                                     margins: 6
                                 }
-                                source: parent.isImage ? parent.imagePath : ""
+                                source: delegateRoot.isImage ? delegateRoot.imagePath : ""
                                 fillMode: Image.PreserveAspectFit
                                 sourceSize.height: 110
                                 cache: false
