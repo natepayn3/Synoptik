@@ -2,6 +2,7 @@ pragma Singleton
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "settings"
 
 QtObject {
     id: root
@@ -27,6 +28,7 @@ QtObject {
     property bool showSystemMonitor: false
     property bool showPower: false
     property bool showClipboard: false
+    property bool showScreenRecorder: false
 
     // --- WALLPAPER CONFIG STATE & PERSISTENCE ---
     property var selectedWallpaperMonitors: []
@@ -46,19 +48,28 @@ QtObject {
         saveSettings()
     }
 
-    onSelectedWallpaperMonitorsChanged: {
-        if (!isLoaded) return
-        saveSettings()
+    // --- GLOBAL WEATHER SERVICE ---
+    property WeatherSettings weather: WeatherSettings {
+        id: globalWeather
+        zipcode: root.locationQuery || ""
+        
+        onZipcodeChanged: globalWeather.fetchWeather(true)
     }
 
-    onWallpaperTransitionTypeChanged: {
-        if (!isLoaded) return
-        saveSettings()
+    property Timer weatherTimer: Timer {
+        interval: 900000 // 15 minutes
+        running: true
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: root.weather.fetchWeather(true)
     }
+
+    onSelectedWallpaperMonitorsChanged: { if (isLoaded) saveSettings() }
+    onWallpaperTransitionTypeChanged: { if (isLoaded) saveSettings() }
 
     // --- ON-SCREEN KEYBOARD (OSK) STATE & PERSISTENCE ---
     property bool showOsk: false
-    property string oskLayout: "Normal" // Options: "Normal", "Minimal", "Gamer"
+    property string oskLayout: "Normal"
 
     // Global Visual Toggles
     property bool showBorders: true
@@ -76,9 +87,8 @@ QtObject {
         "Look at me go!"
     ]
 
-    // Online Quote Sync Toggles & Settings
     property bool fetchOnlineQuotes: false
-    property string quoteSource: "zenquotes" // Options: "zenquotes", "jokeapi", "both", "none"
+    property string quoteSource: "zenquotes"
 
     function addMascotPhrase(phrase) {
         if (!phrase) return
@@ -96,10 +106,7 @@ QtObject {
         saveSettings()
     }
 
-    // --- PERSISTENT CONFIG PROPERTIES ---
-    property string rssFeedUrl: "" // Custom user-defined RSS Feed URL
-
-    // --- ONLINE QUOTE BATCH FETCH ENGINE ---
+    property string rssFeedUrl: ""
     property var quoteFetchQueue: []
 
     property Process quoteFetcher: Process {
@@ -139,12 +146,14 @@ QtObject {
     }
 
     function processQuoteQueue() {
-        if (quoteFetchQueue.length === 0 || qFetcher.running || (mascotPhrases && mascotPhrases.length >= 20)) {
+        let queue = quoteFetchQueue ? quoteFetchQueue.slice() : []
+        if (queue.length === 0 || qFetcher.running || (mascotPhrases && mascotPhrases.length >= 20)) {
             quoteFetchQueue = []
             return
         }
 
-        let nextSource = quoteFetchQueue.shift()
+        let nextSource = queue.shift()
+        quoteFetchQueue = queue
         let cmd = ""
 
         if (nextSource === "zenquotes") {
@@ -186,7 +195,6 @@ QtObject {
         if (activeSources.length === 0) return
 
         let newQueue = []
-
         if (activeSources.length > 1) {
             let share = Math.floor(needed / activeSources.length)
             let remainder = needed % activeSources.length
@@ -207,16 +215,15 @@ QtObject {
     }
 
     property Timer quoteFetchTimer: Timer {
-        interval: 900000 // 15 minutes
+        interval: 900000
         running: root.fetchOnlineQuotes && (!root.mascotPhrases || root.mascotPhrases.length < 20)
         repeat: true
         onTriggered: root.triggerQuoteFetch()
     }
 
-    // --- BAR POSITION CONTROL (DEFAULT: TOP) ---
+    // --- BAR POSITION CONTROL ---
     property string barPosition: "top"
 
-    // Hyprland Border Frame Sync Function
     function syncScreenFrame() {
         let frameMargin = showScreenFrame ? 12 : 0
         let cmd = "hyprctl keyword monitor ,addreserved," + frameMargin + "," + frameMargin + "," + frameMargin + "," + frameMargin
@@ -230,13 +237,12 @@ QtObject {
         saveSettings()
     }
 
-    // Font Configuration
+    // Typography
     property string sysFont: ""
     property bool fontDropdownOpen: false
     property string fontSearchFilter: ""
     property int fontScaleIndex: 1 
 
-    // --- FONT SMOOTHING ENGINE ---
     function fontStyle(fontObj) {
         if (!fontObj) return fontObj
         fontObj.hintingPreference = Font.PreferFullHinting
@@ -244,55 +250,26 @@ QtObject {
         return fontObj
     }
 
-    // Weather Location Override (optional)
     property string locationQuery: ""
-
-    // Theme State
     property int currentThemeIndex: 0
 
-    // --- CUSTOM COLOR OVERRIDES ---
+    // Custom Colors
     property bool useCustomColors: false
     property string customBgBase: "#13141c"
     property string customBgPanel: "#1a1b26"
     property string customAccent: "#ff4da6"
 
-    // Computed Gradient Outputs
     property color borderStart: accent
     property color borderEnd: Qt.lighter(accent, 1.5)
 
     property string windowStyle: "rounded"
 
-    onWindowStyleChanged: {
-        if (!isLoaded) return
-        saveSettings()
-    }
-
-    // OSK Reactivity Handlers
-    onShowOskChanged: {
-        if (!isLoaded) return
-        saveSettings()
-    }
-
-    onOskLayoutChanged: {
-        if (!isLoaded) return
-        saveSettings()
-    }
-
-    // Reactivity Handlers
-    onShowMascotChanged: {
-        if (!isLoaded) return
-        saveSettings()
-    }
-
-    onMascotPathChanged: {
-        if (!isLoaded) return
-        saveSettings()
-    }
-
-    onMascotPhrasesChanged: {
-        if (!isLoaded) return
-        saveSettings()
-    }
+    onWindowStyleChanged: { if (isLoaded) saveSettings() }
+    onShowOskChanged: { if (isLoaded) saveSettings() }
+    onOskLayoutChanged: { if (isLoaded) saveSettings() }
+    onShowMascotChanged: { if (isLoaded) saveSettings() }
+    onMascotPathChanged: { if (isLoaded) saveSettings() }
+    onMascotPhrasesChanged: { if (isLoaded) saveSettings() }
 
     onFetchOnlineQuotesChanged: {
         if (!isLoaded) return
@@ -300,30 +277,11 @@ QtObject {
         saveSettings()
     }
 
-    onQuoteSourceChanged: {
-        if (!isLoaded) return
-        saveSettings()
-    }
-
-    onBarPositionChanged: {
-        if (!isLoaded) return
-        saveSettings()
-    }
-
-    onSysFontChanged: {
-        if (!isLoaded || sysFont === "") return
-        saveSettings()
-    }
-
-    onFontScaleIndexChanged: {
-        if (!isLoaded) return
-        saveSettings()
-    }
-
-    onLocationQueryChanged: {
-        if (!isLoaded) return
-        saveSettings()
-    }
+    onQuoteSourceChanged: { if (isLoaded) saveSettings() }
+    onBarPositionChanged: { if (isLoaded) saveSettings() }
+    onSysFontChanged: { if (isLoaded && sysFont !== "") saveSettings() }
+    onFontScaleIndexChanged: { if (isLoaded) saveSettings() }
+    onLocationQueryChanged: { if (isLoaded) saveSettings() }
 
     onShowBordersChanged: {
         if (!isLoaded) return
@@ -364,7 +322,7 @@ QtObject {
         saveSettings()
     }
 
-    // --- DISPLAY TARGETS (BAR SCREEN SELECTION) ---
+    // Display Targets
     property var enabledBarScreens: []
 
     function toggleBarScreen(screenName) {
@@ -373,11 +331,8 @@ QtObject {
             : enabledBarScreens.slice()
 
         let idx = current.indexOf(screenName)
-
         if (idx >= 0) {
-            if (current.length > 1) {
-                current.splice(idx, 1)
-            }
+            if (current.length > 1) current.splice(idx, 1)
         } else {
             current.push(screenName)
         }
@@ -391,9 +346,8 @@ QtObject {
         return enabledBarScreens.includes(screenName)
     }
 
-    // --- PERSISTENT HYPRLAND THEME EXPORTER ---
+    // Hyprland Exporter
     property Process themeWriter: Process { id: writer }
-
     readonly property string hyprThemePath: Quickshell.env("HOME") + "/.config/hypr/theme_colors.lua"
 
     function syncHyprlandBorders() {
@@ -430,7 +384,7 @@ QtObject {
         writer.running = true
     }
 
-    // --- WALLPAPER SCANNER ---
+    // Wallpaper Scanner
     property var wallpapers: []
     property var tempPaths: []
 
@@ -441,16 +395,11 @@ QtObject {
         stdout: SplitParser {
             onRead: data => {
                 var trimmed = data.trim()
-                if (trimmed.length > 0) {
-                    root.tempPaths.push(trimmed)
-                }
+                if (trimmed.length > 0) root.tempPaths.push(trimmed)
             }
         }
 
-        onExited: (code, status) => {
-            root.wallpapers = root.tempPaths
-        }
-
+        onExited: (code, status) => { root.wallpapers = root.tempPaths }
         Component.onCompleted: root.refreshWallpapers()
     }
 
@@ -461,9 +410,8 @@ QtObject {
         }
     }
 
-    // --- JSON SETTINGS PERSISTENCE ---
+    // Persistence
     readonly property string settingsPath: Quickshell.shellDir.toString().replace(/^file:\/\//, "") + "/settings.json"
-
     property Process saveProcess: Process { id: saver }
 
     function saveSettings() {
@@ -497,8 +445,9 @@ QtObject {
             "customThemes": customPalettes,
             "windowStyle": root.windowStyle
         }
+
         var jsonStr = JSON.stringify(data)
-        saver.command = ["fish", "-c", "printf '%s\\n' '" + jsonStr.replace(/'/g, "'\\''") + "' > " + settingsPath]
+        saver.command = ["fish", "-c", "echo '" + jsonStr.replace(/'/g, "'\\''") + "' > " + settingsPath]
         saver.running = true
     }
 
@@ -509,17 +458,13 @@ QtObject {
             onRead: data => {
                 try {
                     var parsed = JSON.parse(data)
-                    if (parsed.selectedWallpaperMonitors !== undefined && Array.isArray(parsed.selectedWallpaperMonitors)) {
-                        root.selectedWallpaperMonitors = parsed.selectedWallpaperMonitors
-                    }
+                    if (parsed.selectedWallpaperMonitors !== undefined && Array.isArray(parsed.selectedWallpaperMonitors)) root.selectedWallpaperMonitors = parsed.selectedWallpaperMonitors
                     if (parsed.wallpaperTransitionType !== undefined) root.wallpaperTransitionType = parsed.wallpaperTransitionType
                     if (parsed.showOsk !== undefined) root.showOsk = parsed.showOsk
                     if (parsed.oskLayout !== undefined) root.oskLayout = parsed.oskLayout
                     if (parsed.showMascot !== undefined) root.showMascot = parsed.showMascot
                     if (parsed.mascotPath !== undefined) root.mascotPath = parsed.mascotPath
-                    if (parsed.mascotPhrases !== undefined && Array.isArray(parsed.mascotPhrases)) {
-                        root.mascotPhrases = parsed.mascotPhrases
-                    }
+                    if (parsed.mascotPhrases !== undefined && Array.isArray(parsed.mascotPhrases)) root.mascotPhrases = parsed.mascotPhrases
                     if (parsed.fetchOnlineQuotes !== undefined) root.fetchOnlineQuotes = parsed.fetchOnlineQuotes
                     if (parsed.quoteSource !== undefined) root.quoteSource = parsed.quoteSource
                     if (parsed.barPosition !== undefined) root.barPosition = parsed.barPosition
@@ -527,9 +472,7 @@ QtObject {
                     if (parsed.sysFont !== undefined) root.sysFont = parsed.sysFont
                     if (parsed.fontScaleIndex !== undefined) root.fontScaleIndex = parsed.fontScaleIndex
                     if (parsed.locationQuery !== undefined) root.locationQuery = parsed.locationQuery
-                    if (parsed.enabledBarScreens !== undefined && Array.isArray(parsed.enabledBarScreens)) {
-                        root.enabledBarScreens = parsed.enabledBarScreens
-                    }
+                    if (parsed.enabledBarScreens !== undefined && Array.isArray(parsed.enabledBarScreens)) root.enabledBarScreens = parsed.enabledBarScreens
                     if (parsed.useCustomColors !== undefined) root.useCustomColors = parsed.useCustomColors
                     if (parsed.customBgBase !== undefined) root.customBgBase = parsed.customBgBase
                     if (parsed.customBgPanel !== undefined) root.customBgPanel = parsed.customBgPanel
@@ -562,10 +505,8 @@ QtObject {
         Component.onCompleted: loader.running = true
     }
 
-    // --- TYPOGRAPHY ENGINE ---
-    function size(preset) {
-        return preset[fontScaleIndex]
-    }
+    // Typography Engine
+    function size(preset) { return preset[fontScaleIndex] }
 
     readonly property var fontMicro:   [10, 11, 12]
     readonly property var fontCaption: [11, 12, 13]
@@ -574,7 +515,7 @@ QtObject {
     readonly property var fontTitle:   [19, 21, 23]
     readonly property var fontDisplay: [70, 82, 92]
 
-    // --- THEME ENGINE ---
+    // Themes
     property color bgBase: "#13141c"
     property color bgPanel: "#1a1b26"
     property color accent: "#ff4da6"
@@ -582,7 +523,7 @@ QtObject {
     property color textMuted: "#94a3b8"
 
     readonly property int barHeight: 46
-    readonly property int barMargin: 10
+    readonly property int barMargin: 12
     readonly property int cornerRadius: 16 
 
     readonly property var stockThemes: [
