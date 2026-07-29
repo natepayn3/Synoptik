@@ -66,18 +66,36 @@ fallback = next((p for p in fallback_options if os.path.isfile(p)), "")
 
 icon_dirs = [
     os.path.expanduser("~/.local/share/icons"),
-    "/usr/share/icons/hicolor",
     "/usr/share/icons/Papirus",
-    "/usr/share/icons",
+    "/usr/share/icons/hicolor",
     "/usr/share/pixmaps"
 ]
 
+# 1. Build a fast single-pass lookup table for icon paths
+icon_map = {}
+for base in icon_dirs:
+    if not os.path.isdir(base): continue
+    for root, _, files in os.walk(base):
+        # Skip small pixel sizes or irrelevant categories to speed up scanning
+        if any(skip in root for skip in ["/16x16/", "/22x22/", "/24x24/", "/32x32/", "/symbolic/"]):
+            continue
+        for f in files:
+            if f.endswith((".svg", ".png", ".xpm")):
+                name = os.path.splitext(f)[0]
+                if name not in icon_map:
+                    icon_map[name] = os.path.join(root, f)
+
+# 2. Fast parse desktop entries
 for folder in ["/usr/share/applications", os.path.expanduser("~/.local/share/applications")]:
-    for path in glob.glob(os.path.join(folder, "**/*.desktop"), recursive=True):
-        if not os.path.isfile(path): continue
+    if not os.path.isdir(folder): continue
+    for entry in os.scandir(folder):
+        if not entry.name.endswith(".desktop") or not entry.is_file(): continue
+        
+        path = entry.path
         name, exec_cmd, icon, desc, nodisplay = "", "", "", "", False
+        
         try:
-            with open(path, "r", errors="ignore") as f:
+            with open(path, "r", encoding="utf-8", errors="ignore") as f:
                 for line in f:
                     if line.startswith("Name=") and not name: name = line[5:].strip()
                     elif line.startswith("Exec=") and not exec_cmd: exec_cmd = line[5:].strip()
@@ -88,22 +106,13 @@ for folder in ["/usr/share/applications", os.path.expanduser("~/.local/share/app
 
         if nodisplay or not name or not exec_cmd: continue
 
+        # 3. O(1) Instant Icon Lookup
         resolved = fallback
         if icon:
-            if icon.startswith("/"):
-                if os.path.isfile(icon): resolved = icon
-            else:
-                found = False
-                for base in icon_dirs:
-                    if found: break
-                    for root, dirs, files in os.walk(base):
-                        for ext in [".svg", ".png", ".xpm"]:
-                            p = os.path.join(root, icon + ext)
-                            if os.path.isfile(p):
-                                resolved = p
-                                found = True
-                                break
-                        if found: break
+            if icon.startswith("/") and os.path.isfile(icon):
+                resolved = icon
+            elif icon in icon_map:
+                resolved = icon_map[icon]
 
         apps.append({
             "name": name.replace("\\x22", "").replace("\\\\", ""),
