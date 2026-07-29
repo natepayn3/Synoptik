@@ -47,8 +47,6 @@ PanelWindow {
             if (child.item && child.item.implicitHeight > 0) baseH = child.item.implicitHeight
             else if (child.implicitHeight > 0) baseH = child.implicitHeight
         }
-        // In horizontal mode, wingH already handles vertical offset space. 
-        // Do not add + 24 to baseH in horizontal mode, or it inflates top/bottom margins.
         return isHorizontal ? baseH : (baseH + 24)
     }
 
@@ -56,14 +54,23 @@ PanelWindow {
     property real targetWidth: 400
     property real targetHeight: 480
 
+    // Synchronized target dimension morphing
     Behavior on targetWidth {
         enabled: root.isOpen
-        NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
+        NumberAnimation { 
+            duration: 500; 
+            easing.type: Easing.OutBack; 
+            easing.overshoot: 1.6 
+        }
     }
 
     Behavior on targetHeight {
         enabled: root.isOpen
-        NumberAnimation { duration: 220; easing.type: Easing.OutCubic }
+        NumberAnimation { 
+            duration: 500; 
+            easing.type: Easing.OutBack; 
+            easing.overshoot: 1.6 
+        }
     }
 
     // 3. Sync Target Dimensions Safely
@@ -81,11 +88,11 @@ PanelWindow {
         when: root.isOpen && root.rawChildHeight > 0
     }
 
-    // Cleaned up console logging
     onIsOpenChanged: {}
 
     property real progress: 0.0
-    readonly property real animScale: Math.max(0.0, Math.min(1.0, progress))
+    // Unclamped animScale allowing overshoot above 1.0 to render shape stretching
+    readonly property real animScale: Math.max(0.0, progress)
 
     // Morph dimensions: Grows from a compact origin to full target bounds
     readonly property real currentWidth: targetWidth * animScale
@@ -117,14 +124,13 @@ PanelWindow {
     readonly property real barH: Config.barHeight || 46
     readonly property real barBottomY: barH - halfB
 
-    implicitHeight: (isHorizontal ? (barH + 600) : screen.height) + (shadowPadding * 2)
-    implicitWidth: (isHorizontal ? screen.width : (barH + 600)) + (shadowPadding * 2)
+    implicitHeight: screen.height + (shadowPadding * 2)
+    implicitWidth: screen.width + (shadowPadding * 2)
 
     color: "transparent"
 
     visible: true
 
-    // Direct Wayland region mapping for seamless mouse hit-testing
     mask: Region {
         Region { item: barContent }
         Region { item: (root.isOpen || root.progress > 0.01) ? contentContainer : null }
@@ -145,11 +151,9 @@ PanelWindow {
         }
     }
 
-    // Outer edge boundaries inside padded container
     readonly property real minPossibleLeft: root.halfB
     readonly property real maxPossibleRight: (isHorizontal ? mainContainer.width : mainContainer.height) - root.halfB
 
-    // Centered vs Edge Docking Logic
     readonly property bool isLeftFlush: !isCentered && ((isHorizontal ? popoutXOffset : popoutYOffset) < ((isHorizontal ? mainContainer.width : mainContainer.height) * 0.35))
     readonly property bool isRightFlush: !isCentered && ((isHorizontal ? popoutXOffset : popoutYOffset) > ((isHorizontal ? mainContainer.width : mainContainer.height) * 0.65))
 
@@ -166,11 +170,9 @@ PanelWindow {
 
     readonly property real staticRight: staticLeft + (isHorizontal ? targetWidth : targetHeight)
 
-    // Dynamic horizontal bounds: expands on bounce in vertical mode, stays static in horizontal mode
     readonly property real pLeft: staticLeft
     readonly property real pRight: staticRight
 
-    // Active View State Machine
     property string activeView: "none"
 
     function updateActiveView() {
@@ -266,29 +268,27 @@ PanelWindow {
             Transition {
                 from: "closed"; to: "open"
                 
-                // Dynamic grow + slide open transition
                 NumberAnimation { 
                     target: root
                     property: "progress"
-                    duration: 750
+                    duration: 500
                     easing.type: Easing.OutBack
-                    easing.overshoot: 1.15
+                    easing.overshoot: 1.6
                 }
             },
             Transition {
                 from: "open"; to: "closed"
                 
-                // Swift collapse back into the bar
                 NumberAnimation { 
                     target: root
                     property: "progress"
-                    duration: 300
-                    easing.type: Easing.InCubic 
+                    duration: 350
+                    easing.type: Easing.InBack
+                    easing.overshoot: 1.6
                 }
             }
         ]
 
-        // DEDICATED VECTOR SHAPE CONTAINER WITH DROP SHADOW
         Item {
             id: shadowWrapper
             anchors.fill: parent
@@ -342,7 +342,7 @@ PanelWindow {
             Shape {
                 id: openShapeTop
                 anchors.fill: parent
-                visible: root.barPosition === "top" && root.progress > 0
+                visible: root.barPosition === "top" && (root.isOpen || root.progress > 0)
 
                 ShapePath {
                     fillColor: Config.bgPanel
@@ -450,7 +450,7 @@ PanelWindow {
             Shape {
                 id: openShapeBottom
                 anchors.fill: parent
-                visible: root.barPosition === "bottom" && root.progress > 0
+                visible: root.barPosition === "bottom" && (root.isOpen || root.progress > 0)
 
                 readonly property real barTopY: mainContainer.height - root.barH + root.halfB
 
@@ -461,11 +461,9 @@ PanelWindow {
                     joinStyle: ShapePath.RoundJoin
                     capStyle: ShapePath.RoundCap
 
-                    // Start at bar top-left corner
                     startX: root.halfB
                     startY: root.isLeftFlush ? openShapeBottom.barTopY : (openShapeBottom.barTopY + root.barRadius)
 
-                    // TOP-LEFT BAR CORNER: Sharp 90° when flush, rounded arc when floating
                     PathArc { 
                         x: root.halfB + (root.isLeftFlush ? 0 : root.barRadius)
                         y: openShapeBottom.barTopY
@@ -474,13 +472,11 @@ PanelWindow {
                         direction: PathArc.Clockwise 
                     }
 
-                    // Static line to left wing
                     PathLine { 
                         x: root.isLeftFlush ? root.halfB : (root.pLeft - root.wingW)
                         y: openShapeBottom.barTopY 
                     }
 
-                    // Left wing curve extending upward into flyout
                     PathCubic {
                         x: root.pLeft
                         y: root.isLeftFlush ? openShapeBottom.barTopY : (openShapeBottom.barTopY - root.wingH)
@@ -490,10 +486,8 @@ PanelWindow {
                         control2Y: root.isLeftFlush ? openShapeBottom.barTopY : (openShapeBottom.barTopY - (root.wingH * 0.5))
                     }
 
-                    // Left wall of flyout drawer
                     PathLine { x: root.pLeft; y: openShapeBottom.barTopY - root.wingH - root.currentHeight + root.radius }
 
-                    // Top-left corner of flyout drawer
                     PathArc { 
                         x: root.pLeft + root.radius
                         y: openShapeBottom.barTopY - root.wingH - root.currentHeight
@@ -502,10 +496,8 @@ PanelWindow {
                         direction: PathArc.Clockwise 
                     }
 
-                    // Top wall of flyout drawer
                     PathLine { x: root.pRight - root.radius; y: openShapeBottom.barTopY - root.wingH - root.currentHeight }
 
-                    // Top-right corner of flyout drawer
                     PathArc { 
                         x: root.pRight
                         y: openShapeBottom.barTopY - root.wingH - root.currentHeight + root.radius
@@ -514,10 +506,8 @@ PanelWindow {
                         direction: PathArc.Clockwise 
                     }
 
-                    // Right wall of flyout drawer
                     PathLine { x: root.pRight; y: root.isRightFlush ? openShapeBottom.barTopY : (openShapeBottom.barTopY - root.wingH) }
 
-                    // Right wing curve
                     PathCubic {
                         x: root.isRightFlush ? (mainContainer.width - root.halfB) : (root.pRight + root.wingW)
                         y: openShapeBottom.barTopY
@@ -527,13 +517,11 @@ PanelWindow {
                         control2Y: openShapeBottom.barTopY
                     }
 
-                    // Line to right bar edge
                     PathLine { 
                         x: root.isRightFlush ? (mainContainer.width - root.halfB) : (mainContainer.width - root.halfB - root.barRadius)
                         y: openShapeBottom.barTopY 
                     }
 
-                    // TOP-RIGHT BAR CORNER: Sharp 90° when right-flush
                     PathArc { 
                         x: mainContainer.width - root.halfB
                         y: openShapeBottom.barTopY + (root.isRightFlush ? 0 : root.barRadius)
@@ -554,7 +542,7 @@ PanelWindow {
             Shape {
                 id: openShapeLeft
                 anchors.fill: parent
-                visible: root.barPosition === "left" && root.progress > 0
+                visible: root.barPosition === "left" && (root.isOpen || root.progress > 0)
 
                 ShapePath {
                     fillColor: Config.bgPanel
@@ -646,7 +634,7 @@ PanelWindow {
             Shape {
                 id: openShapeRight
                 anchors.fill: parent
-                visible: root.barPosition === "right" && root.progress > 0
+                visible: root.barPosition === "right" && (root.isOpen || root.progress > 0)
 
                 readonly property real rX: mainContainer.width - root.barH
 
@@ -657,26 +645,20 @@ PanelWindow {
                     joinStyle: ShapePath.RoundJoin
                     capStyle: ShapePath.RoundCap
 
-                    // Start at bar top-left corner
                     startX: openShapeRight.rX + root.halfB
                     startY: root.isLeftFlush ? root.halfB : (root.halfB + root.barRadius)
 
-                    // Outer bar top-right corner
                     PathLine { x: mainContainer.width - root.halfB - root.barRadius; y: root.halfB }
                     PathArc { x: mainContainer.width - root.halfB; y: root.halfB + root.barRadius; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
 
-                    // Outer bar bottom-right corner
                     PathLine { x: mainContainer.width - root.halfB; y: mainContainer.height - root.halfB - root.barRadius }
                     PathArc { x: mainContainer.width - root.halfB - root.barRadius; y: mainContainer.height - root.halfB; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
 
-                    // Outer bar bottom-left corner
                     PathLine { x: openShapeRight.rX + root.halfB + root.barRadius; y: mainContainer.height - root.halfB }
                     PathArc { x: openShapeRight.rX + root.halfB; y: mainContainer.height - root.halfB - (root.isRightFlush ? 0 : root.barRadius); radiusX: root.isRightFlush ? 0 : root.barRadius; radiusY: root.isRightFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
 
-                    // Path line extending up to bottom wing (or corner flush point)
                     PathLine { x: openShapeRight.rX + root.halfB; y: root.isRightFlush ? (mainContainer.height - root.halfB) : (root.pRight + root.wingW) }
 
-                    // Bottom wing curve returning into flyout drawer
                     PathCubic {
                         x: root.isRightFlush ? (openShapeRight.rX + root.halfB) : (openShapeRight.rX + root.halfB - root.wingW)
                         y: root.pRight
@@ -686,22 +668,14 @@ PanelWindow {
                         control2Y: root.pRight
                     }
 
-                    // Flyout drawer bottom wall
                     PathLine { x: openShapeRight.rX + root.halfB - root.wingW - root.currentWidth + root.radius; y: root.pRight }
-                    
-                    // Flyout drawer bottom-left corner
                     PathArc { x: openShapeRight.rX + root.halfB - root.wingW - root.currentWidth; y: root.pRight - root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
 
-                    // Flyout drawer left wall
                     PathLine { x: openShapeRight.rX + root.halfB - root.wingW - root.currentWidth; y: root.pLeft + root.radius }
-                    
-                    // Flyout drawer top-left corner
                     PathArc { x: openShapeRight.rX + root.halfB - root.wingW - root.currentWidth + root.radius; y: root.pLeft; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
 
-                    // Flyout drawer top wall
                     PathLine { x: root.isLeftFlush ? (openShapeRight.rX + root.halfB) : (openShapeRight.rX + root.halfB - root.wingW); y: root.pLeft }
 
-                    // Top wing curve extending into static bar
                     PathCubic {
                         x: openShapeRight.rX + root.halfB
                         y: root.isLeftFlush ? root.halfB : (root.pLeft - root.wingW)
@@ -711,10 +685,8 @@ PanelWindow {
                         control2Y: root.isLeftFlush ? root.halfB : (root.pLeft - (root.wingW * 0.5))
                     }
 
-                    // Line to top-left bar edge
                     PathLine { x: openShapeRight.rX + root.halfB; y: root.isLeftFlush ? root.halfB : (root.halfB + root.barRadius) }
 
-                    // TOP-LEFT INNER BAR CORNER: Sharp 90° when top-flush
                     PathArc { 
                         x: openShapeRight.rX + root.halfB + (root.isLeftFlush ? 0 : root.barRadius)
                         y: root.halfB
@@ -735,7 +707,6 @@ PanelWindow {
             width: root.isHorizontal ? (mainContainer.width - Math.ceil(root.borderWidth)) : (root.barH - Math.ceil(root.borderWidth))
             height: root.isHorizontal ? (root.barH - Math.ceil(root.borderWidth)) : (mainContainer.height - Math.ceil(root.borderWidth))
 
-            // Left / Top Actions
             GridLayout {
                 id: leftModules
                 
@@ -873,7 +844,6 @@ PanelWindow {
                 }
             }
 
-            // Center Workspace Indicators & Taskbar
             Rectangle {
                 anchors.centerIn: parent
                 implicitHeight: isHorizontal ? 32 : centerGroup.implicitHeight + 16
@@ -922,7 +892,6 @@ PanelWindow {
                 }
             }
 
-            // Right / Bottom Status Indicators & Clock
             GridLayout {
                 id: rightModules
                 
@@ -984,9 +953,11 @@ PanelWindow {
 
                     Text {
                         anchors.centerIn: parent
-                        text: (typeof notificationsFlyout !== "undefined" && notificationsFlyout.activeCount > 0) ? "inbox_text" : "inbox"
-                        color: Config.showNotifications ? Config.accent : Config.textMain
+                        text: (typeof shellRoot !== "undefined" && shellRoot.activeNotifs > 0) ? "inbox_text" : "inbox"
+                        color: (Config.showNotifications || (typeof shellRoot !== "undefined" && shellRoot.activeNotifs > 0)) ? Config.accent : Config.textMain
                         font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+
+                        Behavior on color { ColorAnimation { duration: 150 } }
                     }
 
                     TapHandler { onTapped: { setPopoutPos(btnNotifications); Config.showNotifications = !Config.showNotifications; } }
@@ -1080,7 +1051,6 @@ PanelWindow {
                     color: (Config.showCalendar || clockHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
                     Behavior on color { ColorAnimation { duration: 150 } }
 
-                    // HORIZONTAL LAYOUT
                     RowLayout {
                         id: dateRow
                         visible: root.isHorizontal
@@ -1109,14 +1079,12 @@ PanelWindow {
                         }
                     }
 
-                    // VERTICAL LAYOUT
                     ColumnLayout {
                         id: dateColumn
                         visible: !root.isHorizontal
                         anchors.centerIn: parent
                         spacing: 1
 
-                        // Line 1: Hour
                         Text {
                             text: shellRoot.vertHour || (new Date().getHours() % 12 || 12).toString()
                             color: Config.showCalendar ? Config.accent : Config.textMain
@@ -1124,7 +1092,6 @@ PanelWindow {
                             Layout.alignment: Qt.AlignHCenter
                         }
 
-                        // Line 2: Minute
                         Text {
                             text: shellRoot.vertMinute || Qt.formatTime(new Date(), "mm")
                             color: Config.showCalendar ? Config.accent : Config.textMain
@@ -1132,7 +1099,6 @@ PanelWindow {
                             Layout.alignment: Qt.AlignHCenter
                         }
 
-                        // Line 3: AM / PM
                         Text {
                             text: shellRoot.vertAmPm || Qt.formatTime(new Date(), "ap").toLowerCase()
                             color: Config.accent
@@ -1140,7 +1106,6 @@ PanelWindow {
                             Layout.alignment: Qt.AlignHCenter
                         }
 
-                        // Line 4: Month (e.g. Jul)
                         Text {
                             text: shellRoot.vertMonth || Qt.formatDate(new Date(), "MMM")
                             color: Config.showCalendar ? Config.accent : Config.textMuted
@@ -1148,7 +1113,6 @@ PanelWindow {
                             Layout.alignment: Qt.AlignHCenter
                         }
 
-                        // Line 5: Day (e.g. 28)
                         Text {
                             text: shellRoot.vertDay || Qt.formatDate(new Date(), "d")
                             color: Config.showCalendar ? Config.accent : Config.textMuted
@@ -1163,18 +1127,15 @@ PanelWindow {
             }
         }
 
-        // FLYOUT DRAWER CONTENT CONTAINER
         Item {
             id: contentContainer
             
-            // X-axis sliding translation for vertical modes (left/right)
             x: isHorizontal 
                 ? (root.staticLeft + ((root.targetWidth - root.currentWidth) / 2.0) + 12)
                 : (isRight 
                     ? (mainContainer.width - root.barH - root.currentWidth) 
                     : (root.barH + (root.wingW * (1.0 - root.animScale))))
 
-            // Y-axis sliding translation for horizontal modes (top/bottom)
             y: isHorizontal 
                 ? (isBottom 
                     ? (mainContainer.height - root.barH - root.currentHeight) 
