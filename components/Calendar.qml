@@ -5,17 +5,12 @@ import Qt.labs.qmlmodels
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Io
-import "settings"
 
-MorphingFlyout {
+Item {
     id: root
 
-    panelWidth: 680
-    panelHeight: 460
-    isOpen: Config.showCalendar
-    alignRight: true
-
-    flyoutBorderColor: Config.accent
+    implicitWidth: 680
+    implicitHeight: 460
 
     // Calendar Navigation State
     property int gridMonth: new Date().getMonth()
@@ -128,33 +123,11 @@ MorphingFlyout {
         }
     }
 
-    // --- WEATHER MODULE INTEGRATION ---
-    WeatherSettings {
-        id: weather
-        zipcode: Config.locationQuery || ""
-        
-        // Fetch new data immediately whenever the zipcode/location updates
-        onZipcodeChanged: weather.fetchWeather(true)
-    }
-
-    // Fetch once on shell launch
-    Component.onCompleted: {
-        weather.fetchWeather(true)
-    }
-
-    // Refresh every 15 minutes continuously in background
-    Timer {
-        interval: 900000 // 15 minutes
-        running: true
-        repeat: true
-        onTriggered: weather.fetchWeather(true)
-    }
-
     ListModel { id: reminderModel }
 
     RowLayout {
         anchors.fill: parent
-        anchors.margins: 20
+        anchors.margins: 10
         spacing: 16
 
         // --- LEFT COLUMN: CLOCK, WEATHER & REMINDERS ---
@@ -168,7 +141,7 @@ MorphingFlyout {
             Rectangle {
                 Layout.fillWidth: true
                 implicitHeight: clockWeatherCol.implicitHeight + 20
-                color: Qt.rgba(255, 255, 255, 0.05)
+                color: Qt.rgba(1, 1, 1, 0.08)
                 radius: Config.cornerRadius
 
                 ColumnLayout {
@@ -210,7 +183,7 @@ MorphingFlyout {
                             spacing: 6
 
                             Text {
-                                text: weather.glyph
+                                text: Config.weather ? Config.weather.glyph : ""
                                 font.family: "Material Symbols Outlined"
                                 font.pixelSize: 24
                                 color: Config.accent
@@ -218,7 +191,7 @@ MorphingFlyout {
                             }
 
                             Text {
-                                text: weather.temp
+                                text: Config.weather ? Config.weather.temp : ""
                                 color: Config.textMain
                                 font.family: Config.sysFont
                                 font.pixelSize: Config.size(Config.fontSubhead)
@@ -228,7 +201,7 @@ MorphingFlyout {
                         }
 
                         Text {
-                            text: weather.desc + "\nFeels like " + weather.feelsLike
+                            text: Config.weather ? (Config.weather.desc + "\nFeels like " + Config.weather.feelsLike) : ""
                             color: Config.textMuted
                             font.family: Config.sysFont
                             font.pixelSize: Config.size(Config.fontCaption)
@@ -245,7 +218,7 @@ MorphingFlyout {
             Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                color: Qt.rgba(255, 255, 255, 0.05)
+                color: Qt.rgba(1, 1, 1, 0.08)
                 radius: Config.cornerRadius
 
                 ColumnLayout {
@@ -273,7 +246,7 @@ MorphingFlyout {
                             width: reminderList.width
                             implicitHeight: rowContent.implicitHeight + 10
                             radius: Config.cornerRadius / 2
-                            color: itemHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : Qt.rgba(0, 0, 0, 0.15)
+                            color: itemHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.25)
 
                             Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -335,7 +308,7 @@ MorphingFlyout {
                     Rectangle {
                         Layout.fillWidth: true
                         implicitHeight: Math.max(32, noteInput.implicitHeight + 8)
-                        color: Qt.rgba(0, 0, 0, 0.15)
+                        color: Qt.rgba(0, 0, 0, 0.25)
                         radius: Config.cornerRadius / 2
 
                         TextEdit {
@@ -384,7 +357,7 @@ MorphingFlyout {
         Rectangle {
             Layout.fillHeight: true
             Layout.fillWidth: true
-            color: Qt.rgba(255, 255, 255, 0.05)
+            color: Qt.rgba(1, 1, 1, 0.08)
             radius: Config.cornerRadius
 
             ColumnLayout {
@@ -489,7 +462,7 @@ MorphingFlyout {
                         Text {
                             anchors.centerIn: parent
                             text: model.day
-                            color: isSelected ? Config.textMain : (model.today ? Config.accent : (model.month === grid.month ? Config.textMain : Qt.rgba(255,255,255,0.15)))
+                            color: isSelected ? Config.bgBase : (model.today ? Config.accent : (model.month === grid.month ? Config.textMain : Qt.rgba(255,255,255,0.15)))
                             font.family: Config.sysFont
                             font.pixelSize: Config.size(Config.fontSubhead)
                             font.bold: model.today || isSelected || hasReminders
