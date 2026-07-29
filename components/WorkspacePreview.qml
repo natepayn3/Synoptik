@@ -10,9 +10,9 @@ FocusScope {
     id: overviewFlyout
     focus: true
 
-    implicitWidth: rowContainer.implicitWidth + 64
-    implicitHeight: mainLayout.implicitHeight + 40
-
+    implicitWidth: Math.max(480, (rowContainer.childrenRect.width > 0 ? rowContainer.childrenRect.width + 48 : 480))
+    implicitHeight: Math.max(260, (cardLayout.implicitHeight > 0 ? cardLayout.implicitHeight + 48 : 260))
+    
     readonly property bool isOpen: typeof Config.showWorkspacePreview !== "undefined" ? Config.showWorkspacePreview : false
 
     property var liveClientJson: []
@@ -242,10 +242,8 @@ print(json.dumps(resolved_map))
 
     ColumnLayout {
         id: mainLayout
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.margins: 20
+        anchors.fill: parent
+        anchors.margins: 12
         spacing: 12
 
         opacity: overviewFlyout.contentReady ? 1.0 : 0.0

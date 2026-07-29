@@ -13,6 +13,9 @@ Item {
     property var filteredApps: []
     property var localPins: []
 
+    implicitWidth: 420
+    implicitHeight: 480
+
     // Clear search and refresh models when opened
     Connections {
         target: Config
@@ -170,10 +173,8 @@ print(json.dumps(apps))
     ColumnLayout {
         id: mainLayout
         
-        anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.margins: 16
+        anchors.fill: parent
+        anchors.margins: 12
         
         spacing: 12
 
@@ -189,9 +190,7 @@ print(json.dumps(apps))
             ColumnLayout {
                 id: cardContentLayout
                 
-                anchors.top: parent.top
-                anchors.left: parent.left
-                anchors.right: parent.right
+                anchors.fill: parent
                 anchors.margins: 12
                 
                 spacing: 12
