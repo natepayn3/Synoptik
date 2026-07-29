@@ -31,21 +31,25 @@ PanelWindow {
 
     // 1. Raw Child Bounds
     readonly property real rawChildWidth: {
+        let baseW = 420
         if (contentContainer.children.length > 0) {
             let child = contentContainer.children[0]
-            if (child.item && child.item.implicitWidth > 0) return child.item.implicitWidth + 24
-            if (child.implicitWidth > 0) return child.implicitWidth + 24
+            if (child.item && child.item.implicitWidth > 0) baseW = child.item.implicitWidth
+            else if (child.implicitWidth > 0) baseW = child.implicitWidth
         }
-        return 420 + 24
+        return baseW + 24
     }
 
     readonly property real rawChildHeight: {
+        let baseH = 480
         if (contentContainer.children.length > 0) {
             let child = contentContainer.children[0]
-            if (child.item && child.item.implicitHeight > 0) return child.item.implicitHeight + 24
-            if (child.implicitHeight > 0) return child.implicitHeight + 24
+            if (child.item && child.item.implicitHeight > 0) baseH = child.item.implicitHeight
+            else if (child.implicitHeight > 0) baseH = child.implicitHeight
         }
-        return 480 + 24
+        // In horizontal mode, wingH already handles vertical offset space. 
+        // Do not add + 24 to baseH in horizontal mode, or it inflates top/bottom margins.
+        return isHorizontal ? baseH : (baseH + 24)
     }
 
     // 2. Surface Target Bounds
@@ -425,13 +429,12 @@ PanelWindow {
                 }
             }
 
-            // 3. OPEN STATE - BOTTOM POSITION (Static Bar Lock)
+            // 3. OPEN STATE - BOTTOM POSITION
             Shape {
                 id: openShapeBottom
                 anchors.fill: parent
                 visible: root.barPosition === "bottom" && root.progress > 0
 
-                // Static bottom bar Y baseline (never changes during drawer animations)
                 readonly property real barTopY: mainContainer.height - root.barH + root.halfB
 
                 ShapePath {
@@ -441,29 +444,33 @@ PanelWindow {
                     joinStyle: ShapePath.RoundJoin
                     capStyle: ShapePath.RoundCap
 
-                    // Start at static bottom-left corner
+                    // Start at bar top-left corner
                     startX: root.halfB
-                    startY: openShapeBottom.barTopY + root.barRadius
+                    startY: root.isLeftFlush ? openShapeBottom.barTopY : (openShapeBottom.barTopY + root.barRadius)
 
+                    // TOP-LEFT BAR CORNER: Sharp 90° when flush, rounded arc when floating
                     PathArc { 
-                        x: root.halfB + root.barRadius
+                        x: root.halfB + (root.isLeftFlush ? 0 : root.barRadius)
                         y: openShapeBottom.barTopY
-                        radiusX: root.barRadius
-                        radiusY: root.barRadius
+                        radiusX: root.isLeftFlush ? 0 : root.barRadius
+                        radiusY: root.isLeftFlush ? 0 : root.barRadius
                         direction: PathArc.Clockwise 
                     }
 
                     // Static line to left wing
-                    PathLine { x: root.pLeft - root.wingW; y: openShapeBottom.barTopY }
+                    PathLine { 
+                        x: root.isLeftFlush ? root.halfB : (root.pLeft - root.wingW)
+                        y: openShapeBottom.barTopY 
+                    }
 
                     // Left wing curve extending upward into flyout
                     PathCubic {
                         x: root.pLeft
-                        y: openShapeBottom.barTopY - root.wingH
-                        control1X: root.pLeft - (root.wingW * 0.5)
+                        y: root.isLeftFlush ? openShapeBottom.barTopY : (openShapeBottom.barTopY - root.wingH)
+                        control1X: root.isLeftFlush ? root.halfB : (root.pLeft - (root.wingW * 0.5))
                         control1Y: openShapeBottom.barTopY
                         control2X: root.pLeft
-                        control2Y: openShapeBottom.barTopY - (root.wingH * 0.5)
+                        control2Y: root.isLeftFlush ? openShapeBottom.barTopY : (openShapeBottom.barTopY - (root.wingH * 0.5))
                     }
 
                     // Left wall of flyout drawer
@@ -491,28 +498,38 @@ PanelWindow {
                     }
 
                     // Right wall of flyout drawer
-                    PathLine { x: root.pRight; y: openShapeBottom.barTopY - root.wingH }
+                    PathLine { x: root.pRight; y: root.isRightFlush ? openShapeBottom.barTopY : (openShapeBottom.barTopY - root.wingH) }
 
-                    // Right wing curve returning to static bar top
+                    // Right wing curve
                     PathCubic {
-                        x: root.pRight + root.wingW
+                        x: root.isRightFlush ? (mainContainer.width - root.halfB) : (root.pRight + root.wingW)
                         y: openShapeBottom.barTopY
                         control1X: root.pRight
-                        control1Y: openShapeBottom.barTopY - (root.wingH * 0.5)
-                        control2X: root.pRight + (root.wingW * 0.5)
+                        control1Y: root.isRightFlush ? openShapeBottom.barTopY : (openShapeBottom.barTopY - (root.wingH * 0.5))
+                        control2X: root.isRightFlush ? (mainContainer.width - root.halfB) : (root.pRight + (root.wingW * 0.5))
                         control2Y: openShapeBottom.barTopY
                     }
 
-                    // Static line to right bar edge
-                    PathLine { x: mainContainer.width - root.halfB - root.barRadius; y: openShapeBottom.barTopY }
+                    // Line to right bar edge
+                    PathLine { 
+                        x: root.isRightFlush ? (mainContainer.width - root.halfB) : (mainContainer.width - root.halfB - root.barRadius)
+                        y: openShapeBottom.barTopY 
+                    }
 
-                    // Static right bar edge curves
-                    PathArc { x: mainContainer.width - root.halfB; y: openShapeBottom.barTopY + root.barRadius; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
+                    // TOP-RIGHT BAR CORNER: Sharp 90° when right-flush
+                    PathArc { 
+                        x: mainContainer.width - root.halfB
+                        y: openShapeBottom.barTopY + (root.isRightFlush ? 0 : root.barRadius)
+                        radiusX: root.isRightFlush ? 0 : root.barRadius
+                        radiusY: root.isRightFlush ? 0 : root.barRadius
+                        direction: PathArc.Clockwise 
+                    }
+
                     PathLine { x: mainContainer.width - root.halfB; y: mainContainer.height - root.halfB - root.barRadius }
                     PathArc { x: mainContainer.width - root.halfB - root.barRadius; y: mainContainer.height - root.halfB; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
                     PathLine { x: root.halfB + root.barRadius; y: mainContainer.height - root.halfB }
                     PathArc { x: root.halfB; y: mainContainer.height - root.halfB - root.barRadius; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
-                    PathLine { x: root.halfB; y: openShapeBottom.barTopY + root.barRadius }
+                    PathLine { x: root.halfB; y: openShapeBottom.barTopY + (root.isLeftFlush ? 0 : root.barRadius) }
                 }
             }
 
@@ -623,39 +640,71 @@ PanelWindow {
                     joinStyle: ShapePath.RoundJoin
                     capStyle: ShapePath.RoundCap
 
-                    startX: openShapeRight.rX + root.halfB + root.barRadius; startY: root.halfB
+                    // Start at bar top-left corner
+                    startX: openShapeRight.rX + root.halfB
+                    startY: root.isLeftFlush ? root.halfB : (root.halfB + root.barRadius)
 
+                    // Outer bar top-right corner
                     PathLine { x: mainContainer.width - root.halfB - root.barRadius; y: root.halfB }
                     PathArc { x: mainContainer.width - root.halfB; y: root.halfB + root.barRadius; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
 
+                    // Outer bar bottom-right corner
                     PathLine { x: mainContainer.width - root.halfB; y: mainContainer.height - root.halfB - root.barRadius }
                     PathArc { x: mainContainer.width - root.halfB - root.barRadius; y: mainContainer.height - root.halfB; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
 
+                    // Outer bar bottom-left corner
                     PathLine { x: openShapeRight.rX + root.halfB + root.barRadius; y: mainContainer.height - root.halfB }
-                    PathArc { x: openShapeRight.rX + root.halfB; y: mainContainer.height - root.halfB - root.barRadius; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
+                    PathArc { x: openShapeRight.rX + root.halfB; y: mainContainer.height - root.halfB - (root.isRightFlush ? 0 : root.barRadius); radiusX: root.isRightFlush ? 0 : root.barRadius; radiusY: root.isRightFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
 
-                    PathLine { x: openShapeRight.rX + root.halfB; y: Math.min(mainContainer.height - root.halfB - root.barRadius, root.pRight + root.wingW) }
+                    // Path line extending up to bottom wing (or corner flush point)
+                    PathLine { x: openShapeRight.rX + root.halfB; y: root.isRightFlush ? (mainContainer.height - root.halfB) : (root.pRight + root.wingW) }
+
+                    // Bottom wing curve returning into flyout drawer
                     PathCubic {
-                        x: openShapeRight.rX + root.halfB - root.wingW; y: root.pRight
-                        control1X: openShapeRight.rX + root.halfB; control1Y: root.pRight + (root.wingW * 0.5)
-                        control2X: openShapeRight.rX + root.halfB - (root.wingW * 0.5); control2Y: root.pRight
+                        x: root.isRightFlush ? (openShapeRight.rX + root.halfB) : (openShapeRight.rX + root.halfB - root.wingW)
+                        y: root.pRight
+                        control1X: openShapeRight.rX + root.halfB
+                        control1Y: root.isRightFlush ? (mainContainer.height - root.halfB) : (root.pRight + (root.wingW * 0.5))
+                        control2X: root.isRightFlush ? (openShapeRight.rX + root.halfB) : (openShapeRight.rX + root.halfB - (root.wingW * 0.5))
+                        control2Y: root.pRight
                     }
 
+                    // Flyout drawer bottom wall
                     PathLine { x: openShapeRight.rX + root.halfB - root.wingW - root.currentWidth + root.radius; y: root.pRight }
+                    
+                    // Flyout drawer bottom-left corner
                     PathArc { x: openShapeRight.rX + root.halfB - root.wingW - root.currentWidth; y: root.pRight - root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
 
+                    // Flyout drawer left wall
                     PathLine { x: openShapeRight.rX + root.halfB - root.wingW - root.currentWidth; y: root.pLeft + root.radius }
+                    
+                    // Flyout drawer top-left corner
                     PathArc { x: openShapeRight.rX + root.halfB - root.wingW - root.currentWidth + root.radius; y: root.pLeft; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
 
-                    PathLine { x: openShapeRight.rX + root.halfB - root.wingW; y: root.pLeft }
+                    // Flyout drawer top wall
+                    PathLine { x: root.isLeftFlush ? (openShapeRight.rX + root.halfB) : (openShapeRight.rX + root.halfB - root.wingW); y: root.pLeft }
+
+                    // Top wing curve extending into static bar
                     PathCubic {
-                        x: openShapeRight.rX + root.halfB; y: Math.max(root.halfB + root.barRadius, root.pLeft - root.wingW)
-                        control1X: openShapeRight.rX + root.halfB - (root.wingW * 0.5); control1Y: root.pLeft
-                        control2X: openShapeRight.rX + root.halfB; control2Y: root.pLeft - (root.wingW * 0.5)
+                        x: openShapeRight.rX + root.halfB
+                        y: root.isLeftFlush ? root.halfB : (root.pLeft - root.wingW)
+                        control1X: root.isLeftFlush ? (openShapeRight.rX + root.halfB) : (openShapeRight.rX + root.halfB - (root.wingW * 0.5))
+                        control1Y: root.pLeft
+                        control2X: openShapeRight.rX + root.halfB
+                        control2Y: root.isLeftFlush ? root.halfB : (root.pLeft - (root.wingW * 0.5))
                     }
 
-                    PathLine { x: openShapeRight.rX + root.halfB; y: root.halfB + root.barRadius }
-                    PathArc { x: openShapeRight.rX + root.halfB + root.barRadius; y: root.halfB; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
+                    // Line to top-left bar edge
+                    PathLine { x: openShapeRight.rX + root.halfB; y: root.isLeftFlush ? root.halfB : (root.halfB + root.barRadius) }
+
+                    // TOP-LEFT INNER BAR CORNER: Sharp 90° when top-flush
+                    PathArc { 
+                        x: openShapeRight.rX + root.halfB + (root.isLeftFlush ? 0 : root.barRadius)
+                        y: root.halfB
+                        radiusX: root.isLeftFlush ? 0 : root.barRadius
+                        radiusY: root.isLeftFlush ? 0 : root.barRadius
+                        direction: PathArc.Clockwise 
+                    }
                 }
             }
         }
@@ -1100,10 +1149,16 @@ PanelWindow {
         // FLYOUT DRAWER CONTENT CONTAINER
         Item {
             id: contentContainer
-            x: isHorizontal ? root.pLeft : (isRight ? (mainContainer.width - root.barH - root.currentWidth) : root.barH)
-            y: isHorizontal ? (isBottom ? (mainContainer.height - root.barH - root.currentHeight) : root.barH) : root.pLeft
             
-            width: isHorizontal ? root.targetWidth : root.currentWidth
+            x: isHorizontal 
+                ? (root.pLeft + 12) 
+                : (isRight ? (mainContainer.width - root.barH - root.currentWidth) : root.barH)
+
+            y: isHorizontal 
+                ? (isBottom ? (mainContainer.height - root.barH - root.currentHeight) : root.barH) 
+                : root.pLeft
+            
+            width: isHorizontal ? (root.targetWidth - 24) : root.currentWidth
             height: isHorizontal ? root.currentHeight : root.targetHeight
             clip: true
             opacity: root.animScale
