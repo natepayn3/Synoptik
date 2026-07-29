@@ -50,55 +50,48 @@ PanelWindow {
         return isHorizontal ? baseH : (baseH + 24)
     }
 
-    // 2. Surface Target Bounds
-    property real targetWidth: 400
-    property real targetHeight: 480
+    // Capture active dimensions at unmap trigger to prevent evaluation loops on close
+    property real lastOpenWidth: rawChildWidth
+    property real lastOpenHeight: rawChildHeight
 
-    // Synchronized target dimension morphing
+    onIsOpenChanged: {
+        if (!isOpen) {
+            lastOpenWidth = rawChildWidth
+            lastOpenHeight = rawChildHeight
+        }
+    }
+
+    property real targetWidth: isOpen ? rawChildWidth : (isHorizontal ? (lastOpenWidth * 0.50) : (lastOpenWidth * 1.10))
+    property real targetHeight: isOpen ? rawChildHeight : (isHorizontal ? (lastOpenHeight * 1.10) : (lastOpenHeight * 0.50))
+
+    // Dynamic Morphing Behaviors
     Behavior on targetWidth {
-        enabled: root.isOpen
         NumberAnimation { 
-            duration: 500; 
+            duration: 350; 
             easing.type: Easing.OutBack; 
-            easing.overshoot: 1.6 
+            easing.overshoot: 0.8
         }
     }
 
     Behavior on targetHeight {
-        enabled: root.isOpen
         NumberAnimation { 
-            duration: 500; 
+            duration: 350; 
             easing.type: Easing.OutBack; 
-            easing.overshoot: 1.6 
+            easing.overshoot: 0.8
         }
     }
 
-    // 3. Sync Target Dimensions Safely
-    Binding {
-        target: root
-        property: "targetWidth"
-        value: root.rawChildWidth
-        when: root.isOpen && root.rawChildWidth > 0
-    }
-
-    Binding {
-        target: root
-        property: "targetHeight"
-        value: root.rawChildHeight
-        when: root.isOpen && root.rawChildHeight > 0
-    }
-
-    onIsOpenChanged: {}
-
     property real progress: 0.0
-    // Unclamped animScale allowing overshoot above 1.0 to render shape stretching
     readonly property real animScale: Math.max(0.0, progress)
 
-    // Morph dimensions: Grows from a compact origin to full target bounds
-    readonly property real currentWidth: targetWidth * animScale
-    readonly property real currentHeight: targetHeight * animScale
+    // Smooth closing progress curve
+    readonly property real closeFactor: root.isOpen ? progress : Math.pow(progress, 1.2)
 
-    // Liquid wings and corners scale in sync
+    // Pure squish logic mapping
+    readonly property real currentHeight: targetHeight * Math.pow(closeFactor, 1.8)
+    readonly property real squishRatio: targetHeight > 0 ? (1.0 - (currentHeight / targetHeight)) : 0.0
+    readonly property real currentWidth: root.isOpen ? (targetWidth * animScale) : (targetWidth * (closeFactor + (0.3 * squishRatio * closeFactor)))
+
     readonly property real wingW: 16 * animScale
     readonly property real wingH: 16 * animScale
     readonly property real radius: 18 * animScale
@@ -187,6 +180,7 @@ PanelWindow {
         else if (Config.showSystemMonitor) activeView = "systemMonitor"
         else if (Config.showBattery) activeView = "battery"
         else if (Config.showClipboard) activeView = "clipboard"
+        else if (Config.showScreenRecorder) activeView = "screenRecorder"
         else if (Config.showControlCenter) activeView = "controlCenter"
         else activeView = "none"
 
@@ -200,6 +194,32 @@ PanelWindow {
         } else {
             root.popoutYOffset = item.mapToItem(mainContainer, 0, item.height / 2).y
         }
+    }
+
+    function recordRegion() {
+        closeOthers("none")
+        let home = Quickshell.env("HOME")
+        let dateStr = Qt.formatDateTime(new Date(), "yyyy-MM-dd_hh-mm-ss")
+        let file = home + "/Videos/recording_" + dateStr + ".mp4"
+        let cmd = "sleep 0.15; and set -l geom (slurp); and test -n \"$geom\"; and mkdir -p ~/Videos; and exec wf-recorder -f " + file + " -g \"$geom\""
+        
+        Quickshell.execDetached(["fish", "-c", cmd])
+        Quickshell.execDetached(["notify-send", "-a", "Screen Recorder", "-i", "media-record", "Screen Recorder", "Select region to start recording..."])
+    }
+
+    function recordFullscreen() {
+        closeOthers("none")
+        let home = Quickshell.env("HOME")
+        let dateStr = Qt.formatDateTime(new Date(), "yyyy-MM-dd_hh-mm-ss")
+        let file = home + "/Videos/recording_" + dateStr + ".mp4"
+        let cmd = "mkdir -p ~/Videos; and exec wf-recorder -f " + file
+        
+        Quickshell.execDetached(["fish", "-c", cmd])
+        Quickshell.execDetached(["notify-send", "-a", "Screen Recorder", "-i", "media-record", "Recording Started", "Capturing video..."])
+    }
+
+    function stopRecording() {
+        Quickshell.execDetached(["pkill", "-2", "wf-recorder"])
     }
 
     Connections {
@@ -228,6 +248,7 @@ PanelWindow {
         function onShowSystemMonitorChanged() { if (Config.showSystemMonitor) { closeOthers("systemMonitor"); setPopoutPos(btnSys); } updateActiveView() }
         function onShowBatteryChanged() { if (Config.showBattery) { closeOthers("battery"); setPopoutPos(btnBatt); } updateActiveView() }
         function onShowClipboardChanged() { if (Config.showClipboard) { closeOthers("clipboard"); setPopoutPos(btnClipboard); } updateActiveView() }
+        function onShowScreenRecorderChanged() { if (Config.showScreenRecorder) { closeOthers("screenRecorder"); setPopoutPos(btnRecorder); } updateActiveView() }
         function onShowControlCenterChanged() { if (Config.showControlCenter) { closeOthers("controlCenter"); setPopoutPos(btnCC); } updateActiveView() }
     }
 
@@ -243,6 +264,7 @@ PanelWindow {
         if (except !== "systemMonitor") Config.showSystemMonitor = false
         if (except !== "battery") Config.showBattery = false
         if (except !== "clipboard") Config.showClipboard = false
+        if (except !== "screenRecorder") Config.showScreenRecorder = false
         if (except !== "controlCenter") Config.showControlCenter = false
     }
 
@@ -273,7 +295,7 @@ PanelWindow {
                     property: "progress"
                     duration: 500
                     easing.type: Easing.OutBack
-                    easing.overshoot: 1.6
+                    easing.overshoot: 0.7
                 }
             },
             Transition {
@@ -282,7 +304,7 @@ PanelWindow {
                 NumberAnimation { 
                     target: root
                     property: "progress"
-                    duration: 350
+                    duration: 300
                     easing.type: Easing.InBack
                     easing.overshoot: 1.6
                 }
@@ -303,7 +325,7 @@ PanelWindow {
                 shadowVerticalOffset: 0
             }
 
-            // 1. CLOSED STATE
+            // CLOSED STATE SHAPE
             Shape {
                 id: closedShape
                 anchors.fill: parent
@@ -338,7 +360,7 @@ PanelWindow {
                 }
             }
 
-            // 2. OPEN STATE - TOP POSITION
+            // OPEN STATE - TOP POSITION SHAPE
             Shape {
                 id: openShapeTop
                 anchors.fill: parent
@@ -446,7 +468,7 @@ PanelWindow {
                 }
             }
 
-            // 3. OPEN STATE - BOTTOM POSITION
+            // OPEN STATE - BOTTOM POSITION SHAPE
             Shape {
                 id: openShapeBottom
                 anchors.fill: parent
@@ -538,7 +560,7 @@ PanelWindow {
                 }
             }
 
-            // 4. OPEN STATE - LEFT POSITION
+            // OPEN STATE - LEFT POSITION SHAPE
             Shape {
                 id: openShapeLeft
                 anchors.fill: parent
@@ -630,7 +652,7 @@ PanelWindow {
                 }
             }
 
-            // 5. OPEN STATE - RIGHT POSITION
+            // OPEN STATE - RIGHT POSITION SHAPE
             Shape {
                 id: openShapeRight
                 anchors.fill: parent
@@ -841,6 +863,26 @@ PanelWindow {
 
                     TapHandler { onTapped: { setPopoutPos(btnClipboard); Config.showClipboard = !Config.showClipboard; } }
                     HoverHandler { id: clipHover; cursorShape: Qt.PointingHandCursor }
+                }
+
+                // SCREEN RECORDER BUTTON
+                Rectangle {
+                    id: btnRecorder
+                    implicitWidth: 32; implicitHeight: 32; radius: 10
+                    color: (Config.showScreenRecorder || recordHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: (typeof shellRoot !== "undefined" && shellRoot.isRecording) ? "radio_button_checked" : "videocam"
+                        color: (typeof shellRoot !== "undefined" && shellRoot.isRecording) ? "#ef4444" : (Config.showScreenRecorder ? Config.accent : Config.textMain)
+                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+
+                        Behavior on color { ColorAnimation { duration: 150 } }
+                    }
+
+                    TapHandler { onTapped: { setPopoutPos(btnRecorder); Config.showScreenRecorder = !Config.showScreenRecorder; } }
+                    HoverHandler { id: recordHover; cursorShape: Qt.PointingHandCursor }
                 }
             }
 
