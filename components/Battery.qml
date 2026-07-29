@@ -4,17 +4,15 @@ import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
 
-MorphingFlyout {
+UnifiedSurface {
     id: root
 
     isOpen: typeof Config.showBattery !== "undefined" ? Config.showBattery : false
-    alignRight: true
-    panelWidth: 320
-    panelHeight: mainContent.implicitHeight + 40
 
-    property string battName: shellRoot.battName
-    property int battCapacity: shellRoot.battCapacity
-    property string battStatus: shellRoot.battStatus
+    property string battName: typeof shellRoot !== "undefined" ? shellRoot.battName : "BAT0"
+    property int battCapacity: typeof shellRoot !== "undefined" ? shellRoot.battCapacity : 0
+    property string battStatus: typeof shellRoot !== "undefined" ? shellRoot.battStatus : "Discharging"
+    property string powerDraw: "0.0"
 
     // Detailed Stats Poller
     Process {
@@ -29,15 +27,10 @@ MorphingFlyout {
         }
     }
 
-    property string powerDraw: "0.0"
-
     ColumnLayout {
         id: mainContent
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.margins: 20
-        spacing: 16
+        implicitWidth: 320
+        spacing: 12
 
         // Header
         RowLayout {
@@ -71,16 +64,16 @@ MorphingFlyout {
             }
         }
 
-        // Percentage Level Display
+        // Percentage Level Display Card
         Rectangle {
             Layout.fillWidth: true
             implicitHeight: 70
-            radius: Config.cornerRadius / 2
-            color: Config.bgBase
+            radius: Config.cornerRadius
+            color: Qt.rgba(1, 1, 1, 0.08)
 
             RowLayout {
                 anchors.fill: parent
-                anchors.margins: 16
+                anchors.margins: 12
                 spacing: 12
 
                 Text {
@@ -98,7 +91,7 @@ MorphingFlyout {
 
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 2
+                    spacing: 4
 
                     Text {
                         text: root.battCapacity + "% Available"
@@ -130,16 +123,16 @@ MorphingFlyout {
             }
         }
 
-        // Extra details
+        // Extra details Cards
         RowLayout {
             Layout.fillWidth: true
             spacing: 12
 
             Rectangle {
                 Layout.fillWidth: true
-                implicitHeight: 48
-                radius: Config.cornerRadius / 2
-                color: Config.bgBase
+                implicitHeight: 52
+                radius: Config.cornerRadius
+                color: Qt.rgba(1, 1, 1, 0.08)
 
                 ColumnLayout {
                     anchors.centerIn: parent
@@ -150,6 +143,7 @@ MorphingFlyout {
                         color: Config.textMuted
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontMicro)
+                        font.bold: true
                     }
 
                     Text {
@@ -164,9 +158,9 @@ MorphingFlyout {
 
             Rectangle {
                 Layout.fillWidth: true
-                implicitHeight: 48
-                radius: Config.cornerRadius / 2
-                color: Config.bgBase
+                implicitHeight: 52
+                radius: Config.cornerRadius
+                color: Qt.rgba(1, 1, 1, 0.08)
 
                 ColumnLayout {
                     anchors.centerIn: parent
@@ -177,6 +171,7 @@ MorphingFlyout {
                         color: Config.textMuted
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontMicro)
+                        font.bold: true
                     }
 
                     Text {
