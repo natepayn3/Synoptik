@@ -7,13 +7,10 @@ PanelWindow {
     id: petWindow
     visible: Config.showMascot && Config.mascotPath !== ""
 
-    // Set initial screen on load based on focused monitor, then lock it
     Component.onCompleted: {
         let activeName = Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""
         let found = Quickshell.screens.find(s => s.name === activeName)
-        if (found) {
-            petWindow.screen = found
-        }
+        petWindow.screen = found || Quickshell.screens[0]
     }
 
     WlrLayershell.layer: WlrLayer.Overlay
@@ -30,7 +27,6 @@ PanelWindow {
     color: "transparent"
     exclusiveZone: 0 
 
-    // Pass-through clicks everywhere except over the mascot container
     mask: Region { item: petContainer }
 
     function formatFileUrl(path) {
@@ -49,12 +45,32 @@ PanelWindow {
         width: 128
         height: character.implicitWidth ? (width * (character.implicitHeight / character.implicitWidth)) : width
 
-        Component.onCompleted: {
-            x = Math.max(0, (petWindow.width / 2) - (width / 2))
-            y = Math.max(0, (petWindow.height / 2) - (height / 2))
+        // Backend storage for x/y position
+        property real dragX: 0
+        property real dragY: 0
+        property bool initialized: false
+
+        // Always bind directly to dragX/dragY
+        x: dragX
+        y: dragY
+
+        // Safely center once the parent window has a non-zero size
+        Connections {
+            target: petWindow
+            function onWidthChanged() { petContainer.initPosition() }
+            function onHeightChanged() { petContainer.initPosition() }
         }
 
-        // Only swap screen assignment when manually dragging across monitor boundaries
+        function initPosition() {
+            if (!initialized && petWindow.width > 0 && petWindow.height > 0) {
+                dragX = Math.max(0, (petWindow.width / 2) - (width / 2))
+                dragY = Math.max(0, (petWindow.height / 2) - (height / 2))
+                initialized = true
+            }
+        }
+
+        Component.onCompleted: initPosition()
+
         onXChanged: checkScreenBoundary()
         onYChanged: checkScreenBoundary()
 
@@ -78,8 +94,8 @@ PanelWindow {
                     let newLocalY = globalY - s.y
 
                     petWindow.screen = s
-                    petContainer.x = newLocalX
-                    petContainer.y = newLocalY
+                    petContainer.dragX = newLocalX
+                    petContainer.dragY = newLocalY
                     break
                 }
             }
@@ -106,6 +122,14 @@ PanelWindow {
             drag.axis: Drag.XAndYAxis
             cursorShape: Qt.PointingHandCursor
             hoverEnabled: false
+            
+            // Sync drag position with properties
+            onPositionChanged: {
+                if (drag.active) {
+                    petContainer.dragX = petContainer.x
+                    petContainer.dragY = petContainer.y
+                }
+            }
             
             onWheel: (wheel) => {
                 let step = 16
