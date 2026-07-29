@@ -4,34 +4,26 @@ import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
 
-MorphingFlyout {
-    id: clipFlyoutRoot
+Item {
+    id: clipRoot
 
-    isOpen: Config.showClipboard
-    panelWidth: 360
-    panelHeight: mainCard.implicitHeight + 40
+    implicitWidth: 380
+    implicitHeight: mainLayout.implicitHeight + 24
 
     ListModel { id: clipModel }
 
+    Component.onCompleted: {
+        if (Config.showClipboard) {
+            fetchProc.running = true
+        }
+    }
+
     Process {
         id: fetchProc
-        // Extract raw cliphist binary buffers, detect format, convert to valid PNGs
-        command: ["fish", "-c", "
-            mkdir -p /tmp/cliphist;
-            cliphist list | awk -F'\t' '/binary data|image|\\[\\[/ {print $1}' | while read -l id;
-                if not test -f /tmp/cliphist/$id.png;
-                    set -l tmp_raw /tmp/cliphist/raw_$id;
-                    printf '%s\t' \"$id\" | cliphist decode > $tmp_raw 2>/dev/null;
-                    if test -s $tmp_raw;
-                        # Convert any format (WebP/JPEG/BMP) to a standardized PNG
-                        magick $tmp_raw /tmp/cliphist/$id.png 2>/dev/null;
-                        or cp $tmp_raw /tmp/cliphist/$id.png 2>/dev/null;
-                    end;
-                    rm -f $tmp_raw;
-                end;
-            end;
-            cliphist list;
-        "]
+        running: false
+        
+        command: ["fish", "-c", "mkdir -p /tmp/cliphist; cliphist list | awk -F'\\t' '/binary data|image|\\[\\[/ {print $1}' | while read -l id; if not test -f /tmp/cliphist/$id.png; set -l tmp_raw /tmp/cliphist/raw_$id; printf '%s\\t' \"$id\" | cliphist decode > $tmp_raw 2>/dev/null; if test -s $tmp_raw; magick $tmp_raw /tmp/cliphist/$id.png 2>/dev/null; or cp $tmp_raw /tmp/cliphist/$id.png 2>/dev/null; end; rm -f $tmp_raw; end; end; cliphist list"]
+        
         stdout: StdioCollector {
             onStreamFinished: {
                 clipModel.clear()
@@ -83,12 +75,22 @@ MorphingFlyout {
 
     Process {
         id: wipeProc
+        running: false
         command: ["fish", "-c", "cliphist wipe; and rm -rf /tmp/cliphist/*"]
-        onExited: fetchProc.running = true
+        onExited: {
+            fetchProc.running = false
+            fetchProc.running = true
+        }
     }
 
-    onIsOpenChanged: {
-        if (isOpen) fetchProc.running = true
+    Connections {
+        target: Config
+        function onShowClipboardChanged() {
+            if (Config.showClipboard) {
+                fetchProc.running = false
+                fetchProc.running = true
+            }
+        }
     }
 
     ColumnLayout {
@@ -96,7 +98,7 @@ MorphingFlyout {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.margins: 20
+        anchors.margins: 12
         spacing: 12
 
         Rectangle {
@@ -150,7 +152,12 @@ MorphingFlyout {
                             Behavior on color { ColorAnimation { duration: 150 } }
                         }
 
-                        TapHandler { onTapped: wipeProc.running = true }
+                        TapHandler { 
+                            onTapped: {
+                                wipeProc.running = false
+                                wipeProc.running = true 
+                            }
+                        }
                         HoverHandler { id: clearHover; cursorShape: Qt.PointingHandCursor }
                     }
                 }
@@ -214,7 +221,7 @@ MorphingFlyout {
 
                             TapHandler {
                                 onTapped: {
-                                    copyProc.command = ["fish", "-c", "printf '%s\t' '" + itemId + "' | cliphist decode | wl-copy"]
+                                    copyProc.command = ["fish", "-c", "printf '%s\\t' '" + itemId + "' | cliphist decode | wl-copy"]
                                     copyProc.running = true
                                     Config.showClipboard = false
                                 }
