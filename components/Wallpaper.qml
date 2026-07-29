@@ -6,20 +6,21 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Widgets
 
-MorphingFlyout {
+Item {
     id: root
 
-    isOpen: Config.showWallpaper
-    
+    readonly property int cardMargin: 12
+    readonly property int cardPadding: 16
+
     // Dynamic panel dimensions based on wallpaper count
     readonly property int minPanelWidth: 480
     readonly property int maxPanelWidth: 800
     
-    // Height available for delegate cards (panelHeight minus margins/padding/header space)
-    readonly property int calcCardHeight: panelHeight - (cardMargin * 2) - (cardPadding * 2) - 40
+    // Height available for delegate cards
+    readonly property int calcCardHeight: implicitHeight - (cardMargin * 2) - (cardPadding * 2) - 40
     readonly property int activeCardWidth: Math.round(calcCardHeight * (16 / 9))
     
-    // Dynamic Width Calculation
+    // Dynamic Content Width Calculation
     readonly property int calculatedContentWidth: {
         let count = folderModel.count;
         if (count === 0) return minPanelWidth;
@@ -31,19 +32,16 @@ MorphingFlyout {
     // Dynamic Height Calculation: 150px when empty, 320px when populated
     readonly property int calculatedContentHeight: folderModel.count === 0 ? 150 : 320
 
-    panelWidth: calculatedContentWidth
-    panelHeight: calculatedContentHeight
+    implicitWidth: calculatedContentWidth
+    implicitHeight: calculatedContentHeight
 
-    Behavior on panelWidth {
+    Behavior on implicitWidth {
         NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
     }
 
-    Behavior on panelHeight {
+    Behavior on implicitHeight {
         NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
     }
-
-    readonly property int cardMargin: 20
-    readonly property int cardPadding: 16
 
     Process {
         id: thumbDirCreator
