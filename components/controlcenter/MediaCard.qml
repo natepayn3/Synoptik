@@ -8,8 +8,10 @@ Rectangle {
     id: root
 
     Layout.fillWidth: true
-    implicitHeight: mediaRoot.implicitHeight + 20
+    implicitHeight: mediaRoot.implicitHeight + 24
     radius: Config.cornerRadius
+    
+    clip: true
 
     color: cardHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.04)
     Behavior on color { ColorAnimation { duration: 150 } }
@@ -29,13 +31,13 @@ Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        anchors.margins: 10
-        spacing: root.mediaStatus !== "Stopped" ? 14 : 0
+        anchors.margins: 12
+        spacing: root.mediaStatus !== "Stopped" ? 16 : 0
 
         Item {
             id: artContainer
-            width: visible ? 110 : 0
-            height: 110
+            implicitWidth: visible ? 130 : 0
+            implicitHeight: 130
             Layout.alignment: Qt.AlignVCenter
             visible: root.mediaStatus !== "Stopped"
 
@@ -66,10 +68,10 @@ Rectangle {
                     
                     var centerX = width / 2;
                     var centerY = height / 2;
-                    var innerRadius = 30; 
+                    var innerRadius = 46; 
                     var barCount = root.cavaBars.length;
                     
-                    var maxBarLength = 16;  
+                    var maxBarLength = 14;  
                     var barWidth = 2.5;       
                     
                     ctx.save();
@@ -88,7 +90,7 @@ Rectangle {
                         var endY = startY + barLength;
                         
                         var baseRadius = barWidth / 2;
-                        var tipRadius = baseRadius + (value * 1.5);
+                        var tipRadius = baseRadius + (value * 1.2);
                         
                         ctx.beginPath();
                         ctx.moveTo(-baseRadius, startY);
@@ -110,8 +112,8 @@ Rectangle {
             }
 
             Item {
-                width: 60
-                height: 60
+                width: 88
+                height: 88
                 anchors.centerIn: parent
 
                 Image {
@@ -142,16 +144,18 @@ Rectangle {
                     anchors.centerIn: parent
                     text: "music_note"
                     font.family: "Material Symbols Outlined"
-                    font.pixelSize: 22
+                    font.pixelSize: 34
                     color: Config.textMuted
                     visible: artImage.status !== Image.Ready
                 }
             }
         }
 
+        // Title and Control Details Column
         ColumnLayout {
-            spacing: 4
+            spacing: 8
             Layout.fillWidth: true
+            Layout.preferredWidth: 1
             Layout.alignment: Qt.AlignVCenter
 
             Text { 
@@ -178,18 +182,18 @@ Rectangle {
             }
 
             RowLayout {
-                spacing: 12
+                spacing: 14
                 Layout.alignment: Qt.AlignHCenter
 
                 Item {
-                    implicitWidth: 24
-                    implicitHeight: 24
+                    implicitWidth: 26
+                    implicitHeight: 26
                     Layout.alignment: Qt.AlignVCenter
                     Text { 
                         anchors.centerIn: parent
                         text: "skip_previous"
                         font.family: "Material Symbols Outlined"
-                        font.pixelSize: 20
+                        font.pixelSize: 22
                         color: Config.textMain
                     }
                     MouseArea {
@@ -199,14 +203,14 @@ Rectangle {
                 }
 
                 Item {
-                    implicitWidth: 28
-                    implicitHeight: 28
+                    implicitWidth: 32
+                    implicitHeight: 32
                     Layout.alignment: Qt.AlignVCenter
                     Text { 
                         anchors.centerIn: parent
                         text: root.mediaStatus === "Playing" ? "pause_circle" : "play_circle"
                         font.family: "Material Symbols Outlined"
-                        font.pixelSize: 26
+                        font.pixelSize: 30
                         color: Config.accent
                     }
                     MouseArea {
@@ -216,14 +220,14 @@ Rectangle {
                 }
 
                 Item {
-                    implicitWidth: 24
-                    implicitHeight: 24
+                    implicitWidth: 26
+                    implicitHeight: 26
                     Layout.alignment: Qt.AlignVCenter
                     Text { 
                         anchors.centerIn: parent
                         text: "skip_next"
                         font.family: "Material Symbols Outlined"
-                        font.pixelSize: 20
+                        font.pixelSize: 22
                         color: Config.textMain
                     }
                     MouseArea {
