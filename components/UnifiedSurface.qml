@@ -1140,12 +1140,12 @@ PanelWindow {
                 ? (isBottom 
                     ? (mainContainer.height - root.barH - root.currentHeight) 
                     : (root.barH + (root.wingH * (1.0 - root.animScale))))
-                : (root.staticLeft + ((root.targetHeight - root.currentHeight) / 2.0))
+                : (root.staticLeft + ((root.targetHeight - root.currentHeight) / 2.0) + 12)
             
             width: isHorizontal ? Math.max(1, root.currentWidth - 24) : Math.max(1, root.currentWidth)
-            height: Math.max(1, root.currentHeight)
+            height: isHorizontal ? Math.max(1, root.currentHeight) : Math.max(1, root.currentHeight - 24)
             clip: true
-            opacity: root.animScale
+            visible: root.progress >= 0.98
             focus: true
         }
     }
