@@ -24,7 +24,6 @@ QtObject {
 
     function fetchWeather(force) {
         let now = Date.now();
-        console.log("[WeatherSettings] Fetching from:", _weatherUrl);
         if (force || lastFetchTime === 0 || (now - lastFetchTime > 900000)) {
             if (!weatherFetcher.running) {
                 weatherFetcher.running = true;
@@ -44,7 +43,6 @@ QtObject {
                 let trimmed = this.text ? this.text.trim() : "";
                 
                 if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
-                    console.log("[WeatherSettings] Non-JSON payload:", trimmed.substring(0, 100));
                     weatherFetcher.running = false;
                     return;
                 }
@@ -74,10 +72,9 @@ QtObject {
                         weatherRoot.desc = descMap[code] || (current.weatherDesc && current.weatherDesc[0] ? current.weatherDesc[0].value : "Clear");
                         weatherRoot.glyph = iconMap[code] || "cloud";
                         weatherRoot.lastFetchTime = Date.now();
-                        console.log("[WeatherSettings] Updated:", weatherRoot.temp, weatherRoot.desc);
                     }
                 } catch(e) {
-                    console.log("[WeatherSettings] Parsing error:", e);
+                    // Silently fail to avoid journal log spamming
                 }
                 weatherFetcher.running = false;
             }
