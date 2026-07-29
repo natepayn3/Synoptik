@@ -5,11 +5,13 @@ import Qt.labs.folderlistmodel
 import Quickshell
 import Quickshell.Io
 
-Item {
+MorphingFlyout {
     id: root
 
-    implicitWidth: 380
-    implicitHeight: showFileBrowser ? 480 : (mainLayout.implicitHeight + 40)
+    isOpen: Config.showNetwork
+    alignRight: true
+    panelWidth: 380
+    panelHeight: showFileBrowser ? 480 : (mainLayout.implicitHeight + 40)
 
     // --- State Properties ---
     property string activeVpnName: ""
@@ -53,7 +55,7 @@ Item {
     // Frame-synchronized animation loop
     FrameAnimation {
         id: frameGraphSync
-        running: Config.showNetwork
+        running: root.isOpen
         onTriggered: {
             let elapsed = Date.now() - root.lastPushTimestamp
             root.scrollProgress = Math.min(elapsed / root.updateInterval, 1.0)
@@ -64,7 +66,7 @@ Item {
     Timer {
         id: syncVpnTimer
         interval: 3000
-        running: Config.showNetwork && !showFileBrowser
+        running: root.isOpen && !showFileBrowser
         repeat: true
         triggeredOnStart: true
         onTriggered: {
@@ -77,7 +79,7 @@ Item {
     Timer {
         id: timelineGraphTicker
         interval: root.updateInterval
-        running: Config.showNetwork
+        running: root.isOpen
         repeat: true
         triggeredOnStart: true
         onTriggered: {
@@ -106,7 +108,7 @@ Item {
                 sleep 0.1
             end
         "]
-        running: Config.showNetwork
+        running: root.isOpen
         
         stdout: SplitParser {
             onRead: data => {
@@ -152,8 +154,10 @@ Item {
 
     ColumnLayout {
         id: mainLayout
-        anchors.fill: parent
-        anchors.margins: 12
+        anchors.left: parent.left
+        anchors.right: parent.right
+        anchors.top: parent.top
+        anchors.margins: 20
         spacing: 14
 
         // Dashboard Panel
@@ -585,13 +589,10 @@ Item {
         vpnStateExecutor.running = true
     }
 
-    Connections {
-        target: Config
-        function onShowNetworkChanged() {
-            if (Config.showNetwork) {
-                seedGraphModel()
-                vpnListPopulator.running = true
-            }
+    onIsOpenChanged: {
+        if (isOpen) {
+            seedGraphModel()
+            vpnListPopulator.running = true
         }
     }
 }
