@@ -13,7 +13,7 @@ Rectangle {
     implicitHeight: 64
     radius: Config.cornerRadius
 
-    color: cardHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.04)
+    color: cardHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.25)
     Behavior on color { ColorAnimation { duration: 150 } }
 
     // Bind directly to your root NotificationServer instance

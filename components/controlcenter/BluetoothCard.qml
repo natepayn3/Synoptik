@@ -43,7 +43,7 @@ Item {
         height: cardRoot.shouldExpand ? (64 + 10 + btListView.targetHeight) : 64
         
         radius: Config.cornerRadius
-        color: Qt.tint(Config.bgPanel, cardHover.hovered || cardRoot.shouldExpand ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.04))
+        color: cardHover.hovered || cardRoot.shouldExpand ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.25)
         
         Behavior on height { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
         Behavior on color { ColorAnimation { duration: 150 } }
