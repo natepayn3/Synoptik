@@ -74,6 +74,7 @@ ShellRoot {
                 if (name.length > 0) {
                     shellRoot.hasBattery = true
                     shellRoot.battName = name
+                    battStateProc.running = false
                     battStateProc.running = true
                 } else {
                     shellRoot.hasBattery = false
@@ -108,6 +109,7 @@ ShellRoot {
                 let status = this.text.trim()
                 if (status === "enabled") {
                     shellRoot.wifiPowered = true
+                    wifiActiveProc.running = false
                     wifiActiveProc.running = true
                 } else {
                     shellRoot.wifiPowered = false
@@ -154,7 +156,10 @@ ShellRoot {
         running: true
         stdout: SplitParser {
             onRead: data => {
-                if (data.includes("sink")) audioStateProc.running = true
+                if (data.includes("sink")) {
+                    audioStateProc.running = false
+                    audioStateProc.running = true
+                }
             }
         }
     }
@@ -191,26 +196,23 @@ ShellRoot {
         repeat: true
         triggeredOnStart: true
         onTriggered: {
-            wifiStateProc.running = true
-            audioStateProc.running = true
-            btStateProc.running = true
-            vpnStateProc.running = true
-            if (shellRoot.hasBattery) battStateProc.running = true
+            wifiStateProc.running = false; wifiStateProc.running = true
+            audioStateProc.running = false; audioStateProc.running = true
+            btStateProc.running = false; btStateProc.running = true
+            vpnStateProc.running = false; vpnStateProc.running = true
+            if (shellRoot.hasBattery) {
+                battStateProc.running = false
+                battStateProc.running = true
+            }
         }
     }
 
     // --- NATIVE NOTIFICATION SERVER ---
     property alias notifServer: notifServer
-    // Make this a mutable property so we can explicitly update it
-    property int activeNotifs: 0
-
-    function updateNotifCount() {
-        if (notifServer && notifServer.trackedNotifications) {
-            activeNotifs = notifServer.trackedNotifications.values.length
-        } else {
-            activeNotifs = 0
-        }
-    }
+    
+    readonly property int activeNotifs: (notifServer.trackedNotifications && notifServer.trackedNotifications.values) 
+        ? notifServer.trackedNotifications.values.length 
+        : 0
 
     Notifs.NotificationServer {
         id: notifServer
@@ -218,21 +220,10 @@ ShellRoot {
         bodySupported: true
         actionsSupported: true
 
-        // Force update on incoming notification
         onNotification: notif => {
             if (notif) {
                 notif.tracked = true
-                // Defer slightly to ensure the array updates
-                Qt.callLater(shellRoot.updateNotifCount)
             }
-        }
-    }
-
-    // Monitor additions/removals automatically
-    Connections {
-        target: notifServer.trackedNotifications
-        function onValuesChanged() {
-            shellRoot.updateNotifCount()
         }
     }
 
@@ -249,6 +240,7 @@ ShellRoot {
                 Config.showNotifications = false
                 Config.showBattery = false
                 Config.showWorkspacePreview = false
+                Config.showControlCenter = false
             }
             Config.showPower = !Config.showPower
         }
@@ -263,9 +255,10 @@ ShellRoot {
                 Config.showSettings = false
                 Config.showWallpaper = false
                 Config.showCalendar = false
-                Config.showNotifications = false;
+                Config.showNotifications = false
                 Config.showBattery = false
                 Config.showWorkspacePreview = false
+                Config.showControlCenter = false
             }
             Config.showAppLauncher = !Config.showAppLauncher
         }
@@ -276,13 +269,14 @@ ShellRoot {
         function toggle(): void {
             if (!shellRoot.isFocusedBarEnabled) return;
             if (!Config.showWallpaper) {
-                Config.showPower = false;
-                Config.showSettings = false;
-                Config.showAppLauncher = false;
-                Config.showCalendar = false;
-                Config.showNotifications = false;
-                Config.showBattery = false;
-                Config.showWorkspacePreview = false;
+                Config.showPower = false
+                Config.showSettings = false
+                Config.showAppLauncher = false
+                Config.showCalendar = false
+                Config.showNotifications = false
+                Config.showBattery = false
+                Config.showWorkspacePreview = false
+                Config.showControlCenter = false
             }
             Config.showWallpaper = !Config.showWallpaper
         }
@@ -293,13 +287,14 @@ ShellRoot {
         function toggle(): void {
             if (!shellRoot.isFocusedBarEnabled) return;
             if (!Config.showNotifications) {
-                Config.showPower = false;
-                Config.showSettings = false;
-                Config.showWallpaper = false;
-                Config.showAppLauncher = false;
-                Config.showCalendar = false;
-                Config.showBattery = false;
-                Config.showWorkspacePreview = false;
+                Config.showPower = false
+                Config.showSettings = false
+                Config.showWallpaper = false
+                Config.showAppLauncher = false
+                Config.showCalendar = false
+                Config.showBattery = false
+                Config.showWorkspacePreview = false
+                Config.showControlCenter = false
             }
             Config.showNotifications = !Config.showNotifications
         }
@@ -310,14 +305,14 @@ ShellRoot {
         function toggle(): void {
             if (!shellRoot.isFocusedBarEnabled) return;
             if (!Config.showWorkspacePreview) {
-                Config.showPower = false;
-                Config.showSettings = false;
-                Config.showWallpaper = false;
-                Config.showAppLauncher = false;
-                Config.showCalendar = false;
-                Config.showNotifications = false;
-                Config.showBattery = false;
-                Config.showControlCenter = false;
+                Config.showPower = false
+                Config.showSettings = false
+                Config.showWallpaper = false
+                Config.showAppLauncher = false
+                Config.showCalendar = false
+                Config.showNotifications = false
+                Config.showBattery = false
+                Config.showControlCenter = false
             }
             Config.showWorkspacePreview = !Config.showWorkspacePreview
         }
@@ -335,6 +330,7 @@ ShellRoot {
                 Config.showNotifications = false
                 Config.showBattery = false
                 Config.showWorkspacePreview = false
+                Config.showControlCenter = false
             }
             Config.showSettings = !Config.showSettings
         }
@@ -343,7 +339,7 @@ ShellRoot {
     IpcHandler {
         target: "satty"
         function screenshot(): void {
-            Quickshell.execDetached(["fish", "-c", "sleep 0.1; and grim -g (slurp) -t ppm - | satty --filename -"])
+            Quickshell.execDetached(["fish", "-c", "sleep 0.1; grim -g (slurp) -t ppm - | satty --filename -"])
         }
     }
 
@@ -354,7 +350,7 @@ ShellRoot {
             if (!Config.showClipboard) {
                 Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
                 Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false;
-                Config.showBattery = false; Config.showWorkspacePreview = false;
+                Config.showBattery = false; Config.showWorkspacePreview = false; Config.showControlCenter = false;
             }
             Config.showClipboard = !Config.showClipboard
         }
@@ -364,7 +360,6 @@ ShellRoot {
     property string timeStr: Qt.formatTime(new Date(), "h:mm ap")
     property string shortDateStr: Qt.formatDate(new Date(), "MMM d")
 
-    // Vertical Bar Clock Components
     property string vertHour: {
         var h = new Date().getHours() % 12
         return (h === 0 ? 12 : h).toString()
@@ -400,7 +395,7 @@ ShellRoot {
             id: drawerLoader
             anchors.fill: parent
             active: mainSurface.activeView !== "none"
-            focus: true // Bridge the focus chain
+            focus: true
 
             onLoaded: {
                 if (item && typeof item.forceActiveFocus === "function") {
@@ -444,4 +439,6 @@ ShellRoot {
     Settings { id: settings }
     VolumeOSD { id: volumeOsd }
     NotificationOSD { id: notificationOsd }
+    Mascot { id: mascotWidget }
+    OSK { id: oskWidget }
 }
