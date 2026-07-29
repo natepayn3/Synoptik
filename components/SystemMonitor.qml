@@ -5,13 +5,11 @@ import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
 
-MorphingFlyout {
+Item {
     id: sysRoot
     
-    isOpen: Config.showSystemMonitor
-    alignRight: true
-    panelWidth: 420
-    panelHeight: mainLayout.implicitHeight + 40
+    implicitWidth: 420
+    implicitHeight: mainLayout.implicitHeight + 24
 
     property real sysCpu: 0.0
     property real sysGpu: 0.0
@@ -46,7 +44,7 @@ MorphingFlyout {
     Timer {
         id: refreshTimer
         interval: 3000
-        running: sysRoot.isOpen
+        running: Config.showSystemMonitor
         repeat: true
         triggeredOnStart: true
         onTriggered: { 
@@ -255,10 +253,8 @@ MorphingFlyout {
 
     ColumnLayout {
         id: mainLayout
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.margins: 20
+        anchors.fill: parent
+        anchors.margins: 12
         spacing: 14
 
         // ==========================================
@@ -459,6 +455,17 @@ MorphingFlyout {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    Connections {
+        target: Config
+        function onShowSystemMonitorChanged() {
+            if (Config.showSystemMonitor) {
+                cpuStatReader.reload()
+                memInfoReader.reload()
+                allProcessesFetcher.running = true
             }
         }
     }
