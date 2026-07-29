@@ -5,13 +5,11 @@ import Quickshell
 import Quickshell.Io
 import "controlcenter"
 
-MorphingFlyout {
+Item {
     id: root
 
-    isOpen: Config.showControlCenter
-    alignRight: true
-    panelWidth: 380
-    panelHeight: mainLayout.implicitHeight + 40
+    implicitWidth: 380
+    implicitHeight: mainLayout.implicitHeight + 24
 
     // --- State Properties ---
     property bool wifiPowered: false
@@ -21,106 +19,130 @@ MorphingFlyout {
     property string connectingSsid: ""
     property var knownNetworks: ({})
 
-    // --- Audio & Backlight Hardware State ---
-    property int currentVolume: 50
-    property bool isAudioMuted: false
+    // Bind directly to global shell state to eliminate loading latency & jumps
+    property int currentVolume: shellRoot.audioVolume
+    property bool isAudioMuted: shellRoot.audioMuted
     property bool isUserDraggingVol: false
     property int currentBrightness: 100
     property bool hasBacklight: false
 
+    // Local override guard
+    property bool isSettingVolume: false
+
     ListModel { id: wifiModel }
+
+    Component.onCompleted: {
+        fetchWifiStatusProc.running = true
+    }
 
     ColumnLayout {
         id: mainLayout
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.margins: 20
-        spacing: 16
+        anchors.fill: parent
+        anchors.margins: 12
+        spacing: 12
 
-        Text {
-            text: "CONTROL CENTER"
-            color: Config.textMain
-            font.family: Config.sysFont
-            font.pixelSize: Config.size(Config.fontTitle)
-            font.bold: true
+        // TOP HEADER & TOGGLES CONTAINER CARD
+        Rectangle {
+            id: topHeaderCard
             Layout.fillWidth: true
+            implicitHeight: topHeaderLayout.implicitHeight + 24
+            radius: Config.cornerRadius
+            color: Qt.rgba(255, 255, 255, 0.04)
+
+            z: 100
+
+            ColumnLayout {
+                id: topHeaderLayout
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: 12
+                spacing: 12
+
+                Text {
+                    text: "CONTROL CENTER"
+                    color: Config.textMain
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontTitle)
+                    font.bold: true
+                    Layout.fillWidth: true
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignTop
+                    spacing: 8
+
+                    CaffeineCard {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                    }
+
+                    DndCard {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                    }
+                }
+
+                RowLayout {
+                    id: staticToggleRow
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignTop
+                    spacing: 8
+
+                    z: (wifiCard.shouldExpand || btCard.shouldExpand) ? 10 : 1
+
+                    WifiCard {
+                        id: wifiCard
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        wifiPowered: root.wifiPowered
+                        wifiScanning: root.wifiScanning
+                        activeSsid: root.activeSsid
+                        expandedSsid: root.expandedSsid
+                        connectingSsid: root.connectingSsid
+                        knownNetworks: root.knownNetworks
+                        wifiModel: wifiModel
+                        onTogglePower: power => root.toggleWifiPower(power)
+                        onTriggerScan: root.triggerWifiScan()
+                        onConnectTo: (ssid, pass, isKnown) => connectWifiProc.connectTo(ssid, pass, isKnown)
+                        onDisconnectSsid: ssid => disconnectWifiProc.disconnect(ssid)
+                        onForgetSsid: ssid => forgetWifiProc.forget(ssid)
+                    }
+
+                    BluetoothCard {
+                        id: btCard
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        onTogglePower: power => btCard.execTogglePower(power)
+                        onTriggerScan: btCard.execTriggerScan()
+                    }
+                }
+            }
         }
 
-        // ==========================================
-        //  CAFFEINE & DO NOT DISTURB ROW
-        // ==========================================
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.alignment: Qt.AlignTop
-            spacing: 12
-
-            CaffeineCard {
-                Layout.fillWidth: true
-                Layout.preferredWidth: 1
-            }
-
-            DndCard {
-                Layout.fillWidth: true
-                Layout.preferredWidth: 1
-            }
-        }
-
-        // ==========================================
-        //  WI-FI & BLUETOOTH ROW
-        // ==========================================
-        RowLayout {
-            id: staticToggleRow
-            Layout.fillWidth: true
-            Layout.alignment: Qt.AlignTop
-            spacing: 12
-
-            z: (wifiCard.shouldExpand || btCard.shouldExpand) ? 10 : 1
-
-            WifiCard {
-                id: wifiCard
-                Layout.fillWidth: true
-                Layout.preferredWidth: 1
-                wifiPowered: root.wifiPowered
-                wifiScanning: root.wifiScanning
-                activeSsid: root.activeSsid
-                expandedSsid: root.expandedSsid
-                connectingSsid: root.connectingSsid
-                knownNetworks: root.knownNetworks
-                wifiModel: wifiModel
-                onTogglePower: power => root.toggleWifiPower(power)
-                onTriggerScan: root.triggerWifiScan()
-                onConnectTo: (ssid, pass, isKnown) => connectWifiProc.connectTo(ssid, pass, isKnown)
-                onDisconnectSsid: ssid => disconnectWifiProc.disconnect(ssid)
-                onForgetSsid: ssid => forgetWifiProc.forget(ssid)
-            }
-
-            BluetoothCard {
-                id: btCard
-                Layout.fillWidth: true
-                Layout.preferredWidth: 1
-                onTogglePower: power => btCard.execTogglePower(power)
-                onTriggerScan: btCard.execTriggerScan()
-            }
-        }
-
-        // Brightness
         BrightnessCard {
             currentBrightness: root.currentBrightness
             hasBacklight: root.hasBacklight
             onBrightnessChanged: pct => setBrightnessProc.setVal(pct)
         }
 
-        // Volume
         VolumeCard {
             id: volumeCard
             currentVolume: root.currentVolume
             isAudioMuted: root.isAudioMuted
-            onIsUserDraggingVolChanged: root.isUserDraggingVol = volumeCard.isUserDraggingVol
-            onVolumeChanged: pct => setVolumeProc.setVal(pct)
+            onIsUserDraggingVolChanged: {
+                root.isUserDraggingVol = volumeCard.isUserDraggingVol
+                if (typeof shellRoot !== "undefined") shellRoot.isUserSettingVolume = volumeCard.isUserDraggingVol
+            }
+            onVolumeChanged: pct => {
+                root.isSettingVolume = true
+                if (typeof shellRoot !== "undefined") shellRoot.isUserSettingVolume = true
+                root.currentVolume = pct
+                setVolumeProc.setVal(pct)
+            }
         }
 
-        // Media Visualizer Card
         MediaCard {
             id: mediaCardComponent
             onSendCommand: cmd => {
@@ -130,16 +152,25 @@ MorphingFlyout {
         }
     }
 
-    // ==========================================
-    //  BACKEND PROCESSES & LOGIC
-    // ==========================================
+    // Keep ControlCenter aligned with shellRoot unless actively dragging/setting
+    Connections {
+        target: shellRoot
+        function onAudioVolumeChanged() {
+            if (!root.isUserDraggingVol && !root.isSettingVolume) {
+                root.currentVolume = shellRoot.audioVolume
+            }
+        }
+        function onAudioMutedChanged() {
+            root.isAudioMuted = shellRoot.audioMuted
+        }
+    }
 
     Process { id: mediaControlProc; running: false }
 
     Process {
         id: mediaFollower
         command: ["playerctl", "--player=%any,playerctld", "--follow", "--format", '{"title": "{{title}}", "artist": "{{artist}}", "status": "{{status}}", "art": "{{mpris:artUrl}}"}', "metadata"]
-        running: root.isOpen
+        running: Config.showControlCenter
         stdout: SplitParser {
             onRead: (data) => {
                 try {
@@ -168,7 +199,7 @@ MorphingFlyout {
     Process {
         id: cavaProc
         command: ["fish", "-c", "printf '[general]\\nbars = 32\\nsensitivity = 150\\n[output]\\nmethod = raw\\ndata_format = ascii\\nascii_max_range = 255\\nbar_delimiter = 59\\nframe_delimiter = 10\\n' | cava -p /dev/stdin"]
-        running: root.isOpen && mediaCardComponent.mediaStatus === "Playing"
+        running: Config.showControlCenter && mediaCardComponent.mediaStatus === "Playing"
         
         stdout: SplitParser {
             splitMarker: "\n"
@@ -187,20 +218,6 @@ MorphingFlyout {
                 
                 if (arr.length > 0) {
                     mediaCardComponent.cavaBars = arr;
-                }
-            }
-        }
-    }
-
-    Process {
-        id: pulseEventStream
-        command: ["stdbuf", "-oL", "pactl", "subscribe"]
-        running: root.isOpen
-        stdout: SplitParser {
-            onRead: data => {
-                if (data.includes("sink") && !root.isUserDraggingVol) {
-                    fetchAudioProc.running = false
-                    fetchAudioProc.running = true
                 }
             }
         }
@@ -240,29 +257,17 @@ MorphingFlyout {
     }
 
     Process {
-        id: fetchAudioProc
-        command: ["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                if (root.isUserDraggingVol) return
-                let cleaned = this.text.trim()
-                let match = cleaned.match(/Volume:\s+([0-9.]+)/)
-                if (match) {
-                    root.currentVolume = Math.round(parseFloat(match[1]) * 100)
-                    root.isAudioMuted = cleaned.includes("[MUTED]")
-                }
-            }
-        }
-    }
-
-    Process {
         id: setVolumeProc
         running: false
         function setVal(pct) {
             let floatVal = (pct / 100.0).toFixed(2)
             command = ["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", `${floatVal}`]
             running = true
+        }
+
+        onExited: {
+            root.isSettingVolume = false
+            if (typeof shellRoot !== "undefined") shellRoot.isUserSettingVolume = false
         }
     }
 
@@ -416,17 +421,23 @@ MorphingFlyout {
         }
     }
 
-    onIsOpenChanged: {
-        if (isOpen) {
-            fetchAudioProc.running = true
-            fetchWifiStatusProc.running = true
-            if (root.hasBacklight) fetchBrightnessProc.running = true
+    Connections {
+        target: Config
+        function onShowControlCenterChanged() {
+            if (Config.showControlCenter) {
+                fetchWifiStatusProc.running = false
+                fetchWifiStatusProc.running = true
+                if (root.hasBacklight) {
+                    fetchBrightnessProc.running = false
+                    fetchBrightnessProc.running = true
+                }
+            }
         }
     }
 
     Timer {
         interval: 3500
-        running: root.isOpen
+        running: Config.showControlCenter
         repeat: true
         triggeredOnStart: true
         onTriggered: {
