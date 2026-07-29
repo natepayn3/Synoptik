@@ -765,23 +765,6 @@ PanelWindow {
                 ]
 
                 Rectangle {
-                    id: btnSettings
-                    implicitWidth: 32; implicitHeight: 32; radius: 10
-                    color: (Config.showSettings || settingsHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-                    Behavior on color { ColorAnimation { duration: 150 } }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "build" 
-                        color: Config.showSettings ? Config.accent : Config.textMain
-                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
-                    }
-
-                    TapHandler { onTapped: { setPopoutPos(btnSettings); Config.showSettings = !Config.showSettings; } }
-                    HoverHandler { id: settingsHover; cursorShape: Qt.PointingHandCursor }
-                }
-
-                Rectangle {
                     id: btnPower
                     implicitWidth: 32; implicitHeight: 32; radius: 10
                     color: (Config.showPower || powerHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
@@ -799,37 +782,22 @@ PanelWindow {
                 }
 
                 Rectangle {
-                    id: btnWallpaper
+                    id: btnRecorder
                     implicitWidth: 32; implicitHeight: 32; radius: 10
-                    color: (Config.showWallpaper || wallpaperHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                    color: (Config.showScreenRecorder || recordHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
                     Behavior on color { ColorAnimation { duration: 150 } }
 
                     Text {
                         anchors.centerIn: parent
-                        text: "wall_art" 
-                        color: Config.showWallpaper ? Config.accent : Config.textMain
+                        text: (typeof shellRoot !== "undefined" && shellRoot.isRecording) ? "radio_button_checked" : "videocam"
+                        color: (typeof shellRoot !== "undefined" && shellRoot.isRecording) ? "#ef4444" : (Config.showScreenRecorder ? Config.accent : Config.textMain)
                         font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+
+                        Behavior on color { ColorAnimation { duration: 150 } }
                     }
 
-                    TapHandler { onTapped: { setPopoutPos(btnWallpaper); Config.showWallpaper = !Config.showWallpaper; } }
-                    HoverHandler { id: wallpaperHover; cursorShape: Qt.PointingHandCursor }
-                }
-
-                Rectangle {
-                    id: btnLauncher
-                    implicitWidth: 32; implicitHeight: 32; radius: 10
-                    color: (Config.showAppLauncher || launcherHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-                    Behavior on color { ColorAnimation { duration: 150 } }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "terminal_2" 
-                        color: Config.showAppLauncher ? Config.accent : Config.textMain
-                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
-                    }
-
-                    TapHandler { onTapped: { setPopoutPos(btnLauncher); Config.showAppLauncher = !Config.showAppLauncher; } }
-                    HoverHandler { id: launcherHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: { setPopoutPos(btnRecorder); Config.showScreenRecorder = !Config.showScreenRecorder; } }
+                    HoverHandler { id: recordHover; cursorShape: Qt.PointingHandCursor }
                 }
 
                 Rectangle {
@@ -865,24 +833,55 @@ PanelWindow {
                     HoverHandler { id: clipHover; cursorShape: Qt.PointingHandCursor }
                 }
 
-                // SCREEN RECORDER BUTTON
                 Rectangle {
-                    id: btnRecorder
+                    id: btnWallpaper
                     implicitWidth: 32; implicitHeight: 32; radius: 10
-                    color: (Config.showScreenRecorder || recordHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                    color: (Config.showWallpaper || wallpaperHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
                     Behavior on color { ColorAnimation { duration: 150 } }
 
                     Text {
                         anchors.centerIn: parent
-                        text: (typeof shellRoot !== "undefined" && shellRoot.isRecording) ? "radio_button_checked" : "videocam"
-                        color: (typeof shellRoot !== "undefined" && shellRoot.isRecording) ? "#ef4444" : (Config.showScreenRecorder ? Config.accent : Config.textMain)
+                        text: "wall_art" 
+                        color: Config.showWallpaper ? Config.accent : Config.textMain
                         font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
-
-                        Behavior on color { ColorAnimation { duration: 150 } }
                     }
 
-                    TapHandler { onTapped: { setPopoutPos(btnRecorder); Config.showScreenRecorder = !Config.showScreenRecorder; } }
-                    HoverHandler { id: recordHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: { setPopoutPos(btnWallpaper); Config.showWallpaper = !Config.showWallpaper; } }
+                    HoverHandler { id: wallpaperHover; cursorShape: Qt.PointingHandCursor }
+                }
+
+                Rectangle {
+                    id: btnSettings
+                    implicitWidth: 32; implicitHeight: 32; radius: 10
+                    color: (Config.showSettings || settingsHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "build" 
+                        color: Config.showSettings ? Config.accent : Config.textMain
+                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                    }
+
+                    TapHandler { onTapped: { setPopoutPos(btnSettings); Config.showSettings = !Config.showSettings; } }
+                    HoverHandler { id: settingsHover; cursorShape: Qt.PointingHandCursor }
+                }
+
+                Rectangle {
+                    id: btnLauncher
+                    implicitWidth: 32; implicitHeight: 32; radius: 10
+                    color: (Config.showAppLauncher || launcherHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "terminal_2" 
+                        color: Config.showAppLauncher ? Config.accent : Config.textMain
+                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                    }
+
+                    TapHandler { onTapped: { setPopoutPos(btnLauncher); Config.showAppLauncher = !Config.showAppLauncher; } }
+                    HoverHandler { id: launcherHover; cursorShape: Qt.PointingHandCursor }
                 }
             }
 
@@ -988,42 +987,6 @@ PanelWindow {
                 }
 
                 Rectangle {
-                    id: btnNotifications
-                    implicitWidth: 32; implicitHeight: 32; radius: 10
-                    color: (Config.showNotifications || notificationsHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-                    Behavior on color { ColorAnimation { duration: 150 } }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: (typeof shellRoot !== "undefined" && shellRoot.activeNotifs > 0) ? "inbox_text" : "inbox"
-                        color: (Config.showNotifications || (typeof shellRoot !== "undefined" && shellRoot.activeNotifs > 0)) ? Config.accent : Config.textMain
-                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
-
-                        Behavior on color { ColorAnimation { duration: 150 } }
-                    }
-
-                    TapHandler { onTapped: { setPopoutPos(btnNotifications); Config.showNotifications = !Config.showNotifications; } }
-                    HoverHandler { id: notificationsHover; cursorShape: Qt.PointingHandCursor }
-                }
-
-                Rectangle {
-                    id: btnNetwork
-                    implicitWidth: 32; implicitHeight: 32; radius: 10
-                    color: (Config.showNetwork || networkHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-                    Behavior on color { ColorAnimation { duration: 150 } }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: shellRoot.vpnActive ? "vpn_key" : "lan"
-                        color: Config.showNetwork ? Config.accent : Config.textMain
-                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
-                    }
-
-                    TapHandler { onTapped: { setPopoutPos(btnNetwork); Config.showNetwork = !Config.showNetwork; } }
-                    HoverHandler { id: networkHover; cursorShape: Qt.PointingHandCursor }
-                }
-
-                Rectangle {
                     id: btnSys
                     implicitWidth: 32; implicitHeight: 32; radius: 10
                     color: (Config.showSystemMonitor || sysHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
@@ -1083,6 +1046,42 @@ PanelWindow {
 
                     TapHandler { onTapped: { setPopoutPos(btnCC); Config.showControlCenter = !Config.showControlCenter; } }
                     HoverHandler { id: ccHover; cursorShape: Qt.PointingHandCursor }
+                }
+
+                Rectangle {
+                    id: btnNetwork
+                    implicitWidth: 32; implicitHeight: 32; radius: 10
+                    color: (Config.showNetwork || networkHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: shellRoot.vpnActive ? "vpn_key" : "lan"
+                        color: Config.showNetwork ? Config.accent : Config.textMain
+                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+                    }
+
+                    TapHandler { onTapped: { setPopoutPos(btnNetwork); Config.showNetwork = !Config.showNetwork; } }
+                    HoverHandler { id: networkHover; cursorShape: Qt.PointingHandCursor }
+                }
+
+                Rectangle {
+                    id: btnNotifications
+                    implicitWidth: 32; implicitHeight: 32; radius: 10
+                    color: (Config.showNotifications || notificationsHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: (typeof shellRoot !== "undefined" && shellRoot.activeNotifs > 0) ? "inbox_text" : "inbox"
+                        color: (Config.showNotifications || (typeof shellRoot !== "undefined" && shellRoot.activeNotifs > 0)) ? Config.accent : Config.textMain
+                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+
+                        Behavior on color { ColorAnimation { duration: 150 } }
+                    }
+
+                    TapHandler { onTapped: { setPopoutPos(btnNotifications); Config.showNotifications = !Config.showNotifications; } }
+                    HoverHandler { id: notificationsHover; cursorShape: Qt.PointingHandCursor }
                 }
 
                 Rectangle {
