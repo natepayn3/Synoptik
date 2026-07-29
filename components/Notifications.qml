@@ -10,16 +10,22 @@ Item {
     implicitWidth: 360
     implicitHeight: mainLayout.implicitHeight + 24
 
-    // Bind to global shellRoot activeNotifs property
-    readonly property int activeCount: (typeof shellRoot !== "undefined") ? shellRoot.activeNotifs : 0
+    // Bind to global shellRoot activeNotifs property safely
+    readonly property int activeCount: (typeof shellRoot !== "undefined" && shellRoot.activeNotifs !== undefined) ? shellRoot.activeNotifs : 0
 
     function clearAll() {
-        if (typeof notifServer === "undefined") return;
+        if (typeof notifServer === "undefined" || !notifServer.trackedNotifications) return;
         let notifs = notifServer.trackedNotifications.values;
+        if (!notifs) return;
+        
+        // Loop backwards to dismiss safely
         for (let i = notifs.length - 1; i >= 0; i--) {
             if (notifs[i]) {
                 notifs[i].dismiss();
             }
+        }
+        if (typeof shellRoot !== "undefined" && shellRoot.updateNotifCount) {
+            Qt.callLater(shellRoot.updateNotifCount);
         }
     }
 
@@ -33,7 +39,7 @@ Item {
         Rectangle {
             Layout.fillWidth: true
             implicitHeight: cardContent.implicitHeight + 24
-            color: Qt.rgba(255, 255, 255, 0.05)
+            color: Qt.rgba(1, 1, 1, 0.05) // Fixed RGBA values (0.0 to 1.0 scale)
             radius: Config.cornerRadius
 
             ColumnLayout {
@@ -70,7 +76,7 @@ Item {
                         implicitWidth: clearText.implicitWidth + 12
                         implicitHeight: 24
                         radius: Config.cornerRadius / 2
-                        color: clearHover.hovered ? Qt.rgba(255, 255, 255, 0.1) : "transparent"
+                        color: clearHover.hovered ? Qt.rgba(1, 1, 1, 0.1) : "transparent"
                         visible: notifModuleRoot.activeCount > 0
 
                         Behavior on color { ColorAnimation { duration: 150 } }
@@ -118,8 +124,7 @@ Item {
 
                         ColumnLayout {
                             id: scrollContent
-                            anchors.left: parent.left
-                            anchors.right: parent.right
+                            width: parent.width
                             spacing: 8
 
                             Repeater {
@@ -132,7 +137,7 @@ Item {
                                     Layout.fillWidth: true
                                     implicitHeight: itemLayout.implicitHeight + 16
                                     radius: Config.cornerRadius / 2
-                                    color: itemHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.15)
+                                    color: itemHover.hovered ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.15)
 
                                     Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -192,7 +197,7 @@ Item {
                                             implicitWidth: 24
                                             implicitHeight: 24
                                             radius: Config.cornerRadius / 2
-                                            color: closeHover.hovered ? Qt.rgba(255, 255, 255, 0.12) : "transparent"
+                                            color: closeHover.hovered ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
                                             opacity: itemHover.hovered ? 1.0 : 0.0
                                             Layout.alignment: Qt.AlignTop | Qt.AlignRight
 
@@ -220,14 +225,6 @@ Item {
                                             HoverHandler {
                                                 id: closeHover
                                                 cursorShape: Qt.PointingHandCursor
-                                            }
-                                        }
-                                    }
-
-                                    TapHandler {
-                                        onTapped: {
-                                            if (modelData) {
-                                                modelData.dismiss();
                                             }
                                         }
                                     }
