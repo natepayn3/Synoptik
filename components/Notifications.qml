@@ -4,18 +4,14 @@ import QtQuick.Controls
 import Quickshell
 import Quickshell.Services.Notifications as Notifs
 
-MorphingFlyout {
-    id: notifFlyoutRoot
+Item {
+    id: notifModuleRoot
 
-    isOpen: Config.showNotifications
-    alignRight: true
-    panelWidth: 360
-    panelHeight: mainLayout.implicitHeight + 40
+    implicitWidth: 360
+    implicitHeight: mainLayout.implicitHeight + 24
 
-    // Bind to global notifServer from shell.qml
-    readonly property int activeCount: (typeof notifServer !== "undefined" && notifServer.trackedNotifications) 
-        ? notifServer.trackedNotifications.values.length 
-        : 0
+    // Bind to global shellRoot activeNotifs property
+    readonly property int activeCount: (typeof shellRoot !== "undefined") ? shellRoot.activeNotifs : 0
 
     function clearAll() {
         if (typeof notifServer === "undefined") return;
@@ -29,10 +25,8 @@ MorphingFlyout {
 
     ColumnLayout {
         id: mainLayout
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.margins: 20
+        anchors.fill: parent
+        anchors.margins: 12
         spacing: 12
 
         // Main Card Container
@@ -53,6 +47,16 @@ MorphingFlyout {
                     Layout.fillWidth: true
                     spacing: 8
 
+                    // Dynamic Notification Icon
+                    Text {
+                        text: notifModuleRoot.activeCount > 0 ? "notifications_active" : "notifications"
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: Config.size(Config.fontTitle)
+                        color: notifModuleRoot.activeCount > 0 ? Config.accent : Config.textMain
+
+                        Behavior on color { ColorAnimation { duration: 150 } }
+                    }
+
                     Text {
                         text: "NOTIFICATIONS"
                         color: Config.textMain
@@ -67,7 +71,7 @@ MorphingFlyout {
                         implicitHeight: 24
                         radius: Config.cornerRadius / 2
                         color: clearHover.hovered ? Qt.rgba(255, 255, 255, 0.1) : "transparent"
-                        visible: notifFlyoutRoot.activeCount > 0
+                        visible: notifModuleRoot.activeCount > 0
 
                         Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -84,7 +88,7 @@ MorphingFlyout {
                         }
 
                         TapHandler {
-                            onTapped: notifFlyoutRoot.clearAll()
+                            onTapped: notifModuleRoot.clearAll()
                         }
 
                         HoverHandler {
@@ -97,7 +101,7 @@ MorphingFlyout {
                 // Scrollable Cards List
                 Rectangle {
                     Layout.fillWidth: true
-                    implicitHeight: notifFlyoutRoot.activeCount > 0 
+                    implicitHeight: notifModuleRoot.activeCount > 0 
                         ? Math.min(scrollContent.implicitHeight, 320) 
                         : emptyStateContainer.implicitHeight
                     color: "transparent"
@@ -240,7 +244,7 @@ MorphingFlyout {
                                 id: emptyStateContainer
                                 Layout.fillWidth: true
                                 spacing: 6
-                                visible: notifFlyoutRoot.activeCount === 0
+                                visible: notifModuleRoot.activeCount === 0
                                 Layout.alignment: Qt.AlignHCenter
 
                                 Text {
