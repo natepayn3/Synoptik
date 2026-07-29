@@ -71,12 +71,10 @@ icon_dirs = [
     "/usr/share/pixmaps"
 ]
 
-# 1. Build a fast single-pass lookup table for icon paths
 icon_map = {}
 for base in icon_dirs:
     if not os.path.isdir(base): continue
     for root, _, files in os.walk(base):
-        # Skip small pixel sizes or irrelevant categories to speed up scanning
         if any(skip in root for skip in ["/16x16/", "/22x22/", "/24x24/", "/32x32/", "/symbolic/"]):
             continue
         for f in files:
@@ -85,7 +83,6 @@ for base in icon_dirs:
                 if name not in icon_map:
                     icon_map[name] = os.path.join(root, f)
 
-# 2. Fast parse desktop entries
 for folder in ["/usr/share/applications", os.path.expanduser("~/.local/share/applications")]:
     if not os.path.isdir(folder): continue
     for entry in os.scandir(folder):
@@ -106,7 +103,6 @@ for folder in ["/usr/share/applications", os.path.expanduser("~/.local/share/app
 
         if nodisplay or not name or not exec_cmd: continue
 
-        # 3. O(1) Instant Icon Lookup
         resolved = fallback
         if icon:
             if icon.startswith("/") and os.path.isfile(icon):
@@ -182,10 +178,18 @@ print(json.dumps(apps))
     ColumnLayout {
         id: mainLayout
         
-        anchors.fill: parent
-        anchors.margins: 12
+        // Fixed dimensions equal to module parent to avoid dynamic sliding translation
+        width: appLauncherModule.implicitWidth - 24
+        height: appLauncherModule.implicitHeight - 24
+        anchors.centerIn: parent
         
         spacing: 12
+
+        // Pure Opacity Fade Animation Logic
+        opacity: Config.showAppLauncher ? 1.0 : 0.0
+        Behavior on opacity {
+            NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+        }
 
         // ==========================================
         // APPLICATIONS CARD (Title + Search + List)
@@ -287,7 +291,6 @@ print(json.dumps(apps))
                                         } 
                                         event.accepted = true;
                                     } else if (event.key === Qt.Key_Escape) {
-                                        // Dismiss the launcher when Escape is pressed
                                         Config.showAppLauncher = false;
                                         event.accepted = true;
                                     }
