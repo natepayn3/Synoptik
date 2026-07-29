@@ -1,0 +1,178 @@
+import QtQuick
+import QtQuick.Layouts
+import Quickshell
+import Quickshell.Io
+
+Item {
+    id: root
+
+    property bool isRecording: false
+
+    readonly property string pos: Config.barPosition || "top"
+    readonly property bool isVert: pos === "left" || pos === "right"
+
+    // Card dimensions + 12px margin on all sides inside the drawer surface
+    implicitWidth: mainCard.implicitWidth + 24
+    implicitHeight: mainCard.implicitHeight + 24
+
+    // Periodically check pgrep to update local recording state
+    Timer {
+        interval: 1000
+        running: true
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: checkProc.running = true
+    }
+
+    Process {
+        id: checkProc
+        command: ["pgrep", "-x", "wf-recorder"]
+        running: false
+
+        onExited: (code, status) => {
+            root.isRecording = (code === 0)
+        }
+    }
+
+    function triggerRegionSelect() {
+        Config.showScreenRecorder = false
+
+        let home = Quickshell.env("HOME")
+        let dateStr = Qt.formatDateTime(new Date(), "yyyy-MM-dd_hh-mm-ss")
+        let savePath = home + "/Videos/recording_" + dateStr + ".mp4"
+
+        let script = "sleep 0.15; and set -l geom (slurp -b '#00000000' -c '#ef4444' -w 2); and test -n \"$geom\"; and mkdir -p ~/Videos; and exec wf-recorder -f " + savePath + " -g \"$geom\""
+
+        Quickshell.execDetached(["fish", "-c", script])
+    }
+
+    function triggerFullscreenSelect() {
+        Config.showScreenRecorder = false
+
+        let home = Quickshell.env("HOME")
+        let dateStr = Qt.formatDateTime(new Date(), "yyyy-MM-dd_hh-mm-ss")
+        let savePath = home + "/Videos/recording_" + dateStr + ".mp4"
+
+        let script = "mkdir -p ~/Videos; and exec wf-recorder -f " + savePath
+
+        Quickshell.execDetached(["fish", "-c", script])
+    }
+
+    function stopRecording() {
+        Quickshell.execDetached(["fish", "-c", "pkill -2 wf-recorder"])
+        root.isRecording = false
+        Config.showScreenRecorder = false
+    }
+
+    // Outer Margin Wrapper
+    ColumnLayout {
+        anchors.fill: parent
+        anchors.margins: 12
+
+        // Main Card Container
+        Rectangle {
+            id: mainCard
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+
+            implicitWidth: recordLayout.implicitWidth + 24
+            implicitHeight: recordLayout.implicitHeight + 24
+
+            radius: Config.cornerRadius / 2
+            color: root.isRecording ? Qt.rgba(0.8, 0.2, 0.2, 0.2) : Qt.rgba(1, 1, 1, 0.08)
+
+            Behavior on color { ColorAnimation { duration: 150 } }
+
+            GridLayout {
+                id: recordLayout
+                anchors.centerIn: parent
+                columns: root.isVert ? 1 : 99
+                rows: root.isVert ? 99 : 1
+                columnSpacing: 10
+                rowSpacing: 10
+
+                // Pulsing recording indicator dot
+                Rectangle {
+                    implicitWidth: 12
+                    implicitHeight: 12
+                    radius: 6
+                    color: root.isRecording ? "#ef4444" : Config.textMuted
+                    Layout.alignment: Qt.AlignCenter
+
+                    SequentialAnimation on opacity {
+                        running: root.isRecording
+                        loops: Animation.Infinite
+                        PropertyAnimation { to: 0.3; duration: 600 }
+                        PropertyAnimation { to: 1.0; duration: 600 }
+                    }
+                }
+
+                // Region Selection Button
+                Rectangle {
+                    implicitWidth: 44; implicitHeight: 44
+                    radius: Config.cornerRadius / 3
+                    color: areaHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+                    visible: !root.isRecording
+                    Layout.alignment: Qt.AlignCenter
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "screenshot_region"
+                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 28
+                        color: areaHover.hovered ? Config.bgBase : Config.textMain
+                    }
+
+                    TapHandler {
+                        onTapped: root.triggerRegionSelect()
+                    }
+
+                    HoverHandler { id: areaHover; cursorShape: Qt.PointingHandCursor }
+                }
+
+                // Fullscreen Capture Button
+                Rectangle {
+                    implicitWidth: 44; implicitHeight: 44
+                    radius: Config.cornerRadius / 3
+                    color: fullHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+                    visible: !root.isRecording
+                    Layout.alignment: Qt.AlignCenter
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "screen_record"
+                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 28
+                        color: fullHover.hovered ? Config.bgBase : Config.textMain
+                    }
+
+                    TapHandler {
+                        onTapped: root.triggerFullscreenSelect()
+                    }
+
+                    HoverHandler { id: fullHover; cursorShape: Qt.PointingHandCursor }
+                }
+
+                // Stop Button
+                Rectangle {
+                    implicitWidth: 44; implicitHeight: 44
+                    radius: Config.cornerRadius / 3
+                    color: stopHover.hovered ? "#ef4444" : Qt.rgba(239, 68, 68, 0.2)
+                    visible: root.isRecording
+                    Layout.alignment: Qt.AlignCenter
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "stop"
+                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 28
+                        color: stopHover.hovered ? Config.textMain : "#ef4444"
+                    }
+
+                    TapHandler {
+                        onTapped: root.stopRecording()
+                    }
+
+                    HoverHandler { id: stopHover; cursorShape: Qt.PointingHandCursor }
+                }
+            }
+        }
+    }
+}
