@@ -178,10 +178,8 @@ print(json.dumps(apps))
     ColumnLayout {
         id: mainLayout
         
-        // Fixed dimensions equal to module parent to avoid dynamic sliding translation
-        width: appLauncherModule.implicitWidth - 24
-        height: appLauncherModule.implicitHeight - 24
-        anchors.centerIn: parent
+        anchors.fill: parent
+        anchors.margins: 12
         
         spacing: 12
 
