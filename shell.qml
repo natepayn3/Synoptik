@@ -200,16 +200,39 @@ ShellRoot {
     }
 
     // --- NATIVE NOTIFICATION SERVER ---
+    property alias notifServer: notifServer
+    // Make this a mutable property so we can explicitly update it
+    property int activeNotifs: 0
+
+    function updateNotifCount() {
+        if (notifServer && notifServer.trackedNotifications) {
+            activeNotifs = notifServer.trackedNotifications.values.length
+        } else {
+            activeNotifs = 0
+        }
+    }
+
     Notifs.NotificationServer {
         id: notifServer
         property bool dnd: false
         bodySupported: true
         actionsSupported: true
 
+        // Force update on incoming notification
         onNotification: notif => {
             if (notif) {
                 notif.tracked = true
+                // Defer slightly to ensure the array updates
+                Qt.callLater(shellRoot.updateNotifCount)
             }
+        }
+    }
+
+    // Monitor additions/removals automatically
+    Connections {
+        target: notifServer.trackedNotifications
+        function onValuesChanged() {
+            shellRoot.updateNotifCount()
         }
     }
 
@@ -419,4 +442,6 @@ ShellRoot {
     Component { id: controlCenterComp; ControlCenter {} }
 
     Settings { id: settings }
+    VolumeOSD { id: volumeOsd }
+    NotificationOSD { id: notificationOsd }
 }
