@@ -81,20 +81,21 @@ PanelWindow {
         when: root.isOpen && root.rawChildHeight > 0
     }
 
-    // 4. Reset or lock dimensions on state toggle
-    onIsOpenChanged: {
-        console.log("isOpen:", isOpen, "targetWidth:", targetWidth, "targetHeight:", targetHeight, "pLeft:", pLeft, "mainContainer H:", mainContainer.height)
-    }
+    // Cleaned up console logging
+    onIsOpenChanged: {}
 
     property real progress: 0.0
     readonly property real animScale: Math.max(0.0, Math.min(1.0, progress))
 
-    // Morph dimensions
+    // Morph dimensions: Grows from a compact origin to full target bounds
+    readonly property real currentWidth: targetWidth * animScale
+    readonly property real currentHeight: targetHeight * animScale
+
+    // Liquid wings and corners scale in sync
     readonly property real wingW: 16 * animScale
     readonly property real wingH: 16 * animScale
     readonly property real radius: 18 * animScale
-    readonly property real currentWidth: targetWidth * animScale
-    readonly property real currentHeight: targetHeight * animScale
+
     readonly property real borderWidth: 3
     readonly property real halfB: borderWidth / 2.0
 
@@ -165,6 +166,7 @@ PanelWindow {
 
     readonly property real staticRight: staticLeft + (isHorizontal ? targetWidth : targetHeight)
 
+    // Dynamic horizontal bounds: expands on bounce in vertical mode, stays static in horizontal mode
     readonly property real pLeft: staticLeft
     readonly property real pRight: staticRight
 
@@ -263,11 +265,26 @@ PanelWindow {
         transitions: [
             Transition {
                 from: "closed"; to: "open"
-                NumberAnimation { property: "progress"; duration: 300; easing.type: Easing.OutCubic }
+                
+                // Dynamic grow + slide open transition
+                NumberAnimation { 
+                    target: root
+                    property: "progress"
+                    duration: 750
+                    easing.type: Easing.OutBack
+                    easing.overshoot: 1.15
+                }
             },
             Transition {
                 from: "open"; to: "closed"
-                NumberAnimation { property: "progress"; duration: 220; easing.type: Easing.InQuad }
+                
+                // Swift collapse back into the bar
+                NumberAnimation { 
+                    target: root
+                    property: "progress"
+                    duration: 300
+                    easing.type: Easing.InCubic 
+                }
             }
         ]
 
@@ -723,7 +740,7 @@ PanelWindow {
                 id: leftModules
                 
                 anchors.leftMargin: root.isHorizontal ? 10 : 0
-                anchors.topMargin: !root.isHorizontal ? 10 : 0 // FIX: Restores 10px top padding for vertical mode
+                anchors.topMargin: !root.isHorizontal ? 10 : 0
                 columns: root.isHorizontal ? 99 : 1
                 rows: root.isHorizontal ? 1 : 99
                 columnSpacing: 8
@@ -1150,16 +1167,22 @@ PanelWindow {
         Item {
             id: contentContainer
             
+            // X-axis sliding translation for vertical modes (left/right)
             x: isHorizontal 
-                ? (root.pLeft + 12) 
-                : (isRight ? (mainContainer.width - root.barH - root.currentWidth) : root.barH)
+                ? (root.staticLeft + ((root.targetWidth - root.currentWidth) / 2.0) + 12)
+                : (isRight 
+                    ? (mainContainer.width - root.barH - root.currentWidth) 
+                    : (root.barH + (root.wingW * (1.0 - root.animScale))))
 
+            // Y-axis sliding translation for horizontal modes (top/bottom)
             y: isHorizontal 
-                ? (isBottom ? (mainContainer.height - root.barH - root.currentHeight) : root.barH) 
-                : root.pLeft
+                ? (isBottom 
+                    ? (mainContainer.height - root.barH - root.currentHeight) 
+                    : (root.barH + (root.wingH * (1.0 - root.animScale))))
+                : (root.staticLeft + ((root.targetHeight - root.currentHeight) / 2.0))
             
-            width: isHorizontal ? (root.targetWidth - 24) : root.currentWidth
-            height: isHorizontal ? root.currentHeight : root.targetHeight
+            width: isHorizontal ? Math.max(1, root.currentWidth - 24) : Math.max(1, root.currentWidth)
+            height: Math.max(1, root.currentHeight)
             clip: true
             opacity: root.animScale
             focus: true
