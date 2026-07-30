@@ -4,118 +4,142 @@ import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
 
-UnifiedSurface {
+Item {
     id: root
 
-    isOpen: typeof Config.showBattery !== "undefined" ? Config.showBattery : false
+    implicitWidth: 360
+    implicitHeight: mainLayout.implicitHeight + 24
 
-    property string battName: typeof shellRoot !== "undefined" ? shellRoot.battName : "BAT0"
-    property int battCapacity: typeof shellRoot !== "undefined" ? shellRoot.battCapacity : 0
-    property string battStatus: typeof shellRoot !== "undefined" ? shellRoot.battStatus : "Discharging"
-    property string powerDraw: "0.0"
+    property string battName: (typeof shellRoot !== "undefined" && shellRoot.hasBattery) ? shellRoot.battName : "BAT0"
+    property int battCapacity: (typeof shellRoot !== "undefined" && shellRoot.hasBattery && shellRoot.battCapacity > 0) ? shellRoot.battCapacity : 85
+    property string battStatus: (typeof shellRoot !== "undefined" && shellRoot.hasBattery) ? shellRoot.battStatus : "Discharging"
+    property string powerDraw: "2.4"
+
+    // Periodic poller for power consumption details
+    Timer {
+        interval: 3000
+        running: true
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: {
+            if (!battDetailProc.running) {
+                battDetailProc.running = true
+            }
+        }
+    }
 
     // Detailed Stats Poller
     Process {
         id: battDetailProc
         command: ["fish", "-c", "cat /sys/class/power_supply/" + root.battName + "/power_now 2>/dev/null; or echo 0"]
-        running: root.isOpen
+        running: false
         stdout: StdioCollector {
             onStreamFinished: {
                 let val = parseInt(this.text.trim()) || 0
-                root.powerDraw = (val / 1000000.0).toFixed(1)
+                if (val > 0) {
+                    root.powerDraw = (val / 1000000.0).toFixed(1)
+                }
             }
         }
     }
 
     ColumnLayout {
-        id: mainContent
-        implicitWidth: 320
+        id: mainLayout
+        anchors.fill: parent
+        anchors.margins: 12
         spacing: 12
 
-        // Header
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 8
-
-            Text {
-                text: "BATTERY"
-                color: Config.textMain
-                font.family: Config.sysFont
-                font.pixelSize: Config.size(Config.fontTitle)
-                font.bold: true
-                Layout.fillWidth: true
-            }
-
-            Rectangle {
-                implicitWidth: statusText.implicitWidth + 12
-                implicitHeight: 22
-                radius: Config.cornerRadius / 2
-                color: root.battStatus === "Charging" ? Qt.rgba(16, 185, 129, 0.2) : Qt.rgba(255, 255, 255, 0.08)
-
-                Text {
-                    id: statusText
-                    anchors.centerIn: parent
-                    text: root.battStatus.toUpperCase()
-                    color: root.battStatus === "Charging" ? Config.accent : Config.textMuted
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontMicro)
-                    font.bold: true
-                }
-            }
-        }
-
-        // Percentage Level Display Card
+        // Card 1: Title, Charging Status, Icon & Capacity Gauge
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: 70
+            implicitHeight: topCardContent.implicitHeight + 24
             radius: Config.cornerRadius
-            color: Qt.rgba(1, 1, 1, 0.08)
+            color: Qt.rgba(1, 1, 1, 0.05)
 
-            RowLayout {
+            ColumnLayout {
+                id: topCardContent
                 anchors.fill: parent
                 anchors.margins: 12
                 spacing: 12
 
-                Text {
-                    text: {
-                        if (root.battStatus === "Charging") return "battery_charging_full"
-                        if (root.battCapacity <= 15) return "battery_alert"
-                        if (root.battCapacity <= 30) return "battery_2_bar"
-                        if (root.battCapacity <= 70) return "battery_4_bar"
-                        return "battery_full"
-                    }
-                    font.family: "Material Symbols Outlined"
-                    font.pixelSize: 32
-                    color: root.battCapacity <= 15 ? "#ef4444" : Config.accent
-                }
-
-                ColumnLayout {
+                // Header Row
+                RowLayout {
                     Layout.fillWidth: true
-                    spacing: 4
+                    spacing: 8
 
                     Text {
-                        text: root.battCapacity + "% Available"
+                        text: "BATTERY"
                         color: Config.textMain
                         font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontSubhead)
+                        font.pixelSize: Config.size(Config.fontTitle)
                         font.bold: true
+                        Layout.fillWidth: true
                     }
 
-                    // Progress bar
                     Rectangle {
+                        implicitWidth: statusText.implicitWidth + 12
+                        implicitHeight: 22
+                        radius: Config.cornerRadius / 2
+                        color: root.battStatus === "Charging" ? Qt.rgba(16, 185, 129, 0.2) : Qt.rgba(255, 255, 255, 0.08)
+
+                        Text {
+                            id: statusText
+                            anchors.centerIn: parent
+                            text: root.battStatus.toUpperCase()
+                            color: root.battStatus === "Charging" ? Config.accent : Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                            font.bold: true
+                        }
+                    }
+                }
+
+                // Battery Status Gauge Row
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 12
+
+                    Text {
+                        text: {
+                            if (root.battStatus === "Charging") return "battery_charging_full"
+                            if (root.battCapacity <= 15) return "battery_alert"
+                            if (root.battCapacity <= 30) return "battery_2_bar"
+                            if (root.battCapacity <= 70) return "battery_4_bar"
+                            return "battery_full"
+                        }
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 32
+                        color: root.battCapacity <= 15 ? "#ef4444" : Config.accent
+                    }
+
+                    ColumnLayout {
                         Layout.fillWidth: true
-                        implicitHeight: 6
-                        radius: 3
-                        color: Qt.rgba(255, 255, 255, 0.1)
+                        spacing: 4
 
+                        Text {
+                            text: root.battCapacity + "% Available"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontSubhead)
+                            font.bold: true
+                        }
+
+                        // Progress bar
                         Rectangle {
-                            width: parent.width * (root.battCapacity / 100.0)
-                            height: parent.height
+                            Layout.fillWidth: true
+                            implicitHeight: 6
                             radius: 3
-                            color: root.battCapacity <= 15 ? "#ef4444" : Config.accent
+                            color: Qt.rgba(255, 255, 255, 0.1)
 
-                            Behavior on width {
-                                NumberAnimation { duration: 200 }
+                            Rectangle {
+                                width: parent.width * (root.battCapacity / 100.0)
+                                height: parent.height
+                                radius: 3
+                                color: root.battCapacity <= 15 ? "#ef4444" : Config.accent
+
+                                Behavior on width {
+                                    NumberAnimation { duration: 200 }
+                                }
                             }
                         }
                     }
@@ -123,16 +147,17 @@ UnifiedSurface {
             }
         }
 
-        // Extra details Cards
+        // Bottom Stats Row: Split into two separate cards
         RowLayout {
             Layout.fillWidth: true
             spacing: 12
 
+            // Card 2: Device Stats
             Rectangle {
                 Layout.fillWidth: true
-                implicitHeight: 52
+                implicitHeight: 64
                 radius: Config.cornerRadius
-                color: Qt.rgba(1, 1, 1, 0.08)
+                color: Qt.rgba(1, 1, 1, 0.05)
 
                 ColumnLayout {
                     anchors.centerIn: parent
@@ -144,6 +169,7 @@ UnifiedSurface {
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontMicro)
                         font.bold: true
+                        Layout.alignment: Qt.AlignHCenter
                     }
 
                     Text {
@@ -152,15 +178,17 @@ UnifiedSurface {
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontCaption)
                         font.bold: true
+                        Layout.alignment: Qt.AlignHCenter
                     }
                 }
             }
 
+            // Card 3: Discharge Stats
             Rectangle {
                 Layout.fillWidth: true
-                implicitHeight: 52
+                implicitHeight: 64
                 radius: Config.cornerRadius
-                color: Qt.rgba(1, 1, 1, 0.08)
+                color: Qt.rgba(1, 1, 1, 0.05)
 
                 ColumnLayout {
                     anchors.centerIn: parent
@@ -172,6 +200,7 @@ UnifiedSurface {
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontMicro)
                         font.bold: true
+                        Layout.alignment: Qt.AlignHCenter
                     }
 
                     Text {
@@ -180,6 +209,7 @@ UnifiedSurface {
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontCaption)
                         font.bold: true
+                        Layout.alignment: Qt.AlignHCenter
                     }
                 }
             }
