@@ -133,6 +133,16 @@ PanelWindow {
     WlrLayershell.exclusiveZone: barH + (Config.barMargin || 4)
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
 
+    // ESCAPE KEY DISMISSAL
+    Shortcut {
+        sequences: ["Escape"]
+        enabled: root.isOpen
+        onActivated: {
+            root.closeOthers("none")
+            root.isCentered = false
+        }
+    }
+
     HyprlandFocusGrab {
         id: focusGrab
         active: root.isOpen
@@ -272,6 +282,16 @@ PanelWindow {
         id: mainContainer
         anchors.fill: parent
         anchors.margins: shadowPadding
+
+        // BACKDROP DISMISS AREA (Catches clicks on empty bar spaces when open)
+        MouseArea {
+            anchors.fill: parent
+            enabled: root.isOpen
+            onClicked: {
+                root.closeOthers("none")
+                root.isCentered = false
+            }
+        }
 
         states: [
             State {
