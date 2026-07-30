@@ -71,10 +71,13 @@ QtObject {
     property bool showOsk: false
     property string oskLayout: "Normal"
 
-    // Global Visual Toggles
+    // Global Visual Toggles & Opacity / Blur Controls
     property bool showBorders: true
     property bool animateGradient: true
     property bool showScreenFrame: false
+    property real shellOpacity: 1.0
+    property bool enableBlur: true
+    property bool enableXray: true
 
     // --- DESKTOP MASCOT STATE & PERSISTENCE ---
     property bool showMascot: false
@@ -237,6 +240,24 @@ QtObject {
         saveSettings()
     }
 
+    onShellOpacityChanged: {
+        if (!isLoaded) return
+        applyTheme(currentThemeIndex)
+        saveSettings()
+    }
+
+    onEnableBlurChanged: {
+        if (!isLoaded) return
+        syncHyprlandBorders()
+        saveSettings()
+    }
+
+    onEnableXrayChanged: {
+        if (!isLoaded) return
+        syncHyprlandBorders()
+        saveSettings()
+    }
+
     // Typography
     property string sysFont: ""
     property bool fontDropdownOpen: false
@@ -297,13 +318,13 @@ QtObject {
 
     onCustomBgBaseChanged: {
         if (!isLoaded) return
-        if (useCustomColors) bgBase = customBgBase
+        if (useCustomColors) applyTheme(currentThemeIndex)
         saveSettings()
     }
 
     onCustomBgPanelChanged: {
         if (!isLoaded) return
-        if (useCustomColors) bgPanel = customBgPanel
+        if (useCustomColors) applyTheme(currentThemeIndex)
         saveSettings()
     }
 
@@ -348,12 +369,22 @@ QtObject {
 
     // Hyprland Exporter
     property Process themeWriter: Process { id: writer }
-    readonly property string hyprThemePath: Quickshell.env("HOME") + "/.config/hypr/theme_colors.lua"
+    readonly property string hyprThemePath: Quickshell.env("HOME") + "/.config/hypr/hypr_style.lua"
 
     function syncHyprlandBorders() {
-        let colorStart = "rgba(" + accent.toString().replace("#", "") + "ff)"
-        let colorEnd = "rgba(" + borderEnd.toString().replace("#", "") + "ff)"
-        let inactiveStr = "rgba(" + bgPanel.toString().replace("#", "") + "aa)"
+        // Strip alpha and ensure clean 6-digit RRGGBB hex output
+        function toOpaqueHex(c) {
+            let str = Qt.color(c).toString().replace("#", "")
+            return str.length === 8 ? str.substring(2) : str
+        }
+
+        let hexAccent = toOpaqueHex(accent)
+        let hexEnd = toOpaqueHex(borderEnd)
+        let hexInactive = toOpaqueHex(bgPanel)
+
+        let colorStart = "rgba(" + hexAccent + "ff)"
+        let colorEnd = "rgba(" + hexEnd + "ff)"
+        let inactiveStr = "rgba(" + hexInactive + "aa)"
 
         let activeStr = animateGradient 
             ? colorStart + " " + colorEnd + " 45deg"
@@ -365,11 +396,22 @@ QtObject {
 
         let borderSize = showBorders ? 3 : 0
 
-        let luaContent = 'return {\n' +
-            '    active = ' + activeLua + ',\n' +
-            '    inactive = "' + inactiveStr + '",\n' +
-            '    size = ' + borderSize + '\n' +
-            '}\n'
+        let luaContent = 'hl.config({\n' +
+            '    general = {\n' +
+            '        col = {\n' +
+            '            active_border = ' + activeLua + ',\n' +
+            '            inactive_border = "' + inactiveStr + '"\n' +
+            '        },\n' +
+            '        border_size = ' + borderSize + '\n' +
+            '    }\n' +
+            '})\n\n' +
+            'hl.layer_rule({\n' +
+            '    name = "test-shell",\n' +
+            '    match = { namespace = "^test-shell-.*" },\n' +
+            '    blur = ' + (enableBlur ? "true" : "false") + ',\n' +
+            '    xray = ' + (enableXray ? "true" : "false") + ',\n' +
+            '    ignore_alpha = 0.6\n' +
+            '})\n'
 
         let animCmd = animateGradient 
             ? " && hyprctl keyword animation 'borderangle, 1, 100, linear, loop'" 
@@ -442,6 +484,9 @@ QtObject {
             "customAccent": root.customAccent.toString(),
             "showBorders": root.showBorders,
             "animateGradient": root.animateGradient,
+            "shellOpacity": root.shellOpacity,
+            "enableBlur": root.enableBlur,
+            "enableXray": root.enableXray,
             "customThemes": customPalettes,
             "windowStyle": root.windowStyle
         }
@@ -479,6 +524,9 @@ QtObject {
                     if (parsed.customAccent !== undefined) root.customAccent = parsed.customAccent
                     if (parsed.showBorders !== undefined) root.showBorders = parsed.showBorders
                     if (parsed.animateGradient !== undefined) root.animateGradient = parsed.animateGradient
+                    if (parsed.shellOpacity !== undefined) root.shellOpacity = parsed.shellOpacity
+                    if (parsed.enableBlur !== undefined) root.enableBlur = parsed.enableBlur
+                    if (parsed.enableXray !== undefined) root.enableXray = parsed.enableXray
 
                     if (parsed.customThemes && Array.isArray(parsed.customThemes)) {
                         var stockList = stockThemes.slice()
@@ -527,30 +575,55 @@ QtObject {
     readonly property int cornerRadius: 16 
 
     readonly property var stockThemes: [
-        { name: "Monochrome",     bgBase: "#121212", bgPanel: "#1e1e1e", accent: "#e0e0e0" },
-        { name: "Classic Red",    bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#ef4444" },
-        { name: "Vibrant Orange", bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#ff7b00" },
-        { name: "Amber Yellow",   bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#facc15" },
-        { name: "Emerald Green",  bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#10b981" },
-        { name: "Cyber Cyan",     bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#06b6d4" },
-        { name: "Dodger Blue",    bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#3b82f6" },
-        { name: "Deep Purple",    bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#a855f7" },
-        { name: "Gruvbox Dark",   bgBase: "#282828", bgPanel: "#3c3836", accent: "#fe8019" },
-        { name: "Catppuccin Mocha",bgBase: "#1e1e2e", bgPanel: "#181825", accent: "#f5c2e7" },
-        { name: "Nord Slate",     bgBase: "#2e3440", bgPanel: "#3b4252", accent: "#88c0d0" },
-        { name: "Tokyo Night",    bgBase: "#1a1b26", bgPanel: "#24283b", accent: "#7aa2f7" },
-        { name: "Rosé Pine",      bgBase: "#191724", bgPanel: "#1f1d2e", accent: "#ebbcba" },
-        { name: "Everforest",     bgBase: "#2d353b", bgPanel: "#343f44", accent: "#a7c080" },
-        { name: "Solarized Dark", bgBase: "#002b36", bgPanel: "#073642", accent: "#268bd2" },
-        { name: "Dracula",        bgBase: "#282a36", bgPanel: "#44475a", accent: "#ff79c6" },
-        { name: "Neon Red",       bgBase: "#0d0202", bgPanel: "#1a0404", accent: "#ff0055" },
-        { name: "Neon Orange",    bgBase: "#0f0800", bgPanel: "#1f1000", accent: "#ff5f00" },
-        { name: "Neon Yellow",    bgBase: "#0f0f00", bgPanel: "#1f1f00", accent: "#ccff00" },
-        { name: "Neon Lime",      bgBase: "#020f02", bgPanel: "#051f05", accent: "#00ff66" },
-        { name: "Neon Cyan",      bgBase: "#000f0f", bgPanel: "#001f1f", accent: "#00f0ff" },
-        { name: "Neon Blue",      bgBase: "#00050f", bgPanel: "#000a1f", accent: "#0066ff" },
-        { name: "Neon Purple",    bgBase: "#0a000f", bgPanel: "#15001f", accent: "#bf00ff" },
-        { name: "Neon Hot Pink",  bgBase: "#0f000a", bgPanel: "#1f0015", accent: "#ff00a0" }
+        // --- BASE & ACCENT THEMES (8) ---
+        { name: "Monochrome",       bgBase: "#121212", bgPanel: "#1e1e1e", accent: "#e0e0e0" },
+        { name: "Classic Red",      bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#ef4444" },
+        { name: "Vibrant Orange",   bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#ff7b00" },
+        { name: "Amber Yellow",     bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#facc15" },
+        { name: "Emerald Green",    bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#10b981" },
+        { name: "Cyber Cyan",       bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#06b6d4" },
+        { name: "Dodger Blue",      bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#3b82f6" },
+        { name: "Deep Purple",      bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#a855f7" },
+
+        // --- POPULAR COMMUNITY SCHEMES (16) ---
+        { name: "Gruvbox Dark",     bgBase: "#282828", bgPanel: "#3c3836", accent: "#fe8019" },
+        { name: "Catppuccin Mocha", bgBase: "#1e1e2e", bgPanel: "#181825", accent: "#f5c2e7" },
+        { name: "Nord Slate",       bgBase: "#2e3440", bgPanel: "#3b4252", accent: "#88c0d0" },
+        { name: "Tokyo Night",      bgBase: "#1a1b26", bgPanel: "#24283b", accent: "#7aa2f7" },
+        { name: "Rosé Pine",        bgBase: "#191724", bgPanel: "#1f1d2e", accent: "#ebbcba" },
+        { name: "Everforest",       bgBase: "#2d353b", bgPanel: "#343f44", accent: "#a7c080" },
+        { name: "Solarized Dark",   bgBase: "#002b36", bgPanel: "#073642", accent: "#268bd2" },
+        { name: "Dracula",          bgBase: "#282a36", bgPanel: "#44475a", accent: "#ff79c6" },
+        { name: "Cyberpunk 2077",   bgBase: "#000b1e", bgPanel: "#12002b", accent: "#ff0055" },
+        { name: "Catppuccin Latte", bgBase: "#eff1f5", bgPanel: "#e6e9ef", accent: "#8839ef" },
+        { name: "Monokai Pro",      bgBase: "#2d2a2e", bgPanel: "#403e41", accent: "#ffd866" },
+        { name: "Synthwave '84",    bgBase: "#262335", bgPanel: "#241b2f", accent: "#ff7edb" },
+        { name: "Kanagawa",         bgBase: "#1f1f28", bgPanel: "#2a2a37", accent: "#7e9cd8" },
+        { name: "Ayu Dark",         bgBase: "#0f1419", bgPanel: "#131721", accent: "#ffb454" },
+        { name: "Solarized Light",  bgBase: "#fdf6e3", bgPanel: "#eee8d5", accent: "#b58900" },
+        { name: "One Dark",         bgBase: "#282c34", bgPanel: "#21252b", accent: "#61afef" },
+
+        // --- RESTORED NEON PALETTES (8) ---
+        { name: "Neon Red",         bgBase: "#0d0202", bgPanel: "#1a0404", accent: "#ff0055" },
+        { name: "Neon Orange",      bgBase: "#0f0800", bgPanel: "#1f1000", accent: "#ff5f00" },
+        { name: "Neon Yellow",      bgBase: "#0f0f00", bgPanel: "#1f1f00", accent: "#ccff00" },
+        { name: "Neon Lime",        bgBase: "#020f02", bgPanel: "#051f05", accent: "#00ff66" },
+        { name: "Neon Cyan",        bgBase: "#000f0f", bgPanel: "#001f1f", accent: "#00f0ff" },
+        { name: "Neon Blue",        bgBase: "#00050f", bgPanel: "#000a1f", accent: "#0066ff" },
+        { name: "Neon Purple",      bgBase: "#0a000f", bgPanel: "#15001f", accent: "#bf00ff" },
+        { name: "Neon Hot Pink",    bgBase: "#0f000a", bgPanel: "#1f0015", accent: "#ff00a0" },
+
+        // --- ADDITIONAL PALETTES (10) ---
+        { name: "Laserwave",        bgBase: "#1b192e", bgPanel: "#272140", accent: "#40e0d0" },
+        { name: "Matrix Deep",      bgBase: "#020a02", bgPanel: "#051405", accent: "#00ff41" },
+        { name: "Outrun Sunset",    bgBase: "#11001c", bgPanel: "#220038", accent: "#ff2a6d" },
+        { name: "Vaporwave Pink",   bgBase: "#1a001a", bgPanel: "#2e002e", accent: "#ff71ce" },
+        { name: "Midnight City",    bgBase: "#090a10", bgPanel: "#121420", accent: "#00d2ff" },
+        { name: "Toxic Emerald",    bgBase: "#01120a", bgPanel: "#022414", accent: "#00ff87" },
+        { name: "Inferno Glow",     bgBase: "#140200", bgPanel: "#260500", accent: "#ff3300" },
+        { name: "Ultra Violet",     bgBase: "#0d0614", bgPanel: "#180b26", accent: "#9900ff" },
+        { name: "Electric Gold",    bgBase: "#121000", bgPanel: "#242000", accent: "#ffe600" },
+        { name: "Abyssal Teal",     bgBase: "#001214", bgPanel: "#002226", accent: "#00f5d4" }
     ]
 
     property var themes: stockThemes.slice()
@@ -578,22 +651,20 @@ QtObject {
     }
 
     function applyTheme(index) {
-        if (useCustomColors) {
-            bgBase = customBgBase
-            bgPanel = customBgPanel
-            accent = customAccent
-            syncHyprlandBorders()
-            return
+        var baseColor = useCustomColors ? customBgBase : (themes[index] || themes[0]).bgBase
+        var panelColor = useCustomColors ? customBgPanel : (themes[index] || themes[0]).bgPanel
+        var accentColor = useCustomColors ? customAccent : (themes[index] || themes[0]).bgPanel ? (themes[index] || themes[0]).accent : "#ff4da6"
+
+        bgBase = Qt.rgba(Qt.color(baseColor).r, Qt.color(baseColor).g, Qt.color(baseColor).b, shellOpacity)
+        bgPanel = Qt.rgba(Qt.color(panelColor).r, Qt.color(panelColor).g, Qt.color(panelColor).b, shellOpacity)
+        accent = accentColor
+
+        if (!useCustomColors) {
+            var t = themes[index] || themes[0]
+            customBgBase = t.bgBase
+            customBgPanel = t.bgPanel
+            customAccent = t.accent
         }
-
-        var t = themes[index] || themes[0]
-        bgBase = t.bgBase
-        bgPanel = t.bgPanel
-        accent = t.accent
-
-        customBgBase = t.bgBase
-        customBgPanel = t.bgPanel
-        customAccent = t.accent
 
         syncHyprlandBorders()
     }

@@ -12,7 +12,7 @@ PanelWindow {
 
     WlrLayershell.namespace: "test-shell-settings"
 
-    visible: Config.showSettings || closeTransition.running || openTransition.running
+    visible: Config.showSettings || progress > 0.0
 
     screen: {
         let activeName = Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""
@@ -26,9 +26,8 @@ PanelWindow {
 
     color: "transparent"
 
-    // Full-screen layer mask while active so outside clicks register, collapsed when hidden
     mask: Region {
-        item: Config.showSettings ? fullScreenBounds : breathingContainer
+        item: (Config.showSettings || progress > 0.01) ? fullScreenBounds : null
     }
 
     WlrLayershell.layer: WlrLayer.Overlay
@@ -39,11 +38,47 @@ PanelWindow {
     property bool connectivityExpanded: false
     property bool widgetsExpanded: false
 
-    onVisibleChanged: {
-        if (visible && Config.showSettings) {
+    // --- UNIFIEDSURFACE ANIMATION LOGIC ---
+    readonly property bool isOpen: Config.showSettings
+    readonly property bool isHorizontal: Config.barPosition === "top" || Config.barPosition === "bottom"
+
+    // Raw resting targets for the dialog window
+    readonly property real rawChildWidth: 820
+    readonly property real rawChildHeight: 540
+
+    // Capture dimensions on close trigger to lock evaluation state during transition
+    property real lastOpenWidth: rawChildWidth
+    property real lastOpenHeight: rawChildHeight
+
+    onIsOpenChanged: {
+        if (!isOpen) {
+            lastOpenWidth = rawChildWidth
+            lastOpenHeight = rawChildHeight
+        } else {
             breathingContainer.forceActiveFocus()
         }
     }
+
+    // Fraction-based morphing sizes
+    property real targetWidth: isOpen ? rawChildWidth : (isHorizontal ? (lastOpenWidth * 0.50) : (lastOpenWidth * 1.10))
+    property real targetHeight: isOpen ? rawChildHeight : (isHorizontal ? (lastOpenHeight * 1.10) : (lastOpenHeight * 0.50))
+
+    Behavior on targetWidth {
+        NumberAnimation { duration: 350; easing.type: Easing.OutBack; easing.overshoot: 0.8 }
+    }
+
+    Behavior on targetHeight {
+        NumberAnimation { duration: 350; easing.type: Easing.OutBack; easing.overshoot: 0.8 }
+    }
+
+    property real progress: 0.0
+    readonly property real animScale: Math.max(0.0, progress)
+
+    // Smooth closing curve and squish math
+    readonly property real closeFactor: isOpen ? progress : Math.pow(progress, 1.2)
+    readonly property real currentHeight: targetHeight * Math.pow(closeFactor, 1.8)
+    readonly property real squishRatio: targetHeight > 0 ? (1.0 - (currentHeight / targetHeight)) : 0.0
+    readonly property real currentWidth: isOpen ? (targetWidth * animScale) : (targetWidth * (closeFactor + (0.3 * squishRatio * closeFactor)))
 
     Shortcut {
         sequences: ["Escape"]
@@ -57,10 +92,46 @@ PanelWindow {
         }
     }
 
-    // Full-screen container listening for clicks outside the dialog
     Item {
         id: fullScreenBounds
         anchors.fill: parent
+
+        // State Machine driving the transition progress
+        states: [
+            State {
+                name: "open"
+                when: isOpen
+                PropertyChanges { target: settingsWindow; progress: 1.0 }
+            },
+            State {
+                name: "closed"
+                when: !isOpen
+                PropertyChanges { target: settingsWindow; progress: 0.0 }
+            }
+        ]
+
+        transitions: [
+            Transition {
+                from: "closed"; to: "open"
+                NumberAnimation {
+                    target: settingsWindow
+                    property: "progress"
+                    duration: 450
+                    easing.type: Easing.OutBack
+                    easing.overshoot: 0.8
+                }
+            },
+            Transition {
+                from: "open"; to: "closed"
+                NumberAnimation {
+                    target: settingsWindow
+                    property: "progress"
+                    duration: 300
+                    easing.type: Easing.InBack
+                    easing.overshoot: 1.4
+                }
+            }
+        ]
 
         MouseArea {
             anchors.fill: parent
@@ -73,43 +144,11 @@ PanelWindow {
 
         Item {
             id: breathingContainer
-            width: 820
-            height: 540
+            width: Math.max(1, currentWidth)
+            height: Math.max(1, currentHeight)
+            opacity: animScale
             anchors.centerIn: parent
-            transformOrigin: Item.Center
             focus: true
-
-            states: [
-                State {
-                    name: "open"
-                    when: Config.showSettings
-                    PropertyChanges { target: breathingContainer; scale: 1.0; opacity: 1.0 }
-                },
-                State {
-                    name: "closed"
-                    when: !Config.showSettings
-                    PropertyChanges { target: breathingContainer; scale: 0.8; opacity: 0.0 }
-                }
-            ]
-
-            transitions: [
-                Transition {
-                    id: openTransition
-                    from: "closed"; to: "open"
-                    ParallelAnimation {
-                        NumberAnimation { properties: "opacity"; duration: 250; easing.type: Easing.OutQuart }
-                        NumberAnimation { properties: "scale"; duration: 450; easing.type: Easing.OutBack; easing.overshoot: 1.8 }
-                    }
-                },
-                Transition {
-                    id: closeTransition
-                    from: "open"; to: "closed"
-                    ParallelAnimation {
-                        NumberAnimation { properties: "opacity"; duration: 200; easing.type: Easing.InCubic }
-                        NumberAnimation { properties: "scale"; duration: 250; easing.type: Easing.InQuad }
-                    }
-                }
-            ]
 
             Rectangle {
                 anchors.fill: parent
@@ -117,8 +156,8 @@ PanelWindow {
                 radius: Config.cornerRadius
                 border.width: Config.showBorders ? 3 : 0
                 border.color: Config.showBorders ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                clip: true
 
-                // Absorbs clicks inside the window card so they don't leak to the backdrop dismiss area
                 MouseArea {
                     anchors.fill: parent
                     onClicked: (mouse) => mouse.accepted = true

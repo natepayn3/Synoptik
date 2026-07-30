@@ -10,49 +10,69 @@ PanelWindow {
     id: root
 
     property color flyoutBorderColor: Config.accent
-    property real panelWidth: 460
     
-    // Dynamic height calculation based on inner layout content
+    // Dynamic content heights
     property real baseContentHeight: contentColumn.implicitHeight
-    property real panelHeight: Math.max(80, baseContentHeight + 48)
-
-    // Add padding to implicit dimensions to prevent overshoot clipping
-    property real overshootPadding: 50
+    property real rawChildWidth: 460
+    property real rawChildHeight: Math.max(80, baseContentHeight + 48)
 
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.exclusiveZone: -1
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
+    // --- UNIFIEDSURFACE ANIMATION LOGIC ---
+    readonly property bool isOpen: Config.showNotificationOsd
+    readonly property bool isHorizontal: Config.barPosition === "top" || Config.barPosition === "bottom"
+
+    // Capture dimensions on close trigger to lock evaluation state during transition
+    property real lastOpenWidth: rawChildWidth
+    property real lastOpenHeight: rawChildHeight
+
+    onIsOpenChanged: {
+        if (!isOpen) {
+            lastOpenWidth = rawChildWidth
+            lastOpenHeight = rawChildHeight
+        }
+    }
+
+    // Fraction-based morphing sizes matching UnifiedSurface
+    property real targetWidth: isOpen ? rawChildWidth : (isHorizontal ? (lastOpenWidth * 0.50) : (lastOpenWidth * 1.10))
+    property real targetHeight: isOpen ? rawChildHeight : (isHorizontal ? (lastOpenHeight * 1.10) : (lastOpenHeight * 0.50))
+
+    Behavior on targetWidth {
+        NumberAnimation { duration: 350; easing.type: Easing.OutBack; easing.overshoot: 0.8 }
+    }
+
+    Behavior on targetHeight {
+        NumberAnimation { duration: 350; easing.type: Easing.OutBack; easing.overshoot: 0.8 }
+    }
+
+    property real progress: 0.0
+    readonly property real animScale: Math.max(0.0, progress)
+
+    // Smooth closing curve and squish math
+    readonly property real closeFactor: isOpen ? progress : Math.pow(progress, 1.2)
+    readonly property real currentHeight: targetHeight * Math.pow(closeFactor, 1.8)
+    readonly property real squishRatio: targetHeight > 0 ? (1.0 - (currentHeight / targetHeight)) : 0.0
+    readonly property real currentWidth: isOpen ? (targetWidth * animScale) : (targetWidth * (closeFactor + (0.3 * squishRatio * closeFactor)))
+
     anchors {
-        top: true
+        top: true; bottom: true; left: true; right: true
     }
 
-    margins {
-        top: (Config.barHeight || 30) - (overshootPadding / 2)
-    }
-
-    implicitWidth: panelWidth + overshootPadding
-    implicitHeight: panelHeight + overshootPadding
     color: "transparent"
 
-    // Behavior on height changes for smooth resizing transitions
-    Behavior on panelHeight {
-        NumberAnimation { duration: 150; easing.type: Easing.OutQuad }
-    }
+    visible: Config.showNotificationOsd || progress > 0.0
 
-    // Mask spans the padded frame so the bounce doesn't get clipped
     mask: Region {
-        item: mainFrame
+        item: (Config.showNotificationOsd || progress > 0.01) ? breathingContainer : null
     }
-
-    visible: Config.showNotificationOsd || closeTransition.running || openTransition.running
 
     property string notifTitle: ""
     property string notifBody: ""
     property string notifApp: ""
     property int notifUrgency: Notifs.NotificationUrgency.Normal
 
-    // --- APP ICON RESOLVER ---
     readonly property string appIcon: {
         let app = root.notifApp.toLowerCase()
         if (app.includes("discord") || app.includes("vesktop")) return "forum"
@@ -104,52 +124,55 @@ PanelWindow {
         onTriggered: root.dismiss()
     }
 
-    // Static frame padded to allow bounce room
     Item {
-        id: mainFrame
         anchors.fill: parent
 
-        // Centered scaling container
+        // State Machine driving progress
+        states: [
+            State {
+                name: "open"
+                when: isOpen
+                PropertyChanges { target: root; progress: 1.0 }
+            },
+            State {
+                name: "closed"
+                when: !isOpen
+                PropertyChanges { target: root; progress: 0.0 }
+            }
+        ]
+
+        transitions: [
+            Transition {
+                from: "closed"; to: "open"
+                NumberAnimation {
+                    target: root
+                    property: "progress"
+                    duration: 450
+                    easing.type: Easing.OutBack
+                    easing.overshoot: 1.8
+                }
+            },
+            Transition {
+                from: "open"; to: "closed"
+                NumberAnimation {
+                    target: root
+                    property: "progress"
+                    duration: 300
+                    easing.type: Easing.InBack
+                    easing.overshoot: 1.6
+                }
+            }
+        ]
+
         Item {
             id: breathingContainer
-            width: root.panelWidth
-            height: root.panelHeight
-            anchors.centerIn: parent
-            transformOrigin: Item.Center
+            width: Math.max(1, currentWidth)
+            height: Math.max(1, currentHeight)
+            opacity: animScale
+            anchors.top: parent.top
+            anchors.topMargin: Config.barHeight || 30
+            anchors.horizontalCenter: parent.horizontalCenter
 
-            states: [
-                State {
-                    name: "open"
-                    when: Config.showNotificationOsd
-                    PropertyChanges { target: breathingContainer; scale: 1.0; opacity: 1.0 }
-                },
-                State {
-                    name: "closed"
-                    when: !Config.showNotificationOsd
-                    PropertyChanges { target: breathingContainer; scale: 0.0; opacity: 0.0 }
-                }
-            ]
-
-            transitions: [
-                Transition {
-                    id: openTransition
-                    from: "closed"; to: "open"
-                    ParallelAnimation {
-                        NumberAnimation { properties: "scale"; duration: 450; easing.type: Easing.OutBack; easing.overshoot: 1.8 }
-                        NumberAnimation { properties: "opacity"; duration: 200 }
-                    }
-                },
-                Transition {
-                    id: closeTransition
-                    from: "open"; to: "closed"
-                    ParallelAnimation {
-                        NumberAnimation { properties: "scale"; duration: 300; easing.type: Easing.InBack }
-                        NumberAnimation { properties: "opacity"; duration: 250 }
-                    }
-                }
-            ]
-
-            // --- OUTER BORDER & GRADIENT FRAME ---
             Rectangle {
                 anchors.fill: parent
                 radius: Config.cornerRadius
@@ -175,12 +198,12 @@ PanelWindow {
                     }
                 }
 
-                // --- MAIN INNER BODY ---
                 Rectangle {
                     anchors.fill: parent
                     anchors.margins: Config.showBorders ? 3 : 0
                     radius: Math.max(0, Config.cornerRadius - (Config.showBorders ? 3 : 0))
-                    color: Config.bgPanel
+                    color: Qt.alpha(Config.bgPanel, 0.75)
+                    clip: true
 
                     MouseArea {
                         anchors.fill: parent
@@ -193,7 +216,6 @@ PanelWindow {
                         anchors.margins: 12
                         spacing: 12
 
-                        // LEFT APP ICON BADGE
                         Rectangle {
                             implicitWidth: 48
                             implicitHeight: 48
@@ -212,7 +234,6 @@ PanelWindow {
                             }
                         }
 
-                        // CONTENT CARD
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
@@ -228,7 +249,6 @@ PanelWindow {
                                 anchors.bottomMargin: 10
                                 spacing: 4
 
-                                // HEADER ROW: App Name + Close Button
                                 RowLayout {
                                     Layout.fillWidth: true
                                     spacing: 6
@@ -249,7 +269,6 @@ PanelWindow {
                                             elide: Text.ElideRight
                                         }
 
-                                        // GLOW EFFECT (Matches volumeOSD Slider Glow)
                                         Glow {
                                             anchors.fill: senderText
                                             source: senderText
@@ -261,7 +280,6 @@ PanelWindow {
                                         }
                                     }
 
-                                    // DISMISS BUTTON
                                     Rectangle {
                                         implicitWidth: 22
                                         implicitHeight: 22
@@ -289,7 +307,6 @@ PanelWindow {
                                     }
                                 }
 
-                                // SUMMARY TITLE
                                 Text {
                                     text: root.notifTitle
                                     color: Config.textMain
@@ -301,7 +318,6 @@ PanelWindow {
                                     maximumLineCount: 1
                                 }
 
-                                // BODY MESSAGE
                                 Text {
                                     visible: root.notifBody !== ""
                                     text: root.notifBody

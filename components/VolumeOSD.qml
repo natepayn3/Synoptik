@@ -9,40 +9,60 @@ PanelWindow {
     id: root
 
     property color flyoutBorderColor: Config.accent
-    property real panelWidth: 420
-    property real panelHeight: 80
-
-    // Equal padding margin buffer matching NotificationOSD
-    property real overshootPadding: 30
+    property real rawChildWidth: 420
+    property real rawChildHeight: 80
 
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.exclusiveZone: -1
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
 
-    property bool alignRight: false
-    property bool alignCenter: true
+    // --- UNIFIEDSURFACE ANIMATION LOGIC ---
+    readonly property bool isOpen: (Config.showOSD || false)
+    readonly property bool isHorizontal: Config.barPosition === "top" || Config.barPosition === "bottom"
+
+    // Capture dimensions on close trigger to lock evaluation state during transition
+    property real lastOpenWidth: rawChildWidth
+    property real lastOpenHeight: rawChildHeight
+
+    onIsOpenChanged: {
+        if (!isOpen) {
+            lastOpenWidth = rawChildWidth
+            lastOpenHeight = rawChildHeight
+        }
+    }
+
+    // Fraction-based morphing sizes matching UnifiedSurface
+    property real targetWidth: isOpen ? rawChildWidth : (isHorizontal ? (lastOpenWidth * 0.50) : (lastOpenWidth * 1.10))
+    property real targetHeight: isOpen ? rawChildHeight : (isHorizontal ? (lastOpenHeight * 1.10) : (lastOpenHeight * 0.50))
+
+    Behavior on targetWidth {
+        NumberAnimation { duration: 350; easing.type: Easing.OutBack; easing.overshoot: 0.8 }
+    }
+
+    Behavior on targetHeight {
+        NumberAnimation { duration: 350; easing.type: Easing.OutBack; easing.overshoot: 0.8 }
+    }
+
+    property real progress: 0.0
+    readonly property real animScale: Math.max(0.0, progress)
+
+    // Smooth closing curve and squish math
+    readonly property real closeFactor: isOpen ? progress : Math.pow(progress, 1.2)
+    readonly property real currentHeight: targetHeight * Math.pow(closeFactor, 1.8)
+    readonly property real squishRatio: targetHeight > 0 ? (1.0 - (currentHeight / targetHeight)) : 0.0
+    readonly property real currentWidth: isOpen ? (targetWidth * animScale) : (targetWidth * (closeFactor + (0.3 * squishRatio * closeFactor)))
 
     anchors {
-        bottom: true
-        left: alignCenter || !alignRight
-        right: alignCenter || alignRight
+        top: true; bottom: true; left: true; right: true
     }
 
-    margins {
-        bottom: (Config.barHeight || 30) - (overshootPadding / 2)
-        left: 0
-        right: 0
-    }
-
-    implicitWidth: panelWidth + overshootPadding
-    implicitHeight: panelHeight + overshootPadding
     color: "transparent"
 
-    mask: Region {
-        item: mainFrame
-    }
+    visible: (Config.showOSD || false) || progress > 0.0
 
-    visible: (Config.showOSD || false) || closeTransition.running || openTransition.running
+    mask: Region {
+        item: ((Config.showOSD || false) || progress > 0.01) ? breathingContainer : null
+    }
 
     property int volume: -1 
     property bool isMuted: false
@@ -127,52 +147,55 @@ PanelWindow {
         }
     }
 
-    // Static outer bounding region
     Item {
-        id: mainFrame
         anchors.fill: parent
 
-        // Centered scaling inner container
+        // State Machine driving progress
+        states: [
+            State {
+                name: "open"
+                when: isOpen
+                PropertyChanges { target: root; progress: 1.0 }
+            },
+            State {
+                name: "closed"
+                when: !isOpen
+                PropertyChanges { target: root; progress: 0.0 }
+            }
+        ]
+
+        transitions: [
+            Transition {
+                from: "closed"; to: "open"
+                NumberAnimation {
+                    target: root
+                    property: "progress"
+                    duration: 450
+                    easing.type: Easing.OutBack
+                    easing.overshoot: 2.2
+                }
+            },
+            Transition {
+                from: "open"; to: "closed"
+                NumberAnimation {
+                    target: root
+                    property: "progress"
+                    duration: 300
+                    easing.type: Easing.InBack
+                    easing.overshoot: 1.6
+                }
+            }
+        ]
+
         Item {
             id: breathingContainer
-            width: root.panelWidth
-            height: root.panelHeight
-            anchors.centerIn: parent
-            transformOrigin: Item.Center
+            width: Math.max(1, currentWidth)
+            height: Math.max(1, currentHeight)
+            opacity: animScale
+            anchors.bottom: parent.bottom
+            anchors.bottomMargin: Config.barHeight || 30
+            anchors.horizontalCenter: parent.horizontalCenter
 
-            states: [
-                State {
-                    name: "open"
-                    when: Config.showOSD
-                    PropertyChanges { target: breathingContainer; scale: 1.0; opacity: 1.0 }
-                },
-                State {
-                    name: "closed"
-                    when: !Config.showOSD
-                    PropertyChanges { target: breathingContainer; scale: 0.0; opacity: 0.0 }
-                }
-            ]
-
-            transitions: [
-                Transition {
-                    id: openTransition
-                    from: "closed"; to: "open"
-                    ParallelAnimation {
-                        NumberAnimation { properties: "scale"; duration: 450; easing.type: Easing.OutBack; easing.overshoot: 2.2 }
-                        NumberAnimation { properties: "opacity"; duration: 200 }
-                    }
-                },
-                Transition {
-                    id: closeTransition
-                    from: "open"; to: "closed"
-                    ParallelAnimation {
-                        NumberAnimation { properties: "scale"; duration: 300; easing.type: Easing.InBack }
-                        NumberAnimation { properties: "opacity"; duration: 250 }
-                    }
-                }
-            ]
-
-            // --- OUTER GRADIENT BORDER FRAME ---
             Rectangle {
                 anchors.fill: parent
                 radius: Config.cornerRadius
@@ -215,12 +238,12 @@ PanelWindow {
                     }
                 }
 
-                // --- MAIN INNER BODY ---
                 Rectangle {
                     anchors.fill: parent
                     anchors.margins: Config.showBorders ? 3 : 0
                     radius: Math.max(0, Config.cornerRadius - (Config.showBorders ? 3 : 0))
-                    color: Config.bgPanel
+                    color: Qt.alpha(Config.bgPanel, 0.75)
+                    clip: true
 
                     MouseArea {
                         anchors.fill: parent
@@ -233,7 +256,6 @@ PanelWindow {
                         anchors.margins: 12
                         spacing: 12
 
-                        // LEFT APP ICON BADGE
                         Rectangle {
                             implicitWidth: 48
                             implicitHeight: 48
@@ -254,7 +276,6 @@ PanelWindow {
                             }
                         }
 
-                        // CONTENT CARD CONTAINER
                         Rectangle {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
@@ -267,7 +288,6 @@ PanelWindow {
                                 anchors.rightMargin: 12
                                 spacing: 12
 
-                                // HALF-SINE WAVE TRACK & INSTANT PILL
                                 Item {
                                     Layout.fillWidth: true
                                     implicitHeight: 32
@@ -280,7 +300,6 @@ PanelWindow {
                                         property real animPhase: 0.0
                                         property real activeWidth: Math.min(width, width * (Math.max(0, root.volume) / 100))
 
-                                        // Snappy 80ms animation for instant reaction
                                         Behavior on activeWidth {
                                             NumberAnimation { duration: 80; easing.type: Easing.OutQuad }
                                         }
@@ -306,7 +325,6 @@ PanelWindow {
                                             var centerY = height / 2
                                             var strokeLineWidth = 4
 
-                                            // 1. Active Wave Track (Left)
                                             if (waveCanvas.activeWidth > 0) {
                                                 ctx.save()
                                                 ctx.beginPath()
@@ -329,7 +347,6 @@ PanelWindow {
                                                 ctx.restore()
                                             }
 
-                                            // 2. Inactive Straight Line Track (Right)
                                             if (waveCanvas.activeWidth < width) {
                                                 ctx.save()
                                                 ctx.beginPath()
@@ -344,7 +361,6 @@ PanelWindow {
                                         }
                                     }
 
-                                    // INSTANT-TRACKING PILL INDICATOR
                                     Rectangle {
                                         width: 6
                                         height: 20
@@ -355,7 +371,6 @@ PanelWindow {
                                     }
                                 }
 
-                                // VOLUME PERCENTAGE
                                 Text {
                                     text: root.isMuted ? "Muted" : Math.max(0, root.volume) + "%"
                                     color: root.isMuted ? Config.textMuted : Config.textMain
