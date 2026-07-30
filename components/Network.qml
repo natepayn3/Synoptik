@@ -9,7 +9,7 @@ Item {
     id: root
 
     implicitWidth: 380
-    implicitHeight: showFileBrowser ? 480 : (mainLayout.implicitHeight + 24)
+    implicitHeight: mainLayout.implicitHeight + 24
 
     // --- State Properties ---
     property string activeVpnName: ""
@@ -435,7 +435,8 @@ Item {
         // ==========================================
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: browserLayout.implicitHeight + 16
+            // Dynamic card height driven directly by internal contents
+            implicitHeight: browserLayout.implicitHeight + 24
             color: Qt.rgba(255, 255, 255, 0.05)
             radius: Config.cornerRadius
             visible: root.showFileBrowser
@@ -475,11 +476,11 @@ Item {
 
                 Rectangle {
                     Layout.fillWidth: true
-                    implicitHeight: 320
+                    // Dynamic list container height with min/max clamps
+                    implicitHeight: Math.min(Math.max(fileListView.contentHeight + 12, 120), 320)
                     color: Qt.rgba(0, 0, 0, 0.15)
                     radius: Config.cornerRadius / 2
-                    border.color: Qt.rgba(255, 255, 255, 0.1)
-                    border.width: 1
+                    // 1px border completely removed
                     clip: true
 
                     ListView {
