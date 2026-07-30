@@ -21,10 +21,14 @@ ShellRoot {
     property bool btPowered: true
     property bool btConnected: false
     
+    property bool isUserSettingVolume: false
     property bool audioMuted: false
     property int audioVolume: 50
     
     property bool vpnActive: false
+
+    // Recording State
+    property bool isRecording: false
 
     // Battery State
     property bool hasBattery: false
@@ -63,6 +67,16 @@ ShellRoot {
         return activeMon === "" || Config.isBarEnabledForScreen(activeMon)
     }
 
+    // Check if wf-recorder is active
+    Process {
+        id: recordStatusProc
+        command: ["pgrep", "-x", "wf-recorder"]
+        running: true
+        onExited: (code, status) => {
+            shellRoot.isRecording = (code === 0)
+        }
+    }
+
     // Detect if BAT0 or BAT1 exists
     Process {
         id: battDetectProc
@@ -99,7 +113,7 @@ ShellRoot {
         }
     }
 
-    // 1. Wi-Fi Status Query
+    // Wi-Fi Status Query
     Process {
         id: wifiStateProc
         command: ["fish", "-c", "nmcli radio wifi"]
@@ -132,13 +146,16 @@ ShellRoot {
         }
     }
 
-    // 2. Audio Status Query via PipeWire
+    // Audio Status Query via PipeWire
     Process {
         id: audioStateProc
         command: ["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"]
         running: true
         stdout: StdioCollector {
             onStreamFinished: {
+                // Ignore background PipeWire status updates while dragging/setting volume
+                if (shellRoot.isUserSettingVolume) return;
+
                 let cleaned = this.text.trim()
                 let match = cleaned.match(/Volume:\s+([0-9.]+)/)
                 if (match) {
@@ -164,7 +181,7 @@ ShellRoot {
         }
     }
 
-    // 3. Bluetooth Status Query
+    // Bluetooth Status Query
     Process {
         id: btStateProc
         command: ["fish", "-c", "bluetoothctl show | grep -q 'Powered: yes' && echo 'ON' || echo 'OFF'"]
@@ -176,7 +193,7 @@ ShellRoot {
         }
     }
 
-    // 4. Network / VPN Connection Query
+    // Network / VPN Connection Query
     Process {
         id: vpnStateProc
         command: ["nmcli", "-t", "-f", "TYPE,STATE", "connection", "show", "--active"]
@@ -191,11 +208,12 @@ ShellRoot {
 
     // Global Status Poller Timer
     Timer {
-        interval: 3000
+        interval: 1000
         running: true
         repeat: true
         triggeredOnStart: true
         onTriggered: {
+            recordStatusProc.running = false; recordStatusProc.running = true
             wifiStateProc.running = false; wifiStateProc.running = true
             audioStateProc.running = false; audioStateProc.running = true
             btStateProc.running = false; btStateProc.running = true
@@ -233,14 +251,9 @@ ShellRoot {
         function toggle(): void {
             if (!shellRoot.isFocusedBarEnabled) return;
             if (!Config.showPower) {
-                Config.showSettings = false
-                Config.showWallpaper = false
-                Config.showAppLauncher = false
-                Config.showCalendar = false
-                Config.showNotifications = false
-                Config.showBattery = false
-                Config.showWorkspacePreview = false
-                Config.showControlCenter = false
+                Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false;
+                Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false;
+                Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
             }
             Config.showPower = !Config.showPower
         }
@@ -251,14 +264,9 @@ ShellRoot {
         function toggle(): void {
             if (!shellRoot.isFocusedBarEnabled) return;
             if (!Config.showAppLauncher) {
-                Config.showPower = false
-                Config.showSettings = false
-                Config.showWallpaper = false
-                Config.showCalendar = false
-                Config.showNotifications = false
-                Config.showBattery = false
-                Config.showWorkspacePreview = false
-                Config.showControlCenter = false
+                Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
+                Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false;
+                Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
             }
             Config.showAppLauncher = !Config.showAppLauncher
         }
@@ -269,14 +277,9 @@ ShellRoot {
         function toggle(): void {
             if (!shellRoot.isFocusedBarEnabled) return;
             if (!Config.showWallpaper) {
-                Config.showPower = false
-                Config.showSettings = false
-                Config.showAppLauncher = false
-                Config.showCalendar = false
-                Config.showNotifications = false
-                Config.showBattery = false
-                Config.showWorkspacePreview = false
-                Config.showControlCenter = false
+                Config.showPower = false; Config.showSettings = false; Config.showAppLauncher = false;
+                Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false;
+                Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
             }
             Config.showWallpaper = !Config.showWallpaper
         }
@@ -287,14 +290,9 @@ ShellRoot {
         function toggle(): void {
             if (!shellRoot.isFocusedBarEnabled) return;
             if (!Config.showNotifications) {
-                Config.showPower = false
-                Config.showSettings = false
-                Config.showWallpaper = false
-                Config.showAppLauncher = false
-                Config.showCalendar = false
-                Config.showBattery = false
-                Config.showWorkspacePreview = false
-                Config.showControlCenter = false
+                Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
+                Config.showAppLauncher = false; Config.showCalendar = false; Config.showBattery = false;
+                Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
             }
             Config.showNotifications = !Config.showNotifications
         }
@@ -305,14 +303,9 @@ ShellRoot {
         function toggle(): void {
             if (!shellRoot.isFocusedBarEnabled) return;
             if (!Config.showWorkspacePreview) {
-                Config.showPower = false
-                Config.showSettings = false
-                Config.showWallpaper = false
-                Config.showAppLauncher = false
-                Config.showCalendar = false
-                Config.showNotifications = false
-                Config.showBattery = false
-                Config.showControlCenter = false
+                Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
+                Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false;
+                Config.showBattery = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
             }
             Config.showWorkspacePreview = !Config.showWorkspacePreview
         }
@@ -323,14 +316,9 @@ ShellRoot {
         function toggle(): void {
             if (!shellRoot.isFocusedBarEnabled) return;
             if (!Config.showSettings) {
-                Config.showPower = false
-                Config.showWallpaper = false
-                Config.showAppLauncher = false
-                Config.showCalendar = false
-                Config.showNotifications = false
-                Config.showBattery = false
-                Config.showWorkspacePreview = false
-                Config.showControlCenter = false
+                Config.showPower = false; Config.showWallpaper = false; Config.showAppLauncher = false;
+                Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false;
+                Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
             }
             Config.showSettings = !Config.showSettings
         }
@@ -351,8 +339,23 @@ ShellRoot {
                 Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
                 Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false;
                 Config.showBattery = false; Config.showWorkspacePreview = false; Config.showControlCenter = false;
+                Config.showScreenRecorder = false;
             }
             Config.showClipboard = !Config.showClipboard
+        }
+    }
+
+    IpcHandler {
+        target: "recorder"
+        function toggle(): void {
+            if (!shellRoot.isFocusedBarEnabled) return;
+            if (!Config.showScreenRecorder) {
+                Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
+                Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false;
+                Config.showBattery = false; Config.showWorkspacePreview = false; Config.showControlCenter = false;
+                Config.showClipboard = false;
+            }
+            Config.showScreenRecorder = !Config.showScreenRecorder
         }
     }
 
@@ -416,6 +419,7 @@ ShellRoot {
                     case "systemMonitor": return systemMonitorComp;
                     case "battery": return batteryComp;
                     case "clipboard": return clipboardComp;
+                    case "screenRecorder": return screenRecorderComp;
                     case "controlCenter": return controlCenterComp;
                     default: return null;
                 }
@@ -434,6 +438,7 @@ ShellRoot {
     Component { id: systemMonitorComp; SystemMonitor {} }
     Component { id: batteryComp; Battery {} }
     Component { id: clipboardComp; Clipboard {} }
+    Component { id: screenRecorderComp; ScreenRecorder {} }
     Component { id: controlCenterComp; ControlCenter {} }
 
     Settings { id: settings }
