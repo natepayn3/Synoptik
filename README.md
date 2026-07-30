@@ -1,12 +1,7 @@
 > [!WARNING]  
-
 > _This project is in active development!  Proceed at your own risk!_
 
-
-
 ***
-
-
 
 <div align="center">
 
