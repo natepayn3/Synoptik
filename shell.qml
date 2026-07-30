@@ -33,7 +33,7 @@ ShellRoot {
     // Battery State
     property bool hasBattery: false
     property string battName: "BAT0"
-    property int battCapacity: 100
+    property int battCapacity: 75
     property string battStatus: "Discharging"
 
     // Continuous Palette Loop / Animation
