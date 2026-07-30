@@ -70,9 +70,6 @@ Item {
                                 : (btnHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
                             Behavior on color { ColorAnimation { duration: 150 } }
 
-                            border.color: powerModule.activeHoverIndex === index ? Config.accent : "transparent"
-                            border.width: powerModule.activeHoverIndex === index ? 1 : 0
-
                             ColumnLayout {
                                 anchors.centerIn: parent
                                 width: parent.width - 4
