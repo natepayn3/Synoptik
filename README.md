@@ -37,8 +37,8 @@
 
 </div>
 
-True to its root—synoptic, meaning to bring everything together into a clear, unified view—Synoptik reimagines desktop interface design by abandoning fragmented UI panels in favor of one living, singular entity.
+<i>Definition of <b>synoptic:</b> to bring everything together into a clear, unified view</i>
 
-Instead of scattering isolated bars, docks, and menus across your screen, Synoptik exists as a single, persistent canvas that morphs dynamically. It expands, shifts, and adapts its physical footprint on demand to surface system controls, status indicators, and application launchers, then contracts back seamlessly when you're done.
+<b>Synoptik Shell</b> reimagines the desktop interface design by abandoning fragmented UI panels in favor of one living, singular entity.  Instead of scattering isolated bars, docks, and menus across your screen, Synoptik exists as a single, persistent canvas that morphs dynamically. It expands, shifts, and adapts its physical footprint on demand to surface system controls, status indicators, and application launchers, then contracts back seamlessly when you're done.
 
 Beyond its morphing structure, the name speaks directly to the shell's spatial visibility features. Built to render optics clearly, Synoptik leverages deep compositor integration to offer real-time background blur, variable alpha transparency, and native Hyprland XRay passthrough—giving you an all-encompassing, crystal-clear view of your workspace without visual clutter.
