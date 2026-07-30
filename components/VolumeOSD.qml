@@ -172,7 +172,7 @@ PanelWindow {
                     property: "progress"
                     duration: 450
                     easing.type: Easing.OutBack
-                    easing.overshoot: 2.2
+                    easing.overshoot: 1.2
                 }
             },
             Transition {
@@ -182,7 +182,7 @@ PanelWindow {
                     property: "progress"
                     duration: 300
                     easing.type: Easing.InBack
-                    easing.overshoot: 1.6
+                    easing.overshoot: 1.2
                 }
             }
         ]
