@@ -9,6 +9,8 @@ import Quickshell.Services.Notifications as Notifs
 PanelWindow {
     id: root
 
+    WlrLayershell.namespace: "test-shell-osd"
+
     property color flyoutBorderColor: Config.accent
     
     // Dynamic content heights
@@ -178,159 +180,134 @@ PanelWindow {
             Rectangle {
                 anchors.fill: parent
                 radius: Config.cornerRadius
-                color: Config.showBorders ? Config.accent : "transparent"
+                color: Config.bgPanel
+                border.width: Config.showBorders ? 3 : 0
+                border.color: shellRoot.currentBorderColor
+                clip: true
 
-                Rectangle {
+                MouseArea {
                     anchors.fill: parent
-                    radius: Config.cornerRadius
-                    visible: Config.showBorders && Config.animateGradient
-
-                    gradient: Gradient {
-                        orientation: Gradient.Horizontal
-                        GradientStop { position: 0.0; color: Config.borderStart }
-                        GradientStop { id: animStop; position: 1.0; color: Config.borderEnd }
-                    }
-
-                    SequentialAnimation {
-                        running: Config.showBorders && Config.animateGradient && breathingContainer.opacity > 0
-                        loops: Animation.Infinite
-
-                        ColorAnimation { target: animStop; property: "color"; to: Config.accent; duration: 2000; easing.type: Easing.InOutQuad }
-                        ColorAnimation { target: animStop; property: "color"; to: Config.borderEnd; duration: 2000; easing.type: Easing.InOutQuad }
-                    }
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.dismiss()
                 }
 
-                Rectangle {
+                RowLayout {
                     anchors.fill: parent
-                    anchors.margins: Config.showBorders ? 3 : 0
-                    radius: Math.max(0, Config.cornerRadius - (Config.showBorders ? 3 : 0))
-                    color: Qt.alpha(Config.bgPanel, 0.75)
-                    clip: true
+                    anchors.margins: 12
+                    spacing: 12
 
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: root.dismiss()
+                    Rectangle {
+                        implicitWidth: 48
+                        implicitHeight: 48
+                        radius: Config.cornerRadius / 2
+                        color: Qt.rgba(255, 255, 255, 0.06)
+                        border.width: 1
+                        border.color: Qt.rgba(255, 255, 255, 0.1)
+                        Layout.alignment: Qt.AlignVCenter
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: root.appIcon
+                            color: root.notifUrgency === Notifs.NotificationUrgency.Critical ? "#ef4444" : Config.accent
+                            font.family: "Material Symbols Outlined"
+                            font.pixelSize: 24
+                        }
                     }
 
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.margins: 12
-                        spacing: 12
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        radius: Config.cornerRadius / 2
+                        color: Qt.rgba(255, 255, 255, 0.05)
 
-                        Rectangle {
-                            implicitWidth: 48
-                            implicitHeight: 48
-                            radius: Config.cornerRadius / 2
-                            color: Qt.rgba(255, 255, 255, 0.06)
-                            border.width: 1
-                            border.color: Qt.rgba(255, 255, 255, 0.1)
-                            Layout.alignment: Qt.AlignVCenter
+                        ColumnLayout {
+                            id: contentColumn
+                            anchors.fill: parent
+                            anchors.leftMargin: 12
+                            anchors.rightMargin: 12
+                            anchors.topMargin: 10
+                            anchors.bottomMargin: 10
+                            spacing: 4
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 6
+
+                                Item {
+                                    Layout.fillWidth: true
+                                    implicitHeight: senderText.implicitHeight
+
+                                    Text {
+                                        id: senderText
+                                        anchors.fill: parent
+                                        text: root.notifApp.toUpperCase()
+                                        color: Config.textMuted
+                                        font.family: Config.sysFont
+                                        font.pixelSize: Config.size(Config.fontBody)
+                                        font.bold: true
+                                        font.letterSpacing: 0.8
+                                        elide: Text.ElideRight
+                                    }
+
+                                    Glow {
+                                        anchors.fill: senderText
+                                        source: senderText
+                                        radius: 8
+                                        samples: 24
+                                        color: Config.accent
+                                        spread: 0.1
+                                        visible: breathingContainer.opacity > 0
+                                    }
+                                }
+
+                                Rectangle {
+                                    implicitWidth: 22
+                                    implicitHeight: 22
+                                    radius: 11
+                                    color: closeArea.containsMouse ? Qt.rgba(255, 255, 255, 0.25) : "transparent"
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "close"
+                                        color: closeArea.containsMouse ? Config.accent : Config.textMuted
+                                        font.family: "Material Symbols Outlined"
+                                        font.pixelSize: 16
+                                    }
+
+                                    MouseArea {
+                                        id: closeArea
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: (mouse) => {
+                                            mouse.accepted = true
+                                            root.dismiss()
+                                        }
+                                    }
+                                }
+                            }
 
                             Text {
-                                anchors.centerIn: parent
-                                text: root.appIcon
-                                color: root.notifUrgency === Notifs.NotificationUrgency.Critical ? "#ef4444" : Config.accent
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 24
+                                text: root.notifTitle
+                                color: Config.textMain
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontSubhead)
+                                font.bold: true
+                                Layout.fillWidth: true
+                                elide: Text.ElideRight
+                                maximumLineCount: 1
                             }
-                        }
 
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.fillHeight: true
-                            radius: Config.cornerRadius / 2
-                            color: Qt.rgba(255, 255, 255, 0.05)
-
-                            ColumnLayout {
-                                id: contentColumn
-                                anchors.fill: parent
-                                anchors.leftMargin: 12
-                                anchors.rightMargin: 12
-                                anchors.topMargin: 10
-                                anchors.bottomMargin: 10
-                                spacing: 4
-
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    spacing: 6
-
-                                    Item {
-                                        Layout.fillWidth: true
-                                        implicitHeight: senderText.implicitHeight
-
-                                        Text {
-                                            id: senderText
-                                            anchors.fill: parent
-                                            text: root.notifApp.toUpperCase()
-                                            color: Config.textMuted
-                                            font.family: Config.sysFont
-                                            font.pixelSize: Config.size(Config.fontBody)
-                                            font.bold: true
-                                            font.letterSpacing: 0.8
-                                            elide: Text.ElideRight
-                                        }
-
-                                        Glow {
-                                            anchors.fill: senderText
-                                            source: senderText
-                                            radius: 8
-                                            samples: 24
-                                            color: Config.accent
-                                            spread: 0.1
-                                            visible: breathingContainer.opacity > 0
-                                        }
-                                    }
-
-                                    Rectangle {
-                                        implicitWidth: 22
-                                        implicitHeight: 22
-                                        radius: 11
-                                        color: closeArea.containsMouse ? Qt.rgba(255, 255, 255, 0.25) : "transparent"
-
-                                        Text {
-                                            anchors.centerIn: parent
-                                            text: "close"
-                                            color: closeArea.containsMouse ? Config.accent : Config.textMuted
-                                            font.family: "Material Symbols Outlined"
-                                            font.pixelSize: 16
-                                        }
-
-                                        MouseArea {
-                                            id: closeArea
-                                            anchors.fill: parent
-                                            hoverEnabled: true
-                                            cursorShape: Qt.PointingHandCursor
-                                            onClicked: (mouse) => {
-                                                mouse.accepted = true
-                                                root.dismiss()
-                                            }
-                                        }
-                                    }
-                                }
-
-                                Text {
-                                    text: root.notifTitle
-                                    color: Config.textMain
-                                    font.family: Config.sysFont
-                                    font.pixelSize: Config.size(Config.fontSubhead)
-                                    font.bold: true
-                                    Layout.fillWidth: true
-                                    elide: Text.ElideRight
-                                    maximumLineCount: 1
-                                }
-
-                                Text {
-                                    visible: root.notifBody !== ""
-                                    text: root.notifBody
-                                    color: Config.textMuted
-                                    font.family: Config.sysFont
-                                    font.pixelSize: Config.size(Config.fontBody)
-                                    Layout.fillWidth: true
-                                    elide: Text.ElideRight
-                                    maximumLineCount: 2
-                                    wrapMode: Text.WordWrap
-                                }
+                            Text {
+                                visible: root.notifBody !== ""
+                                text: root.notifBody
+                                color: Config.textMuted
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontBody)
+                                Layout.fillWidth: true
+                                elide: Text.ElideRight
+                                maximumLineCount: 2
+                                wrapMode: Text.WordWrap
                             }
                         }
                     }
