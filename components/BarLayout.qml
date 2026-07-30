@@ -36,7 +36,6 @@ Variants {
                 right: pos === "right" ? Config.barMargin : 0
             }
 
-            // Overlay guarantees icons render strictly on top of UnifiedSurface without border collisions
             WlrLayershell.layer: WlrLayer.Overlay
             WlrLayershell.exclusiveZone: -1
 
@@ -44,9 +43,7 @@ Variants {
                 id: barContainer
                 anchors.fill: parent
 
-                // =========================================================
                 // HORIZONTAL BAR CONTENT LAYOUT
-                // =========================================================
                 Item {
                     anchors.fill: parent
                     visible: !isVert
@@ -60,7 +57,7 @@ Variants {
                         }
                         spacing: 8
                         
-                        // Notification Toggle Icon
+                        // Notifications
                         Rectangle {
                             implicitWidth: 32; implicitHeight: 32; radius: 10
                             color: (Config.showNotifications || notificationsHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
@@ -68,17 +65,16 @@ Variants {
 
                             Text {
                                 anchors.centerIn: parent
-                                text: shellRoot.activeNotifs > 0 ? "notifications_active" : "notifications"
+                                text: shellRoot.activeNotifs > 0 ? "mark_email_unread" : "mail"
                                 color: (Config.showNotifications || shellRoot.activeNotifs > 0) ? Config.accent : Config.textMain
                                 font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
-
                                 Behavior on color { ColorAnimation { duration: 150 } }
                             }
 
                             TapHandler {
                                 onTapped: {
                                     if (!Config.showNotifications) {
-                                        Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false; Config.showCalendar = false; Config.showBattery = false; Config.showWorkspacePreview = false;
+                                        Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false; Config.showCalendar = false; Config.showBattery = false; Config.showWorkspacePreview = false; Config.showScreenRecorder = false;
                                     }
                                     Config.showNotifications = !Config.showNotifications
                                 }
@@ -86,6 +82,7 @@ Variants {
                             HoverHandler { id: notificationsHover; cursorShape: Qt.PointingHandCursor }
                         }
 
+                        // Power
                         Rectangle {
                             implicitWidth: 32; implicitHeight: 32; radius: 10
                             color: (Config.showPower || powerHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
@@ -101,7 +98,7 @@ Variants {
                             TapHandler {
                                 onTapped: {
                                     if (!Config.showPower) {
-                                        Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false; Config.showWorkspacePreview = false;
+                                        Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false; Config.showWorkspacePreview = false; Config.showScreenRecorder = false;
                                     }
                                     Config.showPower = !Config.showPower
                                 }
@@ -109,6 +106,7 @@ Variants {
                             HoverHandler { id: powerHover; cursorShape: Qt.PointingHandCursor }
                         }
 
+                        // Wallpaper
                         Rectangle {
                             implicitWidth: 32; implicitHeight: 32; radius: 10
                             color: (Config.showWallpaper || wallpaperHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
@@ -124,7 +122,7 @@ Variants {
                             TapHandler {
                                 onTapped: {
                                     if (!Config.showWallpaper) {
-                                        Config.showPower = false; Config.showSettings = false; Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false; Config.showWorkspacePreview = false;
+                                        Config.showPower = false; Config.showSettings = false; Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false; Config.showWorkspacePreview = false; Config.showScreenRecorder = false;
                                     }
                                     Config.showWallpaper = !Config.showWallpaper
                                 }
@@ -132,6 +130,7 @@ Variants {
                             HoverHandler { id: wallpaperHover; cursorShape: Qt.PointingHandCursor }
                         }
 
+                        // App Launcher
                         Rectangle {
                             implicitWidth: 32; implicitHeight: 32; radius: 10
                             color: (Config.showAppLauncher || launcherHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
@@ -147,7 +146,7 @@ Variants {
                             TapHandler {
                                 onTapped: {
                                     if (!Config.showAppLauncher) {
-                                        Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false; Config.showWorkspacePreview = false;
+                                        Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false; Config.showWorkspacePreview = false; Config.showScreenRecorder = false;
                                     }
                                     Config.showAppLauncher = !Config.showAppLauncher
                                 }
@@ -155,6 +154,7 @@ Variants {
                             HoverHandler { id: launcherHover; cursorShape: Qt.PointingHandCursor }
                         }
 
+                        // Screenshot
                         Rectangle {
                             implicitWidth: 32; implicitHeight: 32; radius: 10
                             color: screenshotHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
@@ -175,6 +175,7 @@ Variants {
                             HoverHandler { id: screenshotHover; cursorShape: Qt.PointingHandCursor }
                         }
 
+                        // Clipboard
                         Rectangle {
                             implicitWidth: 32; implicitHeight: 32; radius: 10
                             color: (Config.showClipboard || clipHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
@@ -190,12 +191,41 @@ Variants {
                             TapHandler {
                                 onTapped: {
                                     if (!Config.showClipboard) {
-                                        Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false; Config.showWorkspacePreview = false;
+                                        Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false; Config.showWorkspacePreview = false; Config.showScreenRecorder = false;
                                     }
                                     Config.showClipboard = !Config.showClipboard
                                 }
                             }
                             HoverHandler { id: clipHover; cursorShape: Qt.PointingHandCursor }
+                        }
+
+                        // Screen Recorder Toggle Icon
+                        Rectangle {
+                            implicitWidth: 32; implicitHeight: 32; radius: 10
+                            color: (Config.showScreenRecorder || recordHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                            Behavior on color { ColorAnimation { duration: 150 } }
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: shellRoot.isRecording ? "videocam" : "movie"
+                                color: shellRoot.isRecording ? "#ef4444" : (Config.showScreenRecorder ? Config.accent : Config.textMain)
+                                font.family: "Material Symbols Outlined"
+                                font.weight: Font.Bold
+                                font.pixelSize: 20
+
+                                Behavior on color { ColorAnimation { duration: 150 } }
+                            }
+
+                            TapHandler {
+                                onTapped: {
+                                    let nextState = !Config.showScreenRecorder
+                                    Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; 
+                                    Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false; 
+                                    Config.showBattery = false; Config.showWorkspacePreview = false; Config.showClipboard = false;
+                                    Config.showScreenRecorder = nextState
+                                }
+                            }
+                            HoverHandler { id: recordHover; cursorShape: Qt.PointingHandCursor }
                         }
                     }
 
@@ -250,6 +280,7 @@ Variants {
                                     Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false; 
                                     Config.showAudio = false; Config.showNetwork = false; Config.showSystemMonitor = false; 
                                     Config.showBattery = false; Config.showClipboard = false; Config.showControlCenter = false;
+                                    Config.showScreenRecorder = false;
                                 }
                                 Config.showWorkspacePreview = !Config.showWorkspacePreview
                             }
@@ -281,7 +312,7 @@ Variants {
                                     if (!Config.showAudio) {
                                         Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false;
                                         Config.showCalendar = false; Config.showNotifications = false; Config.showWifi = false;
-                                        Config.showNetwork = false; Config.showBluetooth = false; Config.showBattery = false; Config.showWorkspacePreview = false;
+                                        Config.showNetwork = false; Config.showBluetooth = false; Config.showBattery = false; Config.showWorkspacePreview = false; Config.showScreenRecorder = false;
                                     }
                                     Config.showAudio = !Config.showAudio
                                 }
@@ -306,7 +337,7 @@ Variants {
                                     if (!Config.showNetwork) {
                                         Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false;
                                         Config.showCalendar = false; Config.showNotifications = false; Config.showWifi = false;
-                                        Config.showAudio = false; Config.showBluetooth = false; Config.showNetwork = false; Config.showBattery = false; Config.showWorkspacePreview = false;
+                                        Config.showAudio = false; Config.showBluetooth = false; Config.showNetwork = false; Config.showBattery = false; Config.showWorkspacePreview = false; Config.showScreenRecorder = false;
                                     }
                                     Config.showNetwork = !Config.showNetwork
                                 }
@@ -332,7 +363,7 @@ Variants {
                                         Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false;
                                         Config.showCalendar = false; Config.showNotifications = false; Config.showWifi = false;
                                         Config.showAudio = false; Config.showBluetooth = false; Config.showNetwork = false;
-                                        Config.showBattery = false; Config.showControlCenter = false; Config.showWorkspacePreview = false;
+                                        Config.showBattery = false; Config.showControlCenter = false; Config.showWorkspacePreview = false; Config.showScreenRecorder = false;
                                     }
                                     Config.showSystemMonitor = !Config.showSystemMonitor
                                 }
@@ -368,7 +399,7 @@ Variants {
                                     if (!Config.showBattery) {
                                         Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false;
                                         Config.showCalendar = false; Config.showNotifications = false; Config.showWifi = false;
-                                        Config.showAudio = false; Config.showBluetooth = false; Config.showNetwork = false; Config.showWorkspacePreview = false;
+                                        Config.showAudio = false; Config.showBluetooth = false; Config.showNetwork = false; Config.showWorkspacePreview = false; Config.showScreenRecorder = false;
                                     }
                                     Config.showBattery = !Config.showBattery
                                 }
@@ -391,7 +422,7 @@ Variants {
                             TapHandler { 
                                 onTapped: {
                                     if (!Config.showControlCenter) {
-                                        Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false; Config.showAudio = false; Config.showNetwork = false; Config.showSystemMonitor = false; Config.showBattery = false; Config.showClipboard = false; Config.showWorkspacePreview = false;
+                                        Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false; Config.showAudio = false; Config.showNetwork = false; Config.showSystemMonitor = false; Config.showBattery = false; Config.showClipboard = false; Config.showWorkspacePreview = false; Config.showScreenRecorder = false;
                                     }
                                     Config.showControlCenter = !Config.showControlCenter
                                 }
@@ -446,7 +477,7 @@ Variants {
                                         Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; 
                                         Config.showAppLauncher = false; Config.showNotifications = false; Config.showAudio = false; 
                                         Config.showNetwork = false; Config.showSystemMonitor = false; Config.showBattery = false; 
-                                        Config.showClipboard = false; Config.showControlCenter = false; Config.showWorkspacePreview = false;
+                                        Config.showClipboard = false; Config.showControlCenter = false; Config.showWorkspacePreview = false; Config.showScreenRecorder = false;
                                     }
                                     Config.showCalendar = !Config.showCalendar
                                 }
@@ -456,9 +487,7 @@ Variants {
                     }
                 }
 
-                // =========================================================
                 // VERTICAL BAR CONTENT LAYOUT
-                // =========================================================
                 Item {
                     anchors.fill: parent
                     visible: isVert
@@ -479,17 +508,16 @@ Variants {
 
                             Text {
                                 anchors.centerIn: parent
-                                text: shellRoot.activeNotifs > 0 ? "notifications_active" : "notifications"
+                                text: shellRoot.activeNotifs > 0 ? "mark_email_unread" : "mail"
                                 color: (Config.showNotifications || shellRoot.activeNotifs > 0) ? Config.accent : Config.textMain
                                 font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
-
                                 Behavior on color { ColorAnimation { duration: 150 } }
                             }
 
                             TapHandler {
                                 onTapped: {
                                     if (!Config.showNotifications) {
-                                        Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false; Config.showCalendar = false; Config.showBattery = false; Config.showWorkspacePreview = false;
+                                        Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false; Config.showCalendar = false; Config.showBattery = false; Config.showWorkspacePreview = false; Config.showScreenRecorder = false;
                                     }
                                     Config.showNotifications = !Config.showNotifications
                                 }
@@ -512,7 +540,7 @@ Variants {
                             TapHandler {
                                 onTapped: {
                                     if (!Config.showPower) {
-                                        Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false; Config.showWorkspacePreview = false;
+                                        Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false; Config.showWorkspacePreview = false; Config.showScreenRecorder = false;
                                     }
                                     Config.showPower = !Config.showPower
                                 }
@@ -535,7 +563,7 @@ Variants {
                             TapHandler {
                                 onTapped: {
                                     if (!Config.showWallpaper) {
-                                        Config.showPower = false; Config.showSettings = false; Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false; Config.showWorkspacePreview = false;
+                                        Config.showPower = false; Config.showSettings = false; Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false; Config.showWorkspacePreview = false; Config.showScreenRecorder = false;
                                     }
                                     Config.showWallpaper = !Config.showWallpaper
                                 }
@@ -558,7 +586,7 @@ Variants {
                             TapHandler {
                                 onTapped: {
                                     if (!Config.showAppLauncher) {
-                                        Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false; Config.showWorkspacePreview = false;
+                                        Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false; Config.showWorkspacePreview = false; Config.showScreenRecorder = false;
                                     }
                                     Config.showAppLauncher = !Config.showAppLauncher
                                 }
@@ -601,12 +629,41 @@ Variants {
                             TapHandler {
                                 onTapped: {
                                     if (!Config.showClipboard) {
-                                        Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false; Config.showWorkspacePreview = false;
+                                        Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false; Config.showWorkspacePreview = false; Config.showScreenRecorder = false;
                                     }
                                     Config.showClipboard = !Config.showClipboard
                                 }
                             }
                             HoverHandler { id: vClipHover; cursorShape: Qt.PointingHandCursor }
+                        }
+
+                        // Screen Recorder Toggle Icon (Vertical)
+                        Rectangle {
+                            implicitWidth: 32; implicitHeight: 32; radius: 10
+                            color: (Config.showScreenRecorder || vRecordHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                            Behavior on color { ColorAnimation { duration: 150 } }
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: shellRoot.isRecording ? "videocam" : "movie"
+                                color: shellRoot.isRecording ? "#ef4444" : (Config.showScreenRecorder ? Config.accent : Config.textMain)
+                                font.family: "Material Symbols Outlined"
+                                font.weight: Font.Bold
+                                font.pixelSize: 20
+
+                                Behavior on color { ColorAnimation { duration: 150 } }
+                            }
+
+                            TapHandler {
+                                onTapped: {
+                                    let nextState = !Config.showScreenRecorder
+                                    Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; 
+                                    Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false; 
+                                    Config.showBattery = false; Config.showWorkspacePreview = false; Config.showClipboard = false;
+                                    Config.showScreenRecorder = nextState
+                                }
+                            }
+                            HoverHandler { id: vRecordHover; cursorShape: Qt.PointingHandCursor }
                         }
                     }
 
@@ -661,6 +718,7 @@ Variants {
                                     Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false;
                                     Config.showAudio = false; Config.showNetwork = false; Config.showSystemMonitor = false;
                                     Config.showBattery = false; Config.showClipboard = false; Config.showControlCenter = false;
+                                    Config.showScreenRecorder = false;
                                 }
                                 Config.showWorkspacePreview = !Config.showWorkspacePreview
                             }
@@ -692,7 +750,7 @@ Variants {
                                     if (!Config.showAudio) {
                                         Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false;
                                         Config.showCalendar = false; Config.showNotifications = false; Config.showWifi = false;
-                                        Config.showNetwork = false; Config.showBluetooth = false; Config.showBattery = false; Config.showWorkspacePreview = false;
+                                        Config.showNetwork = false; Config.showBluetooth = false; Config.showBattery = false; Config.showWorkspacePreview = false; Config.showScreenRecorder = false;
                                     }
                                     Config.showAudio = !Config.showAudio
                                 }
@@ -717,7 +775,7 @@ Variants {
                                     if (!Config.showNetwork) {
                                         Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false;
                                         Config.showCalendar = false; Config.showNotifications = false; Config.showWifi = false;
-                                        Config.showAudio = false; Config.showBluetooth = false; Config.showNetwork = false; Config.showBattery = false; Config.showWorkspacePreview = false;
+                                        Config.showAudio = false; Config.showBluetooth = false; Config.showNetwork = false; Config.showBattery = false; Config.showWorkspacePreview = false; Config.showScreenRecorder = false;
                                     }
                                     Config.showNetwork = !Config.showNetwork
                                 }
@@ -743,7 +801,7 @@ Variants {
                                         Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false;
                                         Config.showCalendar = false; Config.showNotifications = false; Config.showWifi = false;
                                         Config.showAudio = false; Config.showBluetooth = false; Config.showNetwork = false;
-                                        Config.showBattery = false; Config.showControlCenter = false; Config.showWorkspacePreview = false;
+                                        Config.showBattery = false; Config.showControlCenter = false; Config.showWorkspacePreview = false; Config.showScreenRecorder = false;
                                     }
                                     Config.showSystemMonitor = !Config.showSystemMonitor
                                 }
@@ -779,7 +837,7 @@ Variants {
                                     if (!Config.showBattery) {
                                         Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false;
                                         Config.showCalendar = false; Config.showNotifications = false; Config.showWifi = false;
-                                        Config.showAudio = false; Config.showBluetooth = false; Config.showNetwork = false; Config.showWorkspacePreview = false;
+                                        Config.showAudio = false; Config.showBluetooth = false; Config.showNetwork = false; Config.showWorkspacePreview = false; Config.showScreenRecorder = false;
                                     }
                                     Config.showBattery = !Config.showBattery
                                 }
@@ -802,7 +860,7 @@ Variants {
                             TapHandler { 
                                 onTapped: {
                                     if (!Config.showControlCenter) {
-                                        Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false; Config.showAudio = false; Config.showNetwork = false; Config.showSystemMonitor = false; Config.showBattery = false; Config.showClipboard = false; Config.showWorkspacePreview = false;
+                                        Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false; Config.showAudio = false; Config.showNetwork = false; Config.showSystemMonitor = false; Config.showBattery = false; Config.showClipboard = false; Config.showWorkspacePreview = false; Config.showScreenRecorder = false;
                                     }
                                     Config.showControlCenter = !Config.showControlCenter
                                 }
@@ -857,7 +915,7 @@ Variants {
                                         Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false; 
                                         Config.showAppLauncher = false; Config.showNotifications = false; Config.showAudio = false; 
                                         Config.showNetwork = false; Config.showSystemMonitor = false; Config.showBattery = false; 
-                                        Config.showClipboard = false; Config.showControlCenter = false; Config.showWorkspacePreview = false;
+                                        Config.showClipboard = false; Config.showControlCenter = false; Config.showWorkspacePreview = false; Config.showScreenRecorder = false;
                                     }
                                     Config.showCalendar = !Config.showCalendar
                                 }

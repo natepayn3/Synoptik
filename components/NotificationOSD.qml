@@ -47,15 +47,19 @@ PanelWindow {
         target: typeof notifServer !== "undefined" ? notifServer : null
 
         function onNotification(notif) {
-            if (notifServer.dnd || (typeof Config.showNotifications !== "undefined" && Config.showNotifications)) return
+            if (!notif) return;
 
-            if (notif) {
-                root.notifApp = notif.appName ? notif.appName : "System"
-                root.notifTitle = notif.summary ? notif.summary : ""
-                root.notifBody = notif.body ? notif.body : ""
-                root.notifUrgency = notif.urgency
-                root.trigger()
-            }
+            // 1. Force notification tracking immediately so shellRoot.activeNotifs increments
+            notif.tracked = true;
+
+            // 2. Trigger OSD visual flyout unless DND or Panel is open
+            if (notifServer.dnd || (typeof Config.showNotifications !== "undefined" && Config.showNotifications)) return;
+
+            root.notifApp = notif.appName ? notif.appName : "System";
+            root.notifTitle = notif.summary ? notif.summary : "";
+            root.notifBody = notif.body ? notif.body : "";
+            root.notifUrgency = notif.urgency;
+            root.trigger();
         }
     }
 

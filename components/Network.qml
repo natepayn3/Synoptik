@@ -5,13 +5,11 @@ import Qt.labs.folderlistmodel
 import Quickshell
 import Quickshell.Io
 
-MorphingFlyout {
+Item {
     id: root
 
-    isOpen: Config.showNetwork
-    alignRight: true
-    panelWidth: 380
-    panelHeight: showFileBrowser ? 480 : (mainLayout.implicitHeight + 40)
+    implicitWidth: 380
+    implicitHeight: showFileBrowser ? 480 : (mainLayout.implicitHeight + 24)
 
     // --- State Properties ---
     property string activeVpnName: ""
@@ -52,10 +50,12 @@ MorphingFlyout {
         }
     }
 
+    Component.onCompleted: seedGraphModel()
+
     // Frame-synchronized animation loop
     FrameAnimation {
         id: frameGraphSync
-        running: root.isOpen
+        running: Config.showNetwork
         onTriggered: {
             let elapsed = Date.now() - root.lastPushTimestamp
             root.scrollProgress = Math.min(elapsed / root.updateInterval, 1.0)
@@ -66,7 +66,7 @@ MorphingFlyout {
     Timer {
         id: syncVpnTimer
         interval: 3000
-        running: root.isOpen && !showFileBrowser
+        running: Config.showNetwork && !showFileBrowser
         repeat: true
         triggeredOnStart: true
         onTriggered: {
@@ -79,7 +79,7 @@ MorphingFlyout {
     Timer {
         id: timelineGraphTicker
         interval: root.updateInterval
-        running: root.isOpen
+        running: Config.showNetwork
         repeat: true
         triggeredOnStart: true
         onTriggered: {
@@ -108,7 +108,7 @@ MorphingFlyout {
                 sleep 0.1
             end
         "]
-        running: root.isOpen
+        running: Config.showNetwork
         
         stdout: SplitParser {
             onRead: data => {
@@ -154,10 +154,10 @@ MorphingFlyout {
 
     ColumnLayout {
         id: mainLayout
+        anchors.top: parent.top
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.margins: 20
+        anchors.margins: 12
         spacing: 14
 
         // Dashboard Panel
@@ -171,7 +171,7 @@ MorphingFlyout {
             // ==========================================
             Rectangle {
                 Layout.fillWidth: true
-                implicitHeight: speedCardLayout.implicitHeight + 24
+                implicitHeight: speedCardLayout.implicitHeight + 16
                 color: Qt.rgba(255, 255, 255, 0.05)
                 radius: Config.cornerRadius
 
@@ -281,7 +281,7 @@ MorphingFlyout {
             // ==========================================
             Rectangle {
                 Layout.fillWidth: true
-                implicitHeight: vpnCardLayout.implicitHeight + 24
+                implicitHeight: vpnCardLayout.implicitHeight + 16
                 color: Qt.rgba(255, 255, 255, 0.05)
                 radius: Config.cornerRadius
 
@@ -435,7 +435,7 @@ MorphingFlyout {
         // ==========================================
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: browserLayout.implicitHeight + 24
+            implicitHeight: browserLayout.implicitHeight + 16
             color: Qt.rgba(255, 255, 255, 0.05)
             radius: Config.cornerRadius
             visible: root.showFileBrowser
@@ -589,10 +589,13 @@ MorphingFlyout {
         vpnStateExecutor.running = true
     }
 
-    onIsOpenChanged: {
-        if (isOpen) {
-            seedGraphModel()
-            vpnListPopulator.running = true
+    Connections {
+        target: Config
+        function onShowNetworkChanged() {
+            if (Config.showNetwork) {
+                seedGraphModel()
+                vpnListPopulator.running = true
+            }
         }
     }
 }

@@ -4,13 +4,11 @@ import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
 
-MorphingFlyout {
-    id: root
+Item {
+    id: audioModule
 
-    isOpen: Config.showAudio
-    alignRight: true
-    panelWidth: 360
-    panelHeight: mainLayout.implicitHeight + 40
+    implicitWidth: Config.isVertical ? (parent ? parent.width : 360) : 360
+    implicitHeight: mainLayout.implicitHeight + 24
 
     property int systemVolume: 50
     property bool isMuted: false
@@ -19,11 +17,9 @@ MorphingFlyout {
 
     ColumnLayout {
         id: mainLayout
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.margins: 20
-        spacing: 14
+        anchors.fill: parent
+        anchors.margins: 12
+        spacing: 12
 
         // ==========================================
         // CARD 1: AUDIO OUTPUT
@@ -33,6 +29,7 @@ MorphingFlyout {
             implicitHeight: outputLayout.implicitHeight + 24
             color: outputCardHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.05)
             radius: Config.cornerRadius
+            clip: true
 
             Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -58,7 +55,7 @@ MorphingFlyout {
                     }
 
                     Text {
-                        text: root.isMuted ? "Muted" : root.systemVolume + "%"
+                        text: audioModule.isMuted ? "Muted" : audioModule.systemVolume + "%"
                         color: Config.accent
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontCaption)
@@ -72,14 +69,14 @@ MorphingFlyout {
                     spacing: 12
 
                     Text {
-                        text: root.isMuted ? "volume_off" : "volume_up"
+                        text: audioModule.isMuted ? "volume_off" : "volume_up"
                         font.family: "Material Symbols Outlined"
                         font.pixelSize: 18
                         color: Config.accent
 
                         TapHandler {
                             onTapped: {
-                                root.isMuted = !root.isMuted
+                                audioModule.isMuted = !audioModule.isMuted
                                 muteWriteProc.command = ["wpctl", "set-mute", "@DEFAULT_AUDIO_SINK@", "toggle"]
                                 muteWriteProc.running = true
                             }
@@ -90,9 +87,11 @@ MorphingFlyout {
                     Slider {
                         id: volumeSlider
                         Layout.fillWidth: true
+                        leftPadding: 0
+                        rightPadding: 0
                         from: 0
                         to: 100
-                        value: root.systemVolume
+                        value: audioModule.systemVolume
 
                         background: Rectangle {
                             x: volumeSlider.leftPadding
@@ -124,8 +123,8 @@ MorphingFlyout {
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
 
                         onMoved: {
-                            root.systemVolume = Math.round(value)
-                            if (root.isMuted) root.isMuted = false
+                            audioModule.systemVolume = Math.round(value)
+                            if (audioModule.isMuted) audioModule.isMuted = false
                             volumeWriteProc.command = ["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", (value / 100).toFixed(2)]
                             volumeWriteProc.running = true
                         }
@@ -193,6 +192,7 @@ MorphingFlyout {
         // ==========================================
         Rectangle {
             Layout.fillWidth: true
+            // Restored the + 24 height buffer for inner margins
             implicitHeight: inputLayout.implicitHeight + 24
             color: inputCardHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.05)
             radius: Config.cornerRadius
@@ -221,7 +221,7 @@ MorphingFlyout {
                     }
 
                     Text {
-                        text: root.isInputMuted ? "Muted" : root.inputVolume + "%"
+                        text: audioModule.isInputMuted ? "Muted" : audioModule.inputVolume + "%"
                         color: Config.accent
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontCaption)
@@ -235,14 +235,14 @@ MorphingFlyout {
                     spacing: 12
 
                     Text {
-                        text: root.isInputMuted ? "mic_off" : "mic"
+                        text: audioModule.isInputMuted ? "mic_off" : "mic"
                         font.family: "Material Symbols Outlined"
                         font.pixelSize: 18
                         color: Config.accent
 
                         TapHandler {
                             onTapped: {
-                                root.isInputMuted = !root.isInputMuted
+                                audioModule.isInputMuted = !audioModule.isInputMuted
                                 muteWriteProc.command = ["wpctl", "set-mute", "@DEFAULT_AUDIO_SOURCE@", "toggle"]
                                 muteWriteProc.running = true
                             }
@@ -253,9 +253,11 @@ MorphingFlyout {
                     Slider {
                         id: micSlider
                         Layout.fillWidth: true
+                        leftPadding: 0
+                        rightPadding: 0
                         from: 0
                         to: 100
-                        value: root.inputVolume
+                        value: audioModule.inputVolume
 
                         background: Rectangle {
                             x: micSlider.leftPadding
@@ -287,8 +289,8 @@ MorphingFlyout {
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
 
                         onMoved: {
-                            root.inputVolume = Math.round(value)
-                            if (root.isInputMuted) root.isInputMuted = false
+                            audioModule.inputVolume = Math.round(value)
+                            if (audioModule.isInputMuted) audioModule.isInputMuted = false
                             volumeWriteProc.command = ["wpctl", "set-volume", "@DEFAULT_AUDIO_SOURCE@", (value / 100).toFixed(2)]
                             volumeWriteProc.running = true
                         }
@@ -352,7 +354,7 @@ MorphingFlyout {
         }
     }
 
-    // Backend Handlers
+    // Backend Process Handlers
     Timer {
         id: debounceAudioTimer
         interval: 150 
@@ -441,8 +443,8 @@ MorphingFlyout {
                 let cleaned = this.text.trim()
                 let match = cleaned.match(/Volume:\s+([0-9.]+)/)
                 if (match) {
-                    root.systemVolume = Math.round(parseFloat(match[1]) * 100)
-                    root.isMuted = cleaned.includes("[MUTED]")
+                    audioModule.systemVolume = Math.round(parseFloat(match[1]) * 100)
+                    audioModule.isMuted = cleaned.includes("[MUTED]")
                 }
             }
         }
@@ -457,8 +459,8 @@ MorphingFlyout {
                 let cleaned = this.text.trim()
                 let match = cleaned.match(/Volume:\s+([0-9.]+)/)
                 if (match) {
-                    root.inputVolume = Math.round(parseFloat(match[1]) * 100)
-                    root.isInputMuted = cleaned.includes("[MUTED]")
+                    audioModule.inputVolume = Math.round(parseFloat(match[1]) * 100)
+                    audioModule.isInputMuted = cleaned.includes("[MUTED]")
                 }
             }
         }
@@ -471,7 +473,7 @@ MorphingFlyout {
     Timer {
         id: pollTimer
         interval: 3000
-        running: root.isOpen
+        running: Config.showAudio
         repeat: true
         triggeredOnStart: true
         onTriggered: audioQueryProc.running = true
