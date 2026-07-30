@@ -9,7 +9,7 @@ import Quickshell.Services.Notifications as Notifs
 PanelWindow {
     id: root
 
-    WlrLayershell.namespace: "test-shell-osd"
+    WlrLayershell.namespace: "synoptik-shell-osd"
 
     property color flyoutBorderColor: Config.accent
     

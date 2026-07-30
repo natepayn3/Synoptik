@@ -8,7 +8,7 @@ import Quickshell.Wayland
 PanelWindow {
     id: root
 
-    WlrLayershell.namespace: "test-shell-osd"
+    WlrLayershell.namespace: "synoptik-shell-osd"
 
     property color flyoutBorderColor: Config.accent
     property real rawChildWidth: 420

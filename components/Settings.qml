@@ -10,7 +10,7 @@ import "./settings"
 PanelWindow {
     id: settingsWindow
 
-    WlrLayershell.namespace: "test-shell-settings"
+    WlrLayershell.namespace: "synoptik-shell-settings"
 
     visible: Config.showSettings || progress > 0.0
 
