@@ -81,7 +81,7 @@ Item {
                     script += "awww kill 2>/dev/null; killall -9 -q awww-daemon; rm -f " + sockPath + "; mpvpaper -vs -o 'loop no-audio' '*' '" + filePath + "'; ";
                 } else {
                     script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; ";
-                    script += "awww img '" + filePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; ";
+                    script += "awww img '" + filePath + "' --transition-type " + transition + " --transition-step 64 --transition-duration 2; ";
                 }
             }
 
