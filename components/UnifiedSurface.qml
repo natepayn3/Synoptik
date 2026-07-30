@@ -1208,6 +1208,10 @@ PanelWindow {
             clip: true
             visible: root.progress >= 0.98
             focus: true
+
+            TapHandler {
+                onTapped: {} 
+            }
         }
     }
 }
