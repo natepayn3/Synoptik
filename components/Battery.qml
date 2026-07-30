@@ -101,14 +101,18 @@ Item {
 
                     Text {
                         text: {
-                            if (root.battStatus === "Charging") return "battery_charging_full"
-                            if (root.battCapacity <= 15) return "battery_alert"
-                            if (root.battCapacity <= 30) return "battery_2_bar"
-                            if (root.battCapacity <= 70) return "battery_4_bar"
-                            return "battery_full"
+                            if (root.battStatus === "Charging") return "battery_android_frame_bolt"
+                            if (root.battCapacity <= 10) return "battery_android_frame_0"
+                            if (root.battCapacity <= 25) return "battery_android_frame_1"
+                            if (root.battCapacity <= 40) return "battery_android_frame_2"
+                            if (root.battCapacity <= 60) return "battery_android_frame_3"
+                            if (root.battCapacity <= 75) return "battery_android_frame_4"
+                            if (root.battCapacity <= 90) return "battery_android_frame_5"
+                            if (root.battCapacity < 100) return "battery_android_frame_6"
+                            return "battery_android_frame_full"
                         }
                         font.family: "Material Symbols Outlined"
-                        font.pixelSize: 32
+                        font.pixelSize: 40
                         color: root.battCapacity <= 15 ? "#ef4444" : Config.accent
                     }
 
