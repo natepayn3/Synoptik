@@ -25,7 +25,7 @@ Item {
     property string connectedDeviceName: ""
 
     // Sticky expansion: Stay open on hover OR while a specific device row is expanded
-    property bool shouldExpand: (cardHover.hovered || expandedMac !== "") && isPowered && hasHardware && btModel.count > 0
+    property bool shouldExpand: hasHardware && (cardHover.hovered || expandedMac !== "") && isPowered && btModel.count > 0
 
     signal togglePower(bool power)
     signal triggerScan()
@@ -45,8 +45,13 @@ Item {
         height: cardRoot.shouldExpand ? (64 + 10 + btListView.targetHeight) : 64
         
         radius: Config.cornerRadius
-        color: cardRoot.shouldExpand || cardHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.25)
+        color: cardRoot.shouldExpand || (cardHover.hovered && cardRoot.hasHardware) ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.25)
         
+        // Dim and disable card if hardware controller is missing
+        opacity: cardRoot.hasHardware ? 1.0 : 0.4
+        enabled: cardRoot.hasHardware
+
+        Behavior on opacity { NumberAnimation { duration: 150 } }
         Behavior on height { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
         Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -75,15 +80,15 @@ Item {
                             implicitWidth: 44
                             implicitHeight: 44
                             radius: Config.cornerRadius / 2
-                            color: cardRoot.isPowered ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+                            color: cardRoot.isPowered && cardRoot.hasHardware ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
                             Behavior on color { ColorAnimation { duration: 150 } }
 
                             Text {
                                 anchors.centerIn: parent
-                                text: cardRoot.isPowered ? "bluetooth" : "bluetooth_disabled"
+                                text: !cardRoot.hasHardware ? "bluetooth_disabled" : (cardRoot.isPowered ? "bluetooth" : "bluetooth_disabled")
                                 font.family: "Material Symbols Outlined"
                                 font.pixelSize: 22
-                                color: cardRoot.isPowered ? Config.bgBase : Config.textMuted
+                                color: cardRoot.isPowered && cardRoot.hasHardware ? Config.bgBase : Config.textMuted
                             }
                         }
 
@@ -103,10 +108,10 @@ Item {
                             }
 
                             Text {
-                                text: !cardRoot.isPowered ? "Off" : (cardRoot.connectedDeviceName !== "" ? cardRoot.connectedDeviceName : "On")
+                                text: !cardRoot.hasHardware ? "No Controller" : (!cardRoot.isPowered ? "Off" : (cardRoot.connectedDeviceName !== "" ? cardRoot.connectedDeviceName : "On"))
                                 font.family: Config.sysFont
                                 font.pixelSize: Config.size(Config.fontMicro)
-                                color: cardRoot.connectedDeviceName !== "" ? Config.accent : Config.textMuted
+                                color: cardRoot.connectedDeviceName !== "" && cardRoot.hasHardware ? Config.accent : Config.textMuted
                                 elide: Text.ElideRight
                                 Layout.fillWidth: true
                             }
@@ -116,7 +121,7 @@ Item {
                             implicitWidth: 24
                             implicitHeight: 24
                             radius: 12
-                            visible: cardRoot.isPowered
+                            visible: cardRoot.isPowered && cardRoot.hasHardware
                             color: btScanHover.hovered ? Qt.rgba(255, 255, 255, 0.12) : "transparent"
                             Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -241,7 +246,6 @@ Item {
                                     Layout.fillWidth: true
                                     implicitHeight: 26
                                     radius: Config.cornerRadius / 2
-                                    // Bind colors directly to the MouseArea hover state
                                     color: connMouse.containsMouse ? Qt.rgba(255, 255, 255, 0.15) : (model.connected ? Qt.rgba(255, 255, 255, 0.08) : Config.accent)
                                     Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -258,9 +262,9 @@ Item {
                                         id: connMouse
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
-                                        hoverEnabled: true // Explicitly enable hover tracking
+                                        hoverEnabled: true
                                         onClicked: {
-                                            if (isConnecting) return
+                                            if (isConnecting || !cardRoot.hasHardware) return
                                             if (model.connected) cardRoot.reqDisconnectDevice(model.mac)
                                             else if (model.paired) cardRoot.reqConnectDevice(model.mac)
                                             else cardRoot.reqPairDevice(model.mac)
@@ -289,8 +293,11 @@ Item {
                                         id: forgetMouse
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
-                                        hoverEnabled: true // Explicitly enable hover tracking
-                                        onClicked: cardRoot.reqRemoveDevice(model.mac)
+                                        hoverEnabled: true
+                                        onClicked: {
+                                            if (!cardRoot.hasHardware) return
+                                            cardRoot.reqRemoveDevice(model.mac)
+                                        }
                                     }
                                 }
                             }
@@ -303,24 +310,25 @@ Item {
     }
 
     function execTogglePower(turnOn) {
+        if (!cardRoot.hasHardware) return
         toggleBtProc.command = ["fish", "-c", `bluetoothctl power ${turnOn ? "on" : "off"}`]
         toggleBtProc.running = true
     }
 
     function execTriggerScan() {
-        if (cardRoot.isPowered && !cardRoot.isScanning) {
+        if (cardRoot.hasHardware && cardRoot.isPowered && !cardRoot.isScanning) {
             scanBtProc.startScan()
         }
     }
 
-    function reqConnectDevice(mac) { connectBtProc.connectDevice(mac) }
-    function reqDisconnectDevice(mac) { disconnectBtProc.disconnect(mac) }
-    function reqPairDevice(mac) { pairBtProc.pairDevice(mac) }
-    function reqRemoveDevice(mac) { removeBtProc.removeDevice(mac) }
+    function reqConnectDevice(mac) { if (cardRoot.hasHardware) connectBtProc.connectDevice(mac) }
+    function reqDisconnectDevice(mac) { if (cardRoot.hasHardware) disconnectBtProc.disconnect(mac) }
+    function reqPairDevice(mac) { if (cardRoot.hasHardware) pairBtProc.pairDevice(mac) }
+    function reqRemoveDevice(mac) { if (cardRoot.hasHardware) removeBtProc.removeDevice(mac) }
 
     Timer {
         interval: 2000
-        running: cardRoot.isPowered && (cardHover.hovered || cardRoot.connectedDeviceName !== "")
+        running: cardRoot.hasHardware && cardRoot.isPowered && (cardHover.hovered || cardRoot.connectedDeviceName !== "")
         repeat: true
         triggeredOnStart: true
         onTriggered: {
@@ -466,13 +474,12 @@ Item {
         stdout: StdioCollector {
             onStreamFinished: {
                 let text = this.text
-                if (!text || text.includes("No default controller available")) {
+                if (!text || text.includes("No default controller available") || !cardRoot.hasHardware) {
                     cardRoot.hasHardware = false
                     cardRoot.isPowered = false
                     cardRoot.connectedDeviceName = ""
                     btModel.clear()
                 } else {
-                    cardRoot.hasHardware = true
                     cardRoot.isPowered = text.includes("Powered: yes")
                     if (cardRoot.isPowered) {
                         fetchBtDevicesProc.running = true
