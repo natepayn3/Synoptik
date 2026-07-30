@@ -9,12 +9,20 @@ ColumnLayout {
     id: root
     spacing: 12
 
+    property bool hasAdapter: false
     property bool isPowered: false
     property bool isScanning: false
     property string activeDeviceName: ""
     property string connectingMac: ""
 
+    opacity: root.hasAdapter ? 1.0 : 0.4
+    enabled: root.hasAdapter
+
     ListModel { id: btModel }
+
+    Component.onCompleted: {
+        detectBtAdapterProc.running = true
+    }
 
     RowLayout {
         Layout.fillWidth: true
@@ -22,17 +30,18 @@ ColumnLayout {
 
         Rectangle {
             implicitWidth: 36; implicitHeight: 36; radius: Config.cornerRadius / 2
-            color: root.isPowered ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+            color: root.isPowered && root.hasAdapter ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
 
             Text {
                 anchors.centerIn: parent
-                text: root.isPowered ? "bluetooth" : "bluetooth_disabled"
+                text: !root.hasAdapter ? "bluetooth_disabled" : (root.isPowered ? "bluetooth" : "bluetooth_disabled")
                 font.family: "Material Symbols Outlined"
                 font.pixelSize: 20
-                color: root.isPowered ? Config.bgBase : Config.textMuted
+                color: root.isPowered && root.hasAdapter ? Config.bgBase : Config.textMuted
             }
 
             TapHandler {
+                enabled: root.hasAdapter
                 onTapped: {
                     powerBtProc.command = ["fish", "-c", "bluetoothctl power " + (root.isPowered ? "off" : "on")]
                     powerBtProc.running = true
@@ -45,12 +54,12 @@ ColumnLayout {
             Layout.fillWidth: true
             spacing: 1
             Text { text: "Bluetooth Controller"; font.family: Config.sysFont; font.bold: true; color: Config.textMain; font.pixelSize: Config.size(Config.fontCaption) }
-            Text { text: !root.isPowered ? "Powered Off" : (root.activeDeviceName !== "" ? root.activeDeviceName : "Powered On"); font.family: Config.sysFont; color: root.activeDeviceName !== "" ? Config.accent : Config.textMuted; font.pixelSize: Config.size(Config.fontMicro) }
+            Text { text: !root.hasAdapter ? "No Controller" : (!root.isPowered ? "Powered Off" : (root.activeDeviceName !== "" ? root.activeDeviceName : "Powered On")); font.family: Config.sysFont; color: root.activeDeviceName !== "" && root.hasAdapter ? Config.accent : Config.textMuted; font.pixelSize: Config.size(Config.fontMicro) }
         }
 
         Rectangle {
             implicitWidth: 28; implicitHeight: 28; radius: 14
-            visible: root.isPowered
+            visible: root.isPowered && root.hasAdapter
             color: btScanHover.hovered ? Qt.rgba(255, 255, 255, 0.1) : "transparent"
 
             Text {
@@ -120,7 +129,7 @@ ColumnLayout {
 
                             TapHandler {
                                 onTapped: {
-                                    if (isConnecting) return
+                                    if (isConnecting || !root.hasAdapter) return
                                     if (connected) {
                                         root.execBtCmd(`bluetoothctl disconnect ${mac}`)
                                     } else if (paired) {
@@ -148,7 +157,10 @@ ColumnLayout {
                             }
 
                             TapHandler {
-                                onTapped: root.execBtCmd(`bluetoothctl disconnect ${mac}; bluetoothctl untrust ${mac}; bluetoothctl remove ${mac}`)
+                                onTapped: {
+                                    if (!root.hasAdapter) return
+                                    root.execBtCmd(`bluetoothctl disconnect ${mac}; bluetoothctl untrust ${mac}; bluetoothctl remove ${mac}`)
+                                }
                             }
                             HoverHandler { id: forgetHover; cursorShape: Qt.PointingHandCursor }
                         }
@@ -160,7 +172,22 @@ ColumnLayout {
         }
     }
 
-    Timer { interval: 3000; running: true; repeat: true; triggeredOnStart: true; onTriggered: fetchBtStatusProc.running = true }
+    Timer { 
+        interval: 3000; running: root.hasAdapter; repeat: true; triggeredOnStart: true; 
+        onTriggered: fetchBtStatusProc.running = true 
+    }
+
+    Process {
+        id: detectBtAdapterProc
+        command: ["fish", "-c", "bluetoothctl list | grep -q 'Controller' && echo 'YES' || echo 'NO'"]
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.hasAdapter = this.text.trim() === "YES"
+                if (root.hasAdapter) fetchBtStatusProc.running = true
+            }
+        }
+    }
 
     Process { id: powerBtProc; running: false; onExited: fetchBtStatusProc.running = true }
     
@@ -180,7 +207,7 @@ ColumnLayout {
         stdout: StdioCollector {
             onStreamFinished: {
                 let textStr = this.text
-                if (!textStr || textStr.includes("No default controller available")) {
+                if (!textStr || textStr.includes("No default controller available") || !root.hasAdapter) {
                     root.isPowered = false
                     root.activeDeviceName = ""
                     btModel.clear()
@@ -278,6 +305,7 @@ ColumnLayout {
     }
 
     function triggerScan() {
+        if (!root.hasAdapter) return
         root.isScanning = true
         scanBtProc.command = ["fish", "-c", "bluetoothctl --timeout 5 scan on"]
         scanBtProc.running = true
@@ -286,6 +314,7 @@ ColumnLayout {
     Process { id: scanBtProc; running: false; onExited: { root.isScanning = false; fetchBtStatusProc.running = true } }
     
     function execBtCmd(cmd, mac = "") { 
+        if (!root.hasAdapter) return
         root.connectingMac = mac
         execBtProc.command = ["fish", "-c", cmd]
         execBtProc.running = true 

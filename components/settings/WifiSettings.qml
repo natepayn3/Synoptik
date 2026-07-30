@@ -9,6 +9,7 @@ ColumnLayout {
     id: root
     spacing: 12
 
+    property bool hasAdapter: false
     property bool wifiPowered: false
     property bool wifiScanning: false
     property string activeSsid: ""
@@ -17,7 +18,14 @@ ColumnLayout {
     property string errorSsid: ""
     property string connectionError: ""
 
+    opacity: root.hasAdapter ? 1.0 : 0.4
+    enabled: root.hasAdapter
+
     ListModel { id: wifiModel }
+
+    Component.onCompleted: {
+        detectWifiAdapterProc.running = true
+    }
 
     RowLayout {
         Layout.fillWidth: true
@@ -25,17 +33,18 @@ ColumnLayout {
 
         Rectangle {
             implicitWidth: 36; implicitHeight: 36; radius: Config.cornerRadius / 2
-            color: root.wifiPowered ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+            color: root.wifiPowered && root.hasAdapter ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
 
             Text {
                 anchors.centerIn: parent
-                text: root.wifiPowered ? "wifi" : "signal_wifi_off"
+                text: !root.hasAdapter ? "signal_wifi_off" : (root.wifiPowered ? "wifi" : "signal_wifi_off")
                 font.family: "Material Symbols Outlined"
                 font.pixelSize: 20
-                color: root.wifiPowered ? Config.bgBase : Config.textMuted
+                color: root.wifiPowered && root.hasAdapter ? Config.bgBase : Config.textMuted
             }
 
             TapHandler {
+                enabled: root.hasAdapter
                 onTapped: {
                     toggleWifiProc.command = ["fish", "-c", "nmcli radio wifi " + (root.wifiPowered ? "off" : "on")]
                     toggleWifiProc.running = true
@@ -48,12 +57,12 @@ ColumnLayout {
             Layout.fillWidth: true
             spacing: 1
             Text { text: "Wi-Fi Network"; font.family: Config.sysFont; font.bold: true; color: Config.textMain; font.pixelSize: Config.size(Config.fontCaption) }
-            Text { text: !root.wifiPowered ? "Disabled" : (root.activeSsid !== "" ? root.activeSsid : "Disconnected"); font.family: Config.sysFont; color: Config.textMuted; font.pixelSize: Config.size(Config.fontMicro) }
+            Text { text: !root.hasAdapter ? "No Adapter" : (!root.wifiPowered ? "Disabled" : (root.activeSsid !== "" ? root.activeSsid : "Disconnected")); font.family: Config.sysFont; color: Config.textMuted; font.pixelSize: Config.size(Config.fontMicro) }
         }
 
         Rectangle {
             implicitWidth: 28; implicitHeight: 28; radius: 14
-            visible: root.wifiPowered
+            visible: root.wifiPowered && root.hasAdapter
             color: scanHover.hovered ? Qt.rgba(255, 255, 255, 0.1) : "transparent"
 
             Text {
@@ -218,7 +227,7 @@ ColumnLayout {
     }
 
     Timer {
-        interval: 4000; running: true; repeat: true; triggeredOnStart: true
+        interval: 4000; running: root.hasAdapter; repeat: true; triggeredOnStart: true
         onTriggered: {
             if (!root.hasActiveInputFocus()) {
                 fetchWifiStatusProc.running = true
@@ -239,6 +248,18 @@ ColumnLayout {
 
     function hasActiveInputFocus() {
         return root.Window.window && root.Window.window.activeFocusItem && root.Window.window.activeFocusItem instanceof TextInput
+    }
+
+    Process {
+        id: detectWifiAdapterProc
+        command: ["fish", "-c", "nmcli -t -f TYPE device | grep -q '^wifi$' && echo 'YES' || echo 'NO'"]
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.hasAdapter = this.text.trim() === "YES"
+                if (root.hasAdapter) fetchWifiStatusProc.running = true
+            }
+        }
     }
 
     Process {
@@ -273,7 +294,7 @@ ColumnLayout {
                 if (root.hasActiveInputFocus()) return
 
                 wifiModel.clear()
-                if (!root.wifiPowered) return
+                if (!root.wifiPowered || !root.hasAdapter) return
 
                 let lines = parts[1].trim().split("\n")
                 let seen = {}, active = ""
@@ -294,7 +315,7 @@ ColumnLayout {
     }
 
     function triggerScan() {
-        if (root.wifiScanning) return
+        if (root.wifiScanning || !root.hasAdapter) return
         root.wifiScanning = true
         scanProc.command = ["fish", "-c", "nmcli device wifi rescan"]
         scanProc.running = true
@@ -307,6 +328,7 @@ ColumnLayout {
     }
     
     function connectWifi(ssid, password) {
+        if (!root.hasAdapter) return
         root.connectingSsid = ssid
         root.errorSsid = ""
         root.connectionError = ""
@@ -315,11 +337,13 @@ ColumnLayout {
     }
     
     function disconnectWifi(ssid) {
+        if (!root.hasAdapter) return
         connProc.command = ["fish", "-c", `nmcli connection down id '${ssid}'`]
         connProc.running = true
     }
 
     function forgetWifi(ssid) {
+        if (!root.hasAdapter) return
         forgetProc.command = ["fish", "-c", `nmcli connection delete id '${ssid}'`]
         forgetProc.running = true
     }
