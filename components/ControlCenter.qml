@@ -12,6 +12,8 @@ Item {
     implicitHeight: mainLayout.implicitHeight + 24
 
     // --- State Properties ---
+    property bool hasWifiAdapter: false
+    property bool hasBtAdapter: false
     property bool wifiPowered: false
     property bool wifiScanning: false
     property string activeSsid: ""
@@ -32,6 +34,8 @@ Item {
     ListModel { id: wifiModel }
 
     Component.onCompleted: {
+        detectWifiAdapterProc.running = true
+        detectBtAdapterProc.running = true
         fetchWifiStatusProc.running = true
     }
 
@@ -96,6 +100,7 @@ Item {
                         id: wifiCard
                         Layout.fillWidth: true
                         Layout.preferredWidth: 1
+                        hasAdapter: root.hasWifiAdapter
                         wifiPowered: root.wifiPowered
                         wifiScanning: root.wifiScanning
                         activeSsid: root.activeSsid
@@ -114,6 +119,7 @@ Item {
                         id: btCard
                         Layout.fillWidth: true
                         Layout.preferredWidth: 1
+                        hasHardware: root.hasBtAdapter
                         onTogglePower: power => btCard.execTogglePower(power)
                         onTriggerScan: btCard.execTriggerScan()
                     }
@@ -224,6 +230,28 @@ Item {
     }
 
     Process {
+        id: detectWifiAdapterProc
+        command: ["fish", "-c", "nmcli -t -f TYPE device | grep -q '^wifi$' && echo 'YES' || echo 'NO'"]
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.hasWifiAdapter = this.text.trim() === "YES"
+            }
+        }
+    }
+
+    Process {
+        id: detectBtAdapterProc
+        command: ["fish", "-c", "bluetoothctl list | grep -q 'Controller' && echo 'YES' || echo 'NO'"]
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.hasBtAdapter = this.text.trim() === "YES"
+            }
+        }
+    }
+
+    Process {
         id: detectBacklightProc
         command: ["fish", "-c", "brightnessctl --list | grep -q 'backlight' && echo 'YES' || echo 'NO'"]
         running: true
@@ -272,10 +300,11 @@ Item {
     }
 
     function triggerWifiScan() {
-        if (root.wifiPowered && !root.wifiScanning) scanWifiProc.startScan()
+        if (root.hasWifiAdapter && root.wifiPowered && !root.wifiScanning) scanWifiProc.startScan()
     }
 
     function toggleWifiPower(turnOn) {
+        if (!root.hasWifiAdapter) return
         toggleWifiProc.command = ["fish", "-c", turnOn ? "rfkill unblock wifi; nmcli radio wifi on" : "nmcli radio wifi off"]
         toggleWifiProc.running = true
     }
@@ -354,7 +383,7 @@ Item {
                 let parts = this.text.trim().split("---")
                 if (parts.length < 2) return
                 root.wifiPowered = parts[0].trim() === "enabled"
-                if (!root.wifiPowered) {
+                if (!root.wifiPowered || !root.hasWifiAdapter) {
                     wifiModel.clear()
                     return
                 }
@@ -425,6 +454,10 @@ Item {
         target: Config
         function onShowControlCenterChanged() {
             if (Config.showControlCenter) {
+                detectWifiAdapterProc.running = false
+                detectWifiAdapterProc.running = true
+                detectBtAdapterProc.running = false
+                detectBtAdapterProc.running = true
                 fetchWifiStatusProc.running = false
                 fetchWifiStatusProc.running = true
                 if (root.hasBacklight) {
@@ -441,6 +474,8 @@ Item {
         repeat: true
         triggeredOnStart: true
         onTriggered: {
+            detectWifiAdapterProc.running = true
+            detectBtAdapterProc.running = true
             fetchWifiStatusProc.running = true
             if (root.hasBacklight) fetchBrightnessProc.running = true
         }
