@@ -44,7 +44,8 @@ PanelWindow {
     property int notifUrgency: Notifs.NotificationUrgency.Normal
 
     Connections {
-        target: typeof notifServer !== "undefined" ? notifServer : null
+        target: (typeof notifServer !== "undefined" && notifServer !== null) ? notifServer : null
+        ignoreUnknownSignals: true
 
         function onNotification(notif) {
             if (!notif) return;
@@ -53,7 +54,7 @@ PanelWindow {
             notif.tracked = true;
 
             // 2. Trigger OSD visual flyout unless DND or Panel is open
-            if (notifServer.dnd || (typeof Config.showNotifications !== "undefined" && Config.showNotifications)) return;
+            if ((typeof notifServer !== "undefined" && notifServer && notifServer.dnd) || (typeof Config.showNotifications !== "undefined" && Config.showNotifications)) return;
 
             root.notifApp = notif.appName ? notif.appName : "System";
             root.notifTitle = notif.summary ? notif.summary : "";

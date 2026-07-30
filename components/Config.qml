@@ -447,7 +447,7 @@ QtObject {
         }
 
         var jsonStr = JSON.stringify(data)
-        saver.command = ["fish", "-c", "echo '" + jsonStr.replace(/'/g, "'\\''") + "' > " + settingsPath]
+        saver.command = ["fish", "-c", "printf '%s' '" + jsonStr.replace(/'/g, "'\\''") + "' > " + settingsPath]
         saver.running = true
     }
 

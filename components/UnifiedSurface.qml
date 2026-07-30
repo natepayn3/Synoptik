@@ -13,8 +13,8 @@ PanelWindow {
     default property alias content: contentContainer.data
 
     property bool isOpen: false
-    property real popoutXOffset: screen.width / 2.0
-    property real popoutYOffset: screen.height / 2.0
+    property real popoutXOffset: (screen ? screen.width : 1920) / 2.0
+    property real popoutYOffset: (screen ? screen.height : 1080) / 2.0
     property bool isCentered: false
 
     // Reserved outer space so MultiEffect shadows bleed cleanly around screen borders
@@ -117,8 +117,8 @@ PanelWindow {
     readonly property real barH: Config.barHeight || 46
     readonly property real barBottomY: barH - halfB
 
-    implicitHeight: screen.height + (shadowPadding * 2)
-    implicitWidth: screen.width + (shadowPadding * 2)
+    implicitHeight: (screen ? screen.height : 1080) + (shadowPadding * 2)
+    implicitWidth: (screen ? screen.width : 1920) + (shadowPadding * 2)
 
     color: "transparent"
 

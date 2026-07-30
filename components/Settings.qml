@@ -14,7 +14,7 @@ PanelWindow {
     screen: {
         let activeName = Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""
         let found = Quickshell.screens.find(s => s.name === activeName)
-        return found ? found : Quickshell.screens[0]
+        return found ? found : (Quickshell.screens.length > 0 ? Quickshell.screens[0] : null)
     }
 
     anchors {
