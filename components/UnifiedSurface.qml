@@ -29,23 +29,37 @@ PanelWindow {
     // Corner radius for main bar shell
     readonly property real barRadius: Config.cornerRadius || 12
 
-    // 1. Raw Child Bounds
+    // 1. Raw Child Bounds - Direct view routing bypasses visibility delays
     readonly property real rawChildWidth: {
         let baseW = 420
-        if (contentContainer.children.length > 0) {
-            let child = contentContainer.children[0]
-            if (child.item && child.item.implicitWidth > 0) baseW = child.item.implicitWidth
-            else if (child.implicitWidth > 0) baseW = child.implicitWidth
+        if (root.activeView === "osd") {
+            baseW = volumeOsdModule.implicitWidth
+        } else {
+            for (let i = 0; i < contentContainer.children.length; i++) {
+                let child = contentContainer.children[i]
+                if (child.objectName !== "internalOsd") {
+                    if (child.item && child.item.implicitWidth > 0) baseW = child.item.implicitWidth
+                    else if (child.implicitWidth > 0) baseW = child.implicitWidth
+                    break
+                }
+            }
         }
         return baseW + 24
     }
 
     readonly property real rawChildHeight: {
         let baseH = 480
-        if (contentContainer.children.length > 0) {
-            let child = contentContainer.children[0]
-            if (child.item && child.item.implicitHeight > 0) baseH = child.item.implicitHeight
-            else if (child.implicitHeight > 0) baseH = child.implicitHeight
+        if (root.activeView === "osd") {
+            baseH = volumeOsdModule.implicitHeight
+        } else {
+            for (let i = 0; i < contentContainer.children.length; i++) {
+                let child = contentContainer.children[i]
+                if (child.objectName !== "internalOsd") {
+                    if (child.item && child.item.implicitHeight > 0) baseH = child.item.implicitHeight
+                    else if (child.implicitHeight > 0) baseH = child.implicitHeight
+                    break
+                }
+            }
         }
         return isHorizontal ? baseH : (baseH + 24)
     }
@@ -179,22 +193,32 @@ PanelWindow {
     property string activeView: "none"
 
     function updateActiveView() {
-        if (Config.showWorkspacePreview) activeView = "workspacePreview"
-        else if (Config.showPower) activeView = "power"
-        else if (Config.showWallpaper) activeView = "wallpaper"
-        else if (Config.showAppLauncher) activeView = "appLauncher"
-        else if (Config.showCalendar) activeView = "calendar"
-        else if (Config.showNotifications) activeView = "notifications"
-        else if (Config.showAudio) activeView = "audio"
-        else if (Config.showNetwork) activeView = "network"
-        else if (Config.showSystemMonitor) activeView = "systemMonitor"
-        else if (Config.showBattery) activeView = "battery"
-        else if (Config.showClipboard) activeView = "clipboard"
-        else if (Config.showScreenRecorder) activeView = "screenRecorder"
-        else if (Config.showControlCenter) activeView = "controlCenter"
-        else activeView = "none"
+        let nextView = "none"
+        
+        // Map the upcoming view
+        if (typeof Config.showOSD !== "undefined" && Config.showOSD) nextView = "osd"
+        else if (Config.showWorkspacePreview) nextView = "workspacePreview"
+        else if (Config.showPower) nextView = "power"
+        else if (Config.showWallpaper) nextView = "wallpaper"
+        else if (Config.showAppLauncher) nextView = "appLauncher"
+        else if (Config.showCalendar) nextView = "calendar"
+        else if (Config.showNotifications) nextView = "notifications"
+        else if (Config.showAudio) nextView = "audio"
+        else if (Config.showNetwork) nextView = "network"
+        else if (Config.showSystemMonitor) nextView = "systemMonitor"
+        else if (Config.showBattery) nextView = "battery"
+        else if (Config.showClipboard) nextView = "clipboard"
+        else if (Config.showScreenRecorder) nextView = "screenRecorder"
+        else if (Config.showControlCenter) nextView = "controlCenter"
 
-        root.isOpen = (activeView !== "none")
+        // Fire isOpen change synchronously BEFORE dropping the activeView string
+        if (nextView === "none") {
+            root.isOpen = false
+            activeView = "none"
+        } else {
+            activeView = nextView
+            root.isOpen = true
+        }
     }
 
     function setPopoutPos(item) {
@@ -236,6 +260,19 @@ PanelWindow {
         target: Config
         ignoreUnknownSignals: true
 
+        function onShowOSDChanged() {
+            if (Config.showOSD) {
+                closeOthers("osd")
+                root.isCentered = false
+                if (root.isHorizontal) {
+                    root.popoutXOffset = mainContainer.width
+                } else {
+                    root.popoutYOffset = mainContainer.height
+                }
+            }
+            updateActiveView()
+        }
+
         function onShowWorkspacePreviewChanged() {
             if (Config.showWorkspacePreview) {
                 closeOthers("workspacePreview")
@@ -263,6 +300,7 @@ PanelWindow {
     }
 
     function closeOthers(except) {
+        if (except !== "osd" && typeof Config.showOSD !== "undefined") Config.showOSD = false
         if (except !== "workspacePreview") Config.showWorkspacePreview = false
         if (except !== "power") Config.showPower = false
         if (except !== "wallpaper") Config.showWallpaper = false
@@ -1211,6 +1249,14 @@ PanelWindow {
 
             TapHandler {
                 onTapped: {} 
+            }
+
+            // OSD Integration 
+            VolumeOSD {
+                id: volumeOsdModule
+                objectName: "internalOsd"
+                anchors.fill: parent
+                visible: root.activeView === "osd"
             }
         }
     }
