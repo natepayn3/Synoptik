@@ -169,9 +169,11 @@ PanelWindow {
             width: Math.max(1, currentWidth)
             height: Math.max(1, currentHeight)
             opacity: animScale
-            anchors.top: parent.top
-            anchors.topMargin: Config.barHeight || 30
+            
+            // Centers growth baseline strictly around the vertical midpoint of the flyout target
             anchors.horizontalCenter: parent.horizontalCenter
+            anchors.verticalCenter: parent.top
+            anchors.verticalCenterOffset: (Config.barHeight || 30) + (rawChildHeight / 2)
 
             Rectangle {
                 anchors.fill: parent
@@ -273,7 +275,7 @@ PanelWindow {
                                             anchors.fill: senderText
                                             source: senderText
                                             radius: 8
-                                            samples: 16
+                                            samples: 24
                                             color: Config.accent
                                             spread: 0.1
                                             visible: breathingContainer.opacity > 0

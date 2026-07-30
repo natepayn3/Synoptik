@@ -192,9 +192,11 @@ PanelWindow {
             width: Math.max(1, currentWidth)
             height: Math.max(1, currentHeight)
             opacity: animScale
-            anchors.bottom: parent.bottom
-            anchors.bottomMargin: Config.barHeight || 30
+            
+            // Centers the container's growth baseline strictly around its middle axis
             anchors.horizontalCenter: parent.horizontalCenter
+            anchors.verticalCenter: parent.bottom
+            anchors.verticalCenterOffset: -(Config.barHeight + (rawChildHeight / 2) + 30)
 
             Rectangle {
                 anchors.fill: parent
@@ -251,6 +253,7 @@ PanelWindow {
                         onClicked: root.dismiss()
                     }
 
+                    // Properly anchored fill with clean inner margins
                     RowLayout {
                         anchors.fill: parent
                         anchors.margins: 12
