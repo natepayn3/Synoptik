@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import Qt5Compat.GraphicalEffects
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Services.Notifications as Notifs
@@ -10,7 +11,10 @@ PanelWindow {
 
     property color flyoutBorderColor: Config.accent
     property real panelWidth: 460
-    property real panelHeight: 135
+    
+    // Dynamic height calculation based on inner layout content
+    property real baseContentHeight: contentColumn.implicitHeight
+    property real panelHeight: Math.max(80, baseContentHeight + 48)
 
     // Add padding to implicit dimensions to prevent overshoot clipping
     property real overshootPadding: 50
@@ -30,6 +34,11 @@ PanelWindow {
     implicitWidth: panelWidth + overshootPadding
     implicitHeight: panelHeight + overshootPadding
     color: "transparent"
+
+    // Behavior on height changes for smooth resizing transitions
+    Behavior on panelHeight {
+        NumberAnimation { duration: 150; easing.type: Easing.OutQuad }
+    }
 
     // Mask spans the padded frame so the bounce doesn't get clipped
     mask: Region {
@@ -211,27 +220,45 @@ PanelWindow {
                             color: Qt.rgba(255, 255, 255, 0.05)
 
                             ColumnLayout {
+                                id: contentColumn
                                 anchors.fill: parent
                                 anchors.leftMargin: 12
                                 anchors.rightMargin: 12
-                                anchors.topMargin: 12
+                                anchors.topMargin: 10
                                 anchors.bottomMargin: 10
-                                spacing: 2
+                                spacing: 4
 
                                 // HEADER ROW: App Name + Close Button
                                 RowLayout {
                                     Layout.fillWidth: true
                                     spacing: 6
 
-                                    Text {
-                                        text: root.notifApp.toUpperCase()
-                                        color: Config.textMuted
-                                        font.family: Config.sysFont
-                                        font.pixelSize: Config.size(Config.fontBody)
-                                        font.bold: true
-                                        font.letterSpacing: 0.8
+                                    Item {
                                         Layout.fillWidth: true
-                                        elide: Text.ElideRight
+                                        implicitHeight: senderText.implicitHeight
+
+                                        Text {
+                                            id: senderText
+                                            anchors.fill: parent
+                                            text: root.notifApp.toUpperCase()
+                                            color: Config.textMuted
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontBody)
+                                            font.bold: true
+                                            font.letterSpacing: 0.8
+                                            elide: Text.ElideRight
+                                        }
+
+                                        // GLOW EFFECT (Matches volumeOSD Slider Glow)
+                                        Glow {
+                                            anchors.fill: senderText
+                                            source: senderText
+                                            radius: 8
+                                            samples: 16
+                                            color: Config.accent
+                                            spread: 0.1
+                                            visible: breathingContainer.opacity > 0
+                                        }
                                     }
 
                                     // DISMISS BUTTON
@@ -286,8 +313,6 @@ PanelWindow {
                                     maximumLineCount: 2
                                     wrapMode: Text.WordWrap
                                 }
-
-                                Item { Layout.fillHeight: true }
                             }
                         }
                     }
