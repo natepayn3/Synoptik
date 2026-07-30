@@ -75,7 +75,7 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
-            implicitWidth: recordLayout.implicitWidth + 24
+            implicitWidth: recordLayout.implicitWidth + (root.isVert ? 0 : 24)
             implicitHeight: recordLayout.implicitHeight + 24
 
             radius: Config.cornerRadius / 2
