@@ -13,6 +13,14 @@ Item {
 
     // --- State Properties ---
     property bool hasWifiAdapter: false
+
+    onHasWifiAdapterChanged: {
+        if (hasWifiAdapter) {
+            fetchWifiStatusProc.running = false
+            fetchWifiStatusProc.running = true
+        }
+    }
+
     property bool hasBtAdapter: false
     property bool wifiPowered: false
     property bool wifiScanning: false
@@ -246,7 +254,8 @@ Item {
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
-                root.hasBtAdapter = this.text.trim() === "YES"
+                let res = this.text.trim() === "YES"
+                if (root.hasBtAdapter !== res) root.hasBtAdapter = res
             }
         }
     }
@@ -474,8 +483,6 @@ Item {
         repeat: true
         triggeredOnStart: true
         onTriggered: {
-            detectWifiAdapterProc.running = true
-            detectBtAdapterProc.running = true
             fetchWifiStatusProc.running = true
             if (root.hasBacklight) fetchBrightnessProc.running = true
         }
