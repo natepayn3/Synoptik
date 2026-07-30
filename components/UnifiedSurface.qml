@@ -34,10 +34,12 @@ PanelWindow {
         let baseW = 420
         if (root.activeView === "osd") {
             baseW = volumeOsdModule.implicitWidth
+        } else if (root.activeView === "notifOsd") {
+            baseW = notifOsdModule.implicitWidth
         } else {
             for (let i = 0; i < contentContainer.children.length; i++) {
                 let child = contentContainer.children[i]
-                if (child.objectName !== "internalOsd") {
+                if (child.objectName !== "internalOsd" && child.objectName !== "internalNotifOsd") {
                     if (child.item && child.item.implicitWidth > 0) baseW = child.item.implicitWidth
                     else if (child.implicitWidth > 0) baseW = child.implicitWidth
                     break
@@ -51,10 +53,12 @@ PanelWindow {
         let baseH = 480
         if (root.activeView === "osd") {
             baseH = volumeOsdModule.implicitHeight
+        } else if (root.activeView === "notifOsd") {
+            baseH = notifOsdModule.implicitHeight
         } else {
             for (let i = 0; i < contentContainer.children.length; i++) {
                 let child = contentContainer.children[i]
-                if (child.objectName !== "internalOsd") {
+                if (child.objectName !== "internalOsd" && child.objectName !== "internalNotifOsd") {
                     if (child.item && child.item.implicitHeight > 0) baseH = child.item.implicitHeight
                     else if (child.implicitHeight > 0) baseH = child.implicitHeight
                     break
@@ -194,9 +198,9 @@ PanelWindow {
 
     function updateActiveView() {
         let nextView = "none"
-        
-        // Map the upcoming view
+
         if (typeof Config.showOSD !== "undefined" && Config.showOSD) nextView = "osd"
+        else if (typeof Config.showNotificationOsd !== "undefined" && Config.showNotificationOsd) nextView = "notifOsd"
         else if (Config.showWorkspacePreview) nextView = "workspacePreview"
         else if (Config.showPower) nextView = "power"
         else if (Config.showWallpaper) nextView = "wallpaper"
@@ -211,7 +215,7 @@ PanelWindow {
         else if (Config.showScreenRecorder) nextView = "screenRecorder"
         else if (Config.showControlCenter) nextView = "controlCenter"
 
-        // Fire isOpen change synchronously BEFORE dropping the activeView string
+        // Update state simultaneously to prevent timing issues when morphing
         if (nextView === "none") {
             root.isOpen = false
             activeView = "none"
@@ -273,6 +277,16 @@ PanelWindow {
             updateActiveView()
         }
 
+        function onShowNotificationOsdChanged() {
+            if (Config.showNotificationOsd) {
+                closeOthers("notifOsd")
+                root.isCentered = false
+                root.popoutXOffset = 0
+                root.popoutYOffset = 0
+            }
+            updateActiveView()
+        }
+
         function onShowWorkspacePreviewChanged() {
             if (Config.showWorkspacePreview) {
                 closeOthers("workspacePreview")
@@ -301,6 +315,7 @@ PanelWindow {
 
     function closeOthers(except) {
         if (except !== "osd" && typeof Config.showOSD !== "undefined") Config.showOSD = false
+        if (except !== "notifOsd" && typeof Config.showNotificationOsd !== "undefined") Config.showNotificationOsd = false
         if (except !== "workspacePreview") Config.showWorkspacePreview = false
         if (except !== "power") Config.showPower = false
         if (except !== "wallpaper") Config.showWallpaper = false
@@ -1257,6 +1272,13 @@ PanelWindow {
                 objectName: "internalOsd"
                 anchors.fill: parent
                 visible: root.activeView === "osd"
+            }
+
+            NotificationOSD {
+                id: notifOsdModule
+                objectName: "internalNotifOsd"
+                anchors.fill: parent
+                visible: root.activeView === "notifOsd"
             }
         }
     }
