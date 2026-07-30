@@ -24,6 +24,13 @@ Item {
     property string connectingMac: ""
     property string connectedDeviceName: ""
 
+    onHasHardwareChanged: {
+        if (hasHardware) {
+            fetchBtStatusProc.running = false
+            fetchBtStatusProc.running = true
+        }
+    }
+
     // Sticky expansion: Stay open on hover OR while a specific device row is expanded
     property bool shouldExpand: hasHardware && (cardHover.hovered || expandedMac !== "") && isPowered && btModel.count > 0
 
@@ -311,6 +318,7 @@ Item {
 
     function execTogglePower(turnOn) {
         if (!cardRoot.hasHardware) return
+        cardRoot.isPowered = turnOn // Optimistic mutation
         toggleBtProc.command = ["fish", "-c", `bluetoothctl power ${turnOn ? "on" : "off"}`]
         toggleBtProc.running = true
     }
@@ -332,7 +340,7 @@ Item {
         repeat: true
         triggeredOnStart: true
         onTriggered: {
-            if (!fetchBtDevicesProc.running) {
+            if (!fetchBtDevicesProc.running && !toggleBtProc.running) {
                 fetchBtDevicesProc.running = true
             }
         }
@@ -473,20 +481,25 @@ Item {
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
+                // Guard: ignore output if a power toggle is in-flight
+                if (toggleBtProc.running) return
+
                 let text = this.text
-                if (!text || text.includes("No default controller available") || !cardRoot.hasHardware) {
-                    cardRoot.hasHardware = false
+                if (!cardRoot.hasHardware || !text || text.includes("No default controller available")) {
                     cardRoot.isPowered = false
                     cardRoot.connectedDeviceName = ""
                     btModel.clear()
-                } else {
-                    cardRoot.isPowered = text.includes("Powered: yes")
-                    if (cardRoot.isPowered) {
-                        fetchBtDevicesProc.running = true
-                    } else {
-                        cardRoot.connectedDeviceName = ""
-                        btModel.clear()
-                    }
+                    return
+                }
+
+                // Strictly demand explicit matches instead of assuming "Off" on bad stdout
+                if (text.includes("Powered: yes")) {
+                    cardRoot.isPowered = true
+                    fetchBtDevicesProc.running = true
+                } else if (text.includes("Powered: no")) {
+                    cardRoot.isPowered = false
+                    cardRoot.connectedDeviceName = ""
+                    btModel.clear()
                 }
             }
         }
