@@ -236,25 +236,29 @@ Item {
                                 Layout.fillWidth: true
                                 spacing: 4
 
+                                // 1. Connect / Join / Off Button
                                 Rectangle {
                                     Layout.fillWidth: true
                                     implicitHeight: 26
                                     radius: Config.cornerRadius / 2
-                                    color: connHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : (model.connected ? Qt.rgba(255, 255, 255, 0.08) : Config.accent)
+                                    // Bind colors directly to the MouseArea hover state
+                                    color: connMouse.containsMouse ? Qt.rgba(255, 255, 255, 0.15) : (model.connected ? Qt.rgba(255, 255, 255, 0.08) : Config.accent)
                                     Behavior on color { ColorAnimation { duration: 150 } }
 
                                     Text {
                                         anchors.centerIn: parent
                                         text: isConnecting ? "..." : (model.connected ? "OFF" : (model.paired ? "JOIN" : "PAIR"))
-                                        color: connHover.hovered ? Config.accent : (model.connected ? Config.textMain : Config.bgBase)
+                                        color: connMouse.containsMouse ? Config.accent : (model.connected ? Config.textMain : Config.bgBase)
                                         font.family: Config.sysFont
                                         font.pixelSize: Config.size(Config.fontMicro)
                                         font.bold: true
                                     }
 
                                     MouseArea {
+                                        id: connMouse
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
+                                        hoverEnabled: true // Explicitly enable hover tracking
                                         onClicked: {
                                             if (isConnecting) return
                                             if (model.connected) cardRoot.reqDisconnectDevice(model.mac)
@@ -262,31 +266,32 @@ Item {
                                             else cardRoot.reqPairDevice(model.mac)
                                         }
                                     }
-                                    HoverHandler { id: connHover }
                                 }
 
+                                // 2. Forget Button
                                 Rectangle {
                                     Layout.fillWidth: true
                                     implicitHeight: 26
                                     radius: Config.cornerRadius / 2
-                                    color: forgetBtHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
+                                    color: forgetMouse.containsMouse ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
                                     Behavior on color { ColorAnimation { duration: 150 } }
 
                                     Text {
                                         anchors.centerIn: parent
                                         text: "FORGET"
-                                        color: forgetBtHover.hovered ? Config.accent : Config.textMuted
+                                        color: forgetMouse.containsMouse ? Config.accent : Config.textMuted
                                         font.family: Config.sysFont
                                         font.pixelSize: Config.size(Config.fontMicro)
                                         font.bold: true
                                     }
 
                                     MouseArea {
+                                        id: forgetMouse
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
+                                        hoverEnabled: true // Explicitly enable hover tracking
                                         onClicked: cardRoot.reqRemoveDevice(model.mac)
                                     }
-                                    HoverHandler { id: forgetBtHover }
                                 }
                             }
                         }
