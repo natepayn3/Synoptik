@@ -9,9 +9,11 @@ PanelWindow {
     id: root
 
     property color flyoutBorderColor: Config.accent
-    property real panelWidth: 400
+    property real panelWidth: 420
     property real panelHeight: 80
-    readonly property real bounceBuffer: 64
+
+    // Equal padding margin buffer matching NotificationOSD
+    property real overshootPadding: 30
 
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.exclusiveZone: -1
@@ -27,14 +29,18 @@ PanelWindow {
     }
 
     margins {
-        bottom: (Config.barHeight || 30)
+        bottom: (Config.barHeight || 30) - (overshootPadding / 2)
         left: 0
         right: 0
     }
 
-    implicitWidth: panelWidth + bounceBuffer
-    implicitHeight: panelHeight + bounceBuffer
+    implicitWidth: panelWidth + overshootPadding
+    implicitHeight: panelHeight + overshootPadding
     color: "transparent"
+
+    mask: Region {
+        item: mainFrame
+    }
 
     visible: (Config.showOSD || false) || closeTransition.running || openTransition.running
 
@@ -121,101 +127,100 @@ PanelWindow {
         }
     }
 
+    // Static outer bounding region
     Item {
-        id: breathingContainer
-        width: root.panelWidth
-        height: root.panelHeight
-        anchors.centerIn: parent
-        transformOrigin: Item.Center
+        id: mainFrame
+        anchors.fill: parent
 
-        states: [
-            State {
-                name: "open"
-                when: Config.showOSD
-                PropertyChanges { target: breathingContainer; scale: 1.0; opacity: 1.0 }
-            },
-            State {
-                name: "closed"
-                when: !Config.showOSD
-                PropertyChanges { target: breathingContainer; scale: 0.0; opacity: 0.0 }
-            }
-        ]
+        // Centered scaling inner container
+        Item {
+            id: breathingContainer
+            width: root.panelWidth
+            height: root.panelHeight
+            anchors.centerIn: parent
+            transformOrigin: Item.Center
 
-        transitions: [
-            Transition {
-                id: openTransition
-                from: "closed"; to: "open"
-                ParallelAnimation {
-                    NumberAnimation { properties: "scale"; duration: 450; easing.type: Easing.OutBack; easing.overshoot: 2.2 }
-                    NumberAnimation { properties: "opacity"; duration: 200 }
+            states: [
+                State {
+                    name: "open"
+                    when: Config.showOSD
+                    PropertyChanges { target: breathingContainer; scale: 1.0; opacity: 1.0 }
+                },
+                State {
+                    name: "closed"
+                    when: !Config.showOSD
+                    PropertyChanges { target: breathingContainer; scale: 0.0; opacity: 0.0 }
                 }
-            },
-            Transition {
-                id: closeTransition
-                from: "open"; to: "closed"
-                ParallelAnimation {
-                    NumberAnimation { properties: "scale"; duration: 300; easing.type: Easing.InBack }
-                    NumberAnimation { properties: "opacity"; duration: 250 }
+            ]
+
+            transitions: [
+                Transition {
+                    id: openTransition
+                    from: "closed"; to: "open"
+                    ParallelAnimation {
+                        NumberAnimation { properties: "scale"; duration: 450; easing.type: Easing.OutBack; easing.overshoot: 2.2 }
+                        NumberAnimation { properties: "opacity"; duration: 200 }
+                    }
+                },
+                Transition {
+                    id: closeTransition
+                    from: "open"; to: "closed"
+                    ParallelAnimation {
+                        NumberAnimation { properties: "scale"; duration: 300; easing.type: Easing.InBack }
+                        NumberAnimation { properties: "opacity"; duration: 250 }
+                    }
                 }
-            }
-        ]
+            ]
 
-        // --- OUTER GRADIENT BORDER CONTAINER ---
-        Rectangle {
-            anchors.fill: parent
-            radius: Config.cornerRadius
-            color: Config.showBorders ? Config.accent : "transparent"
-
-            // Clean horizontal gradient canvas with color animation
+            // --- OUTER GRADIENT BORDER FRAME ---
             Rectangle {
                 anchors.fill: parent
                 radius: Config.cornerRadius
-                visible: Config.showBorders && Config.animateGradient
-
-                gradient: Gradient {
-                    orientation: Gradient.Horizontal
-
-                    GradientStop { position: 0.0; color: Config.borderStart }
-                    GradientStop { 
-                        id: animStop
-                        position: 1.0; 
-                        color: Config.borderEnd 
-                    }
-                }
-
-                // Smooth color-shift pulse
-                SequentialAnimation {
-                    running: Config.showBorders && Config.animateGradient && breathingContainer.opacity > 0
-                    loops: Animation.Infinite
-
-                    ColorAnimation {
-                        target: animStop
-                        property: "color"
-                        to: Config.accent
-                        duration: 2000
-                        easing.type: Easing.InOutQuad
-                    }
-                    ColorAnimation {
-                        target: animStop
-                        property: "color"
-                        to: Config.borderEnd
-                        duration: 2000
-                        easing.type: Easing.InOutQuad
-                    }
-                }
-            }
-
-            // --- INNER CONTENT MASK ---
-            Rectangle {
-                anchors.fill: parent
-                anchors.margins: Config.showBorders ? 3 : 0
-                radius: Math.max(0, Config.cornerRadius - (Config.showBorders ? 3 : 0))
-                color: Config.bgPanel
+                color: Config.showBorders ? Config.accent : "transparent"
 
                 Rectangle {
                     anchors.fill: parent
-                    color: Qt.rgba(255, 255, 255, 0.05)
-                    radius: parent.radius
+                    radius: Config.cornerRadius
+                    visible: Config.showBorders && Config.animateGradient
+
+                    gradient: Gradient {
+                        orientation: Gradient.Horizontal
+
+                        GradientStop { position: 0.0; color: Config.borderStart }
+                        GradientStop { 
+                            id: animStop
+                            position: 1.0; 
+                            color: Config.borderEnd 
+                        }
+                    }
+
+                    SequentialAnimation {
+                        running: Config.showBorders && Config.animateGradient && breathingContainer.opacity > 0
+                        loops: Animation.Infinite
+
+                        ColorAnimation {
+                            target: animStop
+                            property: "color"
+                            to: Config.accent
+                            duration: 2000
+                            easing.type: Easing.InOutQuad
+                        }
+                        ColorAnimation {
+                            target: animStop
+                            property: "color"
+                            to: Config.borderEnd
+                            duration: 2000
+                            easing.type: Easing.InOutQuad
+                        }
+                    }
+                }
+
+                // --- MAIN INNER BODY ---
+                Rectangle {
+                    anchors.fill: parent
+                    anchors.margins: Config.showBorders ? 3 : 0
+                    radius: Math.max(0, Config.cornerRadius - (Config.showBorders ? 3 : 0))
+                    color: Config.bgPanel
 
                     MouseArea {
                         anchors.fill: parent
@@ -225,112 +230,143 @@ PanelWindow {
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 16
-                        anchors.rightMargin: 16
+                        anchors.margins: 12
                         spacing: 12
 
-                        Text {
-                            text: root.isMuted 
-                                ? "hearing_disabled" 
-                                : (root.volume === 0 ? "hearing_disabled" : (root.volume < 50 ? "hearing" : "ear_sound"))
-                            font.family: "Material Symbols Outlined"
-                            font.weight: Font.Bold
-                            font.pixelSize: 24
-                            color: Config.accent
+                        // LEFT APP ICON BADGE
+                        Rectangle {
+                            implicitWidth: 48
+                            implicitHeight: 48
+                            radius: Config.cornerRadius / 2
+                            color: Qt.rgba(255, 255, 255, 0.06)
+                            border.width: 1
+                            border.color: Qt.rgba(255, 255, 255, 0.1)
                             Layout.alignment: Qt.AlignVCenter
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: root.isMuted 
+                                    ? "volume_off" 
+                                    : (root.volume === 0 ? "volume_mute" : (root.volume < 50 ? "volume_down" : "volume_up"))
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 22
+                                color: root.isMuted ? Config.textMuted : Config.accent
+                            }
                         }
 
-                        // --- HALF SQUIGGLE / HALF STRAIGHT TRACK SLIDER ---
-                        Canvas {
-                            id: waveCanvas
+                        // CONTENT CARD CONTAINER
+                        Rectangle {
                             Layout.fillWidth: true
-                            implicitHeight: 32
-                            Layout.alignment: Qt.AlignVCenter
+                            Layout.fillHeight: true
+                            radius: Config.cornerRadius / 2
+                            color: Qt.rgba(255, 255, 255, 0.05)
 
-                            property real animPhase: 0.0
-                            property real activeWidth: Math.min(width, width * (Math.max(0, root.volume) / 100))
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 12
+                                anchors.rightMargin: 12
+                                spacing: 12
 
-                            Behavior on activeWidth {
-                                NumberAnimation { duration: 150; easing.type: Easing.OutQuad }
-                            }
+                                // HALF-SINE WAVE TRACK & INSTANT PILL
+                                Item {
+                                    Layout.fillWidth: true
+                                    implicitHeight: 32
+                                    Layout.alignment: Qt.AlignVCenter
 
-                            onActiveWidthChanged: requestPaint()
-                            onWidthChanged: requestPaint()
-                            onAnimPhaseChanged: requestPaint()
+                                    Canvas {
+                                        id: waveCanvas
+                                        anchors.fill: parent
 
-                            // Slow horizontal wave animation
-                            NumberAnimation on animPhase {
-                                running: breathingContainer.opacity > 0
-                                from: 0.0
-                                to: Math.PI * 2
-                                duration: 3500
-                                loops: Animation.Infinite
-                            }
+                                        property real animPhase: 0.0
+                                        property real activeWidth: Math.min(width, width * (Math.max(0, root.volume) / 100))
 
-                            onPaint: {
-                                var ctx = getContext("2d")
-                                ctx.clearRect(0, 0, width, height)
+                                        // Snappy 80ms animation for instant reaction
+                                        Behavior on activeWidth {
+                                            NumberAnimation { duration: 80; easing.type: Easing.OutQuad }
+                                        }
 
-                                var waveAmplitude = 5.0 
-                                var waveFrequency = 0.18 
-                                var centerY = height / 2
-                                var strokeLineWidth = 5
-                                
-                                // Adjust this offset to make the indicator taller or shorter
-                                var indicatorExtraHeight = 8 
+                                        onActiveWidthChanged: requestPaint()
+                                        onWidthChanged: requestPaint()
+                                        onAnimPhaseChanged: requestPaint()
 
-                                // 1. Active Squiggle Wave (Left of Indicator)
-                                if (waveCanvas.activeWidth > 0) {
-                                    ctx.save()
-                                    ctx.beginPath()
-                                    for (var x = 0; x <= waveCanvas.activeWidth; x += 1) {
-                                        var y = centerY + Math.sin(x * waveFrequency + waveCanvas.animPhase) * waveAmplitude
-                                        if (x === 0) ctx.moveTo(x, y)
-                                        else ctx.lineTo(x, y)
+                                        NumberAnimation on animPhase {
+                                            running: breathingContainer.opacity > 0
+                                            from: 0.0
+                                            to: Math.PI * 2
+                                            duration: 3000
+                                            loops: Animation.Infinite
+                                        }
+
+                                        onPaint: {
+                                            var ctx = getContext("2d")
+                                            ctx.clearRect(0, 0, width, height)
+
+                                            var waveAmplitude = 4.0 
+                                            var waveFrequency = 0.14 
+                                            var centerY = height / 2
+                                            var strokeLineWidth = 4
+
+                                            // 1. Active Wave Track (Left)
+                                            if (waveCanvas.activeWidth > 0) {
+                                                ctx.save()
+                                                ctx.beginPath()
+                                                for (var x = 0; x <= waveCanvas.activeWidth; x += 1) {
+                                                    var y = centerY + Math.sin(x * waveFrequency + waveCanvas.animPhase) * waveAmplitude
+                                                    if (x === 0) ctx.moveTo(x, y)
+                                                    else ctx.lineTo(x, y)
+                                                }
+                                                ctx.strokeStyle = root.isMuted ? Config.textMuted : Config.accent
+                                                ctx.lineWidth = strokeLineWidth
+                                                ctx.lineCap = "round"
+                                                ctx.lineJoin = "round"
+                                                
+                                                if (!root.isMuted) {
+                                                    ctx.shadowColor = Config.accent
+                                                    ctx.shadowBlur = 8
+                                                }
+
+                                                ctx.stroke()
+                                                ctx.restore()
+                                            }
+
+                                            // 2. Inactive Straight Line Track (Right)
+                                            if (waveCanvas.activeWidth < width) {
+                                                ctx.save()
+                                                ctx.beginPath()
+                                                ctx.moveTo(waveCanvas.activeWidth, centerY)
+                                                ctx.lineTo(width, centerY)
+                                                ctx.strokeStyle = Qt.rgba(255, 255, 255, 0.12)
+                                                ctx.lineWidth = strokeLineWidth
+                                                ctx.lineCap = "round"
+                                                ctx.stroke()
+                                                ctx.restore()
+                                            }
+                                        }
                                     }
-                                    ctx.strokeStyle = root.isMuted ? Config.textMuted : Config.accent
-                                    ctx.lineWidth = strokeLineWidth
-                                    ctx.lineCap = "round"
-                                    ctx.lineJoin = "round"
-                                    ctx.stroke()
-                                    ctx.restore()
+
+                                    // INSTANT-TRACKING PILL INDICATOR
+                                    Rectangle {
+                                        width: 6
+                                        height: 20
+                                        radius: 3
+                                        color: Config.textMain
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        x: Math.max(0, Math.min(parent.width - width, waveCanvas.activeWidth - (width / 2)))
+                                    }
                                 }
 
-                                // 2. Inactive Straight Line Track (Right of Indicator)
-                                if (waveCanvas.activeWidth < width) {
-                                    ctx.save()
-                                    ctx.beginPath()
-                                    ctx.moveTo(waveCanvas.activeWidth, centerY)
-                                    ctx.lineTo(width, centerY)
-                                    ctx.strokeStyle = Qt.rgba(255, 255, 255, 0.15)
-                                    ctx.lineWidth = strokeLineWidth
-                                    ctx.lineCap = "round"
-                                    ctx.stroke()
-                                    ctx.restore()
-                                }
-
-                                // 3. Vertical Indicator Line
-                                if (waveCanvas.activeWidth <= width) {
-                                    ctx.save()
-                                    ctx.beginPath()
-                                    ctx.moveTo(waveCanvas.activeWidth, centerY - waveAmplitude - indicatorExtraHeight)
-                                    ctx.lineTo(waveCanvas.activeWidth, centerY + waveAmplitude + indicatorExtraHeight)
-                                    ctx.strokeStyle = Config.textMain
-                                    ctx.lineWidth = 8
-                                    ctx.lineCap = "round"
-                                    ctx.stroke()
-                                    ctx.restore()
+                                // VOLUME PERCENTAGE
+                                Text {
+                                    text: root.isMuted ? "Muted" : Math.max(0, root.volume) + "%"
+                                    color: root.isMuted ? Config.textMuted : Config.textMain
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontSubhead)
+                                    font.bold: true
+                                    Layout.alignment: Qt.AlignVCenter
+                                    Layout.preferredWidth: 48
+                                    horizontalAlignment: Text.AlignRight
                                 }
                             }
-                        }
-
-                        Text {
-                            text: root.isMuted ? "Muted" : Math.max(0, root.volume) + "%"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontTitle)
-                            font.bold: true
-                            Layout.alignment: Qt.AlignVCenter
                         }
                     }
                 }
