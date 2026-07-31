@@ -231,14 +231,17 @@ Variants {
 
                     Rectangle {
                         anchors.centerIn: parent
-                        implicitHeight: 32
-                        implicitWidth: centerGroup.implicitWidth + 24
+                        height: 32
+                        width: Math.min(centerGroup.implicitWidth + 24, parent.width - leftModules.width - rightModules.width - 32)
+                        clip: true
                         radius: Config.cornerRadius / 2
                         color: Qt.rgba(255, 255, 255, 0.05)
 
                         RowLayout {
                             id: centerGroup
-                            anchors.centerIn: parent
+                            anchors.fill: parent
+                            anchors.leftMargin: 12
+                            anchors.rightMargin: 12
                             spacing: 16
 
                             WorkspaceIndicators {
@@ -249,8 +252,9 @@ Variants {
                             Item {
                                 id: taskbarContainerH
                                 Layout.alignment: Qt.AlignVCenter
-                                implicitWidth: horizTaskbarLoader.item ? horizTaskbarLoader.item.implicitWidth : 0
-                                implicitHeight: horizTaskbarLoader.item ? horizTaskbarLoader.item.implicitHeight : 0
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: 32
+                                clip: true
 
                                 Timer {
                                     id: horizBootTimer
@@ -288,6 +292,7 @@ Variants {
                     }
 
                     RowLayout {
+                        id: rightModules
                         anchors {
                             right: parent.right
                             verticalCenter: parent.verticalCenter
@@ -668,16 +673,24 @@ Variants {
                     }
 
                     Rectangle {
-                        anchors.centerIn: parent
-                        implicitWidth: 32
-                        implicitHeight: centerVertGroup.implicitHeight + 24
+                        anchors {
+                            top: topVertModules.bottom
+                            bottom: bottomVertModules.top
+                            horizontalCenter: parent.horizontalCenter
+                            topMargin: 16
+                            bottomMargin: 16
+                        }
+                        width: 32
+                        clip: true
                         radius: Config.cornerRadius / 2
                         color: Qt.rgba(255, 255, 255, 0.05)
 
                         ColumnLayout {
                             id: centerVertGroup
-                            anchors.centerIn: parent
-                            spacing: 16
+                            anchors.fill: parent
+                            anchors.topMargin: 12
+                            anchors.bottomMargin: 12
+                            spacing: 12
 
                             WorkspaceIndicators {
                                 isVertical: true
@@ -687,8 +700,9 @@ Variants {
                             Item {
                                 id: taskbarContainerV
                                 Layout.alignment: Qt.AlignHCenter
-                                implicitWidth: vertTaskbarLoader.item ? vertTaskbarLoader.item.implicitWidth : 0
-                                implicitHeight: vertTaskbarLoader.item ? vertTaskbarLoader.item.implicitHeight : 0
+                                Layout.fillHeight: true
+                                Layout.preferredWidth: 32
+                                clip: true
 
                                 Timer {
                                     id: vertBootTimer
@@ -726,6 +740,7 @@ Variants {
                     }
 
                     ColumnLayout {
+                        id: bottomVertModules
                         anchors {
                             bottom: parent.bottom
                             horizontalCenter: parent.horizontalCenter

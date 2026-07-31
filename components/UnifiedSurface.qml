@@ -217,7 +217,6 @@ PanelWindow {
         else if (Config.showScreenRecorder) nextView = "screenRecorder"
         else if (Config.showControlCenter) nextView = "controlCenter"
 
-        // Update state simultaneously to prevent timing issues when morphing
         if (nextView === "none") {
             root.isOpen = false
             activeView = "none"
@@ -338,7 +337,6 @@ PanelWindow {
         anchors.fill: parent
         anchors.margins: shadowPadding
 
-        // BACKDROP DISMISS AREA (Catches clicks on empty bar spaces when open)
         MouseArea {
             anchors.fill: parent
             enabled: root.isOpen
@@ -961,47 +959,111 @@ PanelWindow {
             }
 
             Rectangle {
+                id: centerGroupContainer
                 anchors.centerIn: parent
-                implicitHeight: isHorizontal ? 32 : centerGroup.implicitHeight + 16
-                implicitWidth: isHorizontal ? centerGroup.implicitWidth + 24 : 32
+                
+                // Safety buffer (48px) prevents overlapping adjacent module groups
+                readonly property real availableW: Math.max(32, barContent.width - leftModules.width - rightModules.width - 48)
+                readonly property real availableH: Math.max(32, barContent.height - leftModules.height - rightModules.height - 48)
+
+                // Expand content up to available bounds
+                width: root.isHorizontal 
+                    ? Math.min(centerContentLayout.implicitWidth + 16, availableW) 
+                    : 28
+
+                height: root.isHorizontal 
+                    ? 28 
+                    : Math.min(centerContentLayout.implicitHeight + 16, availableH)
+                
+                clip: true
                 radius: Config.cornerRadius / 2
                 color: Qt.rgba(255, 255, 255, 0.05)
 
-                GridLayout {
-                    id: centerGroup
-                    anchors.centerIn: parent
-                    columns: isHorizontal ? -1 : 1
-                    rows: isHorizontal ? 1 : -1
-                    columnSpacing: 16
-                    rowSpacing: 16
+                Loader {
+                    id: centerContentLayout
+                    anchors.fill: parent
+                    // Internal padding keeps top workspace indicator & bottom icons clear of background card edges
+                    anchors.leftMargin: root.isHorizontal ? 8 : 2
+                    anchors.rightMargin: root.isHorizontal ? 8 : 2
+                    anchors.topMargin: !root.isHorizontal ? 8 : 2
+                    anchors.bottomMargin: !root.isHorizontal ? 8 : 2
 
-                    WorkspaceIndicators {
-                        isVertical: !root.isHorizontal
-                        Layout.alignment: Qt.AlignCenter
-                    }
+                    sourceComponent: root.isHorizontal ? horizCenterComp : vertCenterComp
+                }
 
-                    Item {
-                        id: taskbarContainerH
-                        Layout.alignment: Qt.AlignCenter
-                        implicitWidth: horizTaskbarLoader.item ? horizTaskbarLoader.item.implicitWidth : 0
-                        implicitHeight: horizTaskbarLoader.item ? horizTaskbarLoader.item.implicitHeight : 0
+                Component {
+                    id: horizCenterComp
+                    RowLayout {
+                        spacing: 8
+                        anchors.fill: parent
 
-                        Timer {
-                            id: horizBootTimer
-                            interval: 350
-                            running: true
-                            repeat: false
-                            onTriggered: horizTaskbarLoader.active = true
+                        WorkspaceIndicators {
+                            isVertical: false
+                            Layout.alignment: Qt.AlignVCenter
                         }
 
-                        Loader {
-                            id: horizTaskbarLoader
-                            active: false
-                            anchors.fill: parent
+                        Item {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            Layout.alignment: Qt.AlignVCenter
+                            
+                            implicitWidth: horizTaskbarLoader.item ? horizTaskbarLoader.item.implicitWidth : 32
 
-                            sourceComponent: Taskbar {
-                                isVertical: !root.isHorizontal
-                                activeScreenName: root.screen ? root.screen.name : ""
+                            Timer {
+                                interval: 350
+                                running: true
+                                repeat: false
+                                onTriggered: horizTaskbarLoader.active = true
+                            }
+
+                            Loader {
+                                id: horizTaskbarLoader
+                                active: false
+                                anchors.fill: parent
+
+                                sourceComponent: Taskbar {
+                                    isVertical: false
+                                    activeScreenName: root.screen ? root.screen.name : ""
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Component {
+                    id: vertCenterComp
+                    ColumnLayout {
+                        spacing: 8
+                        anchors.fill: parent
+
+                        WorkspaceIndicators {
+                            isVertical: true
+                            Layout.alignment: Qt.AlignHCenter
+                        }
+
+                        Item {
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            Layout.alignment: Qt.AlignHCenter
+
+                            implicitHeight: vertTaskbarLoader.item ? vertTaskbarLoader.item.implicitHeight : 32
+
+                            Timer {
+                                interval: 350
+                                running: true
+                                repeat: false
+                                onTriggered: vertTaskbarLoader.active = true
+                            }
+
+                            Loader {
+                                id: vertTaskbarLoader
+                                active: false
+                                anchors.fill: parent
+
+                                sourceComponent: Taskbar {
+                                    isVertical: true
+                                    activeScreenName: root.screen ? root.screen.name : ""
+                                }
                             }
                         }
                     }

@@ -4,98 +4,135 @@ import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Widgets
 
-GridLayout {
+Flickable {
     id: taskbarRoot
-    rowSpacing: 8
-    columnSpacing: 8
     property string activeScreenName: ""
     property bool isVertical: false
 
-    columns: isVertical ? 1 : -1
-    rows: isVertical ? -1 : 1
+    anchors.fill: parent
 
-    visible: implicitWidth > 0 && implicitHeight > 0
+    // Calculate full content extent cleanly without falling back to a tiny fixed 32px limit
+    readonly property real calculatedWidth: grid.childrenRect.width > 0 ? grid.childrenRect.width : grid.implicitWidth
+    readonly property real calculatedHeight: grid.childrenRect.height > 0 ? grid.childrenRect.height : grid.implicitHeight
 
-    Repeater {
-        model: ScriptModel {
-            values: Hyprland.toplevels.values
-        }
+    contentWidth: isVertical ? width : calculatedWidth
+    contentHeight: isVertical ? calculatedHeight : height
 
-        delegate: Item {
-            id: clientDelegate
-            implicitWidth: 32
-            implicitHeight: 32
+    implicitWidth: calculatedWidth
+    implicitHeight: calculatedHeight
+
+    interactive: true
+    clip: true
+    boundsBehavior: Flickable.StopAtBounds
+
+    WheelHandler {
+        id: wheelHandler
+        orientation: taskbarRoot.isVertical ? Qt.Vertical : Qt.Horizontal
+        onWheel: (event) => {
+            let maxScrollY = Math.max(0, taskbarRoot.contentHeight - taskbarRoot.height)
+            let maxScrollX = Math.max(0, taskbarRoot.contentWidth - taskbarRoot.width)
             
-            visible: modelData.monitor && (modelData.monitor.name === taskbarRoot.activeScreenName)
+            if (taskbarRoot.isVertical) {
+                let delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x
+                taskbarRoot.contentY = Math.max(0, Math.min(taskbarRoot.contentY - delta, maxScrollY))
+            } else {
+                let delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x
+                taskbarRoot.contentX = Math.max(0, Math.min(taskbarRoot.contentX - delta, maxScrollX))
+            }
+        }
+    }
 
-            readonly property string appId: modelData.wayland?.appId || modelData.lastIpcObject?.class || ""
+    GridLayout {
+        id: grid
+        anchors.horizontalCenter: taskbarRoot.isVertical ? parent.horizontalCenter : undefined
+        anchors.verticalCenter: taskbarRoot.isVertical ? undefined : parent.verticalCenter
+        anchors.left: taskbarRoot.isVertical ? undefined : parent.left
+        anchors.top: taskbarRoot.isVertical ? parent.top : undefined
 
-            Rectangle {
-                anchors.fill: parent
-                radius: 10
-                color: clientMouseArea.containsMouse ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-                Behavior on color { ColorAnimation { duration: 150 } }
+        rowSpacing: 8
+        columnSpacing: 8
+
+        columns: taskbarRoot.isVertical ? 1 : -1
+        rows: taskbarRoot.isVertical ? -1 : 1
+
+        Repeater {
+            model: ScriptModel {
+                values: Hyprland.toplevels.values
             }
 
-            Item {
-                id: iconContainer
-                anchors.centerIn: parent
-                width: modelData.activated ? 24 : 20
-                height: modelData.activated ? 24 : 20
+            delegate: Item {
+                id: clientDelegate
                 
-                Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-                Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+                readonly property bool isOnThisScreen: modelData.monitor && (modelData.monitor.name === taskbarRoot.activeScreenName)
+                
+                implicitWidth: isOnThisScreen ? 28 : 0
+                implicitHeight: isOnThisScreen ? 28 : 0
+                visible: isOnThisScreen
 
-                IconImage {
-                    id: clientIcon
+                readonly property string appId: modelData.wayland?.appId || modelData.lastIpcObject?.class || ""
+
+                Rectangle {
                     anchors.fill: parent
-                    asynchronous: true
+                    radius: 8
+                    color: clientMouseArea.containsMouse ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
 
-                    source: {
-                        let id = clientDelegate.appId;
-                        if (!id) return "";
+                Item {
+                    id: iconContainer
+                    anchors.centerIn: parent
+                    width: modelData.activated ? 22 : 18
+                    height: modelData.activated ? 22 : 18
+                    
+                    Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+                    Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
-                        let _cacheWatcher = DesktopEntries.applications.values;
+                    IconImage {
+                        id: clientIcon
+                        anchors.fill: parent
+                        asynchronous: true
 
-                        // 1. Try desktop entry heuristic lookup
-                        let entry = DesktopEntries.heuristicLookup(id);
-                        if (entry && entry.icon) {
-                            let entryPath = Quickshell.iconPath(entry.icon, true);
-                            if (entryPath) return entryPath;
+                        source: {
+                            let id = clientDelegate.appId;
+                            if (!id) return "";
+
+                            let _cacheWatcher = DesktopEntries.applications.values;
+
+                            let entry = DesktopEntries.heuristicLookup(id);
+                            if (entry && entry.icon) {
+                                let entryPath = Quickshell.iconPath(entry.icon, true);
+                                if (entryPath) return entryPath;
+                            }
+
+                            let raw = Quickshell.iconPath(id, true);
+                            if (raw) return raw;
+
+                            let lower = Quickshell.iconPath(id.toLowerCase(), true);
+                            if (lower) return lower;
+
+                            if (id.includes(".")) {
+                                let baseName = id.split('.').pop().toLowerCase();
+                                let dnsPath = Quickshell.iconPath(baseName, true);
+                                if (dnsPath) return dnsPath;
+                            }
+
+                            return Quickshell.iconPath("application-x-executable", true) 
+                                || Quickshell.iconPath("applications-other", true) 
+                                || "";
                         }
-
-                        // 2. Direct icon name lookup
-                        let raw = Quickshell.iconPath(id, true);
-                        if (raw) return raw;
-
-                        // 3. Lowercase lookup
-                        let lower = Quickshell.iconPath(id.toLowerCase(), true);
-                        if (lower) return lower;
-
-                        // 4. Reverse DNS fallback (e.g. org.gnome.Nautilus -> Nautilus)
-                        if (id.includes(".")) {
-                            let baseName = id.split('.').pop().toLowerCase();
-                            let dnsPath = Quickshell.iconPath(baseName, true);
-                            if (dnsPath) return dnsPath;
-                        }
-
-                        // 5. Resolved fallback icon or empty string (prevents QRC lookup errors)
-                        return Quickshell.iconPath("application-x-executable", true) 
-                            || Quickshell.iconPath("applications-other", true) 
-                            || "";
                     }
                 }
-            }
 
-            MouseArea {
-                id: clientMouseArea
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
+                MouseArea {
+                    id: clientMouseArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
 
-                onClicked: {
-                    if (modelData.wayland) {
-                        modelData.wayland.activate()
+                    onClicked: {
+                        if (modelData.wayland) {
+                            modelData.wayland.activate()
+                        }
                     }
                 }
             }
