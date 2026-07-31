@@ -30,6 +30,7 @@ QtObject {
     property bool showClipboard: false
     property bool showScreenRecorder: false
 
+    // --- DESKTOP CLOCK STATE & PERSISTENCE ---
     property bool showDesktopClock: true
     property string clockStyle: "digital" // "digital" | "analog"
     property real clockScale: 1.0         // Scale factor adjusted by wheel scroll
@@ -38,6 +39,55 @@ QtObject {
     property bool clockShowAmPm: true
     property bool clockShowBorder: true
     property bool clockShowBackground: true
+
+    property var clockPositions: ({}) // Format: { "DP-1": { x: 100, y: 100 }, "HDMI-A-1": { x: 100, y: 100 } }
+    property var clockScales: ({})    // Format: { "DP-1": 1.0, "HDMI-A-1": 1.0 }
+    property var enabledClockScreens: []
+
+    function getClockPosition(screenName, defaultX, defaultY) {
+        if (clockPositions && clockPositions[screenName]) {
+            return clockPositions[screenName]
+        }
+        return { x: defaultX, y: defaultY }
+    }
+
+    function saveClockPosition(screenName, x, y) {
+        let current = Object.assign({}, clockPositions)
+        current[screenName] = { x: x, y: y }
+        clockPositions = current
+        saveSettings()
+    }
+
+    function getClockScale(screenName) {
+        if (clockScales && clockScales[screenName] !== undefined) {
+            return clockScales[screenName]
+        }
+        return 1.0
+    }
+
+    function saveClockScale(screenName, scale) {
+        let current = Object.assign({}, clockScales)
+        current[screenName] = scale
+        clockScales = current
+        saveSettings()
+    }
+
+    function isClockEnabledForScreen(screenName) {
+        if (!enabledClockScreens || enabledClockScreens.length === 0) return true
+        return enabledClockScreens.includes(screenName)
+    }
+
+    function toggleClockScreen(screenName) {
+        let current = (enabledClockScreens || []).slice()
+        let idx = current.indexOf(screenName)
+        if (idx !== -1) {
+            current.splice(idx, 1)
+        } else {
+            current.push(screenName)
+        }
+        enabledClockScreens = current
+        saveSettings()
+    }
 
     // --- WALLPAPER CONFIG STATE & PERSISTENCE ---
     property var selectedWallpaperMonitors: []
@@ -75,6 +125,16 @@ QtObject {
 
     onSelectedWallpaperMonitorsChanged: { if (isLoaded) saveSettings() }
     onWallpaperTransitionTypeChanged: { if (isLoaded) saveSettings() }
+
+    // --- DESKTOP CLOCK SIGNAL BINDERS ---
+    onShowDesktopClockChanged: { if (isLoaded) saveSettings() }
+    onClockStyleChanged: { if (isLoaded) saveSettings() }
+    onClockScaleChanged: { if (isLoaded) saveSettings() }
+    onClockShowSecondsChanged: { if (isLoaded) saveSettings() }
+    onClockUse12HourChanged: { if (isLoaded) saveSettings() }
+    onClockShowAmPmChanged: { if (isLoaded) saveSettings() }
+    onClockShowBorderChanged: { if (isLoaded) saveSettings() }
+    onClockShowBackgroundChanged: { if (isLoaded) saveSettings() }
 
     // --- ON-SCREEN KEYBOARD (OSK) STATE & PERSISTENCE ---
     property bool showOsk: false
@@ -381,7 +441,6 @@ QtObject {
     readonly property string hyprThemePath: Quickshell.env("HOME") + "/.config/hypr/hypr_style.lua"
 
     function syncHyprlandBorders() {
-        // Strip alpha and ensure clean 6-digit RRGGBB hex output
         function toOpaqueHex(c) {
             let str = Qt.color(c).toString().replace("#", "")
             return str.length === 8 ? str.substring(2) : str
@@ -497,7 +556,20 @@ QtObject {
             "enableBlur": root.enableBlur,
             "enableXray": root.enableXray,
             "customThemes": customPalettes,
-            "windowStyle": root.windowStyle
+            "windowStyle": root.windowStyle,
+
+            // Clock Settings Persistence
+            "showDesktopClock": root.showDesktopClock,
+            "clockStyle": root.clockStyle,
+            "clockScale": root.clockScale,
+            "clockShowSeconds": root.clockShowSeconds,
+            "clockUse12Hour": root.clockUse12Hour,
+            "clockShowAmPm": root.clockShowAmPm,
+            "clockShowBorder": root.clockShowBorder,
+            "clockShowBackground": root.clockShowBackground,
+            "clockPositions": root.clockPositions,
+            "clockScales": root.clockScales,
+            "enabledClockScreens": root.enabledClockScreens
         }
 
         var jsonStr = JSON.stringify(data)
@@ -536,6 +608,19 @@ QtObject {
                     if (parsed.shellOpacity !== undefined) root.shellOpacity = parsed.shellOpacity
                     if (parsed.enableBlur !== undefined) root.enableBlur = parsed.enableBlur
                     if (parsed.enableXray !== undefined) root.enableXray = parsed.enableXray
+
+                    // Clock JSON Deserialization
+                    if (parsed.showDesktopClock !== undefined) root.showDesktopClock = parsed.showDesktopClock
+                    if (parsed.clockStyle !== undefined) root.clockStyle = parsed.clockStyle
+                    if (parsed.clockScale !== undefined) root.clockScale = parsed.clockScale
+                    if (parsed.clockShowSeconds !== undefined) root.clockShowSeconds = parsed.clockShowSeconds
+                    if (parsed.clockUse12Hour !== undefined) root.clockUse12Hour = parsed.clockUse12Hour
+                    if (parsed.clockShowAmPm !== undefined) root.clockShowAmPm = parsed.clockShowAmPm
+                    if (parsed.clockShowBorder !== undefined) root.clockShowBorder = parsed.clockShowBorder
+                    if (parsed.clockShowBackground !== undefined) root.clockShowBackground = parsed.clockShowBackground
+                    if (parsed.clockPositions !== undefined) root.clockPositions = parsed.clockPositions
+                    if (parsed.clockScales !== undefined) root.clockScales = parsed.clockScales
+                    if (parsed.enabledClockScreens !== undefined && Array.isArray(parsed.enabledClockScreens)) root.enabledClockScreens = parsed.enabledClockScreens
 
                     if (parsed.customThemes && Array.isArray(parsed.customThemes)) {
                         var stockList = stockThemes.slice()
@@ -584,7 +669,6 @@ QtObject {
     readonly property int cornerRadius: 16 
 
     readonly property var stockThemes: [
-        // --- BASE & ACCENT THEMES (8) ---
         { name: "Monochrome",       bgBase: "#121212", bgPanel: "#1e1e1e", accent: "#e0e0e0" },
         { name: "Classic Red",      bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#ef4444" },
         { name: "Vibrant Orange",   bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#ff7b00" },
@@ -593,8 +677,6 @@ QtObject {
         { name: "Cyber Cyan",       bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#06b6d4" },
         { name: "Dodger Blue",      bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#3b82f6" },
         { name: "Deep Purple",      bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#a855f7" },
-
-        // --- POPULAR COMMUNITY SCHEMES (16) ---
         { name: "Gruvbox Dark",     bgBase: "#282828", bgPanel: "#3c3836", accent: "#fe8019" },
         { name: "Catppuccin Mocha", bgBase: "#1e1e2e", bgPanel: "#181825", accent: "#f5c2e7" },
         { name: "Nord Slate",       bgBase: "#2e3440", bgPanel: "#3b4252", accent: "#88c0d0" },
@@ -611,8 +693,6 @@ QtObject {
         { name: "Ayu Dark",         bgBase: "#0f1419", bgPanel: "#131721", accent: "#ffb454" },
         { name: "Solarized Light",  bgBase: "#fdf6e3", bgPanel: "#eee8d5", accent: "#b58900" },
         { name: "One Dark",         bgBase: "#282c34", bgPanel: "#21252b", accent: "#61afef" },
-
-        // --- RESTORED NEON PALETTES (8) ---
         { name: "Neon Red",         bgBase: "#0d0202", bgPanel: "#1a0404", accent: "#ff0055" },
         { name: "Neon Orange",      bgBase: "#0f0800", bgPanel: "#1f1000", accent: "#ff5f00" },
         { name: "Neon Yellow",      bgBase: "#0f0f00", bgPanel: "#1f1f00", accent: "#ccff00" },
@@ -621,8 +701,6 @@ QtObject {
         { name: "Neon Blue",        bgBase: "#00050f", bgPanel: "#000a1f", accent: "#0066ff" },
         { name: "Neon Purple",      bgBase: "#0a000f", bgPanel: "#15001f", accent: "#bf00ff" },
         { name: "Neon Hot Pink",    bgBase: "#0f000a", bgPanel: "#1f0015", accent: "#ff00a0" },
-
-        // --- ADDITIONAL PALETTES (10) ---
         { name: "Laserwave",        bgBase: "#1b192e", bgPanel: "#272140", accent: "#40e0d0" },
         { name: "Matrix Deep",      bgBase: "#020a02", bgPanel: "#051405", accent: "#00ff41" },
         { name: "Outrun Sunset",    bgBase: "#11001c", bgPanel: "#220038", accent: "#ff2a6d" },

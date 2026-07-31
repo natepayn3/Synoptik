@@ -6,13 +6,7 @@ import Quickshell.Hyprland
 
 PanelWindow {
     id: clockWindow
-    visible: Config.showDesktopClock
-
-    Component.onCompleted: {
-        let activeName = Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""
-        let found = Quickshell.screens.find(s => s.name === activeName)
-        clockWindow.screen = found || Quickshell.screens[0]
-    }
+    visible: Config.showDesktopClock && (screen ? Config.isClockEnabledForScreen(screen.name) : true)
 
     WlrLayershell.layer: WlrLayer.Bottom
     WlrLayershell.namespace: "quickshell-desktop-clock"
@@ -33,10 +27,12 @@ PanelWindow {
     Item {
         id: clockContainer
         
-        // Tight padding around content regardless of scale
         readonly property real basePadding: 16
         width: clockLoader.implicitWidth + (basePadding * 2)
         height: clockLoader.implicitHeight + (basePadding * 2)
+
+        // Per-screen scale factor
+        property real currentScale: clockWindow.screen ? Config.getClockScale(clockWindow.screen.name) : 1.0
 
         property real dragX: 100
         property real dragY: 100
@@ -45,49 +41,44 @@ PanelWindow {
         x: dragX
         y: dragY
 
-        Connections {
-            target: clockWindow
-            function onWidthChanged() { clockContainer.initPosition() }
-            function onHeightChanged() { clockContainer.initPosition() }
-        }
+        // RESTORE SAVED POSITION ONCE SCREEN & CONFIG ARE READY
+        function restorePosition() {
+            if (!clockWindow.screen) return
 
-        function initPosition() {
-            if (!initialized && clockWindow.width > 0 && clockWindow.height > 0) {
-                dragX = Math.max(0, clockWindow.width - width - 60)
-                dragY = 60
+            let defaultX = Math.max(0, clockWindow.width - width - 60)
+            let defaultY = 60
+
+            let savedPos = Config.getClockPosition(clockWindow.screen.name, defaultX, defaultY)
+            
+            // Only assign if valid numbers exist in settings
+            if (savedPos && typeof savedPos.x === "number" && typeof savedPos.y === "number") {
+                dragX = savedPos.x
+                dragY = savedPos.y
                 initialized = true
             }
         }
 
-        Component.onCompleted: initPosition()
+        // Trigger position restore when config finishes loading from disk
+        Connections {
+            target: Config
+            function onIsLoadedChanged() {
+                if (Config.isLoaded) clockContainer.restorePosition()
+            }
+        }
 
-        onXChanged: checkScreenBoundary()
-        onYChanged: checkScreenBoundary()
+        Component.onCompleted: {
+            if (Config.isLoaded) restorePosition()
+        }
 
-        function checkScreenBoundary() {
-            if (!dragArea.drag.active) return
-
-            let globalX = clockWindow.screen.x + clockContainer.x
-            let globalY = clockWindow.screen.y + clockContainer.y
-
-            let centerX = globalX + (clockContainer.width / 2)
-            let centerY = globalY + (clockContainer.height / 2)
-
-            for (let i = 0; i < Quickshell.screens.length; i++) {
-                let s = Quickshell.screens[i]
-                if (s === clockWindow.screen) continue
-
-                if (centerX >= s.x && centerX <= (s.x + s.width) &&
-                    centerY >= s.y && centerY <= (s.y + s.height)) {
-
-                    let newLocalX = globalX - s.x
-                    let newLocalY = globalY - s.y
-
-                    clockWindow.screen = s
-                    clockContainer.dragX = newLocalX
-                    clockContainer.dragY = newLocalY
-                    break
-                }
+        // SAVE POSITION ON DRAG RELEASE OR POSITION CHANGE
+        onXChanged: {
+            if (initialized && dragArea.drag.active && clockWindow.screen) {
+                Config.saveClockPosition(clockWindow.screen.name, dragX, dragY)
+            }
+        }
+        onYChanged: {
+            if (initialized && dragArea.drag.active && clockWindow.screen) {
+                Config.saveClockPosition(clockWindow.screen.name, dragX, dragY)
             }
         }
 
@@ -97,7 +88,7 @@ PanelWindow {
             visible: Config.clockShowBackground || Config.clockShowBorder
             color: Config.clockShowBackground ? Config.bgPanel : "transparent"
             radius: Config.cornerRadius
-            border.width: Config.clockShowBorder ? (Config.showBorders ? 3 : 1) : 0
+            border.width: Config.clockShowBorder ? (Config.showBorders ? 2 : 1) : 0
             border.color: Config.showBorders ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
             opacity: Config.clockShowBackground ? 0.85 : 1.0
         }
@@ -114,7 +105,7 @@ PanelWindow {
             id: digitalComp
 
             ColumnLayout {
-                spacing: 2
+                spacing: 4
 
                 property var currentDate: new Date()
 
@@ -136,22 +127,44 @@ PanelWindow {
                     return Qt.formatTime(currentDate, fmt)
                 }
 
+                // Main Time Display
                 Text {
                     text: formatTimeString()
                     color: Config.textMain
                     font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontTitle) * 1.5 * Config.clockScale
+                    font.pixelSize: Config.size(Config.fontTitle) * 1.5 * clockContainer.currentScale
                     font.bold: true
                     Layout.alignment: Qt.AlignHCenter
                 }
 
-                Text {
-                    // Always formats as "Fri - Jul 31"
-                    text: Qt.formatDate(currentDate, "ddd - MMM d")
-                    color: Config.accent
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontSubhead) * Config.clockScale
+                // Modernized Date Row (Bold Day | Pipe | Light Date)
+                RowLayout {
+                    spacing: 6
                     Layout.alignment: Qt.AlignHCenter
+
+                    Text {
+                        text: Qt.formatDate(currentDate, "ddd")
+                        color: Config.accent
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontSubhead) * clockContainer.currentScale
+                        font.bold: true
+                    }
+
+                    Text {
+                        text: "|"
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontSubhead) * clockContainer.currentScale
+                        opacity: 0.6
+                    }
+
+                    Text {
+                        text: Qt.formatDate(currentDate, "MMM d")
+                        color: Config.textMain
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontSubhead) * clockContainer.currentScale
+                        font.bold: false
+                    }
                 }
             }
         }
@@ -161,10 +174,9 @@ PanelWindow {
             id: analogComp
 
             Item {
-                // Bounds scaled linearly without redundant offsets
                 readonly property real baseSize: 140
-                implicitWidth: baseSize * Config.clockScale
-                implicitHeight: baseSize * Config.clockScale
+                implicitWidth: baseSize * clockContainer.currentScale
+                implicitHeight: baseSize * clockContainer.currentScale
 
                 Canvas {
                     id: analogCanvas
@@ -186,8 +198,7 @@ PanelWindow {
                         var ctx = getContext("2d")
                         var cx = width / 2
                         var cy = height / 2
-                        // Clamp stroke margin so dial fits container edge
-                        var strokeMargin = Math.max(2, 3 * Config.clockScale)
+                        var strokeMargin = Math.max(2, 3 * clockContainer.currentScale)
                         var radius = (Math.min(width, height) / 2) - strokeMargin
 
                         ctx.reset()
@@ -209,7 +220,7 @@ PanelWindow {
                         ctx.moveTo(cx, cy)
                         ctx.lineTo(cx + Math.cos(hourAngle) * (radius * 0.5), cy + Math.sin(hourAngle) * (radius * 0.5))
                         ctx.strokeStyle = Qt.color(Config.textMain)
-                        ctx.lineWidth = Math.max(1.5, 4 * Config.clockScale)
+                        ctx.lineWidth = Math.max(1.5, 4 * clockContainer.currentScale)
                         ctx.stroke()
 
                         // Minute Hand
@@ -218,23 +229,23 @@ PanelWindow {
                         ctx.moveTo(cx, cy)
                         ctx.lineTo(cx + Math.cos(minAngle) * (radius * 0.75), cy + Math.sin(minAngle) * (radius * 0.75))
                         ctx.strokeStyle = Qt.color(Config.textMain)
-                        ctx.lineWidth = Math.max(1.0, 2.5 * Config.clockScale)
+                        ctx.lineWidth = Math.max(1.0, 2.5 * clockContainer.currentScale)
                         ctx.stroke()
 
-                        // Second Hand (Conditional)
+                        // Second Hand
                         if (Config.clockShowSeconds) {
                             var secAngle = seconds * (Math.PI / 30) - (Math.PI / 2)
                             ctx.beginPath()
                             ctx.moveTo(cx, cy)
                             ctx.lineTo(cx + Math.cos(secAngle) * (radius * 0.85), cy + Math.sin(secAngle) * (radius * 0.85))
                             ctx.strokeStyle = Qt.color(Config.accent)
-                            ctx.lineWidth = Math.max(1.0, 1.5 * Config.clockScale)
+                            ctx.lineWidth = Math.max(1.0, 1.5 * clockContainer.currentScale)
                             ctx.stroke()
                         }
 
                         // Center Pin
                         ctx.beginPath()
-                        ctx.arc(cx, cy, Math.max(2, 4 * Config.clockScale), 0, 2 * Math.PI)
+                        ctx.arc(cx, cy, Math.max(2, 4 * clockContainer.currentScale), 0, 2 * Math.PI)
                         ctx.fillStyle = Qt.color(Config.accent)
                         ctx.fill()
                     }
@@ -259,10 +270,15 @@ PanelWindow {
 
             onWheel: (wheel) => {
                 let step = 0.05
+                let newScale = clockContainer.currentScale
                 if (wheel.angleDelta.y > 0) {
-                    Config.clockScale = Math.min(3.0, Config.clockScale + step)
+                    newScale = Math.min(3.0, newScale + step)
                 } else {
-                    Config.clockScale = Math.max(0.5, Config.clockScale - step)
+                    newScale = Math.max(0.5, newScale - step)
+                }
+
+                if (clockWindow.screen) {
+                    Config.saveClockScale(clockWindow.screen.name, newScale)
                 }
             }
         }
