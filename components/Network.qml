@@ -323,7 +323,6 @@ Item {
                         Layout.fillWidth: true
                         implicitHeight: Math.min(vpnListModel.count * 52, 160)
                         spacing: 6
-                        clip: true
                         model: vpnListModel
 
                         delegate: Rectangle {
@@ -335,7 +334,7 @@ Item {
                             radius: Config.cornerRadius / 2.5
                             color: isActive ? Qt.rgba(255, 255, 255, 0.12) : (itemHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.25))
                             border.color: isActive ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                            border.width: 1
+                            border.width: 2
 
                             Behavior on color { ColorAnimation { duration: 150 } }
 
