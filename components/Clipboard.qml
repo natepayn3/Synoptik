@@ -12,25 +12,47 @@ Item {
 
     ListModel { id: clipModel }
 
-    Component.onCompleted: {
-        if (Config.showClipboard) {
-            fetchProc.running = true
-        }
+    function refreshClipboard() {
+        fetchProc.running = false
+        fetchProc.running = true
     }
 
+    Component.onCompleted: {
+        refreshClipboard()
+    }
+
+    Connections {
+        target: Config
+        function onShowClipboardChanged() {
+            if (Config.showClipboard) {
+                refreshClipboard()
+            }
+        }
+    }
+    
+    // Process 1: Instantaneous list fetching
     Process {
         id: fetchProc
         running: false
-        
-        command: ["fish", "-c", "mkdir -p /tmp/cliphist; cliphist list | awk -F'\\t' '/binary data|image|\\[\\[/ {print $1}' | while read -l id; if not test -f /tmp/cliphist/$id.png; set -l tmp_raw /tmp/cliphist/raw_$id; printf '%s\\t' \"$id\" | cliphist decode > $tmp_raw 2>/dev/null; if test -s $tmp_raw; magick $tmp_raw PNG:/tmp/cliphist/$id.png 2>/dev/null; or rm -f /tmp/cliphist/$id.png; end; rm -f $tmp_raw; end; end; cliphist list"]
+        command: ["cliphist", "list"]
         
         stdout: StdioCollector {
+            id: fetchOut 
             onStreamFinished: {
-                clipModel.clear()
-                let lines = this.text.trim().split("\n")
+                let outText = fetchOut.text
+                
+                if (!outText || outText.trim() === "") {
+                    clipModel.clear()
+                    return
+                }
+                
+                let lines = outText.trim().split("\n")
+                let newItems = []
+                
                 for (let line of lines) {
                     if (!line) continue
                     let firstTab = line.indexOf("\t")
+                    
                     if (firstTab !== -1) {
                         let id = line.substring(0, firstTab).trim()
                         let text = line.substring(firstTab + 1).trim()
@@ -43,12 +65,7 @@ Item {
 
                         let finalImgPath = ""
                         
-                        if (isBinary) {
-                            finalImgPath = "file:///tmp/cliphist/" + id + ".png"
-                        } else if (isBase64) {
-                            let b64Data = text.replace(/^data:image\/[^;]+;base64,/, "")
-                            decodeB64Proc.command = ["fish", "-c", "echo '" + b64Data + "' | base64 -d > /tmp/cliphist/raw_" + id + "; and magick /tmp/cliphist/raw_" + id + " PNG:/tmp/cliphist/" + id + ".png; and rm -f /tmp/cliphist/raw_" + id]
-                            decodeB64Proc.running = true
+                        if (isBinary || isBase64) {
                             finalImgPath = "file:///tmp/cliphist/" + id + ".png"
                         } else if (isWebUrl) {
                             finalImgPath = text
@@ -58,7 +75,7 @@ Item {
 
                         let isVisualItem = isBinary || isBase64 || isWebUrl || isLocalFile
 
-                        clipModel.append({
+                        newItems.push({
                             itemId: id,
                             previewText: text,
                             isImage: isVisualItem,
@@ -66,30 +83,81 @@ Item {
                         })
                     }
                 }
+                
+                clipModel.clear()
+                for (let item of newItems) {
+                    clipModel.append(item)
+                }
+
+                // Immediately kick off the background cache builder once the UI is saturated
+                cacheProc.running = false
+                cacheProc.running = true
             }
         }
     }
 
-    Process { id: decodeB64Proc }
-    Process { id: copyProc }
+    // Process 2: Heavy asynchronous image generation
+    Process {
+        id: cacheProc
+        running: false
+        command: [
+            "fish", "-c", 
+            "mkdir -p /tmp/cliphist; " +
+            "cliphist list | while read -l line; " +
+                "set -l id (string split -m 1 \\t -- \"$line\")[1]; " +
+                "set -l img_path \"/tmp/cliphist/$id.png\"; " +
+                "if not test -f \"$img_path\"; " +
+                    "if string match -q -r 'binary data|image|^\\[\\[' -- \"$line\"; " +
+                        "set -l tmp \"/tmp/cliphist/raw_$id\"; " +
+                        "printf '%s\\n' \"$line\" | cliphist decode > \"$tmp\" 2>/dev/null; " +
+                        // Echo the ID exclusively if a new image was successfully written to disk
+                        "if test -s \"$tmp\"; magick \"$tmp\" PNG:\"$img_path\" 2>/dev/null; and echo \"$id\"; end; " +
+                        "rm -f \"$tmp\"; " +
+                    "else if string match -q -r 'data:image' -- \"$line\"; " +
+                        "set -l b64 (echo \"$line\" | string replace -r '.*data:image/[^;]+;base64,' ''); " +
+                        "set -l tmp \"/tmp/cliphist/raw_$id\"; " +
+                        "echo \"$b64\" | base64 -d > \"$tmp\" 2>/dev/null; " +
+                        "if test -s \"$tmp\"; magick \"$tmp\" PNG:\"$img_path\" 2>/dev/null; and echo \"$id\"; end; " +
+                        "rm -f \"$tmp\"; " +
+                    "end; " +
+                "end; " +
+            "end"
+        ]
+
+        stdout: StdioCollector {
+            id: cacheOut
+            onStreamFinished: {
+                let out = cacheOut.text
+                if (!out) return
+                
+                let generatedIds = out.trim().split("\n")
+                if (generatedIds.length === 0 || !generatedIds[0]) return
+
+                // Lazily force a UI reload only for newly cached items
+                for (let i = 0; i < clipModel.count; i++) {
+                    let item = clipModel.get(i)
+                    if (generatedIds.includes(item.itemId)) {
+                        let oldPath = item.imagePath
+                        clipModel.setProperty(i, "imagePath", oldPath.split("?")[0] + "?t=" + Date.now())
+                    }
+                }
+            }
+        }
+    }
+
+    Process { 
+        id: copyProc
+        onExited: {
+            refreshClipboard()
+        }
+    }
 
     Process {
         id: wipeProc
         running: false
         command: ["fish", "-c", "cliphist wipe; and rm -rf /tmp/cliphist/*"]
         onExited: {
-            fetchProc.running = false
-            fetchProc.running = true
-        }
-    }
-
-    Connections {
-        target: Config
-        function onShowClipboardChanged() {
-            if (Config.showClipboard) {
-                fetchProc.running = false
-                fetchProc.running = true
-            }
+            refreshClipboard()
         }
     }
 
@@ -223,9 +291,9 @@ Item {
 
                             TapHandler {
                                 onTapped: {
-                                    copyProc.command = ["fish", "-c", "printf '%s\\t' '" + itemId + "' | cliphist decode | wl-copy"]
+                                    copyProc.command = ["fish", "-c", "cliphist list | awk 'BEGIN{FS=\"\\t\"} $1 == \"" + itemId + "\" {print $0}' | cliphist decode | wl-copy"]
+                                    copyProc.running = false
                                     copyProc.running = true
-                                    Config.showClipboard = false
                                 }
                             }
                             HoverHandler { id: itemHover; cursorShape: Qt.PointingHandCursor }
@@ -235,7 +303,7 @@ Item {
                             id: emptyStateContainer
                             anchors.centerIn: parent
                             spacing: 6
-                            visible: clipModel.count === 0
+                            visible: clipModel.count === 0 && !fetchProc.running
 
                             Text {
                                 Layout.alignment: Qt.AlignHCenter
