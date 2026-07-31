@@ -543,7 +543,7 @@ PanelWindow {
                                     spacing: 14
 
                                     Text {
-                                        text: "TEST SHELL"
+                                        text: "SYNOPTIK SHELL"
                                         color: Config.textMain
                                         font.family: Config.sysFont
                                         font.pixelSize: Config.size(Config.fontTitle)
@@ -596,7 +596,7 @@ PanelWindow {
                                                 }
 
                                                 Text {
-                                                    text: "github.com/natepayn3/Test"
+                                                    text: "github.com/natepayn3/Synoptik"
                                                     color: Config.textMuted
                                                     font.family: Config.sysFont
                                                     font.pixelSize: Config.size(Config.fontCaption)
@@ -615,7 +615,7 @@ PanelWindow {
                                         MouseArea {
                                             anchors.fill: parent
                                             cursorShape: Qt.PointingHandCursor
-                                            onClicked: Quickshell.execDetached(["xdg-open", "https://github.com/natepayn3/Test"])
+                                            onClicked: Quickshell.execDetached(["xdg-open", "https://github.com/natepayn3/Synoptik"])
                                         }
                                         HoverHandler { id: gitHubHover }
                                     }
