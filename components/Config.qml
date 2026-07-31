@@ -30,6 +30,15 @@ QtObject {
     property bool showClipboard: false
     property bool showScreenRecorder: false
 
+    property bool showDesktopClock: true
+    property string clockStyle: "digital" // "digital" | "analog"
+    property real clockScale: 1.0         // Scale factor adjusted by wheel scroll
+    property bool clockShowSeconds: false
+    property bool clockUse12Hour: true
+    property bool clockShowAmPm: true
+    property bool clockShowBorder: true
+    property bool clockShowBackground: true
+
     // --- WALLPAPER CONFIG STATE & PERSISTENCE ---
     property var selectedWallpaperMonitors: []
     property string wallpaperTransitionType: "wipe"

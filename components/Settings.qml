@@ -370,7 +370,8 @@ PanelWindow {
                                         Repeater {
                                             model: [
                                                 { id: 8, name: "Mascot", icon: "smart_toy" },
-                                                { id: 9, name: "Keyboard", icon: "keyboard" }
+                                                { id: 9, name: "Clock", icon: "schedule" },
+                                                { id: 10, name: "Keyboard", icon: "keyboard" }
                                             ]
 
                                             delegate: Rectangle {
@@ -403,7 +404,7 @@ PanelWindow {
                                         id: aboutBtn
                                         Layout.fillWidth: true; implicitHeight: 34; radius: Config.cornerRadius / 2
                                         Layout.topMargin: 6
-                                        readonly property bool isSelected: settingsWindow.activeSection === 10
+                                        readonly property bool isSelected: settingsWindow.activeSection === 11
                                         color: aboutBtn.isSelected ? Qt.rgba(255, 255, 255, 0.12) : (aboutNavHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent")
 
                                         RowLayout {
@@ -429,7 +430,7 @@ PanelWindow {
                                             anchors.fill: parent
                                             cursorShape: Qt.PointingHandCursor
                                             onClicked: {
-                                                settingsWindow.activeSection = 10
+                                                settingsWindow.activeSection = 11
                                                 mascotSettingsView.showBrowser = false
                                             }
                                         }
@@ -530,16 +531,21 @@ PanelWindow {
                                     visible: settingsWindow.activeSection === 8
                                 }
 
+                                ClockSettings {
+                                    anchors.fill: parent
+                                    visible: settingsWindow.activeSection === 9
+                                }
+
                                 // MODULAR ON-SCREEN KEYBOARD SETTINGS SECTION
                                 OskSettings {
                                     anchors.fill: parent
-                                    visible: settingsWindow.activeSection === 9
+                                    visible: settingsWindow.activeSection === 10
                                 }
 
                                 // MATCHED ABOUT PAGE SECTION
                                 ColumnLayout {
                                     anchors.fill: parent
-                                    visible: settingsWindow.activeSection === 10
+                                    visible: settingsWindow.activeSection === 11
                                     spacing: 14
 
                                     Text {
