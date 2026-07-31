@@ -507,7 +507,7 @@ PanelWindow {
                                             Text {
                                                 anchors.fill: parent
                                                 verticalAlignment: Text.AlignVCenter
-                                                text: "e.g., 84040, London, or leave blank..."
+                                                text: "e.g., 90210, London, or leave blank..."
                                                 color: Config.textMuted
                                                 font.family: Config.sysFont
                                                 font.pixelSize: Config.size(Config.fontBody)
