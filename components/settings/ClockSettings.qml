@@ -108,6 +108,66 @@ Item {
                 }
             }
 
+            // TARGET DISPLAYS SECTION
+            ColumnLayout {
+                spacing: 8
+                visible: Config.showDesktopClock
+                Layout.fillWidth: true
+
+                Text {
+                    text: "SHOW CLOCK ON THESE DISPLAYS:"
+                    color: Config.textMuted
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontMicro)
+                    font.bold: true
+                }
+
+                RowLayout {
+                    spacing: 8
+
+                    Repeater {
+                        model: Quickshell.screens
+
+                        delegate: Rectangle {
+                            required property var modelData
+                            implicitWidth: 90
+                            implicitHeight: 32
+                            radius: Config.cornerRadius / 2
+
+                            readonly property bool isSelected: Config.enabledClockScreens.length === 0 || Config.enabledClockScreens.includes(modelData.name)
+                            color: isSelected ? Qt.rgba(255, 255, 255, 0.12) : (dispHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : Qt.rgba(255, 255, 255, 0.03))
+                            border.width: isSelected ? 1 : 0
+                            border.color: Config.accent
+
+                            RowLayout {
+                                anchors.centerIn: parent
+                                spacing: 6
+
+                                Text {
+                                    text: modelData.name
+                                    color: isSelected ? Config.accent : Config.textMain
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontCaption)
+                                    font.bold: isSelected
+                                    elide: Text.ElideRight
+                                }
+
+                                Text {
+                                    text: isSelected ? "✓" : "+"
+                                    color: isSelected ? Config.accent : Config.textMuted
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontMicro)
+                                    font.bold: isSelected
+                                }
+                            }
+
+                            TapHandler { onTapped: Config.toggleClockScreen(modelData.name) }
+                            HoverHandler { id: dispHover; cursorShape: Qt.PointingHandCursor }
+                        }
+                    }
+                }
+            }
+
             // DISPLAY OPTIONS
             ColumnLayout {
                 spacing: 8
