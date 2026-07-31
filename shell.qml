@@ -455,5 +455,6 @@ ShellRoot {
     VolumeOSD { id: volumeOsd }
     NotificationOSD { id: notificationOsd }
     Mascot { id: mascotWidget }
+    ClockWidget { id: desktopClockWidget }
     OSK { id: oskWidget }
 }
