@@ -390,38 +390,48 @@ ShellRoot {
         }
     }
 
-    // --- SINGLE TOP-LEVEL UNIFIED SURFACE ---
-    UnifiedSurface {
-        id: mainSurface
+    // --- MULTI-MONITOR UNIFIED SURFACE GENERATOR ---
+    Variants {
+        model: Quickshell.screens
 
-        Loader {
-            id: drawerLoader
-            anchors.fill: parent
-            active: mainSurface.activeView !== "none"
-            focus: true
+        delegate: UnifiedSurface {
+            id: mainSurface
+            
+            // Declare modelData on the root object of the delegate
+            required property var modelData
 
-            onLoaded: {
-                if (item && typeof item.forceActiveFocus === "function") {
-                    item.forceActiveFocus()
+            screen: modelData
+            visible: Config.isBarEnabledForScreen(modelData.name)
+
+            Loader {
+                id: drawerLoader
+                anchors.fill: parent
+                active: mainSurface.activeView !== "none"
+                focus: true
+
+                onLoaded: {
+                    if (item && typeof item.forceActiveFocus === "function") {
+                        item.forceActiveFocus()
+                    }
                 }
-            }
 
-            sourceComponent: {
-                switch (mainSurface.activeView) {
-                    case "workspacePreview": return workspacePreviewComp;
-                    case "power": return powerComp;
-                    case "wallpaper": return wallpaperComp;
-                    case "appLauncher": return appLauncherComp;
-                    case "calendar": return calendarComp;
-                    case "notifications": return notificationsComp;
-                    case "audio": return audioComp;
-                    case "network": return networkComp;
-                    case "systemMonitor": return systemMonitorComp;
-                    case "battery": return batteryComp;
-                    case "clipboard": return clipboardComp;
-                    case "screenRecorder": return screenRecorderComp;
-                    case "controlCenter": return controlCenterComp;
-                    default: return null;
+                sourceComponent: {
+                    switch (mainSurface.activeView) {
+                        case "workspacePreview": return workspacePreviewComp;
+                        case "power": return powerComp;
+                        case "wallpaper": return wallpaperComp;
+                        case "appLauncher": return appLauncherComp;
+                        case "calendar": return calendarComp;
+                        case "notifications": return notificationsComp;
+                        case "audio": return audioComp;
+                        case "network": return networkComp;
+                        case "systemMonitor": return systemMonitorComp;
+                        case "battery": return batteryComp;
+                        case "clipboard": return clipboardComp;
+                        case "screenRecorder": return screenRecorderComp;
+                        case "controlCenter": return controlCenterComp;
+                        default: return null;
+                    }
                 }
             }
         }
