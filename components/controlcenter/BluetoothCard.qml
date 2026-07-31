@@ -161,8 +161,10 @@ Item {
                     MouseArea {
                         anchors.fill: parent
                         anchors.rightMargin: 32
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: cardRoot.execTogglePower(!cardRoot.isPowered)
+                        cursorShape: cardRoot.hasHardware ? Qt.PointingHandCursor : Qt.ArrowCursor
+                        onClicked: {
+                            if (cardRoot.hasHardware) cardRoot.execTogglePower(!cardRoot.isPowered)
+                        }
                     }
                 }
             }
