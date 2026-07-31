@@ -151,6 +151,8 @@ PanelWindow {
     WlrLayershell.exclusiveZone: barH + (Config.barMargin || 4)
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
 
+    WlrLayershell.namespace: "synoptik-shell"
+
     // ESCAPE KEY DISMISSAL
     Shortcut {
         sequences: ["Escape"]

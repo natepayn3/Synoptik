@@ -407,7 +407,7 @@ QtObject {
             '})\n\n' +
             'hl.layer_rule({\n' +
             '    name = "synoptik-shell",\n' +
-            '    match = { namespace = "^synoptik-shell-.*" },\n' +
+            '    match = { namespace = "^synoptik-shell.*" },\n' +
             '    blur = ' + (enableBlur ? "true" : "false") + ',\n' +
             '    xray = ' + (enableXray ? "true" : "false") + ',\n' +
             '    ignore_alpha = 0.6\n' +
