@@ -564,7 +564,7 @@ PanelWindow {
                                         implicitHeight: 48
                                         radius: Config.cornerRadius / 2
                                         color: gitHubHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2)
-                                        border.width: 1
+                                        border.width: gitHubHover.hovered ? 2 : 0
                                         border.color: gitHubHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
 
                                         Behavior on border.color { ColorAnimation { duration: 150 } }
