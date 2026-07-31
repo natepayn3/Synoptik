@@ -455,6 +455,15 @@ ShellRoot {
     VolumeOSD { id: volumeOsd }
     NotificationOSD { id: notificationOsd }
     Mascot { id: mascotWidget }
-    ClockWidget { id: desktopClockWidget }
     OSK { id: oskWidget }
+
+    Variants {
+        model: Quickshell.screens
+
+        delegate: ClockWidget {
+            required property var modelData
+            screen: modelData
+            visible: Config.showDesktopClock && Config.isClockEnabledForScreen(modelData.name)
+        }
+    }
 }
