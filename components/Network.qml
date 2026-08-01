@@ -266,7 +266,7 @@ Item {
                                     else ctx.lineTo(coordX, coordY)
                                 }
                                 ctx.strokeStyle = Config.accent
-                                ctx.lineWidth = 1.5
+                                ctx.lineWidth = 2
                                 ctx.lineCap = "round"
                                 ctx.lineJoin = "round"
                                 ctx.stroke()
