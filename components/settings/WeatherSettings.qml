@@ -5,9 +5,9 @@ import Quickshell.Io
 QtObject {
     id: weatherRoot
 
-    // Public properties
+    // Keep zipcode as a simple property so Config.qml can assign it without crashing
     property string zipcode: ""
-    
+
     // Output properties
     property string temp: "--"
     property string feelsLike: "--"
@@ -15,27 +15,40 @@ QtObject {
     property string glyph: "cloud"
     property double lastFetchTime: 0
 
-    readonly property string _weatherUrl: {
-        const baseUrl = "https://wttr.in/";
-        const query = "?format=j1";
-        let target = zipcode.trim() !== "" ? zipcode.trim() : (typeof Config !== "undefined" && Config.locationQuery ? Config.locationQuery.trim() : "");
-        return target !== "" ? (baseUrl + "~" + encodeURIComponent(target) + query) : (baseUrl + query);
+    function getTargetUrl() {
+        // Read directly from zipcode OR Config.locationQuery
+        let loc = "";
+        if (zipcode && zipcode.toString().trim() !== "") {
+            loc = zipcode.toString().trim();
+        } else if (typeof Config !== "undefined" && Config.locationQuery) {
+            loc = Config.locationQuery.toString().trim();
+        }
+
+        if (loc !== "") {
+            let formattedLoc = loc.replace(/\s+/g, "+");
+            return "https://wttr.in/" + formattedLoc + "?format=j1";
+        }
+        return "https://wttr.in/?format=j1";
     }
 
     function fetchWeather(force) {
-        let now = Date.now();
-        if (force || lastFetchTime === 0 || (now - lastFetchTime > 900000)) {
-            if (!weatherFetcher.running) {
-                weatherFetcher.running = true;
-            }
+        let urlStr = getTargetUrl();
+        
+        weatherFetcher.running = false;
+        weatherFetcher.command = ["curl", "-s", "-L", "-H", "User-Agent: curl/7.68.0", urlStr];
+        weatherFetcher.running = true;
+    }
+
+    // React cleanly when zipcode is modified
+    onZipcodeChanged: {
+        if (typeof Config !== "undefined" && Config.isLoaded) {
+            lastFetchTime = 0;
+            fetchWeather(true);
         }
     }
 
-    onZipcodeChanged: fetchWeather(true)
-
     property Process fetcherProcess: Process {
         id: weatherFetcher
-        command: ["curl", "-s", "-H", "User-Agent: curl/7.68.0", weatherRoot._weatherUrl]
         running: false
         
         stdout: StdioCollector {
@@ -74,7 +87,7 @@ QtObject {
                         weatherRoot.lastFetchTime = Date.now();
                     }
                 } catch(e) {
-                    // Silently fail to avoid journal log spamming
+                    console.error("Failed to parse weather JSON:", e);
                 }
                 weatherFetcher.running = false;
             }

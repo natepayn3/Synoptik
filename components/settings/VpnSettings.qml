@@ -257,7 +257,7 @@ ColumnLayout {
                                 else ctx.lineTo(coordX, coordY)
                             }
                             ctx.strokeStyle = Config.accent
-                            ctx.lineWidth = 1.5
+                            ctx.lineWidth = 2
                             ctx.lineCap = "round"
                             ctx.lineJoin = "round"
                             ctx.stroke()
@@ -304,7 +304,7 @@ ColumnLayout {
                     radius: Config.cornerRadius / 2.5
                     color: isActive ? Qt.rgba(255, 255, 255, 0.12) : (pHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.25))
                     border.color: isActive ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                    border.width: 1
+                    border.width: 2
 
                     Behavior on color { ColorAnimation { duration: 150 } }
 
