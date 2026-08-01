@@ -32,16 +32,16 @@ QtObject {
 
     // --- DESKTOP CLOCK STATE & PERSISTENCE ---
     property bool showDesktopClock: true
-    property string clockStyle: "digital" // "digital" | "analog"
-    property real clockScale: 1.0         // Scale factor adjusted by wheel scroll
+    property string clockStyle: "digital"
+    property real clockScale: 1.0
     property bool clockShowSeconds: false
     property bool clockUse12Hour: true
     property bool clockShowAmPm: true
     property bool clockShowBorder: true
     property bool clockShowBackground: true
 
-    property var clockPositions: ({}) // Format: { "DP-1": { x: 100, y: 100 }, "HDMI-A-1": { x: 100, y: 100 } }
-    property var clockScales: ({})    // Format: { "DP-1": 1.0, "HDMI-A-1": 1.0 }
+    property var clockPositions: ({})
+    property var clockScales: ({})
     property var enabledClockScreens: []
 
     function getClockPosition(screenName, defaultX, defaultY) {
@@ -110,16 +110,13 @@ QtObject {
     // --- GLOBAL WEATHER SERVICE ---
     property WeatherSettings weather: WeatherSettings {
         id: globalWeather
-        zipcode: root.locationQuery || ""
-        
-        onZipcodeChanged: globalWeather.fetchWeather(true)
+        zipcode: root.locationQuery
     }
 
     property Timer weatherTimer: Timer {
         interval: 900000 // 15 minutes
-        running: true
+        running: root.isLoaded
         repeat: true
-        triggeredOnStart: true
         onTriggered: root.weather.fetchWeather(true)
     }
 
@@ -371,7 +368,15 @@ QtObject {
     onBarPositionChanged: { if (isLoaded) saveSettings() }
     onSysFontChanged: { if (isLoaded && sysFont !== "") saveSettings() }
     onFontScaleIndexChanged: { if (isLoaded) saveSettings() }
-    onLocationQueryChanged: { if (isLoaded) saveSettings() }
+    onLocationQueryChanged: {
+        if (root.weather) {
+            root.weather.zipcode = root.locationQuery;
+            if (root.isLoaded) {
+                root.weather.fetchWeather(true);
+                root.saveSettings();
+            }
+        }
+    }
 
     onShowBordersChanged: {
         if (!isLoaded) return
@@ -524,124 +529,121 @@ QtObject {
     readonly property string settingsPath: Quickshell.shellDir.toString().replace(/^file:\/\//, "") + "/settings.json"
     property Process saveProcess: Process { id: saver }
 
+    property Timer saveTimer: Timer {
+        interval: 400
+        repeat: false
+        onTriggered: {
+            if (saver.running) {
+                saveTimer.restart()
+                return
+            }
+
+            var customPalettes = themes.filter(function(t) { return t.isCustom === true })
+
+            var data = {
+                "selectedWallpaperMonitors": root.selectedWallpaperMonitors,
+                "wallpaperTransitionType": root.wallpaperTransitionType,
+                "showOsk": root.showOsk,
+                "oskLayout": root.oskLayout,
+                "showMascot": root.showMascot,
+                "mascotPath": root.mascotPath,
+                "mascotPhrases": root.mascotPhrases,
+                "fetchOnlineQuotes": root.fetchOnlineQuotes,
+                "quoteSource": root.quoteSource,
+                "barPosition": root.barPosition,
+                "showScreenFrame": root.showScreenFrame,
+                "sysFont": root.sysFont,
+                "fontScaleIndex": root.fontScaleIndex,
+                "currentThemeIndex": root.currentThemeIndex,
+                "locationQuery": root.locationQuery,
+                "enabledBarScreens": root.enabledBarScreens,
+                "useCustomColors": root.useCustomColors,
+                "customBgBase": root.customBgBase.toString(),
+                "customBgPanel": root.customBgPanel.toString(),
+                "customAccent": root.customAccent.toString(),
+                "showBorders": root.showBorders,
+                "animateGradient": root.animateGradient,
+                "shellOpacity": root.shellOpacity,
+                "enableBlur": root.enableBlur,
+                "enableXray": root.enableXray,
+                "customThemes": customPalettes,
+                "windowStyle": root.windowStyle,
+
+                // Clock Settings Persistence
+                "showDesktopClock": root.showDesktopClock,
+                "clockStyle": root.clockStyle,
+                "clockScale": root.clockScale,
+                "clockShowSeconds": root.clockShowSeconds,
+                "clockUse12Hour": root.clockUse12Hour,
+                "clockShowAmPm": root.clockShowAmPm,
+                "clockShowBorder": root.clockShowBorder,
+                "clockShowBackground": root.clockShowBackground,
+                "clockPositions": root.clockPositions,
+                "clockScales": root.clockScales,
+                "enabledClockScreens": root.enabledClockScreens
+            }
+
+            var jsonStr = JSON.stringify(data)
+            saver.command = ["fish", "-c", "printf '%s' '" + jsonStr.replace(/'/g, "'\\''") + "' > " + settingsPath]
+            saver.running = true
+        }
+    }
+
     function saveSettings() {
         if (!isLoaded) return
-
-        var customPalettes = themes.filter(function(t) { return t.isCustom === true })
-
-        var data = {
-            "selectedWallpaperMonitors": root.selectedWallpaperMonitors,
-            "wallpaperTransitionType": root.wallpaperTransitionType,
-            "showOsk": root.showOsk,
-            "oskLayout": root.oskLayout,
-            "showMascot": root.showMascot,
-            "mascotPath": root.mascotPath,
-            "mascotPhrases": root.mascotPhrases,
-            "fetchOnlineQuotes": root.fetchOnlineQuotes,
-            "quoteSource": root.quoteSource,
-            "barPosition": root.barPosition,
-            "showScreenFrame": root.showScreenFrame,
-            "sysFont": root.sysFont,
-            "fontScaleIndex": root.fontScaleIndex,
-            "currentThemeIndex": root.currentThemeIndex,
-            "locationQuery": root.locationQuery,
-            "enabledBarScreens": root.enabledBarScreens,
-            "useCustomColors": root.useCustomColors,
-            "customBgBase": root.customBgBase.toString(),
-            "customBgPanel": root.customBgPanel.toString(),
-            "customAccent": root.customAccent.toString(),
-            "showBorders": root.showBorders,
-            "animateGradient": root.animateGradient,
-            "shellOpacity": root.shellOpacity,
-            "enableBlur": root.enableBlur,
-            "enableXray": root.enableXray,
-            "customThemes": customPalettes,
-            "windowStyle": root.windowStyle,
-
-            // Clock Settings Persistence
-            "showDesktopClock": root.showDesktopClock,
-            "clockStyle": root.clockStyle,
-            "clockScale": root.clockScale,
-            "clockShowSeconds": root.clockShowSeconds,
-            "clockUse12Hour": root.clockUse12Hour,
-            "clockShowAmPm": root.clockShowAmPm,
-            "clockShowBorder": root.clockShowBorder,
-            "clockShowBackground": root.clockShowBackground,
-            "clockPositions": root.clockPositions,
-            "clockScales": root.clockScales,
-            "enabledClockScreens": root.enabledClockScreens
-        }
-
-        var jsonStr = JSON.stringify(data)
-        saver.command = ["fish", "-c", "printf '%s' '" + jsonStr.replace(/'/g, "'\\''") + "' > " + settingsPath]
-        saver.running = true
+        saveTimer.restart()
     }
 
     property Process loaderProcess: Process {
         id: loader
         command: ["fish", "-c", "cat " + settingsPath + " 2>/dev/null"]
-        stdout: SplitParser {
-            onRead: data => {
-                try {
-                    var parsed = JSON.parse(data)
-                    if (parsed.selectedWallpaperMonitors !== undefined && Array.isArray(parsed.selectedWallpaperMonitors)) root.selectedWallpaperMonitors = parsed.selectedWallpaperMonitors
-                    if (parsed.wallpaperTransitionType !== undefined) root.wallpaperTransitionType = parsed.wallpaperTransitionType
-                    if (parsed.showOsk !== undefined) root.showOsk = parsed.showOsk
-                    if (parsed.oskLayout !== undefined) root.oskLayout = parsed.oskLayout
-                    if (parsed.showMascot !== undefined) root.showMascot = parsed.showMascot
-                    if (parsed.mascotPath !== undefined) root.mascotPath = parsed.mascotPath
-                    if (parsed.mascotPhrases !== undefined && Array.isArray(parsed.mascotPhrases)) root.mascotPhrases = parsed.mascotPhrases
-                    if (parsed.fetchOnlineQuotes !== undefined) root.fetchOnlineQuotes = parsed.fetchOnlineQuotes
-                    if (parsed.quoteSource !== undefined) root.quoteSource = parsed.quoteSource
-                    if (parsed.barPosition !== undefined) root.barPosition = parsed.barPosition
-                    if (parsed.showScreenFrame !== undefined) root.showScreenFrame = parsed.showScreenFrame
-                    if (parsed.sysFont !== undefined) root.sysFont = parsed.sysFont
-                    if (parsed.fontScaleIndex !== undefined) root.fontScaleIndex = parsed.fontScaleIndex
-                    if (parsed.locationQuery !== undefined) root.locationQuery = parsed.locationQuery
-                    if (parsed.enabledBarScreens !== undefined && Array.isArray(parsed.enabledBarScreens)) root.enabledBarScreens = parsed.enabledBarScreens
-                    if (parsed.useCustomColors !== undefined) root.useCustomColors = parsed.useCustomColors
-                    if (parsed.customBgBase !== undefined) root.customBgBase = parsed.customBgBase
-                    if (parsed.customBgPanel !== undefined) root.customBgPanel = parsed.customBgPanel
-                    if (parsed.customAccent !== undefined) root.customAccent = parsed.customAccent
-                    if (parsed.showBorders !== undefined) root.showBorders = parsed.showBorders
-                    if (parsed.animateGradient !== undefined) root.animateGradient = parsed.animateGradient
-                    if (parsed.shellOpacity !== undefined) root.shellOpacity = parsed.shellOpacity
-                    if (parsed.enableBlur !== undefined) root.enableBlur = parsed.enableBlur
-                    if (parsed.enableXray !== undefined) root.enableXray = parsed.enableXray
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let text = this.text ? this.text.trim() : ""
+                if (text !== "") {
+                    try {
+                        var parsed = JSON.parse(text)
 
-                    // Clock JSON Deserialization
-                    if (parsed.showDesktopClock !== undefined) root.showDesktopClock = parsed.showDesktopClock
-                    if (parsed.clockStyle !== undefined) root.clockStyle = parsed.clockStyle
-                    if (parsed.clockScale !== undefined) root.clockScale = parsed.clockScale
-                    if (parsed.clockShowSeconds !== undefined) root.clockShowSeconds = parsed.clockShowSeconds
-                    if (parsed.clockUse12Hour !== undefined) root.clockUse12Hour = parsed.clockUse12Hour
-                    if (parsed.clockShowAmPm !== undefined) root.clockShowAmPm = parsed.clockShowAmPm
-                    if (parsed.clockShowBorder !== undefined) root.clockShowBorder = parsed.clockShowBorder
-                    if (parsed.clockShowBackground !== undefined) root.clockShowBackground = parsed.clockShowBackground
-                    if (parsed.clockPositions !== undefined) root.clockPositions = parsed.clockPositions
-                    if (parsed.clockScales !== undefined) root.clockScales = parsed.clockScales
-                    if (parsed.enabledClockScreens !== undefined && Array.isArray(parsed.enabledClockScreens)) root.enabledClockScreens = parsed.enabledClockScreens
+                        let props = [
+                            "selectedWallpaperMonitors", "wallpaperTransitionType", "showOsk", "oskLayout",
+                            "showMascot", "mascotPath", "mascotPhrases", "fetchOnlineQuotes", "quoteSource",
+                            "barPosition", "showScreenFrame", "sysFont", "fontScaleIndex", "locationQuery",
+                            "enabledBarScreens", "useCustomColors", "customBgBase", "customBgPanel",
+                            "customAccent", "showBorders", "animateGradient", "shellOpacity", "enableBlur",
+                            "enableXray", "showDesktopClock", "clockStyle", "clockScale", "clockShowSeconds",
+                            "clockUse12Hour", "clockShowAmPm", "clockShowBorder", "clockShowBackground",
+                            "clockPositions", "clockScales", "enabledClockScreens"
+                        ]
 
-                    if (parsed.customThemes && Array.isArray(parsed.customThemes)) {
-                        var stockList = stockThemes.slice()
-                        root.themes = stockList.concat(parsed.customThemes)
+                        props.forEach(p => {
+                            if (parsed[p] !== undefined) root[p] = parsed[p]
+                        })
+
+                        if (parsed.customThemes && Array.isArray(parsed.customThemes)) {
+                            var stockList = stockThemes.slice()
+                            root.themes = stockList.concat(parsed.customThemes)
+                        }
+
+                        if (parsed.currentThemeIndex !== undefined) {
+                            root.currentThemeIndex = Math.min(parsed.currentThemeIndex, root.themes.length - 1)
+                        }
+
+                        root.applyTheme(root.currentThemeIndex)
+                    } catch (e) {
+                        console.error("Failed to parse settings JSON:", e)
                     }
+                }
 
-                    if (parsed.currentThemeIndex !== undefined) {
-                        root.currentThemeIndex = Math.min(parsed.currentThemeIndex, root.themes.length - 1)
-                    }
-
-                    root.applyTheme(root.currentThemeIndex)
-                } catch (e) {
-                    console.error("Failed to parse settings JSON:", e)
+                // Set flag first, then sync borders & trigger weather
+                root.isLoaded = true
+                root.syncHyprlandBorders()
+                root.syncScreenFrame()
+                
+                // Trigger initial weather fetch now that locationQuery is guaranteed set
+                if (root.weather) {
+                    root.weather.fetchWeather(true)
                 }
             }
-        }
-        
-        onExited: {
-            root.isLoaded = true
-            root.syncHyprlandBorders()
-            root.syncScreenFrame()
         }
         
         Component.onCompleted: loader.running = true

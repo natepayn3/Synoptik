@@ -183,7 +183,7 @@ Item {
                             spacing: 6
 
                             Text {
-                                text: Config.weather ? Config.weather.glyph : ""
+                                text: Config.weather.glyph
                                 font.family: "Material Symbols Outlined"
                                 font.pixelSize: 24
                                 color: Config.accent
@@ -191,7 +191,7 @@ Item {
                             }
 
                             Text {
-                                text: Config.weather ? Config.weather.temp : ""
+                                text: Config.weather.temp
                                 color: Config.textMain
                                 font.family: Config.sysFont
                                 font.pixelSize: Config.size(Config.fontSubhead)
@@ -201,7 +201,7 @@ Item {
                         }
 
                         Text {
-                            text: Config.weather ? (Config.weather.desc + "\nFeels like " + Config.weather.feelsLike) : ""
+                            text: Config.weather.desc + "\nFeels like " + Config.weather.feelsLike
                             color: Config.textMuted
                             font.family: Config.sysFont
                             font.pixelSize: Config.size(Config.fontCaption)

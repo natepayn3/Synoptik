@@ -79,8 +79,8 @@ PanelWindow {
         }
     }
 
-    property real targetWidth: isOpen ? rawChildWidth : (isHorizontal ? (lastOpenWidth * 0.50) : (lastOpenWidth * 1.10))
-    property real targetHeight: isOpen ? rawChildHeight : (isHorizontal ? (lastOpenHeight * 1.10) : (lastOpenHeight * 0.50))
+    property real targetWidth: isOpen ? rawChildWidth : (isHorizontal ? (lastOpenWidth * 0.25) : (lastOpenWidth * 1.10))
+    property real targetHeight: isOpen ? rawChildHeight : (isHorizontal ? (lastOpenHeight * 1.10) : (lastOpenHeight * 0.25))
 
     // Dynamic Morphing Behaviors
     Behavior on targetWidth {

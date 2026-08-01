@@ -498,8 +498,18 @@ PanelWindow {
                                             color: Config.textMain
                                             font.family: Config.sysFont
                                             font.pixelSize: Config.size(Config.fontBody)
-                                            text: Config.locationQuery || ""
+                                            text: Config.locationQuery
                                             selectByMouse: true
+
+                                            // Keep input field strictly synced when Config loads settings from disk
+                                            Connections {
+                                                target: Config
+                                                function onLocationQueryChanged() {
+                                                    if (zipInput.text !== Config.locationQuery) {
+                                                        zipInput.text = Config.locationQuery
+                                                    }
+                                                }
+                                            }
 
                                             HoverHandler {
                                                 cursorShape: Qt.IBeamCursor
@@ -516,7 +526,9 @@ PanelWindow {
                                             }
 
                                             onEditingFinished: {
-                                                Config.locationQuery = zipInput.text.trim()
+                                                if (Config.isLoaded) {
+                                                    Config.locationQuery = zipInput.text.trim()
+                                                }
                                             }
                                         }
                                     }
