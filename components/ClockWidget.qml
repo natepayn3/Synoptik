@@ -31,7 +31,6 @@ PanelWindow {
         width: clockLoader.implicitWidth + (basePadding * 2)
         height: clockLoader.implicitHeight + (basePadding * 2)
 
-        // Per-screen scale factor
         property real currentScale: clockWindow.screen ? Config.getClockScale(clockWindow.screen.name) : 1.0
 
         property real dragX: 100
@@ -41,7 +40,6 @@ PanelWindow {
         x: dragX
         y: dragY
 
-        // RESTORE SAVED POSITION ONCE SCREEN & CONFIG ARE READY
         function restorePosition() {
             if (!clockWindow.screen) return
 
@@ -50,7 +48,6 @@ PanelWindow {
 
             let savedPos = Config.getClockPosition(clockWindow.screen.name, defaultX, defaultY)
             
-            // Only assign if valid numbers exist in settings
             if (savedPos && typeof savedPos.x === "number" && typeof savedPos.y === "number") {
                 dragX = savedPos.x
                 dragY = savedPos.y
@@ -58,7 +55,6 @@ PanelWindow {
             }
         }
 
-        // Trigger position restore when config finishes loading from disk
         Connections {
             target: Config
             function onIsLoadedChanged() {
@@ -70,7 +66,6 @@ PanelWindow {
             if (Config.isLoaded) restorePosition()
         }
 
-        // SAVE POSITION ON DRAG RELEASE OR POSITION CHANGE
         onXChanged: {
             if (initialized && dragArea.drag.active && clockWindow.screen) {
                 Config.saveClockPosition(clockWindow.screen.name, dragX, dragY)
@@ -97,7 +92,177 @@ PanelWindow {
         Loader {
             id: clockLoader
             anchors.centerIn: parent
-            sourceComponent: Config.clockStyle === "analog" ? analogComp : digitalComp
+            sourceComponent: Config.clockStyle === "modern" ? modernComp : (Config.clockStyle === "analog" ? analogComp : digitalComp)
+        }
+
+        // --- AUTHENTIC 5x7 DOT MATRIX CLOCK FACE ---
+        Component {
+            id: modernComp
+
+            ColumnLayout {
+                id: modernLayout
+                spacing: 12 * clockContainer.currentScale
+
+                property var currentDate: new Date()
+
+                Timer {
+                    interval: Config.clockShowSeconds ? 1000 : 5000
+                    running: true
+                    repeat: true
+                    onTriggered: modernLayout.currentDate = new Date()
+                }
+
+                // 5x7 Font Bitmaps (Column-wise bitmasks)
+                readonly property var fontMap: ({
+                    "0": [0x3E, 0x51, 0x49, 0x45, 0x3E],
+                    "1": [0x00, 0x42, 0x7F, 0x40, 0x00],
+                    "2": [0x42, 0x61, 0x51, 0x49, 0x46],
+                    "3": [0x21, 0x41, 0x45, 0x4B, 0x31],
+                    "4": [0x18, 0x14, 0x12, 0x7F, 0x10],
+                    "5": [0x27, 0x45, 0x45, 0x45, 0x39],
+                    "6": [0x3C, 0x4A, 0x49, 0x49, 0x30],
+                    "7": [0x01, 0x71, 0x09, 0x05, 0x03],
+                    "8": [0x36, 0x49, 0x49, 0x49, 0x36],
+                    "9": [0x06, 0x49, 0x49, 0x29, 0x1E],
+                    " ": [0x00, 0x00, 0x00, 0x00, 0x00]
+                })
+
+                readonly property string formattedTime: {
+                    let h = currentDate.getHours()
+                    if (Config.clockUse12Hour) h = h % 12 || 12
+                    let m = currentDate.getMinutes()
+                    let s = currentDate.getSeconds()
+                    let hStr = h < 10 && !Config.clockUse12Hour ? "0" + h : (h < 10 ? " " + h : h.toString())
+                    let mStr = m < 10 ? "0" + m : m.toString()
+                    let sStr = s < 10 ? "0" + s : s.toString()
+                    return hStr + mStr + sStr
+                }
+
+                // Header Date String
+                RowLayout {
+                    spacing: 8 * clockContainer.currentScale
+                    Layout.alignment: Qt.AlignHCenter
+
+                    Text {
+                        text: "schedule"
+                        color: Config.accent
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: Config.size(Config.fontCaption) * 1.2 * clockContainer.currentScale
+                        font.bold: true
+                    }
+
+                    Text {
+                        text: Qt.formatDate(modernLayout.currentDate, "dddd, MMMM d").toUpperCase()
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro) * 1.1 * clockContainer.currentScale
+                        font.bold: true
+                        font.letterSpacing: 1.5
+                    }
+                }
+
+                // Dot Matrix Main Time Layout
+                RowLayout {
+                    spacing: 8 * clockContainer.currentScale
+                    Layout.alignment: Qt.AlignHCenter
+
+                    // Hours Digits
+                    Repeater {
+                        model: 2
+                        delegate: DotMatrixDigit {
+                            required property int index
+                            readonly property string charVal: modernLayout.formattedTime[index] || " "
+                            digitData: modernLayout.fontMap[charVal] || modernLayout.fontMap[" "]
+                            scaleFactor: clockContainer.currentScale
+                        }
+                    }
+
+                    // Pulsing Colon (Hours/Minutes)
+                    ColumnLayout {
+                        spacing: 8 * clockContainer.currentScale
+                        Layout.alignment: Qt.AlignVCenter
+
+                        Repeater {
+                            model: 2
+                            delegate: Rectangle {
+                                implicitWidth: 6 * clockContainer.currentScale
+                                implicitHeight: 6 * clockContainer.currentScale
+                                radius: width / 2
+                                color: Config.accent
+
+                                SequentialAnimation on opacity {
+                                    running: true
+                                    loops: Animation.Infinite
+                                    NumberAnimation { to: 0.2; duration: 800; easing.type: Easing.InOutQuad }
+                                    NumberAnimation { to: 1.0; duration: 800; easing.type: Easing.InOutQuad }
+                                }
+                            }
+                        }
+                    }
+
+                    // Minutes Digits
+                    Repeater {
+                        model: 2
+                        delegate: DotMatrixDigit {
+                            required property int index
+                            readonly property string charVal: modernLayout.formattedTime[index + 2] || " "
+                            digitData: modernLayout.fontMap[charVal] || modernLayout.fontMap[" "]
+                            scaleFactor: clockContainer.currentScale
+                        }
+                    }
+
+                    // Pulsing Colon (Minutes/Seconds)
+                    ColumnLayout {
+                        visible: Config.clockShowSeconds
+                        spacing: 8 * clockContainer.currentScale
+                        Layout.alignment: Qt.AlignVCenter
+
+                        Repeater {
+                            model: 2
+                            delegate: Rectangle {
+                                implicitWidth: 4 * clockContainer.currentScale
+                                implicitHeight: 4 * clockContainer.currentScale
+                                radius: width / 2
+                                color: Config.accent
+
+                                SequentialAnimation on opacity {
+                                    running: true
+                                    loops: Animation.Infinite
+                                    NumberAnimation { to: 0.2; duration: 800; easing.type: Easing.InOutQuad }
+                                    NumberAnimation { to: 1.0; duration: 800; easing.type: Easing.InOutQuad }
+                                }
+                            }
+                        }
+                    }
+
+                    // Seconds Digits
+                    Repeater {
+                        model: Config.clockShowSeconds ? 2 : 0
+                        delegate: DotMatrixDigit {
+                            required property int index
+                            readonly property string charVal: modernLayout.formattedTime[index + 4] || " "
+                            digitData: modernLayout.fontMap[charVal] || modernLayout.fontMap[" "]
+                            scaleFactor: clockContainer.currentScale * 0.75
+                            Layout.alignment: Qt.AlignVCenter
+                        }
+                    }
+
+                    // AM/PM Indicator
+                    ColumnLayout {
+                        visible: Config.clockUse12Hour && Config.clockShowAmPm
+                        Layout.alignment: Qt.AlignBottom
+                        Layout.bottomMargin: 6 * clockContainer.currentScale
+
+                        Text {
+                            text: Qt.formatTime(modernLayout.currentDate, "ap").toUpperCase()
+                            color: Config.accent
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro) * 1.1 * clockContainer.currentScale
+                            font.bold: true
+                        }
+                    }
+                }
+            }
         }
 
         // --- DIGITAL FACE COMPONENT ---
@@ -127,7 +292,6 @@ PanelWindow {
                     return Qt.formatTime(currentDate, fmt)
                 }
 
-                // Main Time Display
                 Text {
                     text: formatTimeString()
                     color: Config.textMain
@@ -137,7 +301,6 @@ PanelWindow {
                     Layout.alignment: Qt.AlignHCenter
                 }
 
-                // Modernized Date Row (Bold Day | Pipe | Light Date)
                 RowLayout {
                     spacing: 6
                     Layout.alignment: Qt.AlignHCenter
@@ -203,7 +366,6 @@ PanelWindow {
 
                         ctx.reset()
 
-                        // Dial Outline
                         ctx.beginPath()
                         ctx.arc(cx, cy, radius, 0, 2 * Math.PI)
                         ctx.strokeStyle = Qt.color(Config.accent)
@@ -214,7 +376,6 @@ PanelWindow {
                         var minutes = now.getMinutes()
                         var seconds = now.getSeconds()
 
-                        // Hour Hand
                         var hourAngle = (hours + minutes / 60) * (Math.PI / 6) - (Math.PI / 2)
                         ctx.beginPath()
                         ctx.moveTo(cx, cy)
@@ -223,7 +384,6 @@ PanelWindow {
                         ctx.lineWidth = Math.max(1.5, 4 * clockContainer.currentScale)
                         ctx.stroke()
 
-                        // Minute Hand
                         var minAngle = (minutes + seconds / 60) * (Math.PI / 30) - (Math.PI / 2)
                         ctx.beginPath()
                         ctx.moveTo(cx, cy)
@@ -232,7 +392,6 @@ PanelWindow {
                         ctx.lineWidth = Math.max(1.0, 2.5 * clockContainer.currentScale)
                         ctx.stroke()
 
-                        // Second Hand
                         if (Config.clockShowSeconds) {
                             var secAngle = seconds * (Math.PI / 30) - (Math.PI / 2)
                             ctx.beginPath()
@@ -243,7 +402,6 @@ PanelWindow {
                             ctx.stroke()
                         }
 
-                        // Center Pin
                         ctx.beginPath()
                         ctx.arc(cx, cy, Math.max(2, 4 * clockContainer.currentScale), 0, 2 * Math.PI)
                         ctx.fillStyle = Qt.color(Config.accent)
@@ -279,6 +437,48 @@ PanelWindow {
 
                 if (clockWindow.screen) {
                     Config.saveClockScale(clockWindow.screen.name, newScale)
+                }
+            }
+        }
+    }
+
+    // INLINE COMPONENT: 5x7 LED MATRIX DIGIT
+    component DotMatrixDigit: Item {
+        id: gridRoot
+        property var digitData: [0, 0, 0, 0, 0]
+        property real scaleFactor: 1.0
+
+        readonly property real dotSize: 6 * scaleFactor
+        readonly property real dotGap: 3 * scaleFactor
+
+        implicitWidth: (5 * dotSize) + (4 * dotGap)
+        implicitHeight: (7 * dotSize) + (6 * dotGap)
+
+        Grid {
+            columns: 5
+            rows: 7
+            spacing: gridRoot.dotGap
+            anchors.fill: parent
+
+            Repeater {
+                model: 35
+                delegate: Rectangle {
+                    required property int index
+                    readonly property int col: index % 5
+                    readonly property int row: Math.floor(index / 5)
+
+                    readonly property bool isLit: {
+                        if (!gridRoot.digitData || col >= gridRoot.digitData.length) return false
+                        let mask = gridRoot.digitData[col]
+                        return (mask & (1 << row)) !== 0
+                    }
+
+                    width: gridRoot.dotSize
+                    height: gridRoot.dotSize
+                    radius: width / 2
+
+                    color: isLit ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+                    opacity: isLit ? 1.0 : 0.25
                 }
             }
         }
