@@ -86,7 +86,8 @@ set PACMAN_PKGS \
     gawk \
     sed \
     coreutils \
-    util-linux
+    util-linux \
+    power-profiles-daemon # Power management daemon for powerprofilesctl
 
 say "Installing pacman packages..."
 sudo pacman -S --needed $PACMAN_PKGS
@@ -101,6 +102,11 @@ set AUR_PKGS \
 
 say "Installing AUR packages..."
 $AUR_HELPER -S --needed $AUR_PKGS
+or exit 1
+
+# Enable and start the power-profiles-daemon service
+say "Enabling systemd services..."
+sudo systemctl enable --now power-profiles-daemon.service
 or exit 1
 
 say "Done!"
