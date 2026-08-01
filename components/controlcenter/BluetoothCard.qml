@@ -52,8 +52,12 @@ Item {
         height: cardRoot.shouldExpand ? (64 + 10 + btListView.targetHeight) : 64
         
         radius: Config.cornerRadius
-        color: cardRoot.shouldExpand || (cardHover.hovered && cardRoot.hasHardware) ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.25)
         
+        // Solid opaque background when hovered/expanded, semi-transparent when idle
+        color: cardRoot.shouldExpand || (cardHover.hovered && cardRoot.hasHardware) 
+            ? Qt.rgba(Config.bgBase.r, Config.bgBase.g, Config.bgBase.b, 1.0) 
+            : Qt.rgba(0, 0, 0, 0.25)
+
         // Dim and disable card if hardware controller is missing
         opacity: cardRoot.hasHardware ? 1.0 : 0.4
         enabled: cardRoot.hasHardware
@@ -196,7 +200,11 @@ Item {
                     width: btListView.width
                     implicitHeight: delegateLayout.implicitHeight + 12
                     radius: Config.cornerRadius / 2.5
-                    color: model.connected ? Qt.rgba(255, 255, 255, 0.12) : (btCardHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.25))
+
+                    // Connected gets highlight, hovered gets subtle white overlay, default gets subtle dark inset
+                    color: model.connected 
+                        ? Qt.rgba(255, 255, 255, 0.12) 
+                        : (btCardHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.15))
 
                     Behavior on implicitHeight { NumberAnimation { duration: 150 } }
                     Behavior on color { ColorAnimation { duration: 150 } }
