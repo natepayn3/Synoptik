@@ -91,6 +91,23 @@ Item {
 
                     Rectangle {
                         implicitWidth: 80; implicitHeight: 28; radius: Config.cornerRadius / 2
+                        color: Config.clockStyle === "modern" ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "Modern"
+                            color: Config.clockStyle === "modern" ? Config.bgBase : Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            font.bold: true
+                        }
+
+                        TapHandler { onTapped: Config.clockStyle = "modern" }
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    }
+
+                    Rectangle {
+                        implicitWidth: 80; implicitHeight: 28; radius: Config.cornerRadius / 2
                         color: Config.clockStyle === "analog" ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
 
                         Text {
