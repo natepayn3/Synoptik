@@ -22,6 +22,7 @@ PanelWindow {
     color: "transparent"
     exclusiveZone: 0
 
+    // Bind region directly to the clock container item
     mask: Region { item: clockContainer }
 
     Item {
@@ -103,6 +104,10 @@ PanelWindow {
                 id: modernLayout
                 spacing: 12 * clockContainer.currentScale
 
+                // Ensure loader reads full unconstrained layout dimensions
+                implicitWidth: timeRow.implicitWidth
+                implicitHeight: dateHeader.implicitHeight + timeRow.implicitHeight + spacing
+
                 property var currentDate: new Date()
 
                 Timer {
@@ -140,6 +145,7 @@ PanelWindow {
 
                 // Header Date String
                 RowLayout {
+                    id: dateHeader
                     spacing: 8 * clockContainer.currentScale
                     Layout.alignment: Qt.AlignHCenter
 
@@ -163,6 +169,7 @@ PanelWindow {
 
                 // Dot Matrix Main Time Layout
                 RowLayout {
+                    id: timeRow
                     spacing: 8 * clockContainer.currentScale
                     Layout.alignment: Qt.AlignHCenter
 
@@ -427,10 +434,10 @@ PanelWindow {
             }
 
             onWheel: (wheel) => {
-                let step = 0.05
+                let step = 0.1
                 let newScale = clockContainer.currentScale
                 if (wheel.angleDelta.y > 0) {
-                    newScale = Math.min(3.0, newScale + step)
+                    newScale = Math.min(5.0, newScale + step)
                 } else {
                     newScale = Math.max(0.5, newScale - step)
                 }
@@ -453,6 +460,9 @@ PanelWindow {
 
         implicitWidth: (5 * dotSize) + (4 * dotGap)
         implicitHeight: (7 * dotSize) + (6 * dotGap)
+
+        Layout.preferredWidth: implicitWidth
+        Layout.preferredHeight: implicitHeight
 
         Grid {
             columns: 5
