@@ -2,14 +2,36 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
+import Quickshell.Io
 
 Item {
     id: powerModule
 
     property int activeHoverIndex: -1
+    property string activeProfile: "balanced"
 
     implicitWidth: 412
     implicitHeight: mainLayout.implicitHeight + 24
+
+    // FETCH CURRENT POWER PROFILE ON LOAD
+    Process {
+        id: getProfileProcess
+        command: ["powerprofilesctl", "get"]
+        running: true
+
+        stdout: SplitParser {
+            onRead: data => {
+                let p = data.trim()
+                if (p.length > 0) powerModule.activeProfile = p
+            }
+        }
+    }
+
+    // FUNCTION TO SET PROFILE VIA POWERPROFILESCTL
+    function setPowerProfile(profile) {
+        powerModule.activeProfile = profile
+        Quickshell.execDetached(["powerprofilesctl", "set", profile])
+    }
 
     ColumnLayout {
         id: mainLayout
@@ -110,6 +132,90 @@ Item {
                                     Config.showPower = false;
                                     Quickshell.execDetached(modelData.cmd);
                                 }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ==========================================
+        // POWER PROFILE SELECTOR CARD
+        // ==========================================
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: profileCardLayout.implicitHeight + 24
+            color: Qt.rgba(255, 255, 255, 0.05)
+            radius: Config.cornerRadius
+
+            ColumnLayout {
+                id: profileCardLayout
+                anchors.fill: parent
+                anchors.margins: 14
+                spacing: 12
+
+                Text {
+                    text: "POWER PROFILE"
+                    color: Config.textMuted
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontMicro)
+                    font.bold: true
+                    Layout.fillWidth: true
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    Repeater {
+                        model: [
+                            { id: "power-saver", label: "Saver", icon: "eco" },
+                            { id: "balanced", label: "Balanced", icon: "balance" },
+                            { id: "performance", label: "Performance", icon: "speed" }
+                        ]
+
+                        delegate: Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 1
+                            implicitHeight: 40
+                            radius: Config.cornerRadius / 2
+
+                            readonly property bool isActive: powerModule.activeProfile === modelData.id
+
+                            color: isActive 
+                                ? Config.accent 
+                                : (profHover.hovered ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(0, 0, 0, 0.2))
+
+                            Behavior on color { ColorAnimation { duration: 150 } }
+
+                            RowLayout {
+                                anchors.centerIn: parent
+                                spacing: 6
+
+                                Text {
+                                    text: modelData.icon
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 18
+                                    font.bold: true
+                                    color: isActive ? Config.bgBase : Config.textMain
+                                }
+
+                                Text {
+                                    text: modelData.label
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontCaption)
+                                    font.bold: true
+                                    color: isActive ? Config.bgBase : Config.textMain
+                                }
+                            }
+
+                            HoverHandler {
+                                id: profHover
+                                cursorShape: Qt.PointingHandCursor
+                            }
+
+                            TapHandler {
+                                onTapped: powerModule.setPowerProfile(modelData.id)
                             }
                         }
                     }
