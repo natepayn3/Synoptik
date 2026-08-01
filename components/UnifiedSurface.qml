@@ -177,8 +177,13 @@ PanelWindow {
     readonly property real minPossibleLeft: root.halfB
     readonly property real maxPossibleRight: (isHorizontal ? mainContainer.width : mainContainer.height) - root.halfB
 
-    readonly property bool isLeftFlush: !isCentered && ((isHorizontal ? popoutXOffset : popoutYOffset) < ((isHorizontal ? mainContainer.width : mainContainer.height) * 0.35))
-    readonly property bool isRightFlush: !isCentered && ((isHorizontal ? popoutXOffset : popoutYOffset) > ((isHorizontal ? mainContainer.width : mainContainer.height) * 0.65))
+    readonly property bool isLeftFlush: !isCentered && (
+        (isHorizontal ? (popoutXOffset - (targetWidth / 2.0)) : (popoutYOffset - (targetHeight / 2.0))) < (minPossibleLeft + root.barRadius + root.wingW)
+    )
+
+    readonly property bool isRightFlush: !isCentered && (
+        (isHorizontal ? (popoutXOffset + (targetWidth / 2.0)) : (popoutYOffset + (targetHeight / 2.0))) > (maxPossibleRight - root.barRadius - root.wingW)
+    )
 
     readonly property real targetCenteredLeft: Math.max(minPossibleLeft + 16, Math.min(maxPossibleRight - (isHorizontal ? targetWidth : targetHeight) - 16, ((isHorizontal ? mainContainer.width : mainContainer.height) - (isHorizontal ? targetWidth : targetHeight)) / 2.0))
 
