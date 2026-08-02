@@ -562,7 +562,15 @@ PanelWindow {
                     PathLine { x: openShapeRightFloating.rX + root.halfB - root.wingW - root.currentWidth; y: root.pLeft + root.radius }
                     PathArc { x: openShapeRightFloating.rX + root.halfB - root.wingW - root.currentWidth + root.radius; y: root.pLeft; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
                     PathLine { x: root.isLeftFlush ? (openShapeRightFloating.rX + root.halfB) : (openShapeRightFloating.rX + root.halfB - root.wingW); y: root.pLeft }
-                    PathCubic { x: openShapeRightFloating.rX + root.halfB; y: root.isLeftFlush ? root.halfB : (root.pLeft - root.wingW); control1X: root.isLeftFlush ? (openShapeRightFloating.rX + root.halfB) : (openShapeRightFloating.rX + root.halfB - (root.wingW * 0.5)); control1Y: root.pLeft; control2X: openShapeRightFloating.rX + root.halfB; control2Y: root.isLeftFlush ? root.halfB : (openShapeRightFloating.rX + root.halfB - (root.wingW * 0.5)) }
+                    
+                    PathCubic { 
+                        x: openShapeRightFloating.rX + root.halfB; 
+                        y: root.isLeftFlush ? root.halfB : (root.pLeft - root.wingW); 
+                        control1X: root.isLeftFlush ? (openShapeRightFloating.rX + root.halfB) : (openShapeRightFloating.rX + root.halfB - (root.wingW * 0.5)); 
+                        control1Y: root.pLeft; 
+                        control2X: openShapeRightFloating.rX + root.halfB; 
+                        control2Y: root.isLeftFlush ? root.halfB : (root.pLeft - (root.wingW * 0.5)) 
+                    }
                     PathLine { x: openShapeRightFloating.rX + root.halfB; y: root.isLeftFlush ? root.halfB : (root.halfB + root.barRadius) }
                     PathArc { x: openShapeRightFloating.rX + root.halfB + (root.isLeftFlush ? 0 : root.barRadius); y: root.halfB; radiusX: root.isLeftFlush ? 0 : root.barRadius; radiusY: root.isLeftFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
                 }
@@ -1693,11 +1701,13 @@ PanelWindow {
                     if (isRight) {
                         return isScreenFrame 
                             ? (root.rightBarPopL + outerPadding) 
-                            : (mainContainer.width - root.barH - root.currentWidth + outerPadding)
+                            // Fixed: Subtract wingW so content clears the curve and centers in the flat card area
+                            : (mainContainer.width - root.barH - root.wingW - root.currentWidth + outerPadding)
                     } else {
                         return isScreenFrame 
                             ? (root.inX + root.wingW + barSidePadding) 
-                            : (root.barH + barSidePadding)
+                            // Fixed: Add wingW to push content perfectly into the flat card area
+                            : (root.barH + root.wingW + barSidePadding)
                     }
                 }
             }
@@ -1705,18 +1715,18 @@ PanelWindow {
             y: {
                 if (isHorizontal) {
                     if (isBottom) {
-                        // Top starts at 20px outer margin, height extends down close to bottom bar
                         return isScreenFrame 
                             ? (root.bottomBarPopT + outerPadding) 
-                            : (mainContainer.height - root.barH - root.currentHeight + outerPadding)
+                            // Fixed: Subtract wingH
+                            : (mainContainer.height - root.barH - root.wingH - root.currentHeight + outerPadding)
                     } else {
-                        // Top starts 8px from top bar, height leaves 20px outer margin at bottom
                         return isScreenFrame 
                             ? (root.topBarPopB - root.currentHeight + barSidePadding) 
-                            : (root.barH + barSidePadding)
+                            // Fixed: Add wingH
+                            : (root.barH + root.wingH + barSidePadding)
                     }
                 } else {
-                    return root.staticLeft + outerPadding
+                    return root.pLeft + outerPadding
                 }
             }
 
