@@ -64,6 +64,8 @@ Rectangle {
                 font.pixelSize: Config.size(Config.fontCaption)
                 font.bold: true
                 color: Config.textMain
+                elide: Text.ElideRight
+                Layout.fillWidth: true
             }
 
             Text {
