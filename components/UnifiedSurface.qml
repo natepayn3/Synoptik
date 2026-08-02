@@ -13,8 +13,12 @@ PanelWindow {
     default property alias content: contentContainer.data
 
     property bool isOpen: false
-    property real popoutXOffset: (screen ? screen.width : 1920) / 2.0
-    property real popoutYOffset: (screen ? screen.height : 1080) / 2.0
+    
+    readonly property real actualScreenWidth: screen ? screen.width : 1920
+    readonly property real actualScreenHeight: screen ? screen.height : 1080
+
+    property real popoutXOffset: actualScreenWidth / 2.0
+    property real popoutYOffset: actualScreenHeight / 2.0
     property bool isCentered: false
 
     readonly property real shadowPadding: 16
@@ -45,8 +49,8 @@ PanelWindow {
 
     readonly property real inX: padL
     readonly property real inY: padT
-    readonly property real inW: (screen ? screen.width : 1920) - padL - padR
-    readonly property real inH: (screen ? screen.height : 1080) - padT - padB
+    readonly property real inW: actualScreenWidth - padL - padR
+    readonly property real inH: actualScreenHeight - padT - padB
     readonly property real inRadi: Math.max(0.1, frameRadius)
 
     readonly property real outerPadding: 16
@@ -149,8 +153,8 @@ PanelWindow {
     readonly property real barH: isScreenFrame ? (baseBarHeight - 8) : baseBarHeight
     readonly property real barBottomY: barH - halfB
 
-    implicitHeight: (screen ? screen.height : 1080) + (shadowPadding * 2)
-    implicitWidth: (screen ? screen.width : 1920) + (shadowPadding * 2)
+    implicitHeight: actualScreenHeight + (shadowPadding * 2)
+    implicitWidth: actualScreenWidth + (shadowPadding * 2)
 
     color: "transparent"
     visible: true
@@ -161,7 +165,7 @@ PanelWindow {
     }
 
     WlrLayershell.layer: WlrLayer.Top
-    WlrLayershell.exclusiveZone: isScreenFrame ? (barH + (framePadding * 2)) : (barH + (currentMargin > 0 ? currentMargin : (Config.barMargin || 4)))
+    WlrLayershell.exclusiveZone: Config.isBarEnabledForScreen(screen ? screen.name : "") ? (isScreenFrame ? (barH + (framePadding * 2)) : (barH + (currentMargin > 0 ? currentMargin : (Config.barMargin || 4)))) : 0
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
     WlrLayershell.namespace: "synoptik-shell"
 
@@ -176,7 +180,8 @@ PanelWindow {
 
     HyprlandFocusGrab {
         id: focusGrab
-        active: root.isOpen
+        // Restrict focus grab to the actively focused Hyprland monitor to prevent instant onCleared wipeouts
+        active: root.isOpen && (!screen || screen.name === (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""))
         windows: [root]
         onCleared: {
             root.closeOthers("none")
@@ -215,22 +220,27 @@ PanelWindow {
 
     function updateActiveView() {
         let nextView = "none"
+        // Determine if this specific PanelWindow instance is on the focused monitor
+        let isFocused = !screen || screen.name === (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : "")
 
-        if (typeof Config.showOSD !== "undefined" && Config.showOSD) nextView = "osd"
-        else if (typeof Config.showNotificationOsd !== "undefined" && Config.showNotificationOsd) nextView = "notifOsd"
-        else if (Config.showWorkspacePreview) nextView = "workspacePreview"
-        else if (Config.showPower) nextView = "power"
-        else if (Config.showWallpaper) nextView = "wallpaper"
-        else if (Config.showAppLauncher) nextView = "appLauncher"
-        else if (Config.showCalendar) nextView = "calendar"
-        else if (Config.showNotifications) nextView = "notifications"
-        else if (Config.showAudio) nextView = "audio"
-        else if (Config.showNetwork) nextView = "network"
-        else if (Config.showSystemMonitor) nextView = "systemMonitor"
-        else if (Config.showBattery) nextView = "battery"
-        else if (Config.showClipboard) nextView = "clipboard"
-        else if (Config.showScreenRecorder) nextView = "screenRecorder"
-        else if (Config.showControlCenter) nextView = "controlCenter"
+        // Only evaluate global Config flags if this is the active screen
+        if (isFocused) {
+            if (typeof Config.showOSD !== "undefined" && Config.showOSD) nextView = "osd"
+            else if (typeof Config.showNotificationOsd !== "undefined" && Config.showNotificationOsd) nextView = "notifOsd"
+            else if (Config.showWorkspacePreview) nextView = "workspacePreview"
+            else if (Config.showPower) nextView = "power"
+            else if (Config.showWallpaper) nextView = "wallpaper"
+            else if (Config.showAppLauncher) nextView = "appLauncher"
+            else if (Config.showCalendar) nextView = "calendar"
+            else if (Config.showNotifications) nextView = "notifications"
+            else if (Config.showAudio) nextView = "audio"
+            else if (Config.showNetwork) nextView = "network"
+            else if (Config.showSystemMonitor) nextView = "systemMonitor"
+            else if (Config.showBattery) nextView = "battery"
+            else if (Config.showClipboard) nextView = "clipboard"
+            else if (Config.showScreenRecorder) nextView = "screenRecorder"
+            else if (Config.showControlCenter) nextView = "controlCenter"
+        }
 
         if (nextView === "none") {
             root.isOpen = false
@@ -885,7 +895,7 @@ PanelWindow {
                         PathCubic { x: root.rightBarPopL - root.wingW; y: root.inY + root.inH - root.halfB; control1X: root.rightBarPopL; control1Y: root.inY + root.inH - root.halfB - root.wingW * 0.5; control2X: root.rightBarPopL - root.wingW * 0.5; control2Y: root.inY + root.inH - root.halfB } 
                         
                         PathLine { x: root.inX + root.inRadi; y: root.inY + root.inH - root.halfB } 
-                        PathArc { x: root.inX + root.halfB; y: root.inY + root.inH - root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
+                        PathArc { x: root.halfB; y: root.inY + root.inH - root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                         PathLine { x: root.inX + root.halfB; y: root.inY + root.inRadi } 
                         PathArc { x: root.inX + root.inRadi; y: root.inY + root.halfB; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                     }
