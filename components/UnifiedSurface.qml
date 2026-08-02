@@ -146,7 +146,7 @@ PanelWindow {
     }
 
     readonly property real baseBarHeight: Config.barHeight || 46
-    readonly property real barH: isScreenFrame ? (baseBarHeight - 4) : baseBarHeight
+    readonly property real barH: isScreenFrame ? (baseBarHeight - 8) : baseBarHeight
     readonly property real barBottomY: barH - halfB
 
     implicitHeight: (screen ? screen.height : 1080) + (shadowPadding * 2)
@@ -161,8 +161,7 @@ PanelWindow {
     }
 
     WlrLayershell.layer: WlrLayer.Top
-    // Reserve bar height PLUS whatever outer margin/frame padding exists so windows keep their distance in all modes
-    WlrLayershell.exclusiveZone: barH + (isScreenFrame ? (framePadding + (Config.barMargin || 4)) : (currentMargin > 0 ? currentMargin : (Config.barMargin || 4)))
+    WlrLayershell.exclusiveZone: isScreenFrame ? (barH + (framePadding * 2)) : (barH + (currentMargin > 0 ? currentMargin : (Config.barMargin || 4)))
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
     WlrLayershell.namespace: "synoptik-shell"
 
