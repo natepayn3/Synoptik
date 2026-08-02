@@ -151,7 +151,7 @@ ColumnLayout {
                 model: [
                     { name: "Floating", style: "floating", icon: "sliders" },
                     { name: "Edge", style: "edge", icon: "border_left" },
-                    { name: "Frame", style: "screen", icon: "image_inset" }
+                    { name: "Frame", style: "screen", icon: "web_asset" }
                 ]
 
                 delegate: Rectangle {
