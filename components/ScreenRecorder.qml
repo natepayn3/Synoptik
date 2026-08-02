@@ -75,8 +75,9 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
-            implicitWidth: recordLayout.implicitWidth + (root.isVert ? 0 : 24)
-            implicitHeight: recordLayout.implicitHeight + 24
+            // Fixed: Always apply 24px horizontal/vertical padding inside mainCard
+            implicitWidth: recordLayout.implicitWidth + 24
+            implicitHeight: recordLayout.implicitHeight + (root.isVert ? 16 : 24)
 
             radius: Config.cornerRadius / 2
             color: root.isRecording ? Qt.rgba(0.8, 0.2, 0.2, 0.2) : Qt.rgba(1, 1, 1, 0.08)
