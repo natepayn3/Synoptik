@@ -40,7 +40,7 @@ PanelWindow {
 
     readonly property bool isScreenFrame: Config.barFrameStyle === "screen"
     readonly property real framePadding: isScreenFrame ? 8 : 0
-    readonly property real frameRadius: isScreenFrame ? (Config.cornerRadius || 16) : 0
+    readonly property real frameRadius: isScreenFrame ? (Config.surfaceRadius || 18) : 0
 
     readonly property real padL: barPosition === "left" ? barH + framePadding : framePadding
     readonly property real padR: barPosition === "right" ? barH + framePadding : framePadding
@@ -123,9 +123,9 @@ PanelWindow {
     readonly property real squishRatio: targetHeight > 0 ? (1.0 - (currentHeight / targetHeight)) : 0.0
     readonly property real currentWidth: root.isOpen ? (targetWidth * animScale) : (targetWidth * (closeFactor + (0.3 * squishRatio * closeFactor)))
 
-    readonly property real wingW: 16 * animScale
-    readonly property real wingH: 16 * animScale
-    readonly property real radius: 18 * animScale
+    readonly property real wingW: (Config.surfaceRadius || 18) * animScale
+    readonly property real wingH: (Config.surfaceRadius || 18) * animScale
+    readonly property real radius: Math.max(0.1, (Config.surfaceRadius || 18) * animScale)
 
     readonly property real borderWidth: Config.showBorders ? 3 : 0
     readonly property real halfB: borderWidth / 2.0
@@ -193,11 +193,11 @@ PanelWindow {
     readonly property real maxPossibleRight: isScreenFrame ? ((isHorizontal ? inX + inW : inY + inH) - halfB) : ((isHorizontal ? mainContainer.width : mainContainer.height) - halfB)
 
     readonly property bool isLeftFlush: !isCentered && (
-        (isHorizontal ? (popoutXOffset - (targetWidth / 2.0)) : (popoutYOffset - (targetHeight / 2.0))) < (minPossibleLeft + root.barRadius + root.wingW)
+        (isHorizontal ? (popoutXOffset - (targetWidth / 2.0)) : (popoutYOffset - (targetHeight / 2.0))) < (minPossibleLeft + root.barRadius + root.wingW + (root.isScreenFrame ? root.inRadi : root.radius))
     )
 
     readonly property bool isRightFlush: !isCentered && (
-        (isHorizontal ? (popoutXOffset + (targetWidth / 2.0)) : (popoutYOffset + (targetHeight / 2.0))) > (maxPossibleRight - root.barRadius - root.wingW)
+        (isHorizontal ? (popoutXOffset + (targetWidth / 2.0)) : (popoutYOffset + (targetHeight / 2.0))) > (maxPossibleRight - root.barRadius - root.wingW - (root.isScreenFrame ? root.inRadi : root.radius))
     )
 
     readonly property real targetCenteredLeft: Math.max(minPossibleLeft + 16, Math.min(maxPossibleRight - (isHorizontal ? targetWidth : targetHeight) - 16, ((isHorizontal ? mainContainer.width : mainContainer.height) - (isHorizontal ? targetWidth : targetHeight)) / 2.0))
@@ -1101,7 +1101,7 @@ PanelWindow {
                         startX: root.inX + root.inW; startY: root.inY + root.inH
                         
                         PathLine { x: root.pLeft - root.wingW; y: root.inY + root.inH } 
-                        PathCubic { x: root.pLeft; y: root.inY + root.inH - root.wingW; control1X: root.pLeft - root.wingW * 0.5; control1Y: root.inY + root.inH; control2X: root.pLeft; control2Y: root.inY + root.inH - root.wingW * 0.5 }
+                        PathCubic { x: root.pLeft; y: root.inY + root.inH - root.wingW; control1X: root.pLeft; control1Y: root.inY + root.inH - root.wingW * 0.5; control2X: root.pLeft - root.wingW * 0.5; control2Y: root.inY + root.inH }
                         
                         PathLine { x: root.pLeft; y: root.bottomBarPopT + root.radius } 
                         PathArc { x: root.pLeft + root.radius; y: root.bottomBarPopT; radiusX: root.radius; radiusY: root.radius; direction: PathArc.Clockwise } 

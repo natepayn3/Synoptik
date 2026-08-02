@@ -42,9 +42,10 @@ PanelWindow {
     readonly property bool isOpen: Config.showSettings
     readonly property bool isHorizontal: Config.barPosition === "top" || Config.barPosition === "bottom"
 
-    // Raw resting targets for the dialog window
-    readonly property real rawChildWidth: 820
-    readonly property real rawChildHeight: 540
+    readonly property real baseWidth: 1230
+    readonly property real baseHeight: 810
+    readonly property real rawChildWidth: baseWidth
+    readonly property real rawChildHeight: baseHeight
 
     // Capture dimensions on close trigger to lock evaluation state during transition
     property real lastOpenWidth: rawChildWidth
@@ -153,10 +154,14 @@ PanelWindow {
             Rectangle {
                 anchors.fill: parent
                 color: Config.bgPanel
-                radius: Config.cornerRadius
+                radius: Config.surfaceRadius || 18
                 border.width: Config.showBorders ? 3 : 0
                 border.color: Config.showBorders ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
                 clip: true
+
+                Behavior on radius {
+                    NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
+                }
 
                 MouseArea {
                     anchors.fill: parent
@@ -217,7 +222,7 @@ PanelWindow {
                             Layout.maximumWidth: 170
                             Layout.fillHeight: true
                             color: Qt.rgba(255, 255, 255, 0.03)
-                            radius: Config.cornerRadius
+                            radius: (Config.surfaceRadius || 18) * 0.75
                             clip: true
 
                             Flickable {
@@ -313,7 +318,7 @@ PanelWindow {
 
                                         Repeater {
                                             model: [
-                                                { id: 4, name: "VPN",       icon: "vpn_key" },
+                                                { id: 4, name: "Network",   icon: "lan" },
                                                 { id: 5, name: "Wi-Fi",     icon: "wifi" },
                                                 { id: 6, name: "Bluetooth", icon: "bluetooth" },
                                                 { id: 7, name: "Weather",   icon: "thermostat" }
@@ -445,7 +450,7 @@ PanelWindow {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             color: Qt.rgba(255, 255, 255, 0.03)
-                            radius: Config.cornerRadius
+                            radius: (Config.surfaceRadius || 18) * 0.75
                             clip: true
 
                             Item {
@@ -456,7 +461,7 @@ PanelWindow {
                                 AppearanceSettings  { anchors.fill: parent; visible: settingsWindow.activeSection === 1 }
                                 TypographySettings  { anchors.fill: parent; visible: settingsWindow.activeSection === 2 }
                                 WallpaperSettings   { anchors.fill: parent; visible: settingsWindow.activeSection === 3 }
-                                VpnSettings         { anchors.fill: parent; visible: settingsWindow.activeSection === 4 }
+                                NetworkSettings     { anchors.fill: parent; visible: settingsWindow.activeSection === 4 }
                                 WifiSettings        { anchors.fill: parent; visible: settingsWindow.activeSection === 5 }
                                 BluetoothSettings   { anchors.fill: parent; visible: settingsWindow.activeSection === 6 }
 
