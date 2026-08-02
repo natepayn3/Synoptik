@@ -24,22 +24,27 @@ ColumnLayout {
     Text { text: "Font Scaling"; color: Config.textMuted; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro); font.bold: true }
 
     RowLayout {
-        Layout.fillWidth: true
         spacing: 8
 
         Repeater {
             model: ["Small", "Normal", "Large"]
             delegate: Rectangle {
-                Layout.fillWidth: true
-                implicitHeight: 32
+                implicitWidth: 130
+                implicitHeight: 36
                 radius: Config.cornerRadius / 2
-                color: Config.fontScaleIndex === index ? Config.accent : (scaleHover.hovered ? Qt.rgba(255, 255, 255, 0.1) : Qt.rgba(255, 255, 255, 0.06))
+
+                readonly property bool isSelected: Config.fontScaleIndex === index
+                color: isSelected ? Qt.rgba(255, 255, 255, 0.12) : (scaleHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : Qt.rgba(255, 255, 255, 0.03))
+                border.width: isSelected ? 1 : 0
+                border.color: Config.accent
 
                 Text {
                     anchors.centerIn: parent
                     text: modelData
-                    color: Config.fontScaleIndex === index ? Config.bgBase : Config.textMain
-                    font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); font.bold: true
+                    color: isSelected ? Config.accent : Config.textMain
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontCaption)
+                    font.bold: isSelected
                 }
 
                 TapHandler { onTapped: Config.fontScaleIndex = index }

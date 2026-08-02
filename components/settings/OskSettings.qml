@@ -66,7 +66,6 @@ ColumnLayout {
     }
 
     RowLayout {
-        Layout.fillWidth: true
         spacing: 8
 
         Repeater {
@@ -78,14 +77,14 @@ ColumnLayout {
 
             delegate: Rectangle {
                 id: layoutBtn
-                Layout.fillWidth: true
-                implicitHeight: 38
+                implicitWidth: 130
+                implicitHeight: 36
                 radius: Config.cornerRadius / 2
+
                 readonly property bool isCurrent: Config.oskLayout === modelData.name
-                color: layoutBtn.isCurrent ? Qt.rgba(255, 255, 255, 0.15) : (btnHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
-               
-                Behavior on color { ColorAnimation { duration: 150 } }
-                Behavior on border.color { ColorAnimation { duration: 150 } }
+                color: layoutBtn.isCurrent ? Qt.rgba(255, 255, 255, 0.12) : (btnHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : Qt.rgba(255, 255, 255, 0.03))
+                border.width: layoutBtn.isCurrent ? 1 : 0
+                border.color: Config.accent
 
                 RowLayout {
                     anchors.centerIn: parent
@@ -95,15 +94,16 @@ ColumnLayout {
                         text: modelData.icon
                         color: layoutBtn.isCurrent ? Config.accent : Config.textMuted
                         font.family: "Material Symbols Outlined"
-                        font.pixelSize: 24
+                        font.pixelSize: 16
                     }
 
                     Text {
                         text: modelData.name
                         color: layoutBtn.isCurrent ? Config.accent : Config.textMain
                         font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontBody)
+                        font.pixelSize: Config.size(Config.fontCaption)
                         font.bold: layoutBtn.isCurrent
+                        elide: Text.ElideRight
                     }
                 }
 

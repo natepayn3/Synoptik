@@ -72,55 +72,36 @@ Item {
                 RowLayout {
                     spacing: 8
 
-                    Rectangle {
-                        implicitWidth: 80; implicitHeight: 28; radius: Config.cornerRadius / 2
-                        color: Config.clockStyle === "digital" ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+                    Repeater {
+                        model: [
+                            { name: "Digital", style: "digital" },
+                            { name: "Modern", style: "modern" },
+                            { name: "Analog", style: "analog" }
+                        ]
 
-                        Text {
-                            anchors.centerIn: parent
-                            text: "Digital"
-                            color: Config.clockStyle === "digital" ? Config.bgBase : Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            font.bold: true
+                        delegate: Rectangle {
+                            required property var modelData
+                            implicitWidth: 130
+                            implicitHeight: 36
+                            radius: Config.cornerRadius / 2
+
+                            readonly property bool isSelected: Config.clockStyle === modelData.style
+                            color: isSelected ? Qt.rgba(255, 255, 255, 0.12) : (styleHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : Qt.rgba(255, 255, 255, 0.03))
+                            border.width: isSelected ? 1 : 0
+                            border.color: Config.accent
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: modelData.name
+                                color: isSelected ? Config.accent : Config.textMain
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontCaption)
+                                font.bold: isSelected
+                            }
+
+                            TapHandler { onTapped: Config.clockStyle = modelData.style }
+                            HoverHandler { id: styleHover; cursorShape: Qt.PointingHandCursor }
                         }
-
-                        TapHandler { onTapped: Config.clockStyle = "digital" }
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
-                    }
-
-                    Rectangle {
-                        implicitWidth: 80; implicitHeight: 28; radius: Config.cornerRadius / 2
-                        color: Config.clockStyle === "modern" ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "Modern"
-                            color: Config.clockStyle === "modern" ? Config.bgBase : Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            font.bold: true
-                        }
-
-                        TapHandler { onTapped: Config.clockStyle = "modern" }
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
-                    }
-
-                    Rectangle {
-                        implicitWidth: 80; implicitHeight: 28; radius: Config.cornerRadius / 2
-                        color: Config.clockStyle === "analog" ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "Analog"
-                            color: Config.clockStyle === "analog" ? Config.bgBase : Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            font.bold: true
-                        }
-
-                        TapHandler { onTapped: Config.clockStyle = "analog" }
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
                     }
                 }
             }
