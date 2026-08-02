@@ -35,7 +35,7 @@ PanelWindow {
     }
 
     readonly property bool isScreenFrame: Config.barFrameStyle === "screen"
-    readonly property real framePadding: isScreenFrame ? 6 : 0
+    readonly property real framePadding: isScreenFrame ? 8 : 0
     readonly property real frameRadius: isScreenFrame ? (Config.cornerRadius || 16) : 0
 
     readonly property real padL: barPosition === "left" ? barH + framePadding : framePadding
@@ -145,7 +145,8 @@ PanelWindow {
         right: barPosition === "left" ? 0 : (currentMargin - shadowPadding)
     }
 
-    readonly property real barH: Config.barHeight || 46
+    readonly property real baseBarHeight: Config.barHeight || 46
+    readonly property real barH: isScreenFrame ? (baseBarHeight - 4) : baseBarHeight
     readonly property real barBottomY: barH - halfB
 
     implicitHeight: (screen ? screen.height : 1080) + (shadowPadding * 2)
@@ -1061,7 +1062,6 @@ PanelWindow {
                     }
                 }
 
-                // FIXED: Left Flush Fill - Extends up to the top-left screen frame boundary and sweeps around the outer radius
                 Shape {
                     anchors.fill: parent; visible: root.isLeftFlush
                     ShapePath {
@@ -1089,17 +1089,22 @@ PanelWindow {
                     anchors.fill: parent; visible: root.isRightFlush
                     ShapePath {
                         fillColor: Config.bgPanel; strokeWidth: 0
-                        startX: root.pLeft - root.wingW; startY: root.inY + root.inH
+                        startX: root.inX + root.inW; startY: root.inY + root.inH
                         
+                        PathLine { x: root.pLeft - root.wingW; y: root.inY + root.inH } 
+                        PathCubic { x: root.pLeft; y: root.inY + root.inH - root.wingW; control1X: root.pLeft - root.wingW * 0.5; control1Y: root.inY + root.inH; control2X: root.pLeft; control2Y: root.inY + root.inH - root.wingW * 0.5 }
+                        
+                        PathLine { x: root.pLeft; y: root.bottomBarPopT + root.radius } 
+                        PathArc { x: root.pLeft + root.radius; y: root.bottomBarPopT; radiusX: root.radius; radiusY: root.radius; direction: PathArc.Clockwise } 
+                        
+                        // Outer top-right corner connection
+                        PathLine { x: root.inX + root.inW - root.wingW; y: root.bottomBarPopT } 
+                        PathCubic { x: root.inX + root.inW; y: root.bottomBarPopT - root.wingW; control1X: root.inX + root.inW - root.wingW * 0.5; control1Y: root.bottomBarPopT; control2X: root.inX + root.inW; control2Y: root.bottomBarPopT - root.wingW * 0.5 }
+                        
+                        PathLine { x: root.inX + root.inW; y: root.inY + root.inRadi }
+                        PathArc { x: root.inX + root.inW - root.inRadi; y: root.inY; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
+                        PathLine { x: root.inX + root.inW; y: root.inY }
                         PathLine { x: root.inX + root.inW; y: root.inY + root.inH } 
-                        PathLine { x: root.inX + root.inW; y: root.bottomBarPopT + root.radius } 
-                        
-                        PathArc { x: root.inX + root.inW - root.radius; y: root.bottomBarPopT; radiusX: root.radius; radiusY: root.radius; direction: PathArc.Counterclockwise }
-                        PathLine { x: root.pLeft + root.radius; y: root.bottomBarPopT } 
-                        
-                        PathArc { x: root.pLeft; y: root.bottomBarPopT + root.radius; radiusX: root.radius; radiusY: root.radius; direction: PathArc.Counterclockwise } 
-                        PathLine { x: root.pLeft; y: root.inY + root.inH - root.wingW } 
-                        PathCubic { x: root.pLeft - root.wingW; y: root.inY + root.inH; control1X: root.pLeft; control1Y: root.inY + root.inH - root.wingW * 0.5; control2X: root.pLeft - root.wingW * 0.5; control2Y: root.inY + root.inH }
                     }
                 }
 
@@ -1127,13 +1132,15 @@ PanelWindow {
                     }
                 }
 
-                // FIXED: Left Flush Border - Smoothly transitions the stroke from popout top edge, through wing, up along left frame edge
                 Shape {
                     anchors.fill: parent; visible: root.isLeftFlush
                     ShapePath {
                         fillColor: "transparent"; strokeWidth: Config.showBorders ? root.borderWidth : 0; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
-                        startX: root.inX + root.inW - root.inRadi; startY: root.inY + root.halfB
+                        startX: root.inX + root.inRadi; startY: root.inY + root.halfB
+                        
+                        PathLine { x: root.inX + root.inW - root.inRadi; y: root.inY + root.halfB }
                         PathArc { x: root.inX + root.inW - root.halfB; y: root.inY + root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
+                        
                         PathLine { x: root.inX + root.inW - root.halfB; y: root.inY + root.inH - root.inRadi }
                         PathArc { x: root.inX + root.inW - root.inRadi; y: root.inY + root.inH - root.halfB; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                         
@@ -1143,7 +1150,6 @@ PanelWindow {
                         PathLine { x: root.pRight; y: root.bottomBarPopT + root.radius } 
                         PathArc { x: root.pRight - root.radius; y: root.bottomBarPopT; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Counterclockwise }
                         
-                        // Wing curve from popout top edge into left screen frame border
                         PathLine { x: root.inX + root.halfB + root.wingW; y: root.bottomBarPopT }
                         PathCubic { x: root.inX + root.halfB; y: root.bottomBarPopT - root.wingH; control1X: root.inX + root.halfB + root.wingW * 0.5; control1Y: root.bottomBarPopT; control2X: root.inX + root.halfB; control2Y: root.bottomBarPopT - root.wingH * 0.5 }
                         
@@ -1185,6 +1191,12 @@ PanelWindow {
             x: root.isRight ? (mainContainer.width - root.barH + Math.floor(root.halfB)) : Math.floor(root.halfB)
             y: root.isBottom ? (mainContainer.height - root.barH + Math.floor(root.halfB)) : Math.floor(root.halfB)
             
+            // Apply an inner translation offset when screen frame is active so layout centers relative to the viewable bar area
+            transform: Translate {
+                x: root.isScreenFrame ? (root.barPosition === "left" ? root.framePadding / 2 : (root.barPosition === "right" ? -root.framePadding / 2 : 0)) : 0
+                y: root.isScreenFrame ? (root.barPosition === "top" ? root.framePadding / 2 : (root.barPosition === "bottom" ? -root.framePadding / 2 : 0)) : 0
+            }
+
             width: root.isHorizontal ? (mainContainer.width - Math.ceil(root.borderWidth)) : (root.barH - Math.ceil(root.borderWidth))
             height: root.isHorizontal ? (root.barH - Math.ceil(root.borderWidth)) : (mainContainer.height - Math.ceil(root.borderWidth))
 
@@ -1347,7 +1359,9 @@ PanelWindow {
             Rectangle {
                 id: centerGroupContainer
                 anchors.centerIn: parent
-                
+                anchors.horizontalCenterOffset: (root.isHorizontal && root.isScreenFrame) ? (root.barPosition === "left" ? (root.framePadding / 2) : (root.barPosition === "right" ? -(root.framePadding / 2) : 0)) : 0
+                anchors.verticalCenterOffset: (!root.isHorizontal && root.isScreenFrame) ? (root.barPosition === "top" ? (root.framePadding / 2) : (root.barPosition === "bottom" ? -(root.framePadding / 2) : 0)) : 0
+
                 readonly property real availableW: Math.max(32, barContent.width - leftModules.width - rightModules.width - 48)
                 readonly property real availableH: Math.max(32, barContent.height - leftModules.height - rightModules.height - 48)
 
