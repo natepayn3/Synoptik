@@ -15,8 +15,10 @@ ColumnLayout {
     property string activeSsid: ""
     property string expandedSsid: ""
     property string connectingSsid: ""
+    property string disconnectingSsid: ""
     property string errorSsid: ""
     property string connectionError: ""
+    property var savedSsids: ([])
 
     opacity: root.hasAdapter ? 1.0 : 0.4
     enabled: root.hasAdapter
@@ -46,7 +48,8 @@ ColumnLayout {
             TapHandler {
                 enabled: root.hasAdapter
                 onTapped: {
-                    toggleWifiProc.command = ["fish", "-c", "nmcli radio wifi " + (root.wifiPowered ? "off" : "on")]
+                    let nextState = root.wifiPowered ? "off" : "on"
+                    toggleWifiProc.command = ["fish", "-c", "nmcli radio wifi " + nextState]
                     toggleWifiProc.running = true
                 }
             }
@@ -105,8 +108,10 @@ ColumnLayout {
                 required property string ssid
                 required property bool connected
                 required property bool isSecure
+                required property bool isSaved
                 readonly property bool isExpanded: root.expandedSsid === ssid
                 readonly property bool isConnecting: root.connectingSsid === ssid
+                readonly property bool isDisconnecting: root.disconnectingSsid === ssid
                 readonly property bool hasError: root.errorSsid === ssid
 
                 width: wifiListView.width
@@ -143,9 +148,9 @@ ColumnLayout {
                             font.bold: true
                         }
 
-                        // Unconnected Password Panel
+                        // Password Panel
                         RowLayout {
-                            visible: !connected && isSecure
+                            visible: !connected && isSecure && !isSaved
                             Layout.fillWidth: true
 
                             Rectangle {
@@ -159,7 +164,7 @@ ColumnLayout {
                                     anchors.fill: parent; anchors.margins: 4
                                     color: Config.textMain; font.family: Config.sysFont; font.pixelSize: 11
                                     echoMode: TextInput.Password
-                                    enabled: !isConnecting
+                                    enabled: !isConnecting && !isDisconnecting
                                     selectByMouse: true
                                     onAccepted: root.connectWifi(ssid, passInput.text)
                                     onTextChanged: {
@@ -183,16 +188,16 @@ ColumnLayout {
                                 }
 
                                 TapHandler {
-                                    enabled: !isConnecting
+                                    enabled: !isConnecting && !isDisconnecting
                                     onTapped: root.connectWifi(ssid, passInput.text)
                                 }
                                 HoverHandler { id: joinHover; cursorShape: Qt.PointingHandCursor }
                             }
                         }
 
-                        // Connected / Saved Controls
+                        // Controls Panel
                         RowLayout {
-                            visible: connected || !isSecure
+                            visible: connected || isSaved || !isSecure
                             Layout.fillWidth: true
                             spacing: 6
 
@@ -200,16 +205,35 @@ ColumnLayout {
                                 visible: connected
                                 Layout.fillWidth: true; implicitHeight: 26; radius: Config.cornerRadius / 2
                                 color: discHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
-                                Text { anchors.centerIn: parent; text: "DISCONNECT"; font.family: Config.sysFont; font.bold: true; font.pixelSize: Config.size(Config.fontMicro); color: discHover.hovered ? Config.accent : Config.textMain }
-                                TapHandler { onTapped: root.disconnectWifi(ssid) }
+                                Text { anchors.centerIn: parent; text: isDisconnecting ? "..." : "DISCONNECT"; font.family: Config.sysFont; font.bold: true; font.pixelSize: Config.size(Config.fontMicro); color: discHover.hovered ? Config.accent : Config.textMain }
+                                TapHandler {
+                                    enabled: !isDisconnecting && !isConnecting
+                                    onTapped: root.disconnectWifi(ssid)
+                                }
                                 HoverHandler { id: discHover; cursorShape: Qt.PointingHandCursor }
                             }
 
                             Rectangle {
+                                visible: !connected && isSaved
+                                Layout.fillWidth: true; implicitHeight: 26; radius: Config.cornerRadius / 2
+                                color: connHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Config.accent
+                                Text { anchors.centerIn: parent; text: isConnecting ? "..." : "CONNECT"; font.family: Config.sysFont; font.bold: true; font.pixelSize: Config.size(Config.fontMicro); color: connHover.hovered ? Config.accent : Config.bgBase }
+                                TapHandler {
+                                    enabled: !isConnecting && !isDisconnecting
+                                    onTapped: root.connectWifi(ssid, "")
+                                }
+                                HoverHandler { id: connHover; cursorShape: Qt.PointingHandCursor }
+                            }
+
+                            Rectangle {
+                                visible: isSaved
                                 Layout.fillWidth: true; implicitHeight: 26; radius: Config.cornerRadius / 2
                                 color: forgetHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
                                 Text { anchors.centerIn: parent; text: "FORGET"; font.family: Config.sysFont; font.bold: true; font.pixelSize: Config.size(Config.fontMicro); color: forgetHover.hovered ? Config.accent : Config.textMuted }
-                                TapHandler { onTapped: root.forgetWifi(ssid) }
+                                TapHandler {
+                                    enabled: !isConnecting && !isDisconnecting
+                                    onTapped: root.forgetWifi(ssid)
+                                }
                                 HoverHandler { id: forgetHover; cursorShape: Qt.PointingHandCursor }
                             }
                         }
@@ -235,7 +259,6 @@ ColumnLayout {
         }
     }
 
-    // Keeps animation alive while NetworkManager executes scan
     Timer {
         id: scanTimeoutTimer
         interval: 3500
@@ -266,48 +289,74 @@ ColumnLayout {
         id: toggleWifiProc
         running: false
         onExited: {
-            if (root.wifiPowered) {
-                autoConnectProc.command = ["fish", "-c", "nmcli device connect (nmcli -t -f DEVICE,TYPE device | grep ':wifi' | cut -d: -f1)"]
-                autoConnectProc.running = true
-            } else {
-                fetchWifiStatusProc.running = true
-            }
+            fetchWifiStatusProc.running = true
         }
-    }
-
-    Process { 
-        id: autoConnectProc
-        running: false
-        onExited: fetchWifiStatusProc.running = true 
     }
 
     Process {
         id: fetchWifiStatusProc
-        command: ["fish", "-c", "nmcli -t -f WIFI g; echo '---'; nmcli -t -f ACTIVE,SSID,SECURITY device wifi"]
+        command: ["fish", "-c", "
+            nmcli -t -f WIFI g; echo '---'; 
+            nmcli -t -f TYPE,NAME connection show --active | awk -F: '$1 == \"802-11-wireless\" {print $2; exit}'; echo '---'; 
+            nmcli -t -f TYPE,NAME connection show | awk -F: '$1 == \"802-11-wireless\" {print $2}'; echo '---';
+            nmcli -t -f ACTIVE,SSID,SECURITY device wifi
+        "]
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
                 let parts = this.text.split("---")
-                if (parts.length < 2) return
+                if (parts.length < 4) return
                 root.wifiPowered = parts[0].trim().includes("enabled")
                 
+                let activeConnSsid = parts[1].trim()
+                let savedList = parts[2].trim().split("\n").map(s => s.trim()).filter(s => s.length > 0)
+                root.savedSsids = savedList
+
                 if (root.hasActiveInputFocus()) return
 
                 wifiModel.clear()
                 if (!root.wifiPowered || !root.hasAdapter) return
 
-                let lines = parts[1].trim().split("\n")
-                let seen = {}, active = ""
+                let lines = parts[3].trim().split("\n")
+                let seen = {}, active = activeConnSsid
+                
+                if (activeConnSsid.length > 0) {
+                    wifiModel.append({ ssid: activeConnSsid, connected: true, isSecure: true, isSaved: true })
+                    seen[activeConnSsid] = true
+                }
+
                 for (let i = 0; i < lines.length; i++) {
                     let fields = lines[i].split(":")
                     if (fields.length < 2) continue
-                    let isConn = fields[0] === "yes"
+                    let isConn = fields[0].toLowerCase() === "yes" || fields[0].toLowerCase() === "true"
                     let ssidName = fields[1].trim()
                     let sec = fields[2] || ""
-                    if (!ssidName || seen[ssidName]) continue
+                    
+                    if (!ssidName) continue
+                    if (isConn && !active) active = ssidName
+
+                    let isSavedProfile = savedList.indexOf(ssidName) !== -1
+
+                    if (seen[ssidName]) {
+                        if (isConn) {
+                            for (let m = 0; m < wifiModel.count; m++) {
+                                if (wifiModel.get(m).ssid === ssidName) {
+                                    wifiModel.setProperty(m, "connected", true)
+                                    wifiModel.setProperty(m, "isSaved", true)
+                                    break
+                                }
+                            }
+                        }
+                        continue
+                    }
+                    
                     seen[ssidName] = true
-                    if (isConn) active = ssidName
-                    wifiModel.append({ ssid: ssidName, connected: isConn, isSecure: sec !== "" })
+                    wifiModel.append({ 
+                        ssid: ssidName, 
+                        connected: isConn || (ssidName === activeConnSsid), 
+                        isSecure: sec !== "",
+                        isSaved: isSavedProfile
+                    })
                 }
                 root.activeSsid = active
             }
@@ -328,27 +377,89 @@ ColumnLayout {
     }
     
     function connectWifi(ssid, password) {
-        if (!root.hasAdapter) return
+        if (!root.hasAdapter || connProc.running || discProc.running) return
         root.connectingSsid = ssid
         root.errorSsid = ""
         root.connectionError = ""
-        connProc.command = ["fish", "-c", password.length > 0 ? `nmcli device wifi connect '${ssid}' password '${password}'` : `nmcli device wifi connect '${ssid}'`]
+        
+        let escapedSsid = ssid.replace(/'/g, "'\"'\"'")
+        let cmd = ""
+        if (password.length > 0) {
+            let escapedPass = password.replace(/'/g, "'\"'\"'")
+            cmd = `nmcli device wifi connect '${escapedSsid}' password '${escapedPass}'`
+        } else {
+            cmd = `nmcli connection up id '${escapedSsid}' 2>/dev/null || nmcli device wifi connect '${escapedSsid}'`
+        }
+        
+        connProc.command = ["fish", "-c", cmd]
         connProc.running = true
     }
     
     function disconnectWifi(ssid) {
-        if (!root.hasAdapter) return
-        connProc.command = ["fish", "-c", `nmcli connection down id '${ssid}'`]
-        connProc.running = true
+        if (!root.hasAdapter || discProc.running || connProc.running) return
+        root.disconnectingSsid = ssid
+        root.errorSsid = ""
+        root.connectionError = ""
+        
+        let escapedSsid = ssid.replace(/'/g, "'\"'\"'")
+        
+        discProc.command = ["fish", "-c", `
+            # Retrieve active UUID utilizing regex for both 'wifi' and '802-11-wireless' nmcli types
+            set active_uuid (nmcli -t -f UUID,TYPE,NAME connection show --active | awk -F: -v target='${escapedSsid}' '($2 ~ /802-11-wireless|wifi/) && $3 == target {print $1; exit}')
+            
+            if test -n "$active_uuid"
+                # Drop the specific connection directly by its UUID
+                nmcli connection down "$active_uuid"
+            else
+                # Aggressive fallback: Disconnect the Wi-Fi hardware device if profile targeting fails
+                set dev (nmcli -t -f DEVICE,TYPE device | awk -F: '$2 ~ /802-11-wireless|wifi/ {print $1; exit}')
+                if test -n "$dev"
+                    nmcli device disconnect "$dev"
+                end
+            end
+        `]
+        discProc.running = true
     }
 
     function forgetWifi(ssid) {
-        if (!root.hasAdapter) return
-        forgetProc.command = ["fish", "-c", `nmcli connection delete id '${ssid}'`]
+        if (!root.hasAdapter || forgetProc.running) return
+        root.errorSsid = ""
+        root.connectionError = ""
+        
+        let escapedSsid = ssid.replace(/'/g, "'\"'\"'")
+        
+        forgetProc.command = ["fish", "-c", `
+            # Extract all matching UUIDs for the given SSID
+            set uuids (nmcli -t -f UUID,TYPE,NAME connection show | awk -F: -v target='${escapedSsid}' '$2 ~ /802-11-wireless/ && $3 == target {print $1}')
+            
+            # Iterate directly to bypass test -n list expansion crashes
+            for u in $uuids
+                nmcli connection delete uuid "$u"
+            end
+        `]
         forgetProc.running = true
     }
 
-    Process { id: forgetProc; running: false; onExited: fetchWifiStatusProc.running = true }
+    Process { 
+        id: discProc
+        running: false
+        onExited: {
+            root.disconnectingSsid = ""
+            fetchWifiStatusProc.running = false
+            fetchWifiStatusProc.running = true
+        }
+    }
+
+    Process { 
+        id: forgetProc
+        running: false
+        onExited: {
+            root.errorSsid = ""
+            root.connectionError = ""
+            fetchWifiStatusProc.running = false
+            fetchWifiStatusProc.running = true
+        }
+    }
 
     Process {
         id: connProc
@@ -368,6 +479,7 @@ ColumnLayout {
         }
         onExited: {
             root.connectingSsid = ""
+            fetchWifiStatusProc.running = false
             fetchWifiStatusProc.running = true
         }
     }
