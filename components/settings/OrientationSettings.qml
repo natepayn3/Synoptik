@@ -126,6 +126,8 @@ ColumnLayout {
         HoverHandler { cursorShape: Qt.PointingHandCursor }
     }
 
+    Item { Layout.fillHeight: false }
+
     // Button Selector Layout for Frame Styles (Floating Bar, Screen Edge, Screen Frame)
     ColumnLayout {
         Layout.fillWidth: true
@@ -147,9 +149,9 @@ ColumnLayout {
 
             Repeater {
                 model: [
-                    { name: "Floating Bar", style: "floating", icon: "web_asset" },
-                    { name: "Screen Edge", style: "edge", icon: "crop_free" },
-                    { name: "Screen Frame", style: "screen", icon: "rounded_corner" }
+                    { name: "Floating", style: "floating", icon: "sliders" },
+                    { name: "Edge", style: "edge", icon: "border_left" },
+                    { name: "Frame", style: "screen", icon: "image_inset" }
                 ]
 
                 delegate: Rectangle {
