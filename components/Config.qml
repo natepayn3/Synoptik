@@ -138,12 +138,16 @@ QtObject {
     property string oskLayout: "Normal"
 
     // Global Visual Toggles & Opacity / Blur Controls
+    property string barFrameStyle: "floating" // Options: "floating" | "edge" | "screen"
     property bool showBorders: true
     property bool animateGradient: true
     property bool showScreenFrame: false
     property real shellOpacity: 1.0
     property bool enableBlur: true
     property bool enableXray: true
+
+    // Backward compatibility helper
+    readonly property bool isFloatingBar: barFrameStyle === "floating"
 
     // --- DESKTOP MASCOT STATE & PERSISTENCE ---
     property bool showMascot: false
@@ -299,6 +303,8 @@ QtObject {
         writer.command = ["fish", "-c", cmd]
         writer.running = true
     }
+
+    onBarFrameStyleChanged: { if (isLoaded) saveSettings() }
 
     onShowScreenFrameChanged: {
         if (!isLoaded) return
@@ -550,6 +556,7 @@ QtObject {
                 "mascotPhrases": root.mascotPhrases,
                 "fetchOnlineQuotes": root.fetchOnlineQuotes,
                 "quoteSource": root.quoteSource,
+                "barFrameStyle": root.barFrameStyle,
                 "barPosition": root.barPosition,
                 "showScreenFrame": root.showScreenFrame,
                 "sysFont": root.sysFont,
@@ -607,7 +614,7 @@ QtObject {
                         let props = [
                             "selectedWallpaperMonitors", "wallpaperTransitionType", "showOsk", "oskLayout",
                             "showMascot", "mascotPath", "mascotPhrases", "fetchOnlineQuotes", "quoteSource",
-                            "barPosition", "showScreenFrame", "sysFont", "fontScaleIndex", "locationQuery",
+                            "barFrameStyle", "barPosition", "showScreenFrame", "sysFont", "fontScaleIndex", "locationQuery",
                             "enabledBarScreens", "useCustomColors", "customBgBase", "customBgPanel",
                             "customAccent", "showBorders", "animateGradient", "shellOpacity", "enableBlur",
                             "enableXray", "showDesktopClock", "clockStyle", "clockScale", "clockShowSeconds",
@@ -618,6 +625,10 @@ QtObject {
                         props.forEach(p => {
                             if (parsed[p] !== undefined) root[p] = parsed[p]
                         })
+
+                        if (parsed.isFloatingBar !== undefined && parsed.barFrameStyle === undefined) {
+                            root.barFrameStyle = parsed.isFloatingBar ? "floating" : "edge"
+                        }
 
                         if (parsed.customThemes && Array.isArray(parsed.customThemes)) {
                             var stockList = stockThemes.slice()
@@ -634,12 +645,10 @@ QtObject {
                     }
                 }
 
-                // Set flag first, then sync borders & trigger weather
                 root.isLoaded = true
                 root.syncHyprlandBorders()
                 root.syncScreenFrame()
                 
-                // Trigger initial weather fetch now that locationQuery is guaranteed set
                 if (root.weather) {
                     root.weather.fetchWeather(true)
                 }

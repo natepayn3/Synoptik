@@ -13,6 +13,7 @@ Item {
 
     // --- State Properties ---
     property bool hasWifiAdapter: false
+    property alias hasAdapter: root.hasWifiAdapter
 
     onHasWifiAdapterChanged: {
         if (hasWifiAdapter) {

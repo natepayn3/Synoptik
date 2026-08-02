@@ -16,6 +16,11 @@ Item {
     property real sysRam: 0.0
     property real sysDisk: 0.0
 
+    // Temperature properties (in °C)
+    property int cpuTemp: 0
+    property int gpuTemp: 0
+    property int ramTemp: 0
+
     property var lastCpuTotal: 0
     property var lastCpuIdle: 0
 
@@ -52,7 +57,7 @@ Item {
             memInfoReader.reload()
             if (!diskGpuProc.running) diskGpuProc.running = true 
             
-            // Only fetch process list if user isn't hovering a row
+            // Fetch process list if user isn't hovering a row
             if (!processListView.isHoveringRow && !allProcessesFetcher.running) {
                 allProcessesFetcher.running = true
             }
@@ -89,7 +94,15 @@ Item {
 
     Process {
         id: diskGpuProc
-        command: ["fish", "-c", "cat /sys/class/drm/card0/device/gpu_busy_percent 2>/dev/null || cat /sys/class/hwmon/hwmon*/device/gpu_busy_percent 2>/dev/null || nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits 2>/dev/null || echo 0; df / | awk 'NR==2 {print $5}' | sed 's/%//'"]
+        command: [
+            "fish", "-c",
+            "cat /sys/class/drm/card0/device/gpu_busy_percent 2>/dev/null || cat /sys/class/hwmon/hwmon*/device/gpu_busy_percent 2>/dev/null || nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits 2>/dev/null || echo 0; " +
+            "df / | awk 'NR==2 {print $5}' | sed 's/%//'; " +
+            "math (cat /sys/class/thermal/thermal_zone*/temp 2>/dev/null | head -n 1 || echo 0) / 1000; " +
+            "nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits 2>/dev/null || math (cat /sys/class/hwmon/hwmon*/temp1_input 2>/dev/null | head -n 1 || echo 0) / 1000; " +
+            "set rtemp (cat /sys/class/hwmon/hwmon*/name 2>/dev/null | grep -i -n 'spd5118\\|dram' | cut -d: -f1); " +
+            "if test -n \"$rtemp\"; math (cat /sys/class/hwmon/hwmon\"$rtemp\"/temp1_input 2>/dev/null || echo 0) / 1000; else; echo 0; end"
+        ]
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
@@ -101,6 +114,9 @@ Item {
                         let rawDisk = parseFloat(lines[1]) || 0.0;
                         sysRoot.sysDisk = rawDisk / 100.0;
                     }
+                    if (lines.length >= 3) sysRoot.cpuTemp = Math.round(parseFloat(lines[2]) || 0);
+                    if (lines.length >= 4) sysRoot.gpuTemp = Math.round(parseFloat(lines[3]) || 0);
+                    if (lines.length >= 5) sysRoot.ramTemp = Math.round(parseFloat(lines[4]) || 0);
                 } catch(e) {}
                 diskGpuProc.running = false;
             }
@@ -109,17 +125,14 @@ Item {
 
     Process {
         id: allProcessesFetcher
-        // Auto-detects NVIDIA first -> Falls back to AMD/Intel DRM device node mapping -> Defaults to top RSS
         command: [
             "/bin/fish", "-c",
             "echo '___CAT___|CPU'; " +
             "ps -eo pid,pcpu,comm --sort=-pcpu | head -n 11 | tail -n +2 | awk -v cores=(nproc) '{print $1\"|\"$2/cores\"|\"$3}'; " +
             "echo '___CAT___|GPU'; " +
             "if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1; " +
-                "# NVIDIA Path: Query VRAM & Compute processes \n" +
                 "nvidia-smi --query-compute-apps=pid,used_memory,process_name --format=csv,noheader,nounits 2>/dev/null | head -n 10 | awk -F', ' '{print $1\"|\"$2\" MB|\"$3}'; " +
             "else if test -d /dev/dri; " +
-                "# AMD / Intel / Generic DRM Path: Resolve processes accessing GPU nodes \n" +
                 "set pids (fuser /dev/dri/renderD* /dev/dri/card* 2>/dev/null | string split -n ' '); " +
                 "if test (count $pids) -gt 0; " +
                     "ps -p (string join ',' $pids) -o pmem,comm --sort=-pmem 2>/dev/null | head -n 11 | tail -n +2 | awk '{print $1\"|\"$2\"%|\"$3}'; " +
@@ -127,7 +140,6 @@ Item {
                     "ps -eo pid,pmem,comm --sort=-pmem | head -n 11 | tail -n +2 | awk '{print $1\"|\"$2\"%|\"$3}'; " +
                 "end; " +
             "else; " +
-                "# Fallback Path \n" +
                 "ps -eo pid,pmem,comm --sort=-pmem | head -n 11 | tail -n +2 | awk '{print $1\"|\"$2\"%|\"$3}'; " +
             "end; " +
             "echo '___CAT___|RAM'; " +
@@ -148,7 +160,6 @@ Item {
                     } else if (parts.length === 3) {
                         let metricVal = parts[1];
                         
-                        // Keep raw strings for MB/formatted % values, otherwise handle rounding
                         if (currentCat !== "GPU" && !metricVal.includes("%")) {
                             let rounded = Math.round(parseFloat(parts[1]));
                             metricVal = (rounded > 100 ? 100 : rounded) + "%";
@@ -184,6 +195,7 @@ Item {
 
         property string label: ""
         property real value: 0.0
+        property int temp: 0
         property bool clickable: true
         property bool selected: sysRoot.activeCategory === ringRow.label
 
@@ -219,7 +231,7 @@ Item {
 
         Column {
             anchors.centerIn: parent
-            spacing: 0
+            spacing: -1
 
             Text {
                 text: ringRow.label
@@ -234,6 +246,15 @@ Item {
                 color: Config.textMain
                 font.family: Config.sysFont
                 font.pixelSize: Config.size(Config.fontCaption)
+                font.bold: true
+                anchors.horizontalCenter: parent.horizontalCenter
+            }
+            Text {
+                visible: ringRow.temp > 0
+                text: ringRow.temp + "°C"
+                color: Config.accent
+                font.family: Config.sysFont
+                font.pixelSize: Config.size(Config.fontMicro)
                 font.bold: true
                 anchors.horizontalCenter: parent.horizontalCenter
             }
@@ -285,11 +306,11 @@ Item {
                     spacing: 0
 
                     Item { Layout.fillWidth: true }
-                    StatRingItem { label: "CPU"; value: sysRoot.sysCpu }
+                    StatRingItem { label: "CPU"; value: sysRoot.sysCpu; temp: sysRoot.cpuTemp }
                     Item { Layout.fillWidth: true }
-                    StatRingItem { label: "GPU"; value: sysRoot.sysGpu }
+                    StatRingItem { label: "GPU"; value: sysRoot.sysGpu; temp: sysRoot.gpuTemp }
                     Item { Layout.fillWidth: true }
-                    StatRingItem { label: "RAM"; value: sysRoot.sysRam }
+                    StatRingItem { label: "RAM"; value: sysRoot.sysRam; temp: sysRoot.ramTemp }
                     Item { Layout.fillWidth: true }
                     StatRingItem { label: "DISK"; value: sysRoot.sysDisk; clickable: false }
                     Item { Layout.fillWidth: true }
@@ -338,13 +359,11 @@ Item {
                         id: rowDelegate
                         width: processListView.width
                         height: 28
-                        // Entire row highlights ONLY when the cursor is over the 'x' button
                         color: deleteMouse.containsMouse ? Qt.rgba(255, 255, 255, 0.05) : Qt.rgba(0, 0, 0, 0.15)
                         radius: 4
 
                         Behavior on color { ColorAnimation { duration: 150 } }
 
-                        // Background MouseArea strictly tracks hover for ticker & refresh pause (no pointer cursor)
                         MouseArea {
                             id: rowMouse
                             anchors.fill: parent
@@ -416,7 +435,6 @@ Item {
                                 horizontalAlignment: Text.AlignRight
                             }
 
-                            // Delete button handles action, pointer cursor, and accent state
                             Rectangle {
                                 id: deleteBtn
                                 implicitWidth: 20
