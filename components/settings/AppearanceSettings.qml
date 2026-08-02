@@ -13,7 +13,7 @@ Flickable {
     ColumnLayout {
         id: mainColumn
         width: parent.width
-        spacing: 10 // Reduced spacing from 14 to 10 to keep layout tight
+        spacing: 10
 
         Text {
             text: "THEMES & COLORS"
@@ -126,6 +126,95 @@ Flickable {
                     color: opacitySlider.pressed ? Config.accent : Config.textMain
                 }
             }
+        }
+
+        Text {
+            text: "UNIFIED SURFACE GEOMETRY"
+            color: Config.textMuted
+            font.family: Config.sysFont
+            font.pixelSize: Config.size(Config.fontCaption)
+            font.bold: true
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+
+            ColumnLayout {
+                spacing: 6
+
+                Text { 
+                    text: "Wing & Corner Radius"
+                    color: Config.textMuted
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontMicro)
+                    Layout.alignment: Qt.AlignHCenter 
+                }
+
+                RowLayout {
+                    spacing: 6
+                    Layout.alignment: Qt.AlignHCenter
+
+                    // Minus Button
+                    Rectangle {
+                        implicitWidth: 32; implicitHeight: 32
+                        radius: 8
+                        color: minusHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(0, 0, 0, 0.3)
+                        border.color: Qt.rgba(255, 255, 255, 0.08)
+                        border.width: 1
+
+                        Text { 
+                            anchors.centerIn: parent 
+                            text: "-" 
+                            color: Config.textMain 
+                            font.bold: true 
+                            font.pixelSize: 16 
+                        }
+
+                        TapHandler { onTapped: Config.surfaceRadius = Math.max(0, Config.surfaceRadius - 1) }
+                        HoverHandler { id: minusHover; cursorShape: Qt.PointingHandCursor }
+                    }
+
+                    // Value Box
+                    Rectangle {
+                        implicitWidth: 48; implicitHeight: 32
+                        radius: 8
+                        color: Qt.rgba(0, 0, 0, 0.4)
+                        border.color: Qt.rgba(255, 255, 255, 0.1)
+                        border.width: 1
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: Config.surfaceRadius.toString()
+                            color: Config.accent
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontSubhead)
+                            font.bold: true
+                        }
+                    }
+
+                    // Plus Button
+                    Rectangle {
+                        implicitWidth: 32; implicitHeight: 32
+                        radius: 8
+                        color: plusHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(0, 0, 0, 0.3)
+                        border.color: Qt.rgba(255, 255, 255, 0.08)
+                        border.width: 1
+
+                        Text { 
+                            anchors.centerIn: parent 
+                            text: "+" 
+                            color: Config.textMain 
+                            font.bold: true 
+                            font.pixelSize: 16 
+                        }
+
+                        TapHandler { onTapped: Config.surfaceRadius = Config.surfaceRadius + 1 }
+                        HoverHandler { id: plusHover; cursorShape: Qt.PointingHandCursor }
+                    }
+                }
+            }
+
+            Item { Layout.fillWidth: true }
         }
 
         RowLayout {
