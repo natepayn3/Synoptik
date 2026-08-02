@@ -21,6 +21,9 @@ Variants {
             readonly property string pos: Config.barPosition || "top"
             readonly property bool isVert: pos === "left" || pos === "right"
 
+            readonly property bool isScreenFrame: Config.barFrameStyle === "screen"
+            readonly property real framePadding: isScreenFrame ? 6 : 0
+
             anchors.left: pos === "left" || !isVert
             anchors.right: pos === "right" || !isVert
             anchors.top: pos === "top" || isVert
@@ -42,6 +45,11 @@ Variants {
             Item {
                 id: barContainer
                 anchors.fill: parent
+
+                anchors.leftMargin: pos === "left" ? topBar.framePadding : 0
+                anchors.rightMargin: pos === "right" ? topBar.framePadding : 0
+                anchors.topMargin: pos === "top" ? topBar.framePadding : 0
+                anchors.bottomMargin: pos === "bottom" ? topBar.framePadding : 0
 
                 // HORIZONTAL BAR CONTENT LAYOUT
                 Item {
