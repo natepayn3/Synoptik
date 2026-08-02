@@ -30,6 +30,15 @@ QtObject {
     property bool showClipboard: false
     property bool showScreenRecorder: false
 
+    // --- UNIFIED SURFACE GEOMETRY ---
+    property real surfaceRadius: 18.0
+
+    onSurfaceRadiusChanged: { if (isLoaded) saveSettings() }
+
+    // Backward-compatibility aliases
+    readonly property real cornerRadius: surfaceRadius
+    readonly property real surfaceWingSize: surfaceRadius
+
     // --- DESKTOP CLOCK STATE & PERSISTENCE ---
     property bool showDesktopClock: true
     property string clockStyle: "digital"
@@ -498,7 +507,7 @@ QtObject {
 
         let cmd = "printf '%s' '" + luaContent.replace(/'/g, "'\\''") + "' > " + hyprThemePath + " && " +
                   "hyprctl keyword general:col.active_border '" + activeStr + "' && " +
-                  "hyprctl keyword general:col.inactive_border '" + inactiveStr + "' && " +
+                  "hyprctl keyword general:inactive_border '" + inactiveStr + "' && " +
                   "hyprctl keyword general:border_size " + borderSize + animCmd
 
         writer.command = ["fish", "-c", cmd]
@@ -576,6 +585,9 @@ QtObject {
                 "customThemes": customPalettes,
                 "windowStyle": root.windowStyle,
 
+                // Surface Geometry Persistence
+                "surfaceRadius": root.surfaceRadius,
+
                 // Clock Settings Persistence
                 "showDesktopClock": root.showDesktopClock,
                 "clockStyle": root.clockStyle,
@@ -617,9 +629,9 @@ QtObject {
                             "barFrameStyle", "barPosition", "showScreenFrame", "sysFont", "fontScaleIndex", "locationQuery",
                             "enabledBarScreens", "useCustomColors", "customBgBase", "customBgPanel",
                             "customAccent", "showBorders", "animateGradient", "shellOpacity", "enableBlur",
-                            "enableXray", "showDesktopClock", "clockStyle", "clockScale", "clockShowSeconds",
-                            "clockUse12Hour", "clockShowAmPm", "clockShowBorder", "clockShowBackground",
-                            "clockPositions", "clockScales", "enabledClockScreens"
+                            "enableXray", "surfaceRadius", "showDesktopClock", "clockStyle", "clockScale", 
+                            "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", 
+                            "clockShowBackground", "clockPositions", "clockScales", "enabledClockScreens"
                         ]
 
                         props.forEach(p => {
@@ -677,7 +689,6 @@ QtObject {
 
     readonly property int barHeight: 46
     readonly property int barMargin: 12
-    readonly property int cornerRadius: 16 
 
     readonly property var stockThemes: [
         { name: "Monochrome",       bgBase: "#121212", bgPanel: "#1e1e1e", accent: "#e0e0e0" },
