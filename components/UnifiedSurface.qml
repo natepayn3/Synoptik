@@ -49,7 +49,7 @@ PanelWindow {
     readonly property real inH: (screen ? screen.height : 1080) - padT - padB
     readonly property real inRadi: Math.max(0.1, frameRadius)
 
-    readonly property real outerPadding: 12
+    readonly property real outerPadding: 16
     readonly property real barSidePadding: 0 // Gap facing the bar
 
     readonly property real rawChildWidth: {
@@ -1701,12 +1701,10 @@ PanelWindow {
                     if (isRight) {
                         return isScreenFrame 
                             ? (root.rightBarPopL + outerPadding) 
-                            // Fixed: Subtract wingW so content clears the curve and centers in the flat card area
                             : (mainContainer.width - root.barH - root.wingW - root.currentWidth + outerPadding)
                     } else {
                         return isScreenFrame 
                             ? (root.inX + root.wingW + barSidePadding) 
-                            // Fixed: Add wingW to push content perfectly into the flat card area
                             : (root.barH + root.wingW + barSidePadding)
                     }
                 }
@@ -1717,12 +1715,10 @@ PanelWindow {
                     if (isBottom) {
                         return isScreenFrame 
                             ? (root.bottomBarPopT + outerPadding) 
-                            // Fixed: Subtract wingH
                             : (mainContainer.height - root.barH - root.wingH - root.currentHeight + outerPadding)
                     } else {
                         return isScreenFrame 
                             ? (root.topBarPopB - root.currentHeight + barSidePadding) 
-                            // Fixed: Add wingH
                             : (root.barH + root.wingH + barSidePadding)
                     }
                 } else {
