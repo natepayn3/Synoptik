@@ -49,6 +49,9 @@ PanelWindow {
     readonly property real inH: (screen ? screen.height : 1080) - padT - padB
     readonly property real inRadi: Math.max(0.1, frameRadius)
 
+    readonly property real outerPadding: 12
+    readonly property real barSidePadding: 0 // Gap facing the bar
+
     readonly property real rawChildWidth: {
         let baseW = 420
         if (root.activeView === "osd") {
@@ -65,7 +68,7 @@ PanelWindow {
                 }
             }
         }
-        return baseW + 24
+        return isHorizontal ? (baseW + (outerPadding * 2)) : (baseW + outerPadding + barSidePadding)
     }
 
     readonly property real rawChildHeight: {
@@ -84,7 +87,7 @@ PanelWindow {
                 }
             }
         }
-        return isHorizontal ? baseH : (baseH + 24)
+        return isHorizontal ? (baseH + outerPadding + barSidePadding) : (baseH + (outerPadding * 2))
     }
 
     property real lastOpenWidth: rawChildWidth
@@ -1679,20 +1682,51 @@ PanelWindow {
         Item {
             id: contentContainer
             
-            x: isHorizontal 
-                ? (root.staticLeft + ((root.targetWidth - root.currentWidth) / 2.0) + 12)
-                : (isRight 
-                    ? (mainContainer.width - root.barH - root.currentWidth) 
-                    : (root.barH + (root.wingW * (1.0 - root.animScale))))
+            readonly property real outerPadding: root.outerPadding
+            readonly property real barSidePadding: root.barSidePadding
 
-            y: isHorizontal 
-                ? (isBottom 
-                    ? (mainContainer.height - root.barH - root.currentHeight) 
-                    : (root.barH + (root.wingH * (1.0 - root.animScale))))
-                : (root.staticLeft + ((root.targetHeight - root.currentHeight) / 2.0) + 12)
+            x: {
+                if (isHorizontal) {
+                    return root.pLeft + outerPadding
+                } else {
+                    if (isRight) {
+                        return isScreenFrame 
+                            ? (root.rightBarPopL + outerPadding) 
+                            : (mainContainer.width - root.barH - root.currentWidth + outerPadding)
+                    } else {
+                        return isScreenFrame 
+                            ? (root.inX + root.wingW + barSidePadding) 
+                            : (root.barH + barSidePadding)
+                    }
+                }
+            }
+
+            y: {
+                if (isHorizontal) {
+                    if (isBottom) {
+                        // Top starts at 20px outer margin, height extends down close to bottom bar
+                        return isScreenFrame 
+                            ? (root.bottomBarPopT + outerPadding) 
+                            : (mainContainer.height - root.barH - root.currentHeight + outerPadding)
+                    } else {
+                        // Top starts 8px from top bar, height leaves 20px outer margin at bottom
+                        return isScreenFrame 
+                            ? (root.topBarPopB - root.currentHeight + barSidePadding) 
+                            : (root.barH + barSidePadding)
+                    }
+                } else {
+                    return root.staticLeft + outerPadding
+                }
+            }
+
+            width: isHorizontal 
+                ? Math.max(1, root.currentWidth - (outerPadding * 2)) 
+                : Math.max(1, root.currentWidth - outerPadding - barSidePadding)
+
+            height: isHorizontal 
+                ? Math.max(1, root.currentHeight - outerPadding - barSidePadding) 
+                : Math.max(1, root.currentHeight - (outerPadding * 2))
             
-            width: isHorizontal ? Math.max(1, root.currentWidth - 24) : Math.max(1, root.currentWidth)
-            height: isHorizontal ? Math.max(1, root.currentHeight) : Math.max(1, root.currentHeight - 24)
             clip: true
             visible: root.progress >= 0.98
             focus: true
