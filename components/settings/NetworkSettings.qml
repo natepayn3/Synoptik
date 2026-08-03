@@ -24,6 +24,13 @@ ColumnLayout {
     property int maxGraphPoints: 30
     property int updateInterval: 500
 
+    // Local Network State Tracking
+    property string localIfName: "---"
+    property string localConnName: ""
+    property string localIpAddress: "Disconnected"
+    property string localMacAddress: "---"
+    property bool localConnected: false
+
     // Frame sync tracking for jitter-free scrolling
     property real lastPushTimestamp: Date.now()
     property real scrollProgress: 0.0
@@ -69,6 +76,8 @@ ColumnLayout {
         onTriggered: {
             vpnListPopulator.running = false
             vpnListPopulator.running = true
+            localNetQuery.running = false
+            localNetQuery.running = true
         }
     }
 
@@ -95,12 +104,96 @@ ColumnLayout {
         }
     }
 
+    // LOCAL NETWORK STATUS QUERY
+    Process {
+        id: localNetQuery
+        command: ["fish", "-c", "
+            set dev (nmcli -g DEVICE,TYPE,STATE device | awk -F: '$2 ~ /ethernet|wifi/ {print $1; exit}')
+            if test -z \"$dev\"
+                set dev (ip route show | awk '/default/ {print $5}' | head -n1)
+            end
+
+            if test -n \"$dev\"
+                set ip (ip -4 addr show dev $dev 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1)
+                set mac (cat /sys/class/net/$dev/address 2>/dev/null)
+                set conn (nmcli -g GENERAL.CONNECTION device show $dev 2>/dev/null)
+                set state (nmcli -g GENERAL.STATE device show $dev 2>/dev/null)
+                
+                # Fallback to last active connection profile if GENERAL.CONNECTION is unassigned while down
+                if test -z \"$conn\" -o \"$conn\" = \"--\"
+                    set conn (nmcli -g NAME,DEVICE connection show | awk -F: -v d=\"$dev\" '$2 == d {print $1; exit}')
+                end
+
+                if test -z \"$ip\"
+                    set ip \"Disconnected\"
+                end
+                
+                echo \"$dev|$ip|$mac|$state|$conn\"
+            else
+                echo \"none|Disconnected|---||\"
+            end
+        "]
+        running: false
+        stdout: StdioCollector {
+            onTextChanged: {
+                let clean = text.trim()
+                if (!clean) return
+                let parts = clean.split("|")
+                if (parts.length >= 5) {
+                    root.localIfName = parts[0] !== "none" ? parts[0] : "---"
+                    root.localIpAddress = parts[1] ? parts[1] : "Disconnected"
+                    root.localMacAddress = parts[2] ? parts[2].toUpperCase() : "---"
+                    
+                    let rawState = parts[3] ? parts[3].toLowerCase() : ""
+                    let isConn = (parts[1] !== "Disconnected") && (rawState.indexOf("connected") !== -1) && (rawState.indexOf("disconnected") === -1)
+                    root.localConnected = isConn
+
+                    if (parts[4] && parts[4] !== "--" && parts[4] !== "") {
+                        root.localConnName = parts[4]
+                    }
+                }
+            }
+        }
+    }
+
+    Process {
+        id: localNetToggleProc
+        running: false
+        onExited: {
+            localNetQuery.running = false
+            localNetQuery.running = true
+        }
+    }
+
+    function toggleLocalNetwork() {
+        if (root.localIfName === "---") return
+        let cmd = ""
+        if (root.localConnected) {
+            cmd = root.localConnName !== "" 
+                ? `nmcli connection down id "${root.localConnName}"` 
+                : `nmcli device disconnect ${root.localIfName}`
+        } else {
+            if (root.localConnName !== "") {
+                cmd = `nmcli connection up id "${root.localConnName}" || nmcli device connect ${root.localIfName}`
+            } else {
+                cmd = `nmcli device connect ${root.localIfName}`
+            }
+        }
+        localNetToggleProc.command = ["fish", "-c", cmd]
+        localNetToggleProc.running = true
+    }
+
     Process {
         id: bandwidthStreamProc
         command: ["fish", "-c", "
-            set dev (ip route show | awk '/default/ {print $5}' | head -n1)
+            set dev (nmcli -g DEVICE,TYPE,STATE device | awk -F: '$2 ~ /ethernet|wifi/ {print $1; exit}')
+            if test -z \"$dev\"
+                set dev (ip route show | awk '/default/ {print $5}' | head -n1)
+            end
             while true
-                cat /proc/net/dev | grep \"$dev\"
+                if test -n \"$dev\"
+                    cat /proc/net/dev | grep \"$dev\"
+                end
                 sleep 0.1
             end
         "]
@@ -262,6 +355,90 @@ ColumnLayout {
                             ctx.lineJoin = "round"
                             ctx.stroke()
                         }
+                    }
+                }
+            }
+        }
+
+        // LOCAL NETWORK SECTION
+        Text {
+            text: "LOCAL NETWORK"
+            font.family: Config.sysFont
+            font.pixelSize: Config.size(Config.fontCaption)
+            font.bold: true
+            color: Config.textMuted
+            Layout.fillWidth: true
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: 64
+            color: Qt.rgba(0, 0, 0, 0.25)
+            radius: Config.cornerRadius / 2
+
+            RowLayout {
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.leftMargin: 10
+                spacing: 8
+
+                // Icon & Toggle Switch
+                Rectangle {
+                    implicitWidth: 32
+                    implicitHeight: 32
+                    radius: Config.cornerRadius / 2
+                    color: toggleHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : (root.localConnected ? Config.accent : Qt.rgba(255, 255, 255, 0.08))
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: root.localConnected ? "lan" : "cloud_off"
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 18
+                        color: root.localConnected ? Config.bgBase : Config.textMuted
+                    }
+
+                    TapHandler {
+                        gesturePolicy: TapHandler.WithinBounds
+                        onTapped: root.toggleLocalNetwork()
+                    }
+                    HoverHandler { id: toggleHover; cursorShape: Qt.PointingHandCursor }
+                }
+
+                // Interface Details
+                ColumnLayout {
+                    spacing: 1
+
+                    RowLayout {
+                        spacing: 6
+                        Text {
+                            text: root.localIpAddress
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            font.bold: true
+                            color: root.localConnected ? Config.textMain : Config.textMuted
+                        }
+                        Text {
+                            text: "(" + root.localIfName + ")"
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                            color: Config.textMuted
+                        }
+                    }
+
+                    Text {
+                        text: root.localConnected ? "Connected" : "Disconnected"
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        color: Config.textMuted
+                    }
+
+                    Text {
+                        text: "MAC: " + root.localMacAddress
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        color: Config.textMuted
                     }
                 }
             }
