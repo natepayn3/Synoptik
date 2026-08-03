@@ -59,14 +59,16 @@ Item {
                         
                         let isBinary = text.includes("binary data") || text.includes("image") || text.startsWith("[[")
                         let isBase64 = text.startsWith("data:image/")
-                        let isWebUrl = text.startsWith("http://") || text.startsWith("https://")
+                        // Fix 1: Only consider Web URLs valid image previews if they end in standard image extensions
+                        let isWebUrl = /^https?:\/\/.*\.(png|jpg|jpeg|webp|gif|svg)(\?.*)?$/i.test(text)
                         let isLocalFile = (text.startsWith("/") || text.startsWith("file://")) && 
                                           /\.(png|jpg|jpeg|webp|gif|svg)$/i.test(text)
 
                         let finalImgPath = ""
                         
                         if (isBinary || isBase64) {
-                            finalImgPath = "file:///tmp/cliphist/" + id + ".png"
+                            // Fix 2: Don't set the image path immediately on list fetch, let cacheProc inject it when ready
+                            finalImgPath = ""
                         } else if (isWebUrl) {
                             finalImgPath = text
                         } else if (isLocalFile) {
@@ -106,11 +108,13 @@ Item {
             "cliphist list | while read -l line; " +
                 "set -l id (string split -m 1 \\t -- \"$line\")[1]; " +
                 "set -l img_path \"/tmp/cliphist/$id.png\"; " +
-                "if not test -f \"$img_path\"; " +
+                // If file already exists, echo the ID so QML binds it immediately
+                "if test -f \"$img_path\"; " +
+                    "echo \"$id\"; " +
+                "else; " +
                     "if string match -q -r 'binary data|image|^\\[\\[' -- \"$line\"; " +
                         "set -l tmp \"/tmp/cliphist/raw_$id\"; " +
                         "printf '%s\\n' \"$line\" | cliphist decode > \"$tmp\" 2>/dev/null; " +
-                        // Echo the ID exclusively if a new image was successfully written to disk
                         "if test -s \"$tmp\"; magick \"$tmp\" PNG:\"$img_path\" 2>/dev/null; and echo \"$id\"; end; " +
                         "rm -f \"$tmp\"; " +
                     "else if string match -q -r 'data:image' -- \"$line\"; " +
@@ -133,12 +137,12 @@ Item {
                 let generatedIds = out.trim().split("\n")
                 if (generatedIds.length === 0 || !generatedIds[0]) return
 
-                // Lazily force a UI reload only for newly cached items
+                // Lazily update models for cached items
                 for (let i = 0; i < clipModel.count; i++) {
                     let item = clipModel.get(i)
                     if (generatedIds.includes(item.itemId)) {
-                        let oldPath = item.imagePath
-                        clipModel.setProperty(i, "imagePath", oldPath.split("?")[0] + "?t=" + Date.now())
+                        let targetPath = "file:///tmp/cliphist/" + item.itemId + ".png"
+                        clipModel.setProperty(i, "imagePath", targetPath + "?t=" + Date.now())
                     }
                 }
             }
@@ -257,12 +261,12 @@ Item {
                             required property string imagePath
 
                             width: ListView.view.width
-                            implicitHeight: (delegateRoot.isImage && imgPreview.status === Image.Ready) ? 110 : 38
+                            implicitHeight: (delegateRoot.isImage && delegateRoot.imagePath !== "" && imgPreview.status === Image.Ready) ? 110 : 38
                             radius: 8
                             color: itemHover.hovered ? Qt.rgba(255, 255, 255, 0.1) : Qt.rgba(255, 255, 255, 0.03)
 
                             Text {
-                                visible: !delegateRoot.isImage || imgPreview.status !== Image.Ready
+                                visible: !delegateRoot.isImage || delegateRoot.imagePath === "" || imgPreview.status !== Image.Ready
                                 anchors {
                                     left: parent.left; right: parent.right
                                     verticalCenter: parent.verticalCenter
@@ -277,12 +281,12 @@ Item {
 
                             Image {
                                 id: imgPreview
-                                visible: delegateRoot.isImage && status === Image.Ready
+                                visible: delegateRoot.isImage && delegateRoot.imagePath !== "" && status === Image.Ready
                                 anchors {
                                     fill: parent
                                     margins: 6
                                 }
-                                source: delegateRoot.isImage ? delegateRoot.imagePath : ""
+                                source: (delegateRoot.isImage && delegateRoot.imagePath !== "") ? delegateRoot.imagePath : ""
                                 fillMode: Image.PreserveAspectFit
                                 sourceSize.height: 110
                                 cache: false
