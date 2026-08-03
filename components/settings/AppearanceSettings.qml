@@ -34,25 +34,23 @@ Flickable {
                     color: Config.textMuted
                     font.family: Config.sysFont
                     font.pixelSize: Config.size(Config.fontMicro)
+                    font.bold: true
                     Layout.alignment: Qt.AlignHCenter 
                 }
 
                 RowLayout {
                     spacing: 6
-                    Layout.alignment: Qt.AlignHCenter
 
                     // Minus Button
                     Rectangle {
-                        implicitWidth: 32; implicitHeight: 32
+                        implicitWidth: 24; implicitHeight: 24
                         radius: 8
                         color: minusHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(0, 0, 0, 0.3)
-                        border.color: Qt.rgba(255, 255, 255, 0.08)
-                        border.width: 1
 
                         Text { 
                             anchors.centerIn: parent 
                             text: "-" 
-                            color: Config.textMain 
+                            color: Config.accent
                             font.bold: true 
                             font.pixelSize: 16 
                         }
@@ -66,13 +64,11 @@ Flickable {
                         implicitWidth: 48; implicitHeight: 32
                         radius: 8
                         color: Qt.rgba(0, 0, 0, 0.4)
-                        border.color: Qt.rgba(255, 255, 255, 0.1)
-                        border.width: 1
 
                         Text {
                             anchors.centerIn: parent
                             text: Config.surfaceRadius.toString()
-                            color: Config.accent
+                            color: Config.textMain
                             font.family: Config.sysFont
                             font.pixelSize: Config.size(Config.fontSubhead)
                             font.bold: true
@@ -81,16 +77,14 @@ Flickable {
 
                     // Plus Button
                     Rectangle {
-                        implicitWidth: 32; implicitHeight: 32
+                        implicitWidth: 24; implicitHeight: 24
                         radius: 8
                         color: plusHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(0, 0, 0, 0.3)
-                        border.color: Qt.rgba(255, 255, 255, 0.08)
-                        border.width: 1
 
                         Text { 
                             anchors.centerIn: parent 
                             text: "+" 
-                            color: Config.textMain 
+                            color: Config.accent
                             font.bold: true 
                             font.pixelSize: 16 
                         }
@@ -103,6 +97,8 @@ Flickable {
 
             Item { Layout.fillWidth: true }
         }
+
+        Item { Layout.fillWidth: true }
 
         Text {
             text: "THEMES & COLORS"

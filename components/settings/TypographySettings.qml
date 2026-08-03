@@ -53,7 +53,7 @@ ColumnLayout {
         }
     }
 
-    Text { text: "Filter Fonts"; color: Config.textMuted; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro); font.bold: true }
+    Text { text: "Search Fonts"; color: Config.textMuted; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro); font.bold: true }
 
     // SEARCH FIELD CONTAINER
     Rectangle {
@@ -64,7 +64,11 @@ ColumnLayout {
         border.color: fontSearchInput.activeFocus ? Config.accent : "transparent"
         border.width: 1
 
-        HoverHandler { id: fontInputHover }
+        // Added cursorShape to display I-beam on hover
+        HoverHandler { 
+            id: fontInputHover
+            cursorShape: Qt.IBeamCursor
+        }
 
         RowLayout {
             anchors.fill: parent
