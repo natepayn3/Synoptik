@@ -218,8 +218,8 @@ PanelWindow {
 
                         // LEFT NAVIGATION CARD
                         Rectangle {
-                            Layout.preferredWidth: 170
-                            Layout.maximumWidth: 170
+                            Layout.preferredWidth: 300
+                            Layout.maximumWidth: 300
                             Layout.fillHeight: true
                             color: Qt.rgba(255, 255, 255, 0.03)
                             radius: (Config.surfaceRadius || 18) * 0.75
