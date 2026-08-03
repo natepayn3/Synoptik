@@ -149,7 +149,7 @@ PanelWindow {
         right: barPosition === "left" ? 0 : (currentMargin - shadowPadding)
     }
 
-    readonly property real baseBarHeight: Config.barHeight || 46
+    readonly property real baseBarHeight: Config.barHeight || 54
     readonly property real barH: isScreenFrame ? (baseBarHeight - 8) : baseBarHeight
     readonly property real barBottomY: barH - halfB
 

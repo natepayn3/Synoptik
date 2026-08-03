@@ -712,7 +712,7 @@ QtObject {
     property color textMain: "#ffffff"
     property color textMuted: "#94a3b8"
 
-    readonly property int barHeight: 46
+    readonly property int barHeight: 54
     readonly property int barMargin: 12
 
     readonly property var stockThemes: [
