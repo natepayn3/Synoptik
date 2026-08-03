@@ -180,8 +180,8 @@ PanelWindow {
 
     HyprlandFocusGrab {
         id: focusGrab
-        // Restrict focus grab to the actively focused Hyprland monitor to prevent instant onCleared wipeouts
-        active: root.isOpen && (!screen || screen.name === (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""))
+        // Disable focus grab when OSD or Notification OSD is active
+        active: root.isOpen && root.activeView !== "osd" && root.activeView !== "notifOsd" && (!screen || screen.name === (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""))
         windows: [root]
         onCleared: {
             root.closeOthers("none")
