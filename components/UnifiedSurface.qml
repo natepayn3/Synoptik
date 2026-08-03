@@ -1193,8 +1193,8 @@ PanelWindow {
             Rectangle {
                 id: leftCard
                 
-                width: root.isHorizontal ? leftModules.implicitWidth : 32
-                height: root.isHorizontal ? 32 : leftModules.implicitHeight
+                width: root.isHorizontal ? (leftModules.implicitWidth + 4) : 36
+                height: root.isHorizontal ? 36 : (leftModules.implicitHeight + 4)
                 radius: Config.cornerRadius / 2
                 color: Qt.rgba(255, 255, 255, 0.05)
                 clip: true
@@ -1618,8 +1618,8 @@ PanelWindow {
             Rectangle {
                 id: rightCard
                 
-                width: root.isHorizontal ? rightModules.implicitWidth : 32
-                height: root.isHorizontal ? 32 : rightModules.implicitHeight
+                width: root.isHorizontal ? (rightModules.implicitWidth + 4) : 36
+                height: root.isHorizontal ? 36 : (rightModules.implicitHeight + 4)
                 radius: Config.cornerRadius / 2
                 color: Qt.rgba(255, 255, 255, 0.05)
                 clip: true
