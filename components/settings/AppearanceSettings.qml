@@ -45,7 +45,7 @@ Flickable {
                     Rectangle {
                         implicitWidth: 24; implicitHeight: 24
                         radius: 8
-                        color: minusHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(0, 0, 0, 0.3)
+                        color: minusHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.15)
 
                         Text { 
                             anchors.centerIn: parent 
@@ -63,7 +63,7 @@ Flickable {
                     Rectangle {
                         implicitWidth: 48; implicitHeight: 32
                         radius: 8
-                        color: Qt.rgba(0, 0, 0, 0.4)
+                        color: Qt.rgba(0, 0, 0, 0.15)
 
                         Text {
                             anchors.centerIn: parent
@@ -79,7 +79,7 @@ Flickable {
                     Rectangle {
                         implicitWidth: 24; implicitHeight: 24
                         radius: 8
-                        color: plusHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(0, 0, 0, 0.3)
+                        color: plusHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.15)
 
                         Text { 
                             anchors.centerIn: parent 
