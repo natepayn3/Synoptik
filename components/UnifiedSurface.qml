@@ -220,10 +220,8 @@ PanelWindow {
 
     function updateActiveView() {
         let nextView = "none"
-        // Determine if this specific PanelWindow instance is on the focused monitor
         let isFocused = !screen || screen.name === (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : "")
 
-        // Only evaluate global Config flags if this is the active screen
         if (isFocused) {
             if (typeof Config.showOSD !== "undefined" && Config.showOSD) nextView = "osd"
             else if (typeof Config.showNotificationOsd !== "undefined" && Config.showNotificationOsd) nextView = "notifOsd"
@@ -288,7 +286,7 @@ PanelWindow {
                 if (root.isHorizontal) root.popoutXOffset = mainContainer.width
                 else root.popoutYOffset = mainContainer.height
             }
-            updateActiveView()
+ updatesActiveView()
         }
         function onShowNotificationOsdChanged() {
             if (Config.showNotificationOsd) {
@@ -586,9 +584,8 @@ PanelWindow {
                 }
             }
 
-
             // =========================================================
-            // 2. SCREEN FRAME MODE (Solid Rect Edge Strips + Isolated Paths)
+            // 2. SCREEN FRAME MODE
             // =========================================================
 
             Item {
@@ -630,9 +627,6 @@ PanelWindow {
                 }
             }
 
-            // ---------------------------------------------------------
-            // LEFT BAR OPEN SHAPES
-            // ---------------------------------------------------------
             Item {
                 id: sfOpenGroupLeft
                 anchors.fill: parent
@@ -769,9 +763,6 @@ PanelWindow {
                 }
             }
 
-            // ---------------------------------------------------------
-            // RIGHT BAR OPEN SHAPES
-            // ---------------------------------------------------------
             Item {
                 id: sfOpenGroupRight
                 anchors.fill: parent
@@ -825,7 +816,6 @@ PanelWindow {
                         PathLine { x: root.rightBarPopL + root.radius; y: root.pLeft } 
                         PathArc { x: root.rightBarPopL; y: root.pLeft + root.radius; radiusX: root.radius; radiusY: root.radius; direction: PathArc.Counterclockwise } 
                         
-                        // Restored inner wing smoothly connecting left edge of popout to bottom screen edge
                         PathLine { x: root.rightBarPopL; y: root.inY + root.inH - root.wingW } 
                         PathCubic { x: root.rightBarPopL - root.wingW; y: root.inY + root.inH; control1X: root.rightBarPopL; control1Y: root.inY + root.inH - root.wingW * 0.5; control2X: root.rightBarPopL - root.wingW * 0.5; control2Y: root.inY + root.inH } 
                         
@@ -890,7 +880,6 @@ PanelWindow {
                         PathLine { x: root.rightBarPopL + root.radius; y: root.pLeft } 
                         PathArc { x: root.rightBarPopL; y: root.pLeft + root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Counterclockwise } 
                         
-                        // Restored inner wing smoothly connecting left edge of popout to bottom screen border
                         PathLine { x: root.rightBarPopL; y: root.inY + root.inH - root.halfB - root.wingW } 
                         PathCubic { x: root.rightBarPopL - root.wingW; y: root.inY + root.inH - root.halfB; control1X: root.rightBarPopL; control1Y: root.inY + root.inH - root.halfB - root.wingW * 0.5; control2X: root.rightBarPopL - root.wingW * 0.5; control2Y: root.inY + root.inH - root.halfB } 
                         
@@ -902,9 +891,6 @@ PanelWindow {
                 }
             }
 
-            // ---------------------------------------------------------
-            // TOP BAR OPEN SHAPES
-            // ---------------------------------------------------------
             Item {
                 id: sfOpenGroupTop
                 anchors.fill: parent
@@ -1040,9 +1026,6 @@ PanelWindow {
                 }
             }
 
-            // ---------------------------------------------------------
-            // BOTTOM BAR OPEN SHAPES
-            // ---------------------------------------------------------
             Item {
                 id: sfOpenGroupBottom
                 anchors.fill: parent
@@ -1083,7 +1066,6 @@ PanelWindow {
                         PathLine { x: root.pRight; y: root.bottomBarPopT + root.radius } 
                         PathArc { x: root.pRight - root.radius; y: root.bottomBarPopT; radiusX: root.radius; radiusY: root.radius; direction: PathArc.Counterclockwise } 
                         
-                        // Outer top-left corner connection
                         PathLine { x: root.inX + root.wingW; y: root.bottomBarPopT } 
                         PathCubic { x: root.inX; y: root.bottomBarPopT - root.wingW; control1X: root.inX + root.wingW * 0.5; control1Y: root.bottomBarPopT; control2X: root.inX; control2Y: root.bottomBarPopT - root.wingW * 0.5 }
                         
@@ -1106,7 +1088,6 @@ PanelWindow {
                         PathLine { x: root.pLeft; y: root.bottomBarPopT + root.radius } 
                         PathArc { x: root.pLeft + root.radius; y: root.bottomBarPopT; radiusX: root.radius; radiusY: root.radius; direction: PathArc.Clockwise } 
                         
-                        // Outer top-right corner connection
                         PathLine { x: root.inX + root.inW - root.wingW; y: root.bottomBarPopT } 
                         PathCubic { x: root.inX + root.inW; y: root.bottomBarPopT - root.wingW; control1X: root.inX + root.inW - root.wingW * 0.5; control1Y: root.bottomBarPopT; control2X: root.inX + root.inW; control2Y: root.bottomBarPopT - root.wingW * 0.5 }
                         
@@ -1200,7 +1181,6 @@ PanelWindow {
             x: root.isRight ? (mainContainer.width - root.barH + Math.floor(root.halfB)) : Math.floor(root.halfB)
             y: root.isBottom ? (mainContainer.height - root.barH + Math.floor(root.halfB)) : Math.floor(root.halfB)
             
-            // Apply an inner translation offset when screen frame is active so layout centers relative to the viewable bar area
             transform: Translate {
                 x: root.isScreenFrame ? (root.barPosition === "left" ? root.framePadding / 2 : (root.barPosition === "right" ? -root.framePadding / 2 : 0)) : 0
                 y: root.isScreenFrame ? (root.barPosition === "top" ? root.framePadding / 2 : (root.barPosition === "bottom" ? -root.framePadding / 2 : 0)) : 0
@@ -1213,10 +1193,19 @@ PanelWindow {
             Rectangle {
                 id: leftCard
                 
-                width: root.isHorizontal ? leftModules.implicitWidth + 12 : 32
-                height: root.isHorizontal ? 32 : leftModules.implicitHeight + 12
+                width: root.isHorizontal ? leftModules.implicitWidth : 32
+                height: root.isHorizontal ? 32 : leftModules.implicitHeight
                 radius: Config.cornerRadius / 2
                 color: Qt.rgba(255, 255, 255, 0.05)
+                clip: true
+
+                Behavior on width {
+                    NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+                }
+
+                Behavior on height {
+                    NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+                }
 
                 states: [
                     State {
@@ -1256,8 +1245,16 @@ PanelWindow {
 
                     Rectangle {
                         id: btnPower
-                        implicitWidth: 32; implicitHeight: 32; radius: 10
+                        visible: !Config.leftCardCollapsed || Config.isPinned("power")
+                        opacity: visible ? 1.0 : 0.0
+                        implicitWidth: visible ? 32 : 0
+                        implicitHeight: visible ? 32 : 0
+                        radius: 10
                         color: (Config.showPower || powerHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                        Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                        Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
                         Behavior on color { ColorAnimation { duration: 150 } }
 
                         Text {
@@ -1267,14 +1264,31 @@ PanelWindow {
                             font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
                         }
 
+                        Rectangle {
+                            anchors.top: parent.top; anchors.right: parent.right
+                            anchors.topMargin: 2; anchors.rightMargin: 2
+                            width: 5; height: 5; radius: 2.5
+                            color: Config.accent
+                            visible: !Config.leftCardCollapsed && Config.isPinned("power")
+                        }
+
                         TapHandler { onTapped: { setPopoutPos(btnPower); Config.showPower = !Config.showPower; } }
+                        TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("power") }
                         HoverHandler { id: powerHover; cursorShape: Qt.PointingHandCursor }
                     }
 
                     Rectangle {
                         id: btnRecorder
-                        implicitWidth: 32; implicitHeight: 32; radius: 10
+                        visible: !Config.leftCardCollapsed || Config.isPinned("recorder")
+                        opacity: visible ? 1.0 : 0.0
+                        implicitWidth: visible ? 32 : 0
+                        implicitHeight: visible ? 32 : 0
+                        radius: 10
                         color: (Config.showScreenRecorder || recordHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                        Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                        Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
                         Behavior on color { ColorAnimation { duration: 150 } }
 
                         Text {
@@ -1282,17 +1296,32 @@ PanelWindow {
                             text: (typeof shellRoot !== "undefined" && shellRoot.isRecording) ? "radio_button_checked" : "videocam"
                             color: (typeof shellRoot !== "undefined" && shellRoot.isRecording) ? "#ef4444" : (Config.showScreenRecorder ? Config.accent : Config.textMain)
                             font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                        }
 
-                            Behavior on color { ColorAnimation { duration: 150 } }
+                        Rectangle {
+                            anchors.top: parent.top; anchors.right: parent.right
+                            anchors.topMargin: 2; anchors.rightMargin: 2
+                            width: 5; height: 5; radius: 2.5
+                            color: Config.accent
+                            visible: !Config.leftCardCollapsed && Config.isPinned("recorder")
                         }
 
                         TapHandler { onTapped: { setPopoutPos(btnRecorder); Config.showScreenRecorder = !Config.showScreenRecorder; } }
+                        TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("recorder") }
                         HoverHandler { id: recordHover; cursorShape: Qt.PointingHandCursor }
                     }
 
                     Rectangle {
-                        implicitWidth: 32; implicitHeight: 32; radius: 10
+                        visible: !Config.leftCardCollapsed || Config.isPinned("screenshot")
+                        opacity: visible ? 1.0 : 0.0
+                        implicitWidth: visible ? 32 : 0
+                        implicitHeight: visible ? 32 : 0
+                        radius: 10
                         color: screenshotHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                        Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                        Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
                         Behavior on color { ColorAnimation { duration: 150 } }
 
                         Text {
@@ -1302,31 +1331,67 @@ PanelWindow {
                             font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
                         }
 
+                        Rectangle {
+                            anchors.top: parent.top; anchors.right: parent.right
+                            anchors.topMargin: 2; anchors.rightMargin: 2
+                            width: 5; height: 5; radius: 2.5
+                            color: Config.accent
+                            visible: !Config.leftCardCollapsed && Config.isPinned("screenshot")
+                        }
+
                         TapHandler { onTapped: Quickshell.execDetached(["fish", "-c", "sleep 0.1; and grim -g (slurp) -t ppm - | satty --filename -"]) }
+                        TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("screenshot") }
                         HoverHandler { id: screenshotHover; cursorShape: Qt.PointingHandCursor }
                     }
 
                     Rectangle {
-                        id: btnClipboard
-                        implicitWidth: 32; implicitHeight: 32; radius: 10
-                        color: (Config.showClipboard || clipHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                        id: btnNotifications
+                        visible: !Config.leftCardCollapsed || Config.isPinned("notifications")
+                        opacity: visible ? 1.0 : 0.0
+                        implicitWidth: visible ? 32 : 0
+                        implicitHeight: visible ? 32 : 0
+                        radius: 10
+                        color: (Config.showNotifications || notificationsHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                        Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                        Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
                         Behavior on color { ColorAnimation { duration: 150 } }
 
                         Text {
                             anchors.centerIn: parent
-                            text: "content_paste"
-                            color: Config.showClipboard ? Config.accent : Config.textMain
-                            font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                            text: (typeof shellRoot !== "undefined" && shellRoot.activeNotifs > 0) ? "inbox_text" : "inbox"
+                            color: (Config.showNotifications || (typeof shellRoot !== "undefined" && shellRoot.activeNotifs > 0)) ? Config.accent : Config.textMain
+                            font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+
+                            Behavior on color { ColorAnimation { duration: 150 } }
                         }
 
-                        TapHandler { onTapped: { setPopoutPos(btnClipboard); Config.showClipboard = !Config.showClipboard; } }
-                        HoverHandler { id: clipHover; cursorShape: Qt.PointingHandCursor }
+                        Rectangle {
+                            anchors.top: parent.top; anchors.right: parent.right
+                            anchors.topMargin: 2; anchors.rightMargin: 2
+                            width: 5; height: 5; radius: 2.5
+                            color: Config.accent
+                            visible: !Config.leftCardCollapsed && Config.isPinned("notifications")
+                        }
+
+                        TapHandler { onTapped: { setPopoutPos(btnNotifications); Config.showNotifications = !Config.showNotifications; } }
+                        TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("notifications") }
+                        HoverHandler { id: notificationsHover; cursorShape: Qt.PointingHandCursor }
                     }
 
                     Rectangle {
                         id: btnWallpaper
-                        implicitWidth: 32; implicitHeight: 32; radius: 10
+                        visible: !Config.leftCardCollapsed || Config.isPinned("wallpaper")
+                        opacity: visible ? 1.0 : 0.0
+                        implicitWidth: visible ? 32 : 0
+                        implicitHeight: visible ? 32 : 0
+                        radius: 10
                         color: (Config.showWallpaper || wallpaperHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                        Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                        Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
                         Behavior on color { ColorAnimation { duration: 150 } }
 
                         Text {
@@ -1336,14 +1401,31 @@ PanelWindow {
                             font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
                         }
 
+                        Rectangle {
+                            anchors.top: parent.top; anchors.right: parent.right
+                            anchors.topMargin: 2; anchors.rightMargin: 2
+                            width: 5; height: 5; radius: 2.5
+                            color: Config.accent
+                            visible: !Config.leftCardCollapsed && Config.isPinned("wallpaper")
+                        }
+
                         TapHandler { onTapped: { setPopoutPos(btnWallpaper); Config.showWallpaper = !Config.showWallpaper; } }
+                        TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("wallpaper") }
                         HoverHandler { id: wallpaperHover; cursorShape: Qt.PointingHandCursor }
                     }
 
                     Rectangle {
                         id: btnSettings
-                        implicitWidth: 32; implicitHeight: 32; radius: 10
+                        visible: !Config.leftCardCollapsed || Config.isPinned("settings")
+                        opacity: visible ? 1.0 : 0.0
+                        implicitWidth: visible ? 32 : 0
+                        implicitHeight: visible ? 32 : 0
+                        radius: 10
                         color: (Config.showSettings || settingsHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                        Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                        Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
                         Behavior on color { ColorAnimation { duration: 150 } }
 
                         Text {
@@ -1353,14 +1435,31 @@ PanelWindow {
                             font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
                         }
 
+                        Rectangle {
+                            anchors.top: parent.top; anchors.right: parent.right
+                            anchors.topMargin: 2; anchors.rightMargin: 2
+                            width: 5; height: 5; radius: 2.5
+                            color: Config.accent
+                            visible: !Config.leftCardCollapsed && Config.isPinned("settings")
+                        }
+
                         TapHandler { onTapped: { setPopoutPos(btnSettings); Config.showSettings = !Config.showSettings; } }
+                        TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("settings") }
                         HoverHandler { id: settingsHover; cursorShape: Qt.PointingHandCursor }
                     }
 
                     Rectangle {
                         id: btnLauncher
-                        implicitWidth: 32; implicitHeight: 32; radius: 10
+                        visible: !Config.leftCardCollapsed || Config.isPinned("launcher")
+                        opacity: visible ? 1.0 : 0.0
+                        implicitWidth: visible ? 32 : 0
+                        implicitHeight: visible ? 32 : 0
+                        radius: 10
                         color: (Config.showAppLauncher || launcherHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                        Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                        Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
                         Behavior on color { ColorAnimation { duration: 150 } }
 
                         Text {
@@ -1370,8 +1469,36 @@ PanelWindow {
                             font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
                         }
 
+                        Rectangle {
+                            anchors.top: parent.top; anchors.right: parent.right
+                            anchors.topMargin: 2; anchors.rightMargin: 2
+                            width: 5; height: 5; radius: 2.5
+                            color: Config.accent
+                            visible: !Config.leftCardCollapsed && Config.isPinned("launcher")
+                        }
+
                         TapHandler { onTapped: { setPopoutPos(btnLauncher); Config.showAppLauncher = !Config.showAppLauncher; } }
+                        TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("launcher") }
                         HoverHandler { id: launcherHover; cursorShape: Qt.PointingHandCursor }
+                    }
+
+                    Rectangle {
+                        implicitWidth: 32; implicitHeight: 32; radius: 10
+                        color: chevronLeftHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: {
+                                if (root.isHorizontal) return Config.leftCardCollapsed ? "chevron_right" : "chevron_left"
+                                return Config.leftCardCollapsed ? "expand_more" : "expand_less"
+                            }
+                            color: Config.textMuted
+                            font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+                        }
+
+                        TapHandler { onTapped: Config.leftCardCollapsed = !Config.leftCardCollapsed }
+                        HoverHandler { id: chevronLeftHover; cursorShape: Qt.PointingHandCursor }
                     }
                 }
             }
@@ -1491,10 +1618,19 @@ PanelWindow {
             Rectangle {
                 id: rightCard
                 
-                width: root.isHorizontal ? rightModules.implicitWidth + 12 : 32
-                height: root.isHorizontal ? 32 : rightModules.implicitHeight + 12
+                width: root.isHorizontal ? rightModules.implicitWidth : 32
+                height: root.isHorizontal ? 32 : rightModules.implicitHeight
                 radius: Config.cornerRadius / 2
                 color: Qt.rgba(255, 255, 255, 0.05)
+                clip: true
+
+                Behavior on width {
+                    NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+                }
+
+                Behavior on height {
+                    NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+                }
 
                 states: [
                     State {
@@ -1533,9 +1669,36 @@ PanelWindow {
                     rowSpacing: 8
 
                     Rectangle {
-                        id: btnAudio
                         implicitWidth: 32; implicitHeight: 32; radius: 10
+                        color: chevronRightHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: {
+                                if (root.isHorizontal) return Config.rightCardCollapsed ? "chevron_left" : "chevron_right"
+                                return Config.rightCardCollapsed ? "expand_less" : "expand_more"
+                            }
+                            color: Config.textMuted
+                            font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+                        }
+
+                        TapHandler { onTapped: Config.rightCardCollapsed = !Config.rightCardCollapsed }
+                        HoverHandler { id: chevronRightHover; cursorShape: Qt.PointingHandCursor }
+                    }
+
+                    Rectangle {
+                        id: btnAudio
+                        visible: !Config.rightCardCollapsed || Config.isPinned("audio")
+                        opacity: visible ? 1.0 : 0.0
+                        implicitWidth: visible ? 32 : 0
+                        implicitHeight: visible ? 32 : 0
+                        radius: 10
                         color: (Config.showAudio || audioHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                        Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                        Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
                         Behavior on color { ColorAnimation { duration: 150 } }
 
                         Text {
@@ -1545,14 +1708,31 @@ PanelWindow {
                             font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
                         }
 
+                        Rectangle {
+                            anchors.top: parent.top; anchors.right: parent.right
+                            anchors.topMargin: 2; anchors.rightMargin: 2
+                            width: 5; height: 5; radius: 2.5
+                            color: Config.accent
+                            visible: !Config.rightCardCollapsed && Config.isPinned("audio")
+                        }
+
                         TapHandler { onTapped: { setPopoutPos(btnAudio); Config.showAudio = !Config.showAudio; } }
+                        TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("audio") }
                         HoverHandler { id: audioHover; cursorShape: Qt.PointingHandCursor }
                     }
 
                     Rectangle {
                         id: btnSys
-                        implicitWidth: 32; implicitHeight: 32; radius: 10
+                        visible: !Config.rightCardCollapsed || Config.isPinned("sys")
+                        opacity: visible ? 1.0 : 0.0
+                        implicitWidth: visible ? 32 : 0
+                        implicitHeight: visible ? 32 : 0
+                        radius: 10
                         color: (Config.showSystemMonitor || sysHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                        Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                        Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
                         Behavior on color { ColorAnimation { duration: 150 } }
 
                         Text {
@@ -1562,15 +1742,31 @@ PanelWindow {
                             font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
                         }
 
+                        Rectangle {
+                            anchors.top: parent.top; anchors.right: parent.right
+                            anchors.topMargin: 2; anchors.rightMargin: 2
+                            width: 5; height: 5; radius: 2.5
+                            color: Config.accent
+                            visible: !Config.rightCardCollapsed && Config.isPinned("sys")
+                        }
+
                         TapHandler { onTapped: { setPopoutPos(btnSys); Config.showSystemMonitor = !Config.showSystemMonitor; } }
+                        TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("sys") }
                         HoverHandler { id: sysHover; cursorShape: Qt.PointingHandCursor }
                     }
 
                     Rectangle {
                         id: btnBatt
-                        implicitWidth: 32; implicitHeight: 32; radius: 10
-                        visible: shellRoot.hasBattery
+                        visible: shellRoot.hasBattery && (!Config.rightCardCollapsed || Config.isPinned("batt"))
+                        opacity: visible ? 1.0 : 0.0
+                        implicitWidth: visible ? 32 : 0
+                        implicitHeight: visible ? 32 : 0
+                        radius: 10
                         color: (Config.showBattery || battHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                        Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                        Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
                         Behavior on color { ColorAnimation { duration: 150 } }
 
                         Text {
@@ -1590,14 +1786,31 @@ PanelWindow {
                             font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
                         }
 
+                        Rectangle {
+                            anchors.top: parent.top; anchors.right: parent.right
+                            anchors.topMargin: 2; anchors.rightMargin: 2
+                            width: 5; height: 5; radius: 2.5
+                            color: Config.accent
+                            visible: !Config.rightCardCollapsed && Config.isPinned("batt")
+                        }
+
                         TapHandler { onTapped: { setPopoutPos(btnBatt); Config.showBattery = !Config.showBattery; } }
+                        TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("batt") }
                         HoverHandler { id: battHover; cursorShape: Qt.PointingHandCursor }
                     }
 
                     Rectangle {
                         id: btnCC
-                        implicitWidth: 32; implicitHeight: 32; radius: 10
+                        visible: !Config.rightCardCollapsed || Config.isPinned("cc")
+                        opacity: visible ? 1.0 : 0.0
+                        implicitWidth: visible ? 32 : 0
+                        implicitHeight: visible ? 32 : 0
+                        radius: 10
                         color: (Config.showControlCenter || ccHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                        Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                        Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
                         Behavior on color { ColorAnimation { duration: 150 } }
 
                         Text {
@@ -1607,14 +1820,31 @@ PanelWindow {
                             font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
                         }
 
+                        Rectangle {
+                            anchors.top: parent.top; anchors.right: parent.right
+                            anchors.topMargin: 2; anchors.rightMargin: 2
+                            width: 5; height: 5; radius: 2.5
+                            color: Config.accent
+                            visible: !Config.rightCardCollapsed && Config.isPinned("cc")
+                        }
+
                         TapHandler { onTapped: { setPopoutPos(btnCC); Config.showControlCenter = !Config.showControlCenter; } }
+                        TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("cc") }
                         HoverHandler { id: ccHover; cursorShape: Qt.PointingHandCursor }
                     }
 
                     Rectangle {
                         id: btnNetwork
-                        implicitWidth: 32; implicitHeight: 32; radius: 10
+                        visible: !Config.rightCardCollapsed || Config.isPinned("network")
+                        opacity: visible ? 1.0 : 0.0
+                        implicitWidth: visible ? 32 : 0
+                        implicitHeight: visible ? 32 : 0
+                        radius: 10
                         color: (Config.showNetwork || networkHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                        Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                        Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
                         Behavior on color { ColorAnimation { duration: 150 } }
 
                         Text {
@@ -1624,36 +1854,74 @@ PanelWindow {
                             font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
                         }
 
+                        Rectangle {
+                            anchors.top: parent.top; anchors.right: parent.right
+                            anchors.topMargin: 2; anchors.rightMargin: 2
+                            width: 5; height: 5; radius: 2.5
+                            color: Config.accent
+                            visible: !Config.rightCardCollapsed && Config.isPinned("network")
+                        }
+
                         TapHandler { onTapped: { setPopoutPos(btnNetwork); Config.showNetwork = !Config.showNetwork; } }
+                        TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("network") }
                         HoverHandler { id: networkHover; cursorShape: Qt.PointingHandCursor }
                     }
 
                     Rectangle {
-                        id: btnNotifications
-                        implicitWidth: 32; implicitHeight: 32; radius: 10
-                        color: (Config.showNotifications || notificationsHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                        id: btnClipboard
+                        visible: !Config.rightCardCollapsed || Config.isPinned("clipboard")
+                        opacity: visible ? 1.0 : 0.0
+                        implicitWidth: visible ? 32 : 0
+                        implicitHeight: visible ? 32 : 0
+                        radius: 10
+                        color: (Config.showClipboard || clipHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                        Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                        Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
                         Behavior on color { ColorAnimation { duration: 150 } }
 
                         Text {
                             anchors.centerIn: parent
-                            text: (typeof shellRoot !== "undefined" && shellRoot.activeNotifs > 0) ? "inbox_text" : "inbox"
-                            color: (Config.showNotifications || (typeof shellRoot !== "undefined" && shellRoot.activeNotifs > 0)) ? Config.accent : Config.textMain
-                            font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
-
-                            Behavior on color { ColorAnimation { duration: 150 } }
+                            text: "content_paste"
+                            color: Config.showClipboard ? Config.accent : Config.textMain
+                            font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
                         }
 
-                        TapHandler { onTapped: { setPopoutPos(btnNotifications); Config.showNotifications = !Config.showNotifications; } }
-                        HoverHandler { id: notificationsHover; cursorShape: Qt.PointingHandCursor }
+                        Rectangle {
+                            anchors.top: parent.top; anchors.right: parent.right
+                            anchors.topMargin: 2; anchors.rightMargin: 2
+                            width: 5; height: 5; radius: 2.5
+                            color: Config.accent
+                            visible: !Config.rightCardCollapsed && Config.isPinned("clipboard")
+                        }
+
+                        TapHandler { onTapped: { setPopoutPos(btnClipboard); Config.showClipboard = !Config.showClipboard; } }
+                        TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("clipboard") }
+                        HoverHandler { id: clipHover; cursorShape: Qt.PointingHandCursor }
                     }
 
                     Rectangle {
                         id: btnClock
-                        implicitWidth: isHorizontal ? dateRow.implicitWidth + 20 : 32
-                        implicitHeight: isHorizontal ? 32 : dateColumn.implicitHeight + 12
+                        visible: !Config.rightCardCollapsed || Config.isPinned("clock")
+                        opacity: visible ? 1.0 : 0.0
+                        implicitWidth: visible ? (root.isHorizontal ? dateRow.implicitWidth + 20 : 32) : 0
+                        implicitHeight: visible ? (root.isHorizontal ? 32 : dateColumn.implicitHeight + 12) : 0
                         radius: 10
                         color: (Config.showCalendar || clockHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                        Behavior on opacity { NumberAnimation { duration: 150 } }
+                        Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                        Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
                         Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Rectangle {
+                            anchors.top: parent.top; anchors.right: parent.right
+                            anchors.topMargin: 2; anchors.rightMargin: 2
+                            width: 5; height: 5; radius: 2.5
+                            color: Config.accent
+                            visible: !Config.rightCardCollapsed && Config.isPinned("clock")
+                        }
 
                         RowLayout {
                             id: dateRow
@@ -1726,6 +1994,7 @@ PanelWindow {
                         }
 
                         TapHandler { onTapped: { setPopoutPos(btnClock); Config.showCalendar = !Config.showCalendar; } }
+                        TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("clock") }
                         HoverHandler { id: clockHover; cursorShape: Qt.PointingHandCursor }
                     }
                 }
