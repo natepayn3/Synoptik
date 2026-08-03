@@ -210,7 +210,7 @@ Item {
                 Text {
                     anchors.centerIn: parent
                     font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
-                    color: Config.showWorkspacePreview ? Config.accent : (overviewHover.hovered ? Config.textMain : Qt.rgba(255, 255, 255, 0.35))
+                    color: (Config.showWorkspacePreview || overviewHover.hovered) ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
                     text: "select_window_2"
                 }
                 TapHandler { onTapped: if (typeof Config.showWorkspacePreview !== "undefined") Config.showWorkspacePreview = !Config.showWorkspacePreview }
@@ -233,7 +233,7 @@ Item {
                     anchors.centerIn: parent
                     font.family: "Material Symbols Outlined"; font.weight: Font.Bold
                     font.pixelSize: root.isMagicActive ? 24 : 20
-                    color: root.isMagicActive ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
+                    color: (root.isMagicActive || magicHover.hovered) ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
                     text: root.isMagicActive ? "family_star" : "kid_star"
                 }
                 TapHandler { onTapped: Hyprland.dispatch("hl.dsp.workspace.toggle_special(\"magic\")") }
@@ -255,7 +255,7 @@ Item {
                     anchors.centerIn: parent
                     font.family: "Material Symbols Outlined"; font.weight: Font.Bold
                     font.pixelSize: root.isMusicActive ? 24 : 20
-                    color: root.isMusicActive ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
+                    color: (root.isMusicActive || musicHover.hovered) ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
                     text: root.isMusicActive ? "genres" : "music_note"
                 }
                 TapHandler { onTapped: Hyprland.dispatch("hl.dsp.workspace.toggle_special(\"music\")") }
@@ -277,7 +277,7 @@ Item {
                     anchors.centerIn: parent
                     font.family: "Material Symbols Outlined"; font.weight: Font.Bold
                     font.pixelSize: root.isPrivateActive ? 24 : 20
-                    color: root.isPrivateActive ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
+                    color: (root.isPrivateActive || privateHover.hovered) ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
                     text: root.isPrivateActive ? "lock_open" : "lock"
                 }
                 TapHandler { onTapped: Hyprland.dispatch("hl.dsp.workspace.toggle_special(\"private\")") }
