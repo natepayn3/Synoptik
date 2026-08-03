@@ -286,7 +286,7 @@ PanelWindow {
                 if (root.isHorizontal) root.popoutXOffset = mainContainer.width
                 else root.popoutYOffset = mainContainer.height
             }
- updatesActiveView()
+            updateActiveView()
         }
         function onShowNotificationOsdChanged() {
             if (Config.showNotificationOsd) {
@@ -1514,10 +1514,10 @@ PanelWindow {
 
                 width: root.isHorizontal 
                     ? Math.min(centerContentLayout.implicitWidth + 16, availableW) 
-                    : 28
+                    : 36
 
                 height: root.isHorizontal 
-                    ? 28 
+                    ? 36
                     : Math.min(centerContentLayout.implicitHeight + 16, availableH)
                 
                 clip: true

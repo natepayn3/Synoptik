@@ -11,7 +11,6 @@ Flickable {
 
     anchors.fill: parent
 
-    // Calculate full content extent cleanly without falling back to a tiny fixed 32px limit
     readonly property real calculatedWidth: grid.childrenRect.width > 0 ? grid.childrenRect.width : grid.implicitWidth
     readonly property real calculatedHeight: grid.childrenRect.height > 0 ? grid.childrenRect.height : grid.implicitHeight
 
@@ -81,8 +80,8 @@ Flickable {
                 Item {
                     id: iconContainer
                     anchors.centerIn: parent
-                    width: modelData.activated ? 22 : 18
-                    height: modelData.activated ? 22 : 18
+                    width: modelData.activated ? 24 : 18
+                    height: modelData.activated ? 24 : 18
                     
                     Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
                     Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }

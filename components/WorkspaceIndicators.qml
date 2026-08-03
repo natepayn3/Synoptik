@@ -104,137 +104,185 @@ Item {
 
     Component.onCompleted: root.rebuildWorkspaceData()
 
-    // Single dynamic container using Flow to avoid Layout/Loader transform bugs
+    // Outer layout containing both groups
     Flow {
         id: mainLayout
         anchors.centerIn: parent
         flow: root.isVertical ? Flow.TopToBottom : Flow.LeftToRight
         spacing: 10
 
-        Repeater {
-            model: root.workspaceList
-            delegate: Item {
-                id: pillSlot
-                property int wsId: modelData
-                property bool isSpecialAnyActive: root.activeSpecialName !== ""
-                property bool isActive: root.activeWorkspace === wsId && !isSpecialAnyActive
-                property bool isOccupied: root.occupiedMap[wsId] === true
+        // --- GROUP 1: WORKSPACE PILLS ---
+        Flow {
+            flow: root.isVertical ? Flow.TopToBottom : Flow.LeftToRight
+            spacing: 12
 
-                // The pill's own target size (same values as before).
-                property int pillW: root.isVertical ? (isActive ? 12 : 20) : (isActive ? 30 : 10)
-                property int pillH: root.isVertical ? (isActive ? 30 : 10) : (isActive ? 12 : 20)
+            Repeater {
+                model: root.workspaceList
+                delegate: Item {
+                    id: pillSlot
+                    property int wsId: modelData
+                    property bool isSpecialAnyActive: root.activeSpecialName !== ""
+                    property bool isActive: root.activeWorkspace === wsId && !isSpecialAnyActive
+                    property bool isOccupied: root.occupiedMap[wsId] === true
 
-                // Only fix the CROSS-axis size (so the pill can be centered
-                // on that axis instead of top/left-aligned). Leave the
-                // main/flow-axis size dynamic so item spacing is unchanged.
-                implicitWidth: root.isVertical ? 20 : pillW
-                implicitHeight: root.isVertical ? pillH : 20
+                    property int basePillW: root.isVertical ? (isActive ? 12 : 20) : (isActive ? 30 : 10)
+                    property int basePillH: root.isVertical ? (isActive ? 30 : 10) : (isActive ? 12 : 20)
 
-                Behavior on implicitWidth { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
-                Behavior on implicitHeight { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+                    implicitWidth: root.isVertical ? 32 : basePillW
+                    implicitHeight: root.isVertical ? basePillH : 32
+
+                    Behavior on implicitWidth { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+                    Behavior on implicitHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+
+                    Rectangle {
+                        anchors.centerIn: parent
+
+                        // Inner pill grows +4px on hover without pushing neighboring layout
+                        implicitWidth: pillSlot.basePillW + (pillHover.hovered ? 4 : 0)
+                        implicitHeight: pillSlot.basePillH + (pillHover.hovered ? 4 : 0)
+                        radius: root.isVertical ? width / 3 : height / 3
+
+                        color: pillSlot.isActive ? Config.accent : "transparent"
+                        border.width: pillSlot.isActive ? 0 : 3
+                        border.color: pillSlot.isActive ? "transparent" : (pillSlot.isOccupied ? Config.textMain : Qt.rgba(255, 255, 255, 0.15))
+
+                        Behavior on implicitWidth { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+                        Behavior on implicitHeight { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+                        Behavior on color { ColorAnimation { duration: 140 } }
+                        Behavior on border.color { ColorAnimation { duration: 140 } }
+                    }
+
+                    TapHandler {
+                        onTapped: {
+                            if (typeof Config.showWorkspacePreview !== "undefined") Config.showWorkspacePreview = false;
+                            root.activeSpecialName = "";
+                            Hyprland.dispatch("hl.dsp.focus({ workspace = \"" + pillSlot.wsId + "\" })");
+                        }
+                    }
+                    HoverHandler { id: pillHover; cursorShape: Qt.PointingHandCursor }
+                }
+            }
+        }
+
+        // --- GROUP 2: ACTION BUTTONS ---
+        Flow {
+            flow: root.isVertical ? Flow.TopToBottom : Flow.LeftToRight
+            spacing: 2 // Reduced spacing between action/special buttons
+
+            // ADD BUTTON
+            Item {
+                implicitWidth: 32; implicitHeight: 32
 
                 Rectangle {
-                    anchors.centerIn: parent
-
-                    // Correct pill size recalculation for both orientations
-                    implicitWidth: pillSlot.pillW
-                    implicitHeight: pillSlot.pillH
-                    radius: root.isVertical ? width / 3 : height / 3
-
-                    color: pillSlot.isActive ? Config.accent : "transparent"
-                    border.width: pillSlot.isActive ? 0 : 3
-                    border.color: pillSlot.isActive ? "transparent" : (pillSlot.isOccupied ? Config.textMain : Qt.rgba(255, 255, 255, 0.15))
-
-                    Behavior on implicitWidth { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
-                    Behavior on implicitHeight { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
-                    Behavior on color { ColorAnimation { duration: 140 } }
-                    Behavior on border.color { ColorAnimation { duration: 140 } }
+                    anchors.fill: parent
+                    radius: 8
+                    color: addHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                    Behavior on color { ColorAnimation { duration: 150 } }
                 }
 
+                Text {
+                    anchors.centerIn: parent
+                    font.family: Config.sysFont; font.pixelSize: 20; font.bold: true
+                    color: addHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
+                    text: "+"
+                }
                 TapHandler {
                     onTapped: {
-                        if (typeof Config.showWorkspacePreview !== "undefined") Config.showWorkspacePreview = false;
+                        let maxWs = root.workspaceList.length > 0 ? Math.max(...root.workspaceList) : 0;
                         root.activeSpecialName = "";
-                        Hyprland.dispatch("hl.dsp.focus({ workspace = \"" + pillSlot.wsId + "\" })");
+                        Hyprland.dispatch("hl.dsp.focus({ workspace = \"" + (maxWs + 1) + "\" })");
                     }
                 }
-                HoverHandler { cursorShape: Qt.PointingHandCursor }
+                HoverHandler { id: addHover; cursorShape: Qt.PointingHandCursor }
             }
-        }
 
-        // ADD BUTTON
-        Item {
-            implicitWidth: 20; implicitHeight: 20
-            Text {
-                anchors.centerIn: parent
-                font.family: Config.sysFont; font.pixelSize: 18; font.bold: true
-                color: addHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
-                text: "+"
-            }
-            TapHandler {
-                onTapped: {
-                    let maxWs = root.workspaceList.length > 0 ? Math.max(...root.workspaceList) : 0;
-                    root.activeSpecialName = "";
-                    Hyprland.dispatch("hl.dsp.focus({ workspace = \"" + (maxWs + 1) + "\" })");
+            // OVERVIEW BUTTON
+            Item {
+                implicitWidth: 32; implicitHeight: 32
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 8
+                    color: overviewHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                    Behavior on color { ColorAnimation { duration: 150 } }
                 }
-            }
-            HoverHandler { id: addHover; cursorShape: Qt.PointingHandCursor }
-        }
 
-        // OVERVIEW BUTTON
-        Item {
-            implicitWidth: 20; implicitHeight: 20
-            Text {
-                anchors.centerIn: parent
-                font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
-                color: Config.showWorkspacePreview ? Config.accent : (overviewHover.hovered ? Config.textMain : Qt.rgba(255, 255, 255, 0.35))
-                text: "select_window_2"
+                Text {
+                    anchors.centerIn: parent
+                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                    color: Config.showWorkspacePreview ? Config.accent : (overviewHover.hovered ? Config.textMain : Qt.rgba(255, 255, 255, 0.35))
+                    text: "select_window_2"
+                }
+                TapHandler { onTapped: if (typeof Config.showWorkspacePreview !== "undefined") Config.showWorkspacePreview = !Config.showWorkspacePreview }
+                HoverHandler { id: overviewHover; cursorShape: Qt.PointingHandCursor }
             }
-            TapHandler { onTapped: if (typeof Config.showWorkspacePreview !== "undefined") Config.showWorkspacePreview = !Config.showWorkspacePreview }
-            HoverHandler { id: overviewHover; cursorShape: Qt.PointingHandCursor }
-        }
 
-        // SPECIAL WORKSPACES
-        Item {
-            implicitWidth: 20; implicitHeight: 20
-            visible: root.isMagicOccupied || root.isMagicActive
-            Text {
-                anchors.centerIn: parent
-                font.family: "Material Symbols Outlined"; font.weight: Font.Bold
-                font.pixelSize: root.isMagicActive ? 24 : 20
-                color: root.isMagicActive ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
-                text: root.isMagicActive ? "family_star" : "kid_star"
-            }
-            TapHandler { onTapped: Hyprland.dispatch("hl.dsp.workspace.toggle_special(\"magic\")") }
-            HoverHandler { cursorShape: Qt.PointingHandCursor }
-        }
+            // SPECIAL WORKSPACES
+            Item {
+                implicitWidth: 32; implicitHeight: 32
+                visible: root.isMagicOccupied || root.isMagicActive
 
-        Item {
-            implicitWidth: 20; implicitHeight: 20
-            visible: root.isMusicOccupied || root.isMusicActive
-            Text {
-                anchors.centerIn: parent
-                font.family: "Material Symbols Outlined"; font.weight: Font.Bold
-                font.pixelSize: root.isMusicActive ? 24 : 20
-                color: root.isMusicActive ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
-                text: root.isMusicActive ? "genres" : "music_note"
-            }
-            TapHandler { onTapped: Hyprland.dispatch("hl.dsp.workspace.toggle_special(\"music\")") }
-            HoverHandler { cursorShape: Qt.PointingHandCursor }
-        }
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 8
+                    color: magicHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
 
-        Item {
-            implicitWidth: 20; implicitHeight: 20
-            visible: root.isPrivateOccupied || root.isPrivateActive
-            Text {
-                anchors.centerIn: parent
-                font.family: "Material Symbols Outlined"; font.weight: Font.Bold
-                font.pixelSize: root.isPrivateActive ? 24 : 20
-                color: root.isPrivateActive ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
-                text: root.isPrivateActive ? "lock_open" : "lock"
+                Text {
+                    anchors.centerIn: parent
+                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold
+                    font.pixelSize: root.isMagicActive ? 24 : 20
+                    color: root.isMagicActive ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
+                    text: root.isMagicActive ? "family_star" : "kid_star"
+                }
+                TapHandler { onTapped: Hyprland.dispatch("hl.dsp.workspace.toggle_special(\"magic\")") }
+                HoverHandler { id: magicHover; cursorShape: Qt.PointingHandCursor }
             }
-            TapHandler { onTapped: Hyprland.dispatch("hl.dsp.workspace.toggle_special(\"private\")") }
-            HoverHandler { cursorShape: Qt.PointingHandCursor }
+
+            Item {
+                implicitWidth: 32; implicitHeight: 32
+                visible: root.isMusicOccupied || root.isMusicActive
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 8
+                    color: musicHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
+
+                Text {
+                    anchors.centerIn: parent
+                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold
+                    font.pixelSize: root.isMusicActive ? 24 : 20
+                    color: root.isMusicActive ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
+                    text: root.isMusicActive ? "genres" : "music_note"
+                }
+                TapHandler { onTapped: Hyprland.dispatch("hl.dsp.workspace.toggle_special(\"music\")") }
+                HoverHandler { id: musicHover; cursorShape: Qt.PointingHandCursor }
+            }
+
+            Item {
+                implicitWidth: 32; implicitHeight: 32
+                visible: root.isPrivateOccupied || root.isPrivateActive
+
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 8
+                    color: privateHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
+
+                Text {
+                    anchors.centerIn: parent
+                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold
+                    font.pixelSize: root.isPrivateActive ? 24 : 20
+                    color: root.isPrivateActive ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
+                    text: root.isPrivateActive ? "lock_open" : "lock"
+                }
+                TapHandler { onTapped: Hyprland.dispatch("hl.dsp.workspace.toggle_special(\"private\")") }
+                HoverHandler { id: privateHover; cursorShape: Qt.PointingHandCursor }
+            }
         }
     }
 }
