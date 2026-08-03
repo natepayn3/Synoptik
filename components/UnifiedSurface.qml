@@ -1209,24 +1209,23 @@ PanelWindow {
             width: root.isHorizontal ? (mainContainer.width - Math.ceil(root.borderWidth)) : (root.barH - Math.ceil(root.borderWidth))
             height: root.isHorizontal ? (root.barH - Math.ceil(root.borderWidth)) : (mainContainer.height - Math.ceil(root.borderWidth))
 
-            GridLayout {
-                id: leftModules
+            // LEFT ICON CARD CONTAINER
+            Rectangle {
+                id: leftCard
                 
-                anchors.leftMargin: root.isHorizontal ? 10 : 0
-                anchors.topMargin: !root.isHorizontal ? 10 : 0
-                columns: root.isHorizontal ? 99 : 1
-                rows: root.isHorizontal ? 1 : 99
-                columnSpacing: 8
-                rowSpacing: 8
+                width: root.isHorizontal ? leftModules.implicitWidth + 12 : 32
+                height: root.isHorizontal ? 32 : leftModules.implicitHeight + 12
+                radius: Config.cornerRadius / 2
+                color: Qt.rgba(255, 255, 255, 0.05)
 
                 states: [
                     State {
                         name: "horizontal"
                         when: root.isHorizontal
                         AnchorChanges {
-                            target: leftModules
-                            anchors.left: leftModules.parent.left
-                            anchors.verticalCenter: leftModules.parent.verticalCenter
+                            target: leftCard
+                            anchors.left: leftCard.parent.left
+                            anchors.verticalCenter: leftCard.parent.verticalCenter
                             anchors.top: undefined
                             anchors.horizontalCenter: undefined
                         }
@@ -1235,133 +1234,145 @@ PanelWindow {
                         name: "vertical"
                         when: !root.isHorizontal
                         AnchorChanges {
-                            target: leftModules
-                            anchors.top: leftModules.parent.top
-                            anchors.horizontalCenter: leftModules.parent.horizontalCenter
+                            target: leftCard
+                            anchors.top: leftCard.parent.top
+                            anchors.horizontalCenter: leftCard.parent.horizontalCenter
                             anchors.left: undefined
                             anchors.verticalCenter: undefined
                         }
                     }
                 ]
 
-                Rectangle {
-                    id: btnPower
-                    implicitWidth: 32; implicitHeight: 32; radius: 10
-                    color: (Config.showPower || powerHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-                    Behavior on color { ColorAnimation { duration: 150 } }
+                anchors.leftMargin: root.isHorizontal ? 10 : 0
+                anchors.topMargin: !root.isHorizontal ? 10 : 0
 
-                    Text {
-                        anchors.centerIn: parent
-                        text: "electrical_services" 
-                        color: Config.showPower ? Config.accent : Config.textMain
-                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
-                    }
+                GridLayout {
+                    id: leftModules
+                    anchors.centerIn: parent
+                    columns: root.isHorizontal ? 99 : 1
+                    rows: root.isHorizontal ? 1 : 99
+                    columnSpacing: 8
+                    rowSpacing: 8
 
-                    TapHandler { onTapped: { setPopoutPos(btnPower); Config.showPower = !Config.showPower; } }
-                    HoverHandler { id: powerHover; cursorShape: Qt.PointingHandCursor }
-                }
-
-                Rectangle {
-                    id: btnRecorder
-                    implicitWidth: 32; implicitHeight: 32; radius: 10
-                    color: (Config.showScreenRecorder || recordHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-                    Behavior on color { ColorAnimation { duration: 150 } }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: (typeof shellRoot !== "undefined" && shellRoot.isRecording) ? "radio_button_checked" : "videocam"
-                        color: (typeof shellRoot !== "undefined" && shellRoot.isRecording) ? "#ef4444" : (Config.showScreenRecorder ? Config.accent : Config.textMain)
-                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
-
+                    Rectangle {
+                        id: btnPower
+                        implicitWidth: 32; implicitHeight: 32; radius: 10
+                        color: (Config.showPower || powerHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
                         Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "electrical_services" 
+                            color: Config.showPower ? Config.accent : Config.textMain
+                            font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                        }
+
+                        TapHandler { onTapped: { setPopoutPos(btnPower); Config.showPower = !Config.showPower; } }
+                        HoverHandler { id: powerHover; cursorShape: Qt.PointingHandCursor }
                     }
 
-                    TapHandler { onTapped: { setPopoutPos(btnRecorder); Config.showScreenRecorder = !Config.showScreenRecorder; } }
-                    HoverHandler { id: recordHover; cursorShape: Qt.PointingHandCursor }
-                }
+                    Rectangle {
+                        id: btnRecorder
+                        implicitWidth: 32; implicitHeight: 32; radius: 10
+                        color: (Config.showScreenRecorder || recordHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                        Behavior on color { ColorAnimation { duration: 150 } }
 
-                Rectangle {
-                    implicitWidth: 32; implicitHeight: 32; radius: 10
-                    color: screenshotHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-                    Behavior on color { ColorAnimation { duration: 150 } }
+                        Text {
+                            anchors.centerIn: parent
+                            text: (typeof shellRoot !== "undefined" && shellRoot.isRecording) ? "radio_button_checked" : "videocam"
+                            color: (typeof shellRoot !== "undefined" && shellRoot.isRecording) ? "#ef4444" : (Config.showScreenRecorder ? Config.accent : Config.textMain)
+                            font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
 
-                    Text {
-                        anchors.centerIn: parent
-                        text: "crop"
-                        color: Config.textMain
-                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                            Behavior on color { ColorAnimation { duration: 150 } }
+                        }
+
+                        TapHandler { onTapped: { setPopoutPos(btnRecorder); Config.showScreenRecorder = !Config.showScreenRecorder; } }
+                        HoverHandler { id: recordHover; cursorShape: Qt.PointingHandCursor }
                     }
 
-                    TapHandler { onTapped: Quickshell.execDetached(["fish", "-c", "sleep 0.1; and grim -g (slurp) -t ppm - | satty --filename -"]) }
-                    HoverHandler { id: screenshotHover; cursorShape: Qt.PointingHandCursor }
-                }
+                    Rectangle {
+                        implicitWidth: 32; implicitHeight: 32; radius: 10
+                        color: screenshotHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                        Behavior on color { ColorAnimation { duration: 150 } }
 
-                Rectangle {
-                    id: btnClipboard
-                    implicitWidth: 32; implicitHeight: 32; radius: 10
-                    color: (Config.showClipboard || clipHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-                    Behavior on color { ColorAnimation { duration: 150 } }
+                        Text {
+                            anchors.centerIn: parent
+                            text: "crop"
+                            color: Config.textMain
+                            font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                        }
 
-                    Text {
-                        anchors.centerIn: parent
-                        text: "content_paste"
-                        color: Config.showClipboard ? Config.accent : Config.textMain
-                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                        TapHandler { onTapped: Quickshell.execDetached(["fish", "-c", "sleep 0.1; and grim -g (slurp) -t ppm - | satty --filename -"]) }
+                        HoverHandler { id: screenshotHover; cursorShape: Qt.PointingHandCursor }
                     }
 
-                    TapHandler { onTapped: { setPopoutPos(btnClipboard); Config.showClipboard = !Config.showClipboard; } }
-                    HoverHandler { id: clipHover; cursorShape: Qt.PointingHandCursor }
-                }
+                    Rectangle {
+                        id: btnClipboard
+                        implicitWidth: 32; implicitHeight: 32; radius: 10
+                        color: (Config.showClipboard || clipHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                        Behavior on color { ColorAnimation { duration: 150 } }
 
-                Rectangle {
-                    id: btnWallpaper
-                    implicitWidth: 32; implicitHeight: 32; radius: 10
-                    color: (Config.showWallpaper || wallpaperHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-                    Behavior on color { ColorAnimation { duration: 150 } }
+                        Text {
+                            anchors.centerIn: parent
+                            text: "content_paste"
+                            color: Config.showClipboard ? Config.accent : Config.textMain
+                            font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                        }
 
-                    Text {
-                        anchors.centerIn: parent
-                        text: "wall_art" 
-                        color: Config.showWallpaper ? Config.accent : Config.textMain
-                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                        TapHandler { onTapped: { setPopoutPos(btnClipboard); Config.showClipboard = !Config.showClipboard; } }
+                        HoverHandler { id: clipHover; cursorShape: Qt.PointingHandCursor }
                     }
 
-                    TapHandler { onTapped: { setPopoutPos(btnWallpaper); Config.showWallpaper = !Config.showWallpaper; } }
-                    HoverHandler { id: wallpaperHover; cursorShape: Qt.PointingHandCursor }
-                }
+                    Rectangle {
+                        id: btnWallpaper
+                        implicitWidth: 32; implicitHeight: 32; radius: 10
+                        color: (Config.showWallpaper || wallpaperHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                        Behavior on color { ColorAnimation { duration: 150 } }
 
-                Rectangle {
-                    id: btnSettings
-                    implicitWidth: 32; implicitHeight: 32; radius: 10
-                    color: (Config.showSettings || settingsHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-                    Behavior on color { ColorAnimation { duration: 150 } }
+                        Text {
+                            anchors.centerIn: parent
+                            text: "wall_art" 
+                            color: Config.showWallpaper ? Config.accent : Config.textMain
+                            font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                        }
 
-                    Text {
-                        anchors.centerIn: parent
-                        text: "build" 
-                        color: Config.showSettings ? Config.accent : Config.textMain
-                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                        TapHandler { onTapped: { setPopoutPos(btnWallpaper); Config.showWallpaper = !Config.showWallpaper; } }
+                        HoverHandler { id: wallpaperHover; cursorShape: Qt.PointingHandCursor }
                     }
 
-                    TapHandler { onTapped: { setPopoutPos(btnSettings); Config.showSettings = !Config.showSettings; } }
-                    HoverHandler { id: settingsHover; cursorShape: Qt.PointingHandCursor }
-                }
+                    Rectangle {
+                        id: btnSettings
+                        implicitWidth: 32; implicitHeight: 32; radius: 10
+                        color: (Config.showSettings || settingsHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                        Behavior on color { ColorAnimation { duration: 150 } }
 
-                Rectangle {
-                    id: btnLauncher
-                    implicitWidth: 32; implicitHeight: 32; radius: 10
-                    color: (Config.showAppLauncher || launcherHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-                    Behavior on color { ColorAnimation { duration: 150 } }
+                        Text {
+                            anchors.centerIn: parent
+                            text: "build" 
+                            color: Config.showSettings ? Config.accent : Config.textMain
+                            font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                        }
 
-                    Text {
-                        anchors.centerIn: parent
-                        text: "terminal_2" 
-                        color: Config.showAppLauncher ? Config.accent : Config.textMain
-                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                        TapHandler { onTapped: { setPopoutPos(btnSettings); Config.showSettings = !Config.showSettings; } }
+                        HoverHandler { id: settingsHover; cursorShape: Qt.PointingHandCursor }
                     }
 
-                    TapHandler { onTapped: { setPopoutPos(btnLauncher); Config.showAppLauncher = !Config.showAppLauncher; } }
-                    HoverHandler { id: launcherHover; cursorShape: Qt.PointingHandCursor }
+                    Rectangle {
+                        id: btnLauncher
+                        implicitWidth: 32; implicitHeight: 32; radius: 10
+                        color: (Config.showAppLauncher || launcherHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "terminal_2" 
+                            color: Config.showAppLauncher ? Config.accent : Config.textMain
+                            font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                        }
+
+                        TapHandler { onTapped: { setPopoutPos(btnLauncher); Config.showAppLauncher = !Config.showAppLauncher; } }
+                        HoverHandler { id: launcherHover; cursorShape: Qt.PointingHandCursor }
+                    }
                 }
             }
 
@@ -1371,8 +1382,8 @@ PanelWindow {
                 anchors.horizontalCenterOffset: (root.isHorizontal && root.isScreenFrame) ? (root.barPosition === "left" ? (root.framePadding / 2) : (root.barPosition === "right" ? -(root.framePadding / 2) : 0)) : 0
                 anchors.verticalCenterOffset: (!root.isHorizontal && root.isScreenFrame) ? (root.barPosition === "top" ? (root.framePadding / 2) : (root.barPosition === "bottom" ? -(root.framePadding / 2) : 0)) : 0
 
-                readonly property real availableW: Math.max(32, barContent.width - leftModules.width - rightModules.width - 48)
-                readonly property real availableH: Math.max(32, barContent.height - leftModules.height - rightModules.height - 48)
+                readonly property real availableW: Math.max(32, barContent.width - leftCard.width - rightCard.width - 48)
+                readonly property real availableH: Math.max(32, barContent.height - leftCard.height - rightCard.height - 48)
 
                 width: root.isHorizontal 
                     ? Math.min(centerContentLayout.implicitWidth + 16, availableW) 
@@ -1476,25 +1487,23 @@ PanelWindow {
                 }
             }
 
-            GridLayout {
-                id: rightModules
+            // RIGHT ICON CARD CONTAINER
+            Rectangle {
+                id: rightCard
                 
-                anchors.rightMargin: root.isHorizontal ? 10 : 0
-                anchors.bottomMargin: !root.isHorizontal ? 10 : 0
-                anchors.topMargin: 0
-                columns: root.isHorizontal ? 99 : 1
-                rows: root.isHorizontal ? 1 : 99
-                columnSpacing: 8
-                rowSpacing: 8
+                width: root.isHorizontal ? rightModules.implicitWidth + 12 : 32
+                height: root.isHorizontal ? 32 : rightModules.implicitHeight + 12
+                radius: Config.cornerRadius / 2
+                color: Qt.rgba(255, 255, 255, 0.05)
 
                 states: [
                     State {
                         name: "horizontal"
                         when: root.isHorizontal
                         AnchorChanges {
-                            target: rightModules
-                            anchors.right: rightModules.parent.right
-                            anchors.verticalCenter: rightModules.parent.verticalCenter
+                            target: rightCard
+                            anchors.right: rightCard.parent.right
+                            anchors.verticalCenter: rightCard.parent.verticalCenter
                             anchors.bottom: undefined
                             anchors.horizontalCenter: undefined
                         }
@@ -1503,210 +1512,222 @@ PanelWindow {
                         name: "vertical"
                         when: !root.isHorizontal
                         AnchorChanges {
-                            target: rightModules
+                            target: rightCard
                             anchors.right: undefined
                             anchors.verticalCenter: undefined
-                            anchors.bottom: rightModules.parent.bottom
-                            anchors.horizontalCenter: rightModules.parent.horizontalCenter
+                            anchors.bottom: rightCard.parent.bottom
+                            anchors.horizontalCenter: rightCard.parent.horizontalCenter
                         }
                     }
                 ]
 
-                Rectangle {
-                    id: btnAudio
-                    implicitWidth: 32; implicitHeight: 32; radius: 10
-                    color: (Config.showAudio || audioHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-                    Behavior on color { ColorAnimation { duration: 150 } }
+                anchors.rightMargin: root.isHorizontal ? 10 : 0
+                anchors.bottomMargin: !root.isHorizontal ? 10 : 0
 
-                    Text {
-                        anchors.centerIn: parent
-                        text: shellRoot.audioMuted ? "hearing_disabled" : (shellRoot.audioVolume === 0 ? "hearing_disabled" : (shellRoot.audioVolume < 50 ? "hearing" : "ear_sound"))
-                        color: Config.showAudio ? Config.accent : (shellRoot.audioMuted ? Config.textMuted : Config.textMain)
-                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
-                    }
+                GridLayout {
+                    id: rightModules
+                    anchors.centerIn: parent
+                    columns: root.isHorizontal ? 99 : 1
+                    rows: root.isHorizontal ? 1 : 99
+                    columnSpacing: 8
+                    rowSpacing: 8
 
-                    TapHandler { onTapped: { setPopoutPos(btnAudio); Config.showAudio = !Config.showAudio; } }
-                    HoverHandler { id: audioHover; cursorShape: Qt.PointingHandCursor }
-                }
-
-                Rectangle {
-                    id: btnSys
-                    implicitWidth: 32; implicitHeight: 32; radius: 10
-                    color: (Config.showSystemMonitor || sysHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-                    Behavior on color { ColorAnimation { duration: 150 } }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "neurology"
-                        color: Config.showSystemMonitor ? Config.accent : Config.textMain
-                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
-                    }
-
-                    TapHandler { onTapped: { setPopoutPos(btnSys); Config.showSystemMonitor = !Config.showSystemMonitor; } }
-                    HoverHandler { id: sysHover; cursorShape: Qt.PointingHandCursor }
-                }
-
-                Rectangle {
-                    id: btnBatt
-                    implicitWidth: 32; implicitHeight: 32; radius: 10
-                    visible: shellRoot.hasBattery
-                    color: (Config.showBattery || battHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-                    Behavior on color { ColorAnimation { duration: 150 } }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: {
-                            if (shellRoot.battStatus === "Charging") return "battery_android_frame_bolt"
-                            if (shellRoot.battCapacity <= 10) return "battery_android_frame_alert"
-                            if (shellRoot.battCapacity <= 25) return "battery_android_frame_1"
-                            if (shellRoot.battCapacity <= 40) return "battery_android_frame_2"
-                            if (shellRoot.battCapacity <= 55) return "battery_android_frame_3"
-                            if (shellRoot.battCapacity <= 70) return "battery_android_frame_4"
-                            if (shellRoot.battCapacity <= 85) return "battery_android_frame_5"
-                            if (shellRoot.battCapacity < 100) return "battery_android_frame_6"
-                            return "battery_android_frame_full"
-                        }
-                        color: Config.showBattery ? Config.accent : (shellRoot.battCapacity <= 15 ? "#ef4444" : Config.textMain)
-                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
-                    }
-
-                    TapHandler { onTapped: { setPopoutPos(btnBatt); Config.showBattery = !Config.showBattery; } }
-                    HoverHandler { id: battHover; cursorShape: Qt.PointingHandCursor }
-                }
-
-                Rectangle {
-                    id: btnCC
-                    implicitWidth: 32; implicitHeight: 32; radius: 10
-                    color: (Config.showControlCenter || ccHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-                    Behavior on color { ColorAnimation { duration: 150 } }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "widgets"
-                        color: Config.showControlCenter ? Config.accent : Config.textMain
-                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
-                    }
-
-                    TapHandler { onTapped: { setPopoutPos(btnCC); Config.showControlCenter = !Config.showControlCenter; } }
-                    HoverHandler { id: ccHover; cursorShape: Qt.PointingHandCursor }
-                }
-
-                Rectangle {
-                    id: btnNetwork
-                    implicitWidth: 32; implicitHeight: 32; radius: 10
-                    color: (Config.showNetwork || networkHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-                    Behavior on color { ColorAnimation { duration: 150 } }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: shellRoot.vpnActive ? "vpn_key" : "lan"
-                        color: Config.showNetwork ? Config.accent : Config.textMain
-                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
-                    }
-
-                    TapHandler { onTapped: { setPopoutPos(btnNetwork); Config.showNetwork = !Config.showNetwork; } }
-                    HoverHandler { id: networkHover; cursorShape: Qt.PointingHandCursor }
-                }
-
-                Rectangle {
-                    id: btnNotifications
-                    implicitWidth: 32; implicitHeight: 32; radius: 10
-                    color: (Config.showNotifications || notificationsHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-                    Behavior on color { ColorAnimation { duration: 150 } }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: (typeof shellRoot !== "undefined" && shellRoot.activeNotifs > 0) ? "inbox_text" : "inbox"
-                        color: (Config.showNotifications || (typeof shellRoot !== "undefined" && shellRoot.activeNotifs > 0)) ? Config.accent : Config.textMain
-                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
-
+                    Rectangle {
+                        id: btnAudio
+                        implicitWidth: 32; implicitHeight: 32; radius: 10
+                        color: (Config.showAudio || audioHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
                         Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: shellRoot.audioMuted ? "hearing_disabled" : (shellRoot.audioVolume === 0 ? "hearing_disabled" : (shellRoot.audioVolume < 50 ? "hearing" : "ear_sound"))
+                            color: Config.showAudio ? Config.accent : (shellRoot.audioMuted ? Config.textMuted : Config.textMain)
+                            font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+                        }
+
+                        TapHandler { onTapped: { setPopoutPos(btnAudio); Config.showAudio = !Config.showAudio; } }
+                        HoverHandler { id: audioHover; cursorShape: Qt.PointingHandCursor }
                     }
 
-                    TapHandler { onTapped: { setPopoutPos(btnNotifications); Config.showNotifications = !Config.showNotifications; } }
-                    HoverHandler { id: notificationsHover; cursorShape: Qt.PointingHandCursor }
-                }
-
-                Rectangle {
-                    id: btnClock
-                    implicitWidth: isHorizontal ? dateRow.implicitWidth + 20 : 32
-                    implicitHeight: isHorizontal ? 32 : dateColumn.implicitHeight + 12
-                    radius: 10
-                    color: (Config.showCalendar || clockHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-                    Behavior on color { ColorAnimation { duration: 150 } }
-
-                    RowLayout {
-                        id: dateRow
-                        visible: root.isHorizontal
-                        anchors.centerIn: parent
-                        spacing: 8
+                    Rectangle {
+                        id: btnSys
+                        implicitWidth: 32; implicitHeight: 32; radius: 10
+                        color: (Config.showSystemMonitor || sysHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                        Behavior on color { ColorAnimation { duration: 150 } }
 
                         Text {
-                            text: (shellRoot.vertHour || (new Date().getHours() % 12 || 12).toString()) + ":" + (shellRoot.vertMinute || Qt.formatTime(new Date(), "mm"))
-                            color: Config.showCalendar ? Config.accent : Config.textMain
-                            font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: Config.size(Config.fontTitle)
-                            Layout.alignment: Qt.AlignVCenter
+                            anchors.centerIn: parent
+                            text: "neurology"
+                            color: Config.showSystemMonitor ? Config.accent : Config.textMain
+                            font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
                         }
 
-                        Text {
-                            text: shellRoot.vertAmPm || Qt.formatTime(new Date(), "ap").toLowerCase()
-                            color: Config.accent
-                            font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: Config.size(Config.fontSubhead)
-                            Layout.alignment: Qt.AlignVCenter
-                        }
-
-                        Text {
-                            text: (shellRoot.vertMonth || Qt.formatDate(new Date(), "MMM")) + " " + (shellRoot.vertDay || Qt.formatDate(new Date(), "d"))
-                            color: Config.showCalendar ? Config.accent : Config.textMuted
-                            font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: Config.size(Config.fontSubhead)
-                            Layout.alignment: Qt.AlignVCenter
-                        }
+                        TapHandler { onTapped: { setPopoutPos(btnSys); Config.showSystemMonitor = !Config.showSystemMonitor; } }
+                        HoverHandler { id: sysHover; cursorShape: Qt.PointingHandCursor }
                     }
 
-                    ColumnLayout {
-                        id: dateColumn
-                        visible: !root.isHorizontal
-                        anchors.centerIn: parent
-                        spacing: 1
+                    Rectangle {
+                        id: btnBatt
+                        implicitWidth: 32; implicitHeight: 32; radius: 10
+                        visible: shellRoot.hasBattery
+                        color: (Config.showBattery || battHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                        Behavior on color { ColorAnimation { duration: 150 } }
 
                         Text {
-                            text: shellRoot.vertHour || (new Date().getHours() % 12 || 12).toString()
-                            color: Config.showCalendar ? Config.accent : Config.textMain
-                            font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 15
-                            Layout.alignment: Qt.AlignHCenter
+                            anchors.centerIn: parent
+                            text: {
+                                if (shellRoot.battStatus === "Charging") return "battery_android_frame_bolt"
+                                if (shellRoot.battCapacity <= 10) return "battery_android_frame_alert"
+                                if (shellRoot.battCapacity <= 25) return "battery_android_frame_1"
+                                if (shellRoot.battCapacity <= 40) return "battery_android_frame_2"
+                                if (shellRoot.battCapacity <= 55) return "battery_android_frame_3"
+                                if (shellRoot.battCapacity <= 70) return "battery_android_frame_4"
+                                if (shellRoot.battCapacity <= 85) return "battery_android_frame_5"
+                                if (shellRoot.battCapacity < 100) return "battery_android_frame_6"
+                                return "battery_android_frame_full"
+                            }
+                            color: Config.showBattery ? Config.accent : (shellRoot.battCapacity <= 15 ? "#ef4444" : Config.textMain)
+                            font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
                         }
 
-                        Text {
-                            text: shellRoot.vertMinute || Qt.formatTime(new Date(), "mm")
-                            color: Config.showCalendar ? Config.accent : Config.textMain
-                            font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 15
-                            Layout.alignment: Qt.AlignHCenter
-                        }
-
-                        Text {
-                            text: shellRoot.vertAmPm || Qt.formatTime(new Date(), "ap").toLowerCase()
-                            color: Config.accent
-                            font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 12
-                            Layout.alignment: Qt.AlignHCenter
-                        }
-
-                        Text {
-                            text: shellRoot.vertMonth || Qt.formatDate(new Date(), "MMM")
-                            color: Config.showCalendar ? Config.accent : Config.textMuted
-                            font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 12
-                            Layout.alignment: Qt.AlignHCenter
-                        }
-
-                        Text {
-                            text: shellRoot.vertDay || Qt.formatDate(new Date(), "d")
-                            color: Config.showCalendar ? Config.accent : Config.textMuted
-                            font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 12
-                            Layout.alignment: Qt.AlignHCenter
-                        }
+                        TapHandler { onTapped: { setPopoutPos(btnBatt); Config.showBattery = !Config.showBattery; } }
+                        HoverHandler { id: battHover; cursorShape: Qt.PointingHandCursor }
                     }
 
-                    TapHandler { onTapped: { setPopoutPos(btnClock); Config.showCalendar = !Config.showCalendar; } }
-                    HoverHandler { id: clockHover; cursorShape: Qt.PointingHandCursor }
+                    Rectangle {
+                        id: btnCC
+                        implicitWidth: 32; implicitHeight: 32; radius: 10
+                        color: (Config.showControlCenter || ccHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "widgets"
+                            color: Config.showControlCenter ? Config.accent : Config.textMain
+                            font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+                        }
+
+                        TapHandler { onTapped: { setPopoutPos(btnCC); Config.showControlCenter = !Config.showControlCenter; } }
+                        HoverHandler { id: ccHover; cursorShape: Qt.PointingHandCursor }
+                    }
+
+                    Rectangle {
+                        id: btnNetwork
+                        implicitWidth: 32; implicitHeight: 32; radius: 10
+                        color: (Config.showNetwork || networkHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: shellRoot.vpnActive ? "vpn_key" : "lan"
+                            color: Config.showNetwork ? Config.accent : Config.textMain
+                            font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+                        }
+
+                        TapHandler { onTapped: { setPopoutPos(btnNetwork); Config.showNetwork = !Config.showNetwork; } }
+                        HoverHandler { id: networkHover; cursorShape: Qt.PointingHandCursor }
+                    }
+
+                    Rectangle {
+                        id: btnNotifications
+                        implicitWidth: 32; implicitHeight: 32; radius: 10
+                        color: (Config.showNotifications || notificationsHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: (typeof shellRoot !== "undefined" && shellRoot.activeNotifs > 0) ? "inbox_text" : "inbox"
+                            color: (Config.showNotifications || (typeof shellRoot !== "undefined" && shellRoot.activeNotifs > 0)) ? Config.accent : Config.textMain
+                            font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+
+                            Behavior on color { ColorAnimation { duration: 150 } }
+                        }
+
+                        TapHandler { onTapped: { setPopoutPos(btnNotifications); Config.showNotifications = !Config.showNotifications; } }
+                        HoverHandler { id: notificationsHover; cursorShape: Qt.PointingHandCursor }
+                    }
+
+                    Rectangle {
+                        id: btnClock
+                        implicitWidth: isHorizontal ? dateRow.implicitWidth + 20 : 32
+                        implicitHeight: isHorizontal ? 32 : dateColumn.implicitHeight + 12
+                        radius: 10
+                        color: (Config.showCalendar || clockHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        RowLayout {
+                            id: dateRow
+                            visible: root.isHorizontal
+                            anchors.centerIn: parent
+                            spacing: 8
+
+                            Text {
+                                text: (shellRoot.vertHour || (new Date().getHours() % 12 || 12).toString()) + ":" + (shellRoot.vertMinute || Qt.formatTime(new Date(), "mm"))
+                                color: Config.showCalendar ? Config.accent : Config.textMain
+                                font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: Config.size(Config.fontTitle)
+                                Layout.alignment: Qt.AlignVCenter
+                            }
+
+                            Text {
+                                text: shellRoot.vertAmPm || Qt.formatTime(new Date(), "ap").toLowerCase()
+                                color: Config.accent
+                                font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: Config.size(Config.fontSubhead)
+                                Layout.alignment: Qt.AlignVCenter
+                            }
+
+                            Text {
+                                text: (shellRoot.vertMonth || Qt.formatDate(new Date(), "MMM")) + " " + (shellRoot.vertDay || Qt.formatDate(new Date(), "d"))
+                                color: Config.showCalendar ? Config.accent : Config.textMuted
+                                font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: Config.size(Config.fontSubhead)
+                                Layout.alignment: Qt.AlignVCenter
+                            }
+                        }
+
+                        ColumnLayout {
+                            id: dateColumn
+                            visible: !root.isHorizontal
+                            anchors.centerIn: parent
+                            spacing: 1
+
+                            Text {
+                                text: shellRoot.vertHour || (new Date().getHours() % 12 || 12).toString()
+                                color: Config.showCalendar ? Config.accent : Config.textMain
+                                font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 15
+                                Layout.alignment: Qt.AlignHCenter
+                            }
+
+                            Text {
+                                text: shellRoot.vertMinute || Qt.formatTime(new Date(), "mm")
+                                color: Config.showCalendar ? Config.accent : Config.textMain
+                                font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 15
+                                Layout.alignment: Qt.AlignHCenter
+                            }
+
+                            Text {
+                                text: shellRoot.vertAmPm || Qt.formatTime(new Date(), "ap").toLowerCase()
+                                color: Config.accent
+                                font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 12
+                                Layout.alignment: Qt.AlignHCenter
+                            }
+
+                            Text {
+                                text: shellRoot.vertMonth || Qt.formatDate(new Date(), "MMM")
+                                color: Config.showCalendar ? Config.accent : Config.textMuted
+                                font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 12
+                                Layout.alignment: Qt.AlignHCenter
+                            }
+
+                            Text {
+                                text: shellRoot.vertDay || Qt.formatDate(new Date(), "d")
+                                color: Config.showCalendar ? Config.accent : Config.textMuted
+                                font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 12
+                                Layout.alignment: Qt.AlignHCenter
+                            }
+                        }
+
+                        TapHandler { onTapped: { setPopoutPos(btnClock); Config.showCalendar = !Config.showCalendar; } }
+                        HoverHandler { id: clockHover; cursorShape: Qt.PointingHandCursor }
+                    }
                 }
             }
         }
