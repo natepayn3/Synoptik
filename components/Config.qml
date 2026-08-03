@@ -30,6 +30,25 @@ QtObject {
     property bool showClipboard: false
     property bool showScreenRecorder: false
 
+    // --- ICON GROUPS COLLAPSE & PINNING STATE ---
+    property bool leftCardCollapsed: false
+    property bool rightCardCollapsed: false
+    property var pinnedIcons: ({})
+
+    function togglePin(iconId) {
+        let temp = Object.assign({}, pinnedIcons)
+        temp[iconId] = !temp[iconId]
+        pinnedIcons = temp
+        saveSettings()
+    }
+
+    function isPinned(iconId) {
+        return !!pinnedIcons[iconId]
+    }
+
+    onLeftCardCollapsedChanged: { if (isLoaded) saveSettings() }
+    onRightCardCollapsedChanged: { if (isLoaded) saveSettings() }
+
     // --- UNIFIED SURFACE GEOMETRY ---
     property real surfaceRadius: 18.0
 
@@ -585,6 +604,11 @@ QtObject {
                 "customThemes": customPalettes,
                 "windowStyle": root.windowStyle,
 
+                // Collapsible Cards & Pin State Persistence
+                "leftCardCollapsed": root.leftCardCollapsed,
+                "rightCardCollapsed": root.rightCardCollapsed,
+                "pinnedIcons": root.pinnedIcons,
+
                 // Surface Geometry Persistence
                 "surfaceRadius": root.surfaceRadius,
 
@@ -631,7 +655,8 @@ QtObject {
                             "customAccent", "showBorders", "animateGradient", "shellOpacity", "enableBlur",
                             "enableXray", "surfaceRadius", "showDesktopClock", "clockStyle", "clockScale", 
                             "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", 
-                            "clockShowBackground", "clockPositions", "clockScales", "enabledClockScreens"
+                            "clockShowBackground", "clockPositions", "clockScales", "enabledClockScreens",
+                            "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons"
                         ]
 
                         props.forEach(p => {
@@ -673,12 +698,12 @@ QtObject {
     // Typography Engine
     function size(preset) { return preset[fontScaleIndex] }
 
-    readonly property var fontMicro:   [10, 11, 12]
-    readonly property var fontCaption: [11, 12, 13]
-    readonly property var fontBody:    [12, 14, 15]
-    readonly property var fontSubhead: [14, 16, 18]
-    readonly property var fontTitle:   [19, 21, 23]
-    readonly property var fontDisplay: [70, 82, 92]
+    readonly property var fontMicro:   [8, 11, 14]
+    readonly property var fontCaption: [9, 12, 15]
+    readonly property var fontBody:    [11, 14, 17]
+    readonly property var fontSubhead: [12, 16, 20]
+    readonly property var fontTitle:   [16, 21, 26]
+    readonly property var fontDisplay: [58, 82, 106]
 
     // Themes
     property color bgBase: "#13141c"
