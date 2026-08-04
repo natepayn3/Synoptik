@@ -1,30 +1,59 @@
-#!/usr/bin/env fish
+#!/usr/bin/env bash
+
+# Prevent running as root
+if [ "$(id -u)" -eq 0 ]; then
+    echo "Don't run this as root — run it as your normal user."
+    exit 1
+fi
+
+# Ensure pacman exists (Arch Linux check)
+if ! command -v pacman >/dev/null 2>&1; then
+    echo "pacman not found. Synoptik requires Arch Linux. Aborting."
+    exit 1
+fi
+
+# 1. Install fish if missing
+if ! command -v fish >/dev/null 2>&1; then
+    echo "==> Installing fish shell via pacman..."
+    sudo pacman -S --needed --noconfirm fish || exit 1
+fi
+
+# 2. Hand execution off to fish
+exec fish -c '
+# Ensure terminal scroll region is restored on exit or error
+function cleanup
+    # Reset scrolling region to full screen
+    tput csr 0 (tput lines)
+    # Move cursor to bottom
+    tput cup (tput lines) 0
+end
+trap cleanup EXIT INT TERM
+
+# Clear screen completely
+clear
+
+# Print fixed ASCII Art at the top (Lines 1–8)
+set_color -o cyan
+echo "███████╗██╗   ██╗███╗   ██╗ ██████╗ ██████╗ ████████╗██╗██╗  ██╗"
+echo "██╔════╝╚██╗ ██╔╝████╗  ██║██╔═══██╗██╔═══██╗╚══██╔══╝██║██║ ██╔╝"
+echo "███████╗ ╚████╔╝ ██╔██╗ ██║██║   ██║██████╔╝   ██║   ██║█████╔╝ "
+echo "╚════██║  ╚██╔╝  ██║╚██╗██║██║   ██║██╔═══╝    ██║   ██║██╔═██╗ "
+echo "███████║   ██║   ██║ ╚████║╚██████╔╝██║        ██║   ██║██║  ██╗"
+echo "╚══════╝   ╚═╝   ╚═╝  ╚═══╝ ╚═════╝ ╚═╝        ╚═╝   ╚═╝╚═╝  ╚═╝"
+set_color normal
+echo "-----------------------------------------------------------------"
+
+# Lock lines 1–9 at the top and set scroll region from line 10 to screen bottom
+set lines (tput lines)
+tput csr 9 $lines
+# Position cursor at line 10 to begin execution output
+tput cup 9 0
 
 function say
     set_color -o cyan
-    printf '==> '
+    printf "==> "
     set_color normal
     echo $argv
-end
-
-set_color -o cyan
-echo '███████╗██╗   ██╗███╗   ██╗ ██████╗ ██████╗ ████████╗██╗██╗  ██╗'
-echo '██╔════╝╚██╗ ██╔╝████╗  ██║██╔═══██╗██╔═══██╗╚══██╔══╝██║██║ ██╔╝'
-echo '███████╗ ╚████╔╝ ██╔██╗ ██║██║   ██║██████╔╝   ██║   ██║█████╔╝ '
-echo '╚════██║  ╚██╔╝  ██║╚██╗██║██║   ██║██╔═══╝    ██║   ██║██╔═██╗ '
-echo '███████║   ██║   ██║ ╚████║╚██████╔╝██║        ██║   ██║██║  ██╗'
-echo '╚══════╝   ╚═╝   ╚═╝  ╚═══╝ ╚═════╝ ╚═╝        ╚═╝   ╚═╝╚═╝  ╚═╝'
-set_color normal
-echo ""
-
-if test (id -u) -eq 0
-    echo "Don't run this as root — run it as your normal user."
-    exit 1
-end
-
-if not command -v pacman >/dev/null
-    echo "pacman not found. Aborting."
-    exit 1
 end
 
 set AUR_HELPER ""
@@ -90,7 +119,7 @@ set PACMAN_PKGS \
     power-profiles-daemon
 
 say "Installing pacman packages..."
-sudo pacman -S --needed $PACMAN_PKGS
+sudo pacman -S --needed --noconfirm $PACMAN_PKGS
 or exit 1
 
 set AUR_PKGS \
@@ -104,31 +133,26 @@ say "Installing AUR packages..."
 $AUR_HELPER -S --needed $AUR_PKGS
 or exit 1
 
-# Enable and start the power-profiles-daemon service
 say "Enabling systemd services..."
 sudo systemctl enable --now power-profiles-daemon.service
 or exit 1
 
-# Target directory inside Synoptik subfolder
 set TARGET_DIR "$HOME/.config/quickshell/Synoptik"
 say "Deploying Synoptik Shell files..."
 
-# Ensure parent directory exists
 mkdir -p "$HOME/.config/quickshell"
 
-# Check if target directory exists and is actually a valid git repo
 if test -d "$TARGET_DIR/.git"
     say "Existing git installation detected at $TARGET_DIR. Syncing with remote..."
     cd "$TARGET_DIR"
-    git fetch origin main
-    and git reset --hard origin/main
+    git fetch origin main >/dev/null 2>&1
+    and git reset --hard origin/main >/dev/null 2>&1
     or begin
         echo "Failed to sync repo at $TARGET_DIR"
         exit 1
     end
 else
     say "Cloning repository to $TARGET_DIR..."
-    # If folder exists without .git, clean it out before cloning
     if test -d "$TARGET_DIR"
         rm -rf "$TARGET_DIR"
     end
@@ -139,4 +163,6 @@ else
     end
 end
 
+echo ""
 say "Done! Synoptik Shell is ready."
+'
