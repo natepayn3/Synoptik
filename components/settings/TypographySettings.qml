@@ -112,6 +112,30 @@ ColumnLayout {
         }
     }
 
+    // CURRENTLY SELECTED FONT DISPLAY
+    RowLayout {
+        Layout.fillWidth: true
+        spacing: 6
+
+        Text {
+            text: "Active Font:"
+            color: Config.textMuted
+            font.family: Config.sysFont
+            font.pixelSize: Config.size(Config.fontMicro)
+            font.bold: true
+        }
+
+        Text {
+            text: Config.sysFont !== "" ? Config.sysFont : "System Default"
+            color: Config.accent
+            font.family: Config.sysFont
+            font.pixelSize: Config.size(Config.fontMicro)
+            font.bold: true
+            Layout.fillWidth: true
+            elide: Text.ElideRight
+        }
+    }
+
     // FONT LIST CONTAINER
     Rectangle {
         Layout.fillWidth: true
