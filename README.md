@@ -5,6 +5,8 @@
 curl -fsSL https://raw.githubusercontent.com/natepayn3/Synoptik/main/install.sh | bash
 ```
 
+> _Use the above link to install this shell to ensure that it updates!_
+
 ***
 
 <div align="center">
@@ -36,7 +38,7 @@ curl -fsSL https://raw.githubusercontent.com/natepayn3/Synoptik/main/install.sh 
 
 </div>
 
-<i>Definition of <b>synoptic:</b> to bring everything together into a clear, unified view</i>
+<i><b>səˈnäptik</b>: to bring everything together into a clear, unified view</i>
 
 <b>Synoptik Shell</b> reimagines the desktop interface design by abandoning fragmented UI panels in favor of one living, singular entity.  Instead of scattering isolated bars, docks, and menus across your screen, Synoptik exists as a single, persistent bar that morphs dynamically. It expands, shifts, and adapts its physical footprint on demand to surface panels, status indicators, application launcher, control center, etc. - then contracts back seamlessly when you're done.
 
