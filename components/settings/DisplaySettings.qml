@@ -22,7 +22,6 @@ Flickable {
         let screens = Quickshell.screens
         if (!screens || screens.length === 0) return
 
-        // 1. Find the lowest X offset among all screens
         let minX = Number.MAX_VALUE
         for (let i = 0; i < screens.length; i++) {
             let cfg = Config.getMonitorConfig(screens[i].name)
@@ -31,7 +30,6 @@ Flickable {
             }
         }
 
-        // 2. Shift all monitors so the leftmost starts at 0
         if (minX !== Number.MAX_VALUE && minX !== 0) {
             for (let j = 0; j < screens.length; j++) {
                 let name = screens[j].name
@@ -41,7 +39,6 @@ Flickable {
         }
     }
 
-    // Trigger normalization when the component finishes loading
     Component.onCompleted: normalizeLeftmostMonitor()
 
     ColumnLayout {
@@ -283,7 +280,7 @@ Flickable {
                 font.bold: true
             }
 
-            // Canvas Box (Borderless)
+            // Canvas Box
             Rectangle {
                 id: displayCanvas
                 Layout.fillWidth: true
@@ -292,7 +289,6 @@ Flickable {
                 radius: Config.cornerRadius / 2
                 clip: true
 
-                // Denser Background Grid (16x8)
                 Grid {
                     anchors.fill: parent
                     rows: 8
@@ -304,14 +300,12 @@ Flickable {
                             width: displayCanvas.width / 16
                             height: displayCanvas.height / 8
 
-                            // Top border (Horizontal grid line)
                             Rectangle {
                                 width: parent.width
                                 height: 1
                                 color: Qt.rgba(255, 255, 255, 0.03)
                             }
 
-                            // Left border (Vertical grid line)
                             Rectangle {
                                 width: 1
                                 height: parent.height
@@ -321,7 +315,6 @@ Flickable {
                     }
                 }
 
-                // Interactive Monitors Canvas Repeater
                 Repeater {
                     model: Quickshell.screens
 
@@ -388,7 +381,6 @@ Flickable {
                             onTapped: Config.selectedScreenConfig = screenWrapper.modelData.name
                         }
 
-                        // Drag Handler with Magnetic Edge Snapping
                         DragHandler {
                             id: dragHandler
                             target: null
@@ -444,17 +436,18 @@ Flickable {
                 }
             }
 
-            // Active Target Controls
+            // Staggered Form Inspector Layout
             ColumnLayout {
+                id: inspectorLayout
                 Layout.fillWidth: true
-                spacing: 10
+                spacing: 12
 
                 readonly property var activeCfg: Config.getMonitorConfig(Config.selectedScreenConfig)
+                readonly property real formLabelWidth: 105
 
-                // Row 1: Target Display & Unified Mode Dropdown
+                // Row 1: Display Target Header
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 12
 
                     Text {
                         text: "Target: " + Config.selectedScreenConfig
@@ -463,14 +456,19 @@ Flickable {
                         font.pixelSize: Config.size(Config.fontBody)
                         font.bold: true
                     }
+                }
 
-                    Item { Layout.fillWidth: true }
+                // Row 2: Resolution Selection
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
 
                     Text {
                         text: "Resolution:"
                         color: Config.textMuted
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontCaption)
+                        Layout.preferredWidth: inspectorLayout.formLabelWidth
                     }
 
                     ComboBox {
@@ -511,12 +509,20 @@ Flickable {
                             Config.updateDraftMonitorConfig(Config.selectedScreenConfig, opts)
                         }
 
-                        // Button Surface Styling
                         background: Rectangle {
                             color: resCombo.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.04)
                             border.color: resCombo.activeFocus || resCombo.pressed ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
                             border.width: 1
                             radius: Config.cornerRadius / 2
+                        }
+
+                        // Explicit Dropdown Indicator Styling (Fixes Black Arrow)
+                        indicator: Text {
+                            x: resCombo.width - width - 10
+                            y: (resCombo.height - height) / 2
+                            text: "▼"
+                            font.pixelSize: 8
+                            color: Config.textMain
                         }
 
                         contentItem: Text {
@@ -528,7 +534,6 @@ Flickable {
                             leftPadding: 10
                         }
 
-                        // Custom Styled Dropdown List Delegate
                         delegate: ItemDelegate {
                             width: resCombo.width
                             height: 30
@@ -549,7 +554,6 @@ Flickable {
                             }
                         }
 
-                        // Custom Styled Popup Container
                         popup: Popup {
                             y: resCombo.height + 4
                             width: resCombo.width
@@ -560,9 +564,7 @@ Flickable {
                                 clip: true
                                 implicitHeight: contentHeight
                                 model: resCombo.popup.visible ? resCombo.delegateModel : null
-                                ScrollBar.vertical: ScrollBar {
-                                    policy: ScrollBar.AsNeeded
-                                }
+                                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
                             }
 
                             background: Rectangle {
@@ -575,7 +577,67 @@ Flickable {
                     }
                 }
 
-                // Row 2: Rotation / Orientation Controls
+                // Row 3: Display Scaling Control
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    Text {
+                        text: "Scale:"
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontCaption)
+                        Layout.preferredWidth: inspectorLayout.formLabelWidth
+                    }
+
+                    Repeater {
+                        model: [
+                            { label: "Auto", val: "auto" },
+                            { label: "1.0", val: 1.0 },
+                            { label: "1.25", val: 1.25 },
+                            { label: "1.33", val: 1.33 },
+                            { label: "1.6", val: 1.6 },
+                            { label: "2.0", val: 2.0 }
+                        ]
+
+                        delegate: Rectangle {
+                            required property var modelData
+                            implicitWidth: 48
+                            implicitHeight: 28
+                            radius: Config.cornerRadius / 2
+
+                            readonly property bool isSelected: {
+                                let activeScale = inspectorLayout.activeCfg.scale
+                                if (modelData.val === "auto") {
+                                    return activeScale === "auto" || !activeScale
+                                }
+                                let parsed = parseFloat(activeScale)
+                                let numVal = isNaN(parsed) ? 1.0 : parsed
+                                return Math.abs(numVal - modelData.val) < 0.01
+                            }
+
+                            color: isSelected ? Qt.rgba(255, 255, 255, 0.12) : (btnHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : Qt.rgba(255, 255, 255, 0.03))
+                            border.width: isSelected ? 1 : 0
+                            border.color: Config.accent
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: modelData.label
+                                color: parent.isSelected ? Config.accent : Config.textMain
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontMicro)
+                                font.bold: parent.isSelected
+                            }
+
+                            TapHandler {
+                                onTapped: Config.updateDraftMonitorConfig(Config.selectedScreenConfig, { scale: modelData.val })
+                            }
+                            HoverHandler { id: btnHover; cursorShape: Qt.PointingHandCursor }
+                        }
+                    }
+                }
+
+                // Row 4: Orientation Controls
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
@@ -585,6 +647,7 @@ Flickable {
                         color: Config.textMuted
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontCaption)
+                        Layout.preferredWidth: inspectorLayout.formLabelWidth
                     }
 
                     Repeater {
@@ -600,7 +663,7 @@ Flickable {
                             implicitWidth: 92
                             implicitHeight: 26
                             radius: Config.cornerRadius / 2
-                            readonly property bool isOrient: parent.parent.activeCfg.transform === modelData.transform
+                            readonly property bool isOrient: inspectorLayout.activeCfg.transform === modelData.transform
                             color: isOrient ? Qt.rgba(255, 255, 255, 0.12) : (orientHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : Qt.rgba(255, 255, 255, 0.03))
                             border.width: isOrient ? 1 : 0
                             border.color: Config.accent
@@ -633,16 +696,17 @@ Flickable {
                     }
                 }
 
-                // Row 3: Offset Adjustment & Action Controls
+                // Row 5: Position Offset & Action Controls
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 12
+                    spacing: 8
 
                     Text {
                         text: "Position Offset:"
                         color: Config.textMuted
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontCaption)
+                        Layout.preferredWidth: inspectorLayout.formLabelWidth
                     }
 
                     RowLayout {
