@@ -475,6 +475,101 @@ QtObject {
         return enabledBarScreens.includes(screenName)
     }
 
+    // --- MONITOR DETECTOR PROCESS ---
+    property var detectedModes: ({})
+
+    property Process monitorDetector: Process {
+        id: monDetector
+        command: ["fish", "-c", "hyprctl monitors -j"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    let data = JSON.parse(this.text)
+                    let modesMap = {}
+                    data.forEach(m => {
+                        if (m.availableModes) {
+                            modesMap[m.name] = m.availableModes.map(modeStr => {
+                                // Format: "2560x1440@164.84Hz"
+                                let parts = modeStr.split("@")
+                                let res = parts[0].split("x")
+                                let rateStr = parts[1] ? parts[1].replace("Hz", "") : "60.00"
+                                return {
+                                    text: modeStr,
+                                    w: parseInt(res[0]),
+                                    h: parseInt(res[1]),
+                                    r: parseFloat(rateStr)
+                                }
+                            })
+                        }
+                    })
+                    root.detectedModes = modesMap
+                } catch (e) {
+                    console.error("Failed to parse hyprctl monitors output:", e)
+                }
+            }
+        }
+        Component.onCompleted: monDetector.running = true
+    }
+
+    // --- MONITOR LAYOUT & DRAFT STATE MANAGEMENT ---
+    property string selectedScreenConfig: Quickshell.screens.length > 0 ? Quickshell.screens[0].name : "DP-1"
+    property var monitorConfigs: ({})
+    property var draftMonitorConfigs: ({})
+
+    function getMonitorConfig(screenName) {
+        if (!screenName) return { width: 2560, height: 1440, refreshRate: 164.84, x: 0, y: 0, scale: 1.0, transform: 0 }
+        
+        if (draftMonitorConfigs && draftMonitorConfigs[screenName]) {
+            return draftMonitorConfigs[screenName]
+        }
+        if (monitorConfigs && monitorConfigs[screenName]) {
+            return monitorConfigs[screenName]
+        }
+
+        let isDP1 = screenName === "DP-1"
+        return {
+            width: 2560,
+            height: 1440,
+            refreshRate: 164.84,
+            x: isDP1 ? 0 : 1440,
+            y: isDP1 ? 0 : 729,
+            scale: 1.0,
+            transform: isDP1 ? 1 : 0
+        }
+    }
+
+    function getOtherMonitorConfig(currentScreenName) {
+        let screens = Quickshell.screens
+        let otherScreen = screens.find(s => s.name !== currentScreenName)
+        if (otherScreen) {
+            return getMonitorConfig(otherScreen.name)
+        }
+        return { width: 2560, height: 1440, refreshRate: 164.84, x: 0, y: 0, scale: 1.0, transform: 0 }
+    }
+
+    function updateDraftMonitorConfig(screenName, newOpts) {
+        if (!screenName) return
+        let current = Object.assign({}, draftMonitorConfigs)
+        let existing = getMonitorConfig(screenName)
+        current[screenName] = Object.assign({}, existing, newOpts)
+        draftMonitorConfigs = current
+    }
+
+    function applyMonitorConfigs() {
+        let current = Object.assign({}, monitorConfigs)
+        Object.keys(draftMonitorConfigs).forEach(k => {
+            current[k] = draftMonitorConfigs[k]
+        })
+        monitorConfigs = current
+
+        syncHyprlandBorders()
+        saveSettings()
+    }
+
+    function resetDraftMonitorConfigs() {
+        draftMonitorConfigs = Object.assign({}, monitorConfigs)
+    }
+
     // Hyprland Exporter
     property Process themeWriter: Process { id: writer }
     readonly property string hyprThemePath: Quickshell.env("HOME") + "/.config/hypr/hypr_style.lua"
@@ -503,6 +598,32 @@ QtObject {
 
         let borderSize = showBorders ? 3 : 0
 
+        let monitorLuaBlocks = []
+        let hyprctlMonitorCmds = []
+
+        let keys = Object.keys(monitorConfigs)
+        if (keys.length === 0 && Quickshell.screens) {
+            Quickshell.screens.forEach(s => keys.push(s.name))
+        }
+
+        keys.forEach(k => {
+            let m = getMonitorConfig(k)
+            
+            let luaBlock = 'hl.monitor({\n' +
+                '    output = "' + k + '",\n' +
+                '    mode = "' + m.width + 'x' + m.height + '@' + (m.refreshRate || 164.84) + '",\n' +
+                '    position = "' + m.x + 'x' + m.y + '",\n' +
+                '    scale = ' + (m.scale || 1.0).toFixed(1) +
+                (m.transform !== undefined && m.transform !== 0 ? ',\n    transform = ' + m.transform : '') + '\n' +
+                '})'
+            
+            monitorLuaBlocks.push(luaBlock)
+
+            let transformStr = m.transform !== undefined ? ',transform,' + m.transform : ''
+            let ruleStr = k + ',' + m.width + 'x' + m.height + '@' + (m.refreshRate || 164.84) + ',' + m.x + 'x' + m.y + ',' + (m.scale || 1.0) + transformStr
+            hyprctlMonitorCmds.push("hyprctl keyword monitor '" + ruleStr + "'")
+        })
+
         let luaContent = 'hl.config({\n' +
             '    general = {\n' +
             '        col = {\n' +
@@ -518,16 +639,19 @@ QtObject {
             '    blur = ' + (enableBlur ? "true" : "false") + ',\n' +
             '    xray = ' + (enableXray ? "true" : "false") + ',\n' +
             '    ignore_alpha = 0.6\n' +
-            '})\n'
+            '})\n\n' +
+            monitorLuaBlocks.join('\n\n') + '\n'
 
         let animCmd = animateGradient 
             ? " && hyprctl keyword animation 'borderangle, 1, 100, linear, loop'" 
             : " && hyprctl keyword animation 'borderangle, 0'"
 
+        let monExecCmd = hyprctlMonitorCmds.length > 0 ? " && " + hyprctlMonitorCmds.join(" && ") : ""
+
         let cmd = "printf '%s' '" + luaContent.replace(/'/g, "'\\''") + "' > " + hyprThemePath + " && " +
                   "hyprctl keyword general:col.active_border '" + activeStr + "' && " +
                   "hyprctl keyword general:inactive_border '" + inactiveStr + "' && " +
-                  "hyprctl keyword general:border_size " + borderSize + animCmd
+                  "hyprctl keyword general:border_size " + borderSize + animCmd + monExecCmd
 
         writer.command = ["fish", "-c", cmd]
         writer.running = true
@@ -575,6 +699,7 @@ QtObject {
             var customPalettes = themes.filter(function(t) { return t.isCustom === true })
 
             var data = {
+                "monitorConfigs": root.monitorConfigs,
                 "selectedWallpaperMonitors": root.selectedWallpaperMonitors,
                 "wallpaperTransitionType": root.wallpaperTransitionType,
                 "showOsk": root.showOsk,
@@ -604,15 +729,12 @@ QtObject {
                 "customThemes": customPalettes,
                 "windowStyle": root.windowStyle,
 
-                // Collapsible Cards & Pin State Persistence
                 "leftCardCollapsed": root.leftCardCollapsed,
                 "rightCardCollapsed": root.rightCardCollapsed,
                 "pinnedIcons": root.pinnedIcons,
 
-                // Surface Geometry Persistence
                 "surfaceRadius": root.surfaceRadius,
 
-                // Clock Settings Persistence
                 "showDesktopClock": root.showDesktopClock,
                 "clockStyle": root.clockStyle,
                 "clockScale": root.clockScale,
@@ -648,7 +770,7 @@ QtObject {
                         var parsed = JSON.parse(text)
 
                         let props = [
-                            "selectedWallpaperMonitors", "wallpaperTransitionType", "showOsk", "oskLayout",
+                            "monitorConfigs", "selectedWallpaperMonitors", "wallpaperTransitionType", "showOsk", "oskLayout",
                             "showMascot", "mascotPath", "mascotPhrases", "fetchOnlineQuotes", "quoteSource",
                             "barFrameStyle", "barPosition", "showScreenFrame", "sysFont", "fontScaleIndex", "locationQuery",
                             "enabledBarScreens", "useCustomColors", "customBgBase", "customBgPanel",
@@ -683,6 +805,7 @@ QtObject {
                 }
 
                 root.isLoaded = true
+                root.resetDraftMonitorConfigs()
                 root.syncHyprlandBorders()
                 root.syncScreenFrame()
                 

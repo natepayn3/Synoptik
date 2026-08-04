@@ -262,7 +262,7 @@ PanelWindow {
 
                                         Repeater {
                                             model: [
-                                                { id: 0, name: "Orientation", icon: "aspect_ratio" },
+                                                { id: 0, name: "Display",     icon: "aspect_ratio" },
                                                 { id: 1, name: "Appearance",  icon: "palette" },
                                                 { id: 2, name: "Typography",  icon: "match_case" },
                                                 { id: 3, name: "Wallpaper",   icon: "wallpaper" }
@@ -457,7 +457,7 @@ PanelWindow {
                                 anchors.fill: parent
                                 anchors.margins: 16
 
-                                OrientationSettings { anchors.fill: parent; visible: settingsWindow.activeSection === 0 }
+                                DisplaySettings     { anchors.fill: parent; visible: settingsWindow.activeSection === 0 }
                                 AppearanceSettings  { anchors.fill: parent; visible: settingsWindow.activeSection === 1 }
                                 TypographySettings  { anchors.fill: parent; visible: settingsWindow.activeSection === 2 }
                                 WallpaperSettings   { anchors.fill: parent; visible: settingsWindow.activeSection === 3 }
