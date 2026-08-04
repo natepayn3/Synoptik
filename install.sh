@@ -163,6 +163,23 @@ else
     end
 end
 
+set HYPR_LUA "$HOME/.config/hypr/hyprland.lua"
+set LUA_DIRECTIVE "-- Load custom isolated dynamic border style configuration\nrequire(\"hypr_style\")"
+
+say "Updating Hyprland Lua configuration..."
+mkdir -p "$HOME/.config/hypr"
+touch "$HYPR_LUA"
+
+# Append the directive only if it does not already exist in the file
+if not grep -q "require(\"hypr_style\")" "$HYPR_LUA"
+    # Ensure file ends with a newline before appending logic
+    test -s "$HYPR_LUA"; and test (tail -c 1 "$HYPR_LUA" | wc -l) -eq 0; and echo "" >> "$HYPR_LUA"
+    echo -e "\n$LUA_DIRECTIVE" >> "$HYPR_LUA"
+    say "Appended hypr_style require directive to $HYPR_LUA"
+else
+    say "Directive already present in $HYPR_LUA, skipping."
+end
+
 echo ""
 say "Done! Synoptik Shell is ready."
 '
