@@ -489,7 +489,6 @@ QtObject {
                     data.forEach(m => {
                         if (m.availableModes) {
                             modesMap[m.name] = m.availableModes.map(modeStr => {
-                                // Format: "2560x1440@164.84Hz"
                                 let parts = modeStr.split("@")
                                 let res = parts[0].split("x")
                                 let rateStr = parts[1] ? parts[1].replace("Hz", "") : "60.00"
@@ -526,15 +525,34 @@ QtObject {
             return monitorConfigs[screenName]
         }
 
-        let isDP1 = screenName === "DP-1"
+        // Generic fallback starting cleanly at 0x0
         return {
             width: 2560,
             height: 1440,
             refreshRate: 164.84,
-            x: isDP1 ? 0 : 1440,
-            y: isDP1 ? 0 : 729,
+            x: 0,
+            y: 0,
             scale: 1.0,
-            transform: isDP1 ? 1 : 0
+            transform: 0
+        }
+    }
+
+    function normalizeMonitorPositions() {
+        let keys = Object.keys(monitorConfigs)
+        if (keys.length === 0) return
+
+        let minX = Number.MAX_VALUE
+        keys.forEach(k => {
+            let cfg = monitorConfigs[k]
+            if (cfg && cfg.x < minX) minX = cfg.x
+        })
+
+        if (minX !== Number.MAX_VALUE && minX !== 0) {
+            let updated = Object.assign({}, monitorConfigs)
+            keys.forEach(k => {
+                updated[k].x = updated[k].x - minX
+            })
+            monitorConfigs = updated
         }
     }
 
@@ -562,8 +580,9 @@ QtObject {
         })
         monitorConfigs = current
 
-        syncHyprlandBorders()
+        normalizeMonitorPositions()
         saveSettings()
+        syncHyprlandBorders()
     }
 
     function resetDraftMonitorConfigs() {
@@ -575,6 +594,9 @@ QtObject {
     readonly property string hyprThemePath: Quickshell.env("HOME") + "/.config/hypr/hypr_style.lua"
 
     function syncHyprlandBorders() {
+        // Prevent premature execution during boot desync
+        if (!isLoaded) return
+
         function toOpaqueHex(c) {
             let str = Qt.color(c).toString().replace("#", "")
             return str.length === 8 ? str.substring(2) : str
@@ -804,6 +826,7 @@ QtObject {
                     }
                 }
 
+                root.normalizeMonitorPositions()
                 root.isLoaded = true
                 root.resetDraftMonitorConfigs()
                 root.syncHyprlandBorders()
