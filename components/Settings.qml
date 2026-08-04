@@ -556,7 +556,6 @@ PanelWindow {
                                     anchors.fill: parent
                                     visible: settingsWindow.activeSection === 10
                                 }
-
                                 // COMBINED SHELL SECTION (ABOUT + UPDATES)
                                 Item {
                                     id: shellView
@@ -569,7 +568,7 @@ PanelWindow {
                                     // Direct location of the current file directory
                                     readonly property string repoDir: Qt.resolvedUrl(".").toString().replace(/^file:\/\//, "")
 
-                                    // Process to fetch changes and check git status
+                                    // Process to fetch upstream status and check for remote updates
                                     Process {
                                         id: gitChecker
                                         running: false
@@ -581,8 +580,9 @@ PanelWindow {
                                             if (code === 0) {
                                                 let output = checkOutput.text
                                                 if (output.includes("behind")) {
-                                                    shellView.statusText = "Downloading and applying updates..."
-                                                    gitPuller.command = ["fish", "-c", "cd '" + shellView.repoDir + "'; and git pull --ff-only"]
+                                                    shellView.statusText = "Downloading and applying latest files..."
+                                                    // Force-overwrite local files with upstream remote main
+                                                    gitPuller.command = ["fish", "-c", "cd '" + shellView.repoDir + "'; and git fetch origin main; and git reset --hard origin/main"]
                                                     gitPuller.running = true
                                                 } else {
                                                     shellView.isBusy = false
@@ -610,7 +610,7 @@ PanelWindow {
                                                 Quickshell.execDetached(["hyprctl", "dispatch", "exec", "quickshell"])
                                             } else {
                                                 let err = pullError.text.trim()
-                                                shellView.statusText = err.length > 0 ? err : "Failed to pull updates."
+                                                shellView.statusText = err.length > 0 ? err : "Failed to force update files."
                                             }
                                         }
                                     }
@@ -707,18 +707,21 @@ PanelWindow {
                                             HoverHandler { id: gitHubHover }
                                         }
 
-                                        // Repository Status Card
+                                        // Repository Status Card (Dynamic height for error logs)
                                         Rectangle {
                                             Layout.fillWidth: true
-                                            implicitHeight: 48
+                                            implicitHeight: Math.max(48, statusRow.implicitHeight + 16)
                                             radius: Config.cornerRadius / 2
                                             color: Qt.rgba(0, 0, 0, 0.2)
                                             border.width: 0
 
                                             RowLayout {
+                                                id: statusRow
                                                 anchors.fill: parent
                                                 anchors.leftMargin: 16
                                                 anchors.rightMargin: 16
+                                                anchors.topMargin: 8
+                                                anchors.bottomMargin: 8
                                                 spacing: 12
 
                                                 Text {
@@ -734,7 +737,7 @@ PanelWindow {
                                                 ColumnLayout {
                                                     Layout.fillWidth: true
                                                     Layout.alignment: Qt.AlignVCenter
-                                                    spacing: 1
+                                                    spacing: 2
 
                                                     Text {
                                                         text: shellView.isBusy ? "Updating Shell..." : "Repository Status"
@@ -750,12 +753,11 @@ PanelWindow {
                                                         font.family: Config.sysFont
                                                         font.pixelSize: Config.size(Config.fontCaption)
                                                         Layout.fillWidth: true
-                                                        elide: Text.ElideRight
-                                                        maximumLineCount: 1
+                                                        wrapMode: Text.WrapAnywhere
                                                     }
                                                 }
 
-                                                // Outlined Button (Accent text, Accent border, Translucent hover)
+                                                // Outlined Button
                                                 Rectangle {
                                                     implicitWidth: 110
                                                     implicitHeight: 30
@@ -782,7 +784,7 @@ PanelWindow {
                                                         enabled: !shellView.isBusy
                                                         onClicked: {
                                                             shellView.isBusy = true
-                                                            shellView.statusText = "Checking remote repository..."
+                                                            shellView.statusText = "Checking for latest files..."
                                                             gitChecker.command = ["fish", "-c", "cd '" + shellView.repoDir + "'; and git remote update; and git status -uno"]
                                                             gitChecker.running = true
                                                         }
