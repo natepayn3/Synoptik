@@ -109,4 +109,28 @@ say "Enabling systemd services..."
 sudo systemctl enable --now power-profiles-daemon.service
 or exit 1
 
-say "Done!"
+# Setup Synoptik Shell repository directory for Quickshell
+set TARGET_DIR "$HOME/.config/quickshell/Synoptik"
+say "Deploying Synoptik Shell files..."
+
+mkdir -p "$HOME/.config/quickshell"
+
+if test -d "$TARGET_DIR"
+    say "Existing installation detected at $TARGET_DIR. Syncing with remote..."
+    cd "$TARGET_DIR"
+    git fetch origin main
+    and git reset --hard origin/main
+    or begin
+        echo "Failed to sync repo at $TARGET_DIR"
+        exit 1
+    end
+else
+    say "Cloning repository to $TARGET_DIR..."
+    git clone -b main https://github.com/natepayn3/Synoptik.git "$TARGET_DIR"
+    or begin
+        echo "Failed to clone repository."
+        exit 1
+    end
+end
+
+say "Done! Synoptik Shell is ready."
