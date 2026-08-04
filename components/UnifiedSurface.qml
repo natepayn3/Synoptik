@@ -104,8 +104,8 @@ PanelWindow {
         }
     }
 
-    property real targetWidth: isOpen ? rawChildWidth : (isHorizontal ? (lastOpenWidth * 0.25) : (lastOpenWidth * 1.10))
-    property real targetHeight: isOpen ? rawChildHeight : (isHorizontal ? (lastOpenHeight * 1.10) : (lastOpenHeight * 0.50))
+    property real targetWidth: isOpen ? rawChildWidth : (isHorizontal ? (lastOpenWidth * 0.33) : (lastOpenWidth * 1.10))
+    property real targetHeight: isOpen ? rawChildHeight : (isHorizontal ? (lastOpenHeight * 1.10) : (lastOpenHeight * 0.33))
 
     Behavior on targetWidth {
         NumberAnimation { duration: 350; easing.type: Easing.OutBack; easing.overshoot: 0.8 }
