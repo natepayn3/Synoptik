@@ -17,6 +17,33 @@ Flickable {
         active: flickable.moving || flickable.flicking
     }
 
+    // Auto-aligns the leftmost monitor to x: 0 while preserving relative layout spacing
+    function normalizeLeftmostMonitor() {
+        let screens = Quickshell.screens
+        if (!screens || screens.length === 0) return
+
+        // 1. Find the lowest X offset among all screens
+        let minX = Number.MAX_VALUE
+        for (let i = 0; i < screens.length; i++) {
+            let cfg = Config.getMonitorConfig(screens[i].name)
+            if (cfg && cfg.x < minX) {
+                minX = cfg.x
+            }
+        }
+
+        // 2. Shift all monitors so the leftmost starts at 0
+        if (minX !== Number.MAX_VALUE && minX !== 0) {
+            for (let j = 0; j < screens.length; j++) {
+                let name = screens[j].name
+                let cfg = Config.getMonitorConfig(name)
+                Config.updateDraftMonitorConfig(name, { x: cfg.x - minX })
+            }
+        }
+    }
+
+    // Trigger normalization when the component finishes loading
+    Component.onCompleted: normalizeLeftmostMonitor()
+
     ColumnLayout {
         id: contentColumn
         anchors.horizontalCenter: parent.horizontalCenter
@@ -679,7 +706,12 @@ Flickable {
                             font.pixelSize: Config.size(Config.fontCaption)
                         }
 
-                        TapHandler { onTapped: Config.resetDraftMonitorConfigs() }
+                        TapHandler { 
+                            onTapped: {
+                                Config.resetDraftMonitorConfigs()
+                                flickable.normalizeLeftmostMonitor()
+                            }
+                        }
                         HoverHandler { id: discHover; cursorShape: Qt.PointingHandCursor }
                     }
 
