@@ -392,6 +392,9 @@ Flickable {
                                 if (active) {
                                     startX = screenWrapper.monCfg.x
                                     startY = screenWrapper.monCfg.y
+                                } else {
+                                    // Automatically re-align leftmost monitor to 0,0 on release
+                                    flickable.normalizeLeftmostMonitor()
                                 }
                             }
 
@@ -401,30 +404,48 @@ Flickable {
                                 let calcX = Math.round(startX + (translation.x / screenWrapper.scaleFactor))
                                 let calcY = Math.round(startY + (translation.y / screenWrapper.scaleFactor))
 
-                                let other = Config.getOtherMonitorConfig(screenWrapper.modelData.name)
-                                let snapDist = 60
-
-                                let otherRot = other.transform === 1 || other.transform === 3
-                                let otherW = otherRot ? other.height : other.width
-                                let otherH = otherRot ? other.width : other.height
-
                                 let selfW = screenWrapper.renderWidth
                                 let selfH = screenWrapper.renderHeight
 
-                                if (Math.abs(calcX - (other.x + otherW)) < snapDist) {
-                                    calcX = other.x + otherW
-                                } else if (Math.abs((calcX + selfW) - other.x) < snapDist) {
-                                    calcX = other.x - selfW
-                                } else if (Math.abs(calcX - other.x) < snapDist) {
-                                    calcX = other.x
-                                }
+                                // Distance in display pixels to trigger magnetic snap
+                                let snapThreshold = 120 
 
-                                if (Math.abs(calcY - other.y) < snapDist) {
-                                    calcY = other.y
-                                } else if (Math.abs(calcY - (other.y + otherH)) < snapDist) {
-                                    calcY = other.y + otherH
-                                } else if (Math.abs((calcY + selfH) - other.y) < snapDist) {
-                                    calcY = other.y - selfH
+                                // 1. Origin Snapping (X: 0 / Y: 0)
+                                if (Math.abs(calcX) < snapThreshold) calcX = 0
+                                if (Math.abs(calcY) < snapThreshold) calcY = 0
+
+                                // 2. Snap to adjacent monitors
+                                let screens = Quickshell.screens
+                                for (let i = 0; i < screens.length; i++) {
+                                    let otherName = screens[i].name
+                                    if (otherName === screenWrapper.modelData.name) continue
+
+                                    let other = Config.getMonitorConfig(otherName)
+                                    if (!other) continue
+
+                                    let otherRot = other.transform === 1 || other.transform === 3
+                                    let otherW = otherRot ? other.height : other.width
+                                    let otherH = otherRot ? other.width : other.height
+
+                                    // Horizontal Edge Snapping
+                                    if (Math.abs(calcX - (other.x + otherW)) < snapThreshold) {
+                                        calcX = other.x + otherW // Snap left side to other's right side
+                                    } else if (Math.abs((calcX + selfW) - other.x) < snapThreshold) {
+                                        calcX = other.x - selfW // Snap right side to other's left side
+                                    } else if (Math.abs(calcX - other.x) < snapThreshold) {
+                                        calcX = other.x // Align left edges
+                                    }
+
+                                    // Vertical Edge Snapping
+                                    if (Math.abs(calcY - other.y) < snapThreshold) {
+                                        calcY = other.y // Align top edges
+                                    } else if (Math.abs(calcY - (other.y + otherH)) < snapThreshold) {
+                                        calcY = other.y + otherH // Snap top to other's bottom
+                                    } else if (Math.abs((calcY + selfH) - other.y) < snapThreshold) {
+                                        calcY = other.y - selfH // Snap bottom to other's top
+                                    } else if (Math.abs((calcY + selfH) - (other.y + otherH)) < snapThreshold) {
+                                        calcY = other.y + otherH - selfH // Align bottom edges
+                                    }
                                 }
 
                                 Config.updateDraftMonitorConfig(screenWrapper.modelData.name, { x: calcX, y: calcY })
