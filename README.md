@@ -2,7 +2,7 @@
 > _This project is in active development!  Proceed at your own risk!_
 >
 ```bash
-curl -fsSL [https://raw.githubusercontent.com/natepayn3/Synoptik/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/natepayn3/Synoptik/main/install.sh | bash
 ```
 
 ***
