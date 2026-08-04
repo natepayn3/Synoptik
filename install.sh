@@ -129,10 +129,20 @@ set AUR_PKGS \
     cliphist \
     ttf-material-symbols-variable-git
 
-# Filter out AUR packages that are already present in pacman database
+# Check both exact package names and provided capabilities via pacman -T / pacman -Qs
 set MISSING_AUR_PKGS
 for pkg in $AUR_PKGS
-    if not pacman -Qq $pkg >/dev/null 2>&1
+    # 1. Strip -git to check if base package name is installed
+    set base_pkg (string replace -r '-git$' '' $pkg)
+    
+    # 2. Test if package or base_pkg or capability is satisfied
+    if pacman -T $pkg >/dev/null 2>&1
+        continue
+    else if pacman -T $base_pkg >/dev/null 2>&1
+        continue
+    else if pacman -Qs "^$base_pkg" >/dev/null 2>&1
+        continue
+    else
         set -a MISSING_AUR_PKGS $pkg
     end
 end
