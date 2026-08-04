@@ -608,12 +608,19 @@ Flickable {
 
                             readonly property bool isSelected: {
                                 let activeScale = inspectorLayout.activeCfg.scale
+                                let isAutoMode = (activeScale === "auto" || !activeScale)
+
+                                // Handle the Auto button explicitly
                                 if (modelData.val === "auto") {
-                                    return activeScale === "auto" || !activeScale
+                                    return isAutoMode
                                 }
+
+                                // If the system is in Auto mode, no numeric buttons should highlight
+                                if (isAutoMode) return false 
+
+                                // Process numeric matching
                                 let parsed = parseFloat(activeScale)
-                                let numVal = isNaN(parsed) ? 1.0 : parsed
-                                return Math.abs(numVal - modelData.val) < 0.01
+                                return !isNaN(parsed) && Math.abs(parsed - modelData.val) < 0.01
                             }
 
                             color: isSelected ? Qt.rgba(255, 255, 255, 0.12) : (btnHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : Qt.rgba(255, 255, 255, 0.03))
