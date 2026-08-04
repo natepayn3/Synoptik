@@ -422,7 +422,7 @@ Flickable {
                     Item { Layout.fillWidth: true }
 
                     Text {
-                        text: "Mode:"
+                        text: "Resolution:"
                         color: Config.textMuted
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontCaption)
