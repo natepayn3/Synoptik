@@ -292,14 +292,32 @@ Flickable {
                 radius: Config.cornerRadius / 2
                 clip: true
 
-                // Background Grid
-                Repeater {
-                    model: 7
-                    Rectangle {
-                        x: (displayCanvas.width / 8) * (index + 1)
-                        width: 1
-                        height: parent.height
-                        color: Qt.rgba(255, 255, 255, 0.03)
+                // Denser Background Grid (16x8)
+                Grid {
+                    anchors.fill: parent
+                    rows: 8
+                    columns: 16
+
+                    Repeater {
+                        model: parent.rows * parent.columns
+                        Item {
+                            width: displayCanvas.width / 16
+                            height: displayCanvas.height / 8
+
+                            // Top border (Horizontal grid line)
+                            Rectangle {
+                                width: parent.width
+                                height: 1
+                                color: Qt.rgba(255, 255, 255, 0.03)
+                            }
+
+                            // Left border (Vertical grid line)
+                            Rectangle {
+                                width: 1
+                                height: parent.height
+                                color: Qt.rgba(255, 255, 255, 0.03)
+                            }
+                        }
                     }
                 }
 
