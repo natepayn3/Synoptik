@@ -8,7 +8,7 @@ import "controlcenter"
 Item {
     id: root
 
-    implicitWidth: 380
+    implicitWidth: 400
     implicitHeight: mainLayout.implicitHeight + 24
 
     // --- State Properties ---
@@ -84,7 +84,7 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignTop
-                    spacing: 8
+                    spacing: 12
 
                     CaffeineCard {
                         Layout.fillWidth: true
@@ -101,7 +101,7 @@ Item {
                     id: staticToggleRow
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignTop
-                    spacing: 8
+                    spacing: 12
 
                     z: (wifiCard.shouldExpand || btCard.shouldExpand) ? 10 : 1
 
