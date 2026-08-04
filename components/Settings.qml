@@ -607,7 +607,9 @@ PanelWindow {
                                             shellView.isBusy = false
                                             if (code === 0) {
                                                 shellView.statusText = "Updated successfully! Reloading..."
-                                                Quickshell.execDetached(["hyprctl", "dispatch", "exec", "quickshell"])
+                                                
+                                                // Kill running instance and relaunch quickshell cleanly
+                                                Quickshell.execDetached(["fish", "-c", "killall quickshell; and quickshell"])
                                             } else {
                                                 let err = pullError.text.trim()
                                                 shellView.statusText = err.length > 0 ? err : "Failed to force update files."
