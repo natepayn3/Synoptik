@@ -595,7 +595,7 @@ Flickable {
                             { label: "Auto", val: "auto" },
                             { label: "1.0", val: 1.0 },
                             { label: "1.25", val: 1.25 },
-                            { label: "1.33", val: 1.33 },
+                            { label: "1.33", val: 1.333333 },
                             { label: "1.6", val: 1.6 },
                             { label: "2.0", val: 2.0 }
                         ]
@@ -610,17 +610,20 @@ Flickable {
                                 let activeScale = inspectorLayout.activeCfg.scale
                                 let isAutoMode = (activeScale === "auto" || !activeScale)
 
-                                // Handle the Auto button explicitly
                                 if (modelData.val === "auto") {
                                     return isAutoMode
                                 }
 
-                                // If the system is in Auto mode, no numeric buttons should highlight
                                 if (isAutoMode) return false 
 
-                                // Process numeric matching
-                                let parsed = parseFloat(activeScale)
-                                return !isNaN(parsed) && Math.abs(parsed - modelData.val) < 0.01
+                                // Convert both to floats and fix to 2 decimal places for direct comparison
+                                let parsedActive = parseFloat(activeScale)
+                                let parsedTarget = parseFloat(modelData.val)
+
+                                if (isNaN(parsedActive) || isNaN(parsedTarget)) return false
+
+                                // Compare rounded to 2 decimal places (e.g. 1.333333 -> "1.33" === "1.33")
+                                return parsedActive.toFixed(2) === parsedTarget.toFixed(2)
                             }
 
                             color: isSelected ? Qt.rgba(255, 255, 255, 0.12) : (btnHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : Qt.rgba(255, 255, 255, 0.03))
