@@ -510,13 +510,47 @@ QtObject {
         Component.onCompleted: monDetector.running = true
     }
 
+    // --- HYPRLAND SCALE VALIDATION HELPERS ---
+    function isScaleValid(width, height, scale) {
+        if (scale === "auto" || !scale) return true
+        
+        let logicalW = width / scale
+        let logicalH = height / scale
+        
+        let isWInt = Math.abs(logicalW - Math.round(logicalW)) < 0.001
+        let isHInt = Math.abs(logicalH - Math.round(logicalH)) < 0.001
+        
+        return isWInt && isHInt
+    }
+
+    function getNearestValidScale(width, height, desiredScale) {
+        if (desiredScale === "auto" || !desiredScale) return "auto"
+        if (isScaleValid(width, height, desiredScale)) return desiredScale
+        
+        let bestScale = 1.0
+        let minDiff = Number.MAX_VALUE
+        
+        for (let s = 0.5; s <= 3.0; s = Math.round((s + 0.05) * 100) / 100) {
+            if (isScaleValid(width, height, s)) {
+                let diff = Math.abs(s - desiredScale)
+                if (diff < minDiff) {
+                    minDiff = diff
+                    bestScale = s
+                }
+            }
+        }
+        return bestScale
+    }
+
     // --- MONITOR LAYOUT & DRAFT STATE MANAGEMENT ---
     property string selectedScreenConfig: Quickshell.screens.length > 0 ? Quickshell.screens[0].name : "DP-1"
     property var monitorConfigs: ({})
     property var draftMonitorConfigs: ({})
 
     function getMonitorConfig(screenName) {
-        if (!screenName) return { width: 2560, height: 1440, refreshRate: 164.84, x: 0, y: 0, scale: 1.0, transform: 0 }
+        const safeFallback = { width: 1920, height: 1080, refreshRate: 60.0, x: 0, y: 0, scale: "auto", transform: 0 }
+
+        if (!screenName) return safeFallback
         
         if (draftMonitorConfigs && draftMonitorConfigs[screenName]) {
             return draftMonitorConfigs[screenName]
@@ -525,16 +559,7 @@ QtObject {
             return monitorConfigs[screenName]
         }
 
-        // Generic fallback starting cleanly at 0x0
-        return {
-            width: 2560,
-            height: 1440,
-            refreshRate: 164.84,
-            x: 0,
-            y: 0,
-            scale: 1.0,
-            transform: 0
-        }
+        return safeFallback
     }
 
     function normalizeMonitorPositions() {
@@ -562,14 +587,20 @@ QtObject {
         if (otherScreen) {
             return getMonitorConfig(otherScreen.name)
         }
-        return { width: 2560, height: 1440, refreshRate: 164.84, x: 0, y: 0, scale: 1.0, transform: 0 }
+        return { width: 1920, height: 1080, refreshRate: 60.0, x: 0, y: 0, scale: "auto", transform: 0 }
     }
 
     function updateDraftMonitorConfig(screenName, newOpts) {
         if (!screenName) return
         let current = Object.assign({}, draftMonitorConfigs)
         let existing = getMonitorConfig(screenName)
-        current[screenName] = Object.assign({}, existing, newOpts)
+        let updated = Object.assign({}, existing, newOpts)
+
+        if (updated.scale && updated.scale !== "auto") {
+            updated.scale = getNearestValidScale(updated.width, updated.height, updated.scale)
+        }
+
+        current[screenName] = updated
         draftMonitorConfigs = current
     }
 
@@ -594,7 +625,6 @@ QtObject {
     readonly property string hyprThemePath: Quickshell.env("HOME") + "/.config/hypr/hypr_style.lua"
 
     function syncHyprlandBorders() {
-        // Prevent premature execution during boot desync
         if (!isLoaded) return
 
         function toOpaqueHex(c) {
@@ -631,18 +661,21 @@ QtObject {
         keys.forEach(k => {
             let m = getMonitorConfig(k)
             
+            let safeScale = (m.scale === "auto" || !m.scale) ? "auto" : getNearestValidScale(m.width, m.height, m.scale)
+            let scaleVal = (safeScale === "auto") ? "auto" : parseFloat(safeScale).toFixed(2)
+            
             let luaBlock = 'hl.monitor({\n' +
                 '    output = "' + k + '",\n' +
-                '    mode = "' + m.width + 'x' + m.height + '@' + (m.refreshRate || 164.84) + '",\n' +
+                '    mode = "' + m.width + 'x' + m.height + '@' + (m.refreshRate || 60.0) + '",\n' +
                 '    position = "' + m.x + 'x' + m.y + '",\n' +
-                '    scale = ' + (m.scale || 1.0).toFixed(1) +
+                '    scale = ' + (scaleVal === "auto" ? '"auto"' : scaleVal) +
                 (m.transform !== undefined && m.transform !== 0 ? ',\n    transform = ' + m.transform : '') + '\n' +
                 '})'
             
             monitorLuaBlocks.push(luaBlock)
 
             let transformStr = m.transform !== undefined ? ',transform,' + m.transform : ''
-            let ruleStr = k + ',' + m.width + 'x' + m.height + '@' + (m.refreshRate || 164.84) + ',' + m.x + 'x' + m.y + ',' + (m.scale || 1.0) + transformStr
+            let ruleStr = k + ',' + m.width + 'x' + m.height + '@' + (m.refreshRate || 60.0) + ',' + m.x + 'x' + m.y + ',' + scaleVal + transformStr
             hyprctlMonitorCmds.push("hyprctl keyword monitor '" + ruleStr + "'")
         })
 
