@@ -9,7 +9,7 @@ end
 
 set_color -o cyan
 echo '███████╗██╗   ██╗███╗   ██╗ ██████╗ ██████╗ ████████╗██╗██╗  ██╗'
-echo '██╔════╝╚██╗ ██╔╝████╗  ██║██╔═══██╗██╔══██╗╚══██╔══╝██║██║ ██╔╝'
+echo '██╔════╝╚██╗ ██╔╝████╗  ██║██╔═══██╗██╔═══██╗╚══██╔══╝██║██║ ██╔╝'
 echo '███████╗ ╚████╔╝ ██╔██╗ ██║██║   ██║██████╔╝   ██║   ██║█████╔╝ '
 echo '╚════██║  ╚██╔╝  ██║╚██╗██║██║   ██║██╔═══╝    ██║   ██║██╔═██╗ '
 echo '███████║   ██║   ██║ ╚████║╚██████╔╝██║        ██║   ██║██║  ██╗'
@@ -87,7 +87,7 @@ set PACMAN_PKGS \
     sed \
     coreutils \
     util-linux \
-    power-profiles-daemon # Power management daemon for powerprofilesctl
+    power-profiles-daemon
 
 say "Installing pacman packages..."
 sudo pacman -S --needed $PACMAN_PKGS
@@ -109,14 +109,12 @@ say "Enabling systemd services..."
 sudo systemctl enable --now power-profiles-daemon.service
 or exit 1
 
-# Setup Synoptik Shell repository directory for Quickshell
-set TARGET_DIR "$HOME/.config/quickshell/Synoptik"
+# Target directly to ~/.config/quickshell so Quickshell.shellDir IS the git root
+set TARGET_DIR "$HOME/.config/quickshell"
 say "Deploying Synoptik Shell files..."
 
-mkdir -p "$HOME/.config/quickshell"
-
-if test -d "$TARGET_DIR"
-    say "Existing installation detected at $TARGET_DIR. Syncing with remote..."
+if test -d "$TARGET_DIR/.git"
+    say "Existing git installation detected at $TARGET_DIR. Syncing with remote..."
     cd "$TARGET_DIR"
     git fetch origin main
     and git reset --hard origin/main
@@ -126,6 +124,10 @@ if test -d "$TARGET_DIR"
     end
 else
     say "Cloning repository to $TARGET_DIR..."
+    # If the folder exists but isn't a git repo, clean it out first
+    if test -d "$TARGET_DIR"
+        rm -rf "$TARGET_DIR"
+    end
     git clone -b main https://github.com/natepayn3/Synoptik.git "$TARGET_DIR"
     or begin
         echo "Failed to clone repository."
