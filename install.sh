@@ -109,10 +109,14 @@ say "Enabling systemd services..."
 sudo systemctl enable --now power-profiles-daemon.service
 or exit 1
 
-# Target directly to ~/.config/quickshell so Quickshell.shellDir IS the git root
-set TARGET_DIR "$HOME/.config/quickshell"
+# Target directory inside Synoptik subfolder
+set TARGET_DIR "$HOME/.config/quickshell/Synoptik"
 say "Deploying Synoptik Shell files..."
 
+# Ensure parent directory exists
+mkdir -p "$HOME/.config/quickshell"
+
+# Check if target directory exists and is actually a valid git repo
 if test -d "$TARGET_DIR/.git"
     say "Existing git installation detected at $TARGET_DIR. Syncing with remote..."
     cd "$TARGET_DIR"
@@ -124,7 +128,7 @@ if test -d "$TARGET_DIR/.git"
     end
 else
     say "Cloning repository to $TARGET_DIR..."
-    # If the folder exists but isn't a git repo, clean it out first
+    # If folder exists without .git, clean it out before cloning
     if test -d "$TARGET_DIR"
         rm -rf "$TARGET_DIR"
     end
