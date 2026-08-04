@@ -133,7 +133,7 @@ set AUR_PKGS \
 set MISSING_AUR_PKGS
 for pkg in $AUR_PKGS
     # 1. Strip -git to check if base package name is installed
-    set base_pkg (string replace -r '-git$' '' $pkg)
+    set base_pkg (string replace -r \'-git$\' \'\' $pkg)
     
     # 2. Test if package or base_pkg or capability is satisfied
     if pacman -T $pkg >/dev/null 2>&1
@@ -163,6 +163,9 @@ set TARGET_DIR "$HOME/.config/quickshell/Synoptik"
 say "Deploying Synoptik Shell files..."
 
 mkdir -p "$HOME/.config/quickshell"
+
+# CD out of target directory to ensure working directory stays valid during clone/removal
+cd "$HOME"
 
 if test -d "$TARGET_DIR/.git"
     say "Existing git installation detected at $TARGET_DIR. Syncing with remote..."
@@ -202,6 +205,15 @@ else
     say "Directive already present in $HYPR_LUA, skipping."
 end
 
+say "Restarting quickshell..."
+# Suppress error outputs if no instances were running
+killall quickshell >/dev/null 2>&1
+killall qs >/dev/null 2>&1
+
+# Launch new instance and disown job
+qs -c Synoptik >/dev/null 2>&1 &
+disown
+
 echo ""
-say "Done! Synoptik Shell is ready."
+say "Done! Synoptik Shell is ready and running."
 '
