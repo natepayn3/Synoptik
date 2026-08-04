@@ -5,7 +5,7 @@
 curl -fsSL https://raw.githubusercontent.com/natepayn3/Synoptik/main/install.sh | bash
 ```
 
-> _Use the above link to install this shell to ensure that it updates!_
+> _Use the above link to install this shell to ensure that it can update itself!_
 
 ***
 
