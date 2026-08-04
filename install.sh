@@ -129,9 +129,21 @@ set AUR_PKGS \
     cliphist \
     ttf-material-symbols-variable-git
 
-say "Installing AUR packages..."
-$AUR_HELPER -S --needed $AUR_PKGS
-or exit 1
+# Filter out AUR packages that are already present in pacman database
+set MISSING_AUR_PKGS
+for pkg in $AUR_PKGS
+    if not pacman -Qq $pkg >/dev/null 2>&1
+        set -a MISSING_AUR_PKGS $pkg
+    end
+end
+
+if test -n "$MISSING_AUR_PKGS"
+    say "Installing missing AUR packages: $MISSING_AUR_PKGS..."
+    $AUR_HELPER -S --needed $MISSING_AUR_PKGS
+    or exit 1
+else
+    say "All AUR packages are already installed, skipping."
+end
 
 say "Enabling systemd services..."
 sudo systemctl enable --now power-profiles-daemon.service
