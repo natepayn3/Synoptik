@@ -759,39 +759,76 @@ PanelWindow {
                                                     }
                                                 }
 
-                                                // Outlined Button
-                                                Rectangle {
-                                                    implicitWidth: 110
-                                                    implicitHeight: 30
-                                                    radius: Config.cornerRadius / 2
-                                                    color: updateBtnHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : "transparent"
-                                                    border.color: Config.accent
-                                                    border.width: 1
+                                                // Action Buttons Layout
+                                                RowLayout {
+                                                    spacing: 8
                                                     Layout.alignment: Qt.AlignVCenter
 
-                                                    Behavior on color { ColorAnimation { duration: 100 } }
+                                                    // Reload Button
+                                                    Rectangle {
+                                                        implicitWidth: 100
+                                                        implicitHeight: 30
+                                                        radius: Config.cornerRadius / 2
+                                                        color: reloadBtnHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : "transparent"
+                                                        border.color: Config.textMuted
+                                                        border.width: 1
 
-                                                    Text {
-                                                        anchors.centerIn: parent
-                                                        text: shellView.isBusy ? "Updating..." : "Update Shell"
-                                                        color: Config.accent
-                                                        font.family: Config.sysFont
-                                                        font.pixelSize: Config.size(Config.fontCaption)
-                                                        font.bold: true
-                                                    }
+                                                        Behavior on color { ColorAnimation { duration: 100 } }
 
-                                                    MouseArea {
-                                                        anchors.fill: parent
-                                                        cursorShape: Qt.PointingHandCursor
-                                                        enabled: !shellView.isBusy
-                                                        onClicked: {
-                                                            shellView.isBusy = true
-                                                            shellView.statusText = "Checking for latest files..."
-                                                            gitChecker.command = ["fish", "-c", "cd '" + shellView.repoDir + "'; and git remote update; and git status -uno"]
-                                                            gitChecker.running = true
+                                                        Text {
+                                                            anchors.centerIn: parent
+                                                            text: "Reload Shell"
+                                                            color: Config.textMain
+                                                            font.family: Config.sysFont
+                                                            font.pixelSize: Config.size(Config.fontCaption)
+                                                            font.bold: true
                                                         }
+
+                                                        MouseArea {
+                                                            anchors.fill: parent
+                                                            cursorShape: Qt.PointingHandCursor
+                                                            enabled: !shellView.isBusy
+                                                            onClicked: {
+                                                                // Kill quickshell process and re-launch using your specific launcher command
+                                                                Quickshell.execDetached(["fish", "-c", "killall qs; and qs -c Synoptik & disown"])
+                                                            }
+                                                        }
+                                                        HoverHandler { id: reloadBtnHover }
                                                     }
-                                                    HoverHandler { id: updateBtnHover }
+
+                                                    // Update Button
+                                                    Rectangle {
+                                                        implicitWidth: 110
+                                                        implicitHeight: 30
+                                                        radius: Config.cornerRadius / 2
+                                                        color: updateBtnHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : "transparent"
+                                                        border.color: Config.accent
+                                                        border.width: 1
+
+                                                        Behavior on color { ColorAnimation { duration: 100 } }
+
+                                                        Text {
+                                                            anchors.centerIn: parent
+                                                            text: shellView.isBusy ? "Updating..." : "Update Shell"
+                                                            color: Config.accent
+                                                            font.family: Config.sysFont
+                                                            font.pixelSize: Config.size(Config.fontCaption)
+                                                            font.bold: true
+                                                        }
+
+                                                        MouseArea {
+                                                            anchors.fill: parent
+                                                            cursorShape: Qt.PointingHandCursor
+                                                            enabled: !shellView.isBusy
+                                                            onClicked: {
+                                                                shellView.isBusy = true
+                                                                shellView.statusText = "Checking for latest files..."
+                                                                gitChecker.command = ["fish", "-c", "cd '" + shellView.repoDir + "'; and git remote update; and git status -uno"]
+                                                                gitChecker.running = true
+                                                            }
+                                                        }
+                                                        HoverHandler { id: updateBtnHover }
+                                                    }
                                                 }
                                             }
                                         }
