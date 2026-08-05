@@ -555,8 +555,8 @@ PanelWindow {
                     joinStyle: ShapePath.RoundJoin
                     capStyle: ShapePath.RoundCap
 
-                    startX: openShapeRightFloating.rX + root.halfB
-                    startY: root.isLeftFlush ? root.halfB : (root.halfB + root.barRadius)
+                    startX: openShapeRightFloating.rX + root.halfB + (root.isLeftFlush ? 0 : root.barRadius)
+                    startY: root.halfB
                     PathLine { x: mainContainer.width - root.halfB - root.barRadius; y: root.halfB }
                     PathArc { x: mainContainer.width - root.halfB; y: root.halfB + root.barRadius; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
                     PathLine { x: mainContainer.width - root.halfB; y: mainContainer.height - root.halfB - root.barRadius }
