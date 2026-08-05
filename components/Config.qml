@@ -51,8 +51,15 @@ QtObject {
 
     // --- UNIFIED SURFACE GEOMETRY ---
     property real surfaceRadius: 18.0
+    property int borderThickness: 3
 
     onSurfaceRadiusChanged: { if (isLoaded) saveSettings() }
+    onBorderThicknessChanged: {
+        if (isLoaded) {
+            syncHyprlandBorders()
+            saveSettings()
+        }
+    }
 
     // Backward-compatibility aliases
     readonly property real cornerRadius: surfaceRadius
@@ -648,7 +655,8 @@ QtObject {
             ? '{ colors = { "' + colorStart + '", "' + colorEnd + '" }, angle = 45 }'
             : '"' + colorStart + '"'
 
-        let borderSize = showBorders ? 3 : 0
+        // Bound strictly to borderThickness setting
+        let borderSize = borderThickness
 
         let monitorLuaBlocks = []
         let hyprctlMonitorCmds = []
@@ -789,6 +797,7 @@ QtObject {
                 "pinnedIcons": root.pinnedIcons,
 
                 "surfaceRadius": root.surfaceRadius,
+                "borderThickness": root.borderThickness,
 
                 "showDesktopClock": root.showDesktopClock,
                 "clockStyle": root.clockStyle,
@@ -830,7 +839,7 @@ QtObject {
                             "barFrameStyle", "barPosition", "showScreenFrame", "sysFont", "fontScaleIndex", "locationQuery",
                             "enabledBarScreens", "useCustomColors", "customBgBase", "customBgPanel",
                             "customAccent", "showBorders", "animateGradient", "shellOpacity", "enableBlur",
-                            "enableXray", "surfaceRadius", "showDesktopClock", "clockStyle", "clockScale", 
+                            "enableXray", "surfaceRadius", "borderThickness", "showDesktopClock", "clockStyle", "clockScale", 
                             "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", 
                             "clockShowBackground", "clockPositions", "clockScales", "enabledClockScreens",
                             "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons"

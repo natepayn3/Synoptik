@@ -127,7 +127,7 @@ PanelWindow {
     readonly property real wingH: (Config.surfaceRadius || 18) * animScale
     readonly property real radius: Math.max(0.1, (Config.surfaceRadius || 18) * animScale)
 
-    readonly property real borderWidth: Config.showBorders ? 3 : 0
+    readonly property real borderWidth: Config.borderThickness !== undefined ? Config.borderThickness : 3
     readonly property real halfB: borderWidth / 2.0
 
     readonly property real leftBarRx: inX + wingW + currentWidth
@@ -607,7 +607,7 @@ PanelWindow {
                     anchors.fill: parent
                     ShapePath {
                         fillColor: "transparent"
-                        strokeWidth: Config.showBorders ? root.borderWidth : 0
+                        strokeWidth: root.borderWidth
                         strokeColor: shellRoot.currentBorderColor
                         joinStyle: ShapePath.RoundJoin
                         capStyle: ShapePath.RoundCap
@@ -693,7 +693,7 @@ PanelWindow {
                 Shape {
                     anchors.fill: parent; visible: !root.isLeftFlush && !root.isRightFlush
                     ShapePath {
-                        fillColor: "transparent"; strokeWidth: Config.showBorders ? root.borderWidth : 0; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
+                        fillColor: "transparent"; strokeWidth: root.borderWidth; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
                         startX: root.inX + root.inW - root.inRadi; startY: root.inY + root.halfB
                         PathArc { x: root.inX + root.inW - root.halfB; y: root.inY + root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                         PathLine { x: root.inX + root.inW - root.halfB; y: root.inY + root.inH - root.inRadi }
@@ -716,7 +716,7 @@ PanelWindow {
                 Shape {
                     anchors.fill: parent; visible: root.isLeftFlush
                     ShapePath {
-                        fillColor: "transparent"; strokeWidth: Config.showBorders ? root.borderWidth : 0; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
+                        fillColor: "transparent"; strokeWidth: root.borderWidth; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
                         startX: root.inX + root.inW - root.inRadi; startY: root.inY + root.halfB
                         PathArc { x: root.inX + root.inW - root.halfB; y: root.inY + root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                         PathLine { x: root.inX + root.inW - root.halfB; y: root.inY + root.inH - root.inRadi }
@@ -739,7 +739,7 @@ PanelWindow {
                 Shape {
                     anchors.fill: parent; visible: root.isRightFlush
                     ShapePath {
-                        fillColor: "transparent"; strokeWidth: Config.showBorders ? root.borderWidth : 0; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
+                        fillColor: "transparent"; strokeWidth: root.borderWidth; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
                         startX: root.inX + root.inRadi; startY: root.inY + root.halfB
                         
                         PathLine { x: root.inX + root.inW - root.inRadi; y: root.inY + root.halfB }
@@ -826,7 +826,7 @@ PanelWindow {
                 Shape {
                     anchors.fill: parent; visible: !root.isLeftFlush && !root.isRightFlush
                     ShapePath {
-                        fillColor: "transparent"; strokeWidth: Config.showBorders ? root.borderWidth : 0; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
+                        fillColor: "transparent"; strokeWidth: root.borderWidth; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
                         startX: root.inX + root.inRadi; startY: root.inY + root.halfB
                         PathLine { x: root.inX + root.inW - root.inRadi; y: root.inY + root.halfB }
                         PathArc { x: root.inX + root.inW - root.halfB; y: root.inY + root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
@@ -849,7 +849,7 @@ PanelWindow {
                 Shape {
                     anchors.fill: parent; visible: root.isLeftFlush
                     ShapePath {
-                        fillColor: "transparent"; strokeWidth: Config.showBorders ? root.borderWidth : 0; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
+                        fillColor: "transparent"; strokeWidth: root.borderWidth; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
                         startX: root.inX + root.inRadi; startY: root.inY + root.halfB
                         PathLine { x: root.rightBarPopL - root.wingW; y: root.inY + root.halfB }
                         PathCubic { x: root.rightBarPopL; y: root.inY + root.halfB + root.wingW; control1X: root.rightBarPopL - root.wingW * 0.5; control1Y: root.inY + root.halfB; control2X: root.rightBarPopL; control2Y: root.inY + root.halfB + root.wingW * 0.5 }
@@ -868,7 +868,7 @@ PanelWindow {
                 Shape {
                     anchors.fill: parent; visible: root.isRightFlush
                     ShapePath {
-                        fillColor: "transparent"; strokeWidth: Config.showBorders ? root.borderWidth : 0; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
+                        fillColor: "transparent"; strokeWidth: root.borderWidth; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
                         startX: root.inX + root.inRadi; startY: root.inY + root.halfB
                         
                         PathLine { x: root.inX + root.inW - root.inRadi; y: root.inY + root.halfB }
@@ -958,7 +958,7 @@ PanelWindow {
                 Shape {
                     anchors.fill: parent; visible: !root.isLeftFlush && !root.isRightFlush
                     ShapePath {
-                        fillColor: "transparent"; strokeWidth: Config.showBorders ? root.borderWidth : 0; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
+                        fillColor: "transparent"; strokeWidth: root.borderWidth; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
                         startX: root.inX + root.inW - root.inRadi; startY: root.inY + root.halfB
                         PathArc { x: root.inX + root.inW - root.halfB; y: root.inY + root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                         PathLine { x: root.inX + root.inW - root.halfB; y: root.inY + root.inH - root.inRadi }
@@ -981,7 +981,7 @@ PanelWindow {
                 Shape {
                     anchors.fill: parent; visible: root.isLeftFlush
                     ShapePath {
-                        fillColor: "transparent"; strokeWidth: Config.showBorders ? root.borderWidth : 0; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
+                        fillColor: "transparent"; strokeWidth: root.borderWidth; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
                         startX: root.inX + root.inW - root.inRadi; startY: root.inY + root.halfB
                         PathArc { x: root.inX + root.inW - root.halfB; y: root.inY + root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                         PathLine { x: root.inX + root.inW - root.halfB; y: root.inY + root.inH - root.inRadi }
@@ -1004,7 +1004,7 @@ PanelWindow {
                 Shape {
                     anchors.fill: parent; visible: root.isRightFlush
                     ShapePath {
-                        fillColor: "transparent"; strokeWidth: Config.showBorders ? root.borderWidth : 0; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
+                        fillColor: "transparent"; strokeWidth: root.borderWidth; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
                         startX: root.inX + root.inRadi; startY: root.inY + root.halfB
                         
                         PathLine { x: root.pLeft - root.wingW; y: root.inY + root.halfB } 
@@ -1101,7 +1101,7 @@ PanelWindow {
                 Shape {
                     anchors.fill: parent; visible: !root.isLeftFlush && !root.isRightFlush
                     ShapePath {
-                        fillColor: "transparent"; strokeWidth: Config.showBorders ? root.borderWidth : 0; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
+                        fillColor: "transparent"; strokeWidth: root.borderWidth; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
                         startX: root.inX + root.inRadi; startY: root.inY + root.halfB
                         PathLine { x: root.inX + root.inW - root.inRadi; y: root.inY + root.halfB }
                         PathArc { x: root.inX + root.inW - root.halfB; y: root.inY + root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
@@ -1125,7 +1125,7 @@ PanelWindow {
                 Shape {
                     anchors.fill: parent; visible: root.isLeftFlush
                     ShapePath {
-                        fillColor: "transparent"; strokeWidth: Config.showBorders ? root.borderWidth : 0; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
+                        fillColor: "transparent"; strokeWidth: root.borderWidth; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
                         startX: root.inX + root.inRadi; startY: root.inY + root.halfB
                         
                         PathLine { x: root.inX + root.inW - root.inRadi; y: root.inY + root.halfB }
@@ -1151,7 +1151,7 @@ PanelWindow {
                 Shape {
                     anchors.fill: parent; visible: root.isRightFlush
                     ShapePath {
-                        fillColor: "transparent"; strokeWidth: Config.showBorders ? root.borderWidth : 0; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
+                        fillColor: "transparent"; strokeWidth: root.borderWidth; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
                         startX: root.inX + root.inRadi; startY: root.inY + root.halfB
                         
                         PathLine { x: root.inX + root.inW - root.inRadi; y: root.inY + root.halfB }
