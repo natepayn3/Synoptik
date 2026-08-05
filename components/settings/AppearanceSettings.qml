@@ -23,10 +23,15 @@ Flickable {
             font.bold: true
         }
 
+        // Section Grid for Geometries (Centering each column cleanly)
         RowLayout {
             Layout.fillWidth: true
+            spacing: 24
 
+            // --- WING & CORNER RADIUS CONTROL ---
             ColumnLayout {
+                Layout.preferredWidth: 1
+                Layout.fillWidth: true
                 spacing: 6
 
                 Text { 
@@ -40,6 +45,7 @@ Flickable {
 
                 RowLayout {
                     spacing: 6
+                    Layout.alignment: Qt.AlignHCenter
 
                     // Minus Button
                     Rectangle {
@@ -95,7 +101,88 @@ Flickable {
                 }
             }
 
-            Item { Layout.fillWidth: true }
+            // --- BORDER THICKNESS CONTROL (0-5) ---
+            ColumnLayout {
+                Layout.preferredWidth: 1
+                Layout.fillWidth: true
+                spacing: 6
+
+                Text { 
+                    text: "Border Thickness"
+                    color: Config.textMuted
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontMicro)
+                    font.bold: true
+                    Layout.alignment: Qt.AlignHCenter 
+                }
+
+                RowLayout {
+                    spacing: 6
+                    Layout.alignment: Qt.AlignHCenter
+
+                    // Minus Button
+                    Rectangle {
+                        implicitWidth: 24; implicitHeight: 24
+                        radius: 8
+                        color: bMinusHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.15)
+
+                        Text { 
+                            anchors.centerIn: parent 
+                            text: "-" 
+                            color: Config.accent
+                            font.bold: true 
+                            font.pixelSize: 16 
+                        }
+
+                        TapHandler { 
+                            onTapped: {
+                                let val = (Config.borderThickness !== undefined) ? Config.borderThickness : 3
+                                Config.borderThickness = Math.max(0, val - 1)
+                            } 
+                        }
+                        HoverHandler { id: bMinusHover; cursorShape: Qt.PointingHandCursor }
+                    }
+
+                    // Value Box (Raw Integer)
+                    Rectangle {
+                        implicitWidth: 48; implicitHeight: 32
+                        radius: 8
+                        color: Qt.rgba(0, 0, 0, 0.15)
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: ((Config.borderThickness !== undefined) ? Config.borderThickness : 3).toString()
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontSubhead)
+                            font.bold: true
+                        }
+                    }
+
+                    // Plus Button
+                    Rectangle {
+                        implicitWidth: 24; implicitHeight: 24
+                        radius: 8
+                        color: bPlusHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.15)
+
+                        Text { 
+                            anchors.centerIn: parent 
+                            text: "+" 
+                            color: Config.accent
+                            font.bold: true 
+                            font.pixelSize: 16 
+                        }
+
+                        TapHandler { 
+                            onTapped: {
+                                let val = (Config.borderThickness !== undefined) ? Config.borderThickness : 3
+                                Config.borderThickness = Math.min(10, val + 1)
+                            } 
+                        }
+                        HoverHandler { id: bPlusHover; cursorShape: Qt.PointingHandCursor }
+                    }
+                }
+            }
         }
 
         Item { Layout.fillWidth: true }
@@ -108,31 +195,21 @@ Flickable {
             font.bold: true
         }
 
-        // Border, Gradient, Blur, and Xray Controls
+        // Gradient, Blur, and Xray Controls
         RowLayout {
             Layout.fillWidth: true
             spacing: 16
 
-            RowLayout {
-                spacing: 8
-                Rectangle {
-                    implicitWidth: 18; implicitHeight: 18; radius: 4
-                    color: Config.showBorders ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                    Text { anchors.centerIn: parent; text: "✓"; color: Config.bgBase; visible: Config.showBorders; font.pixelSize: 11; font.bold: true }
-                    TapHandler { onTapped: Config.showBorders = !Config.showBorders }
-                    HoverHandler { cursorShape: Qt.PointingHandCursor }
-                }
-                Text { text: "Borders"; color: Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption) }
-            }
+            readonly property bool hasBorders: (Config.borderThickness !== undefined ? Config.borderThickness : 3) > 0
 
             RowLayout {
                 spacing: 8
-                opacity: Config.showBorders ? 1.0 : 0.4
+                opacity: parent.hasBorders ? 1.0 : 0.4
                 Rectangle {
                     implicitWidth: 18; implicitHeight: 18; radius: 4
-                    color: (Config.showBorders && Config.animateGradient) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                    Text { anchors.centerIn: parent; text: "✓"; color: Config.bgBase; visible: Config.showBorders && Config.animateGradient; font.pixelSize: 11; font.bold: true }
-                    TapHandler { onTapped: { if (Config.showBorders) Config.animateGradient = !Config.animateGradient } }
+                    color: (parent.parent.hasBorders && Config.animateGradient) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                    Text { anchors.centerIn: parent; text: "✓"; color: Config.bgBase; visible: parent.parent.hasBorders && Config.animateGradient; font.pixelSize: 11; font.bold: true }
+                    TapHandler { onTapped: { if (parent.parent.hasBorders) Config.animateGradient = !Config.animateGradient } }
                     HoverHandler { cursorShape: Qt.PointingHandCursor }
                 }
                 Text { text: "Gradient"; color: Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption) }
