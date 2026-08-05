@@ -197,6 +197,7 @@ Flickable {
 
         // Gradient, Blur, and Xray Controls
         RowLayout {
+            id: themeControlsRow
             Layout.fillWidth: true
             spacing: 16
 
@@ -204,12 +205,21 @@ Flickable {
 
             RowLayout {
                 spacing: 8
-                opacity: parent.hasBorders ? 1.0 : 0.4
+                opacity: themeControlsRow.hasBorders ? 1.0 : 0.4
                 Rectangle {
                     implicitWidth: 18; implicitHeight: 18; radius: 4
-                    color: (parent.parent.hasBorders && Config.animateGradient) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                    Text { anchors.centerIn: parent; text: "✓"; color: Config.bgBase; visible: parent.parent.hasBorders && Config.animateGradient; font.pixelSize: 11; font.bold: true }
-                    TapHandler { onTapped: { if (parent.parent.hasBorders) Config.animateGradient = !Config.animateGradient } }
+                    color: (themeControlsRow.hasBorders && Config.animateGradient) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                    
+                    Text { 
+                        anchors.centerIn: parent 
+                        text: "✓" 
+                        color: Config.bgBase 
+                        visible: themeControlsRow.hasBorders && Config.animateGradient 
+                        font.pixelSize: 11 
+                        font.bold: true 
+                    }
+                    
+                    TapHandler { onTapped: { if (themeControlsRow.hasBorders) Config.animateGradient = !Config.animateGradient } }
                     HoverHandler { cursorShape: Qt.PointingHandCursor }
                 }
                 Text { text: "Gradient"; color: Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption) }

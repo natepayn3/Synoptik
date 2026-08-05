@@ -494,7 +494,7 @@ Flickable {
 
                     ComboBox {
                         id: resCombo
-                        Layout.preferredWidth: 240
+                        Layout.preferredWidth: 200
                         Layout.preferredHeight: 30
 
                         model: {
