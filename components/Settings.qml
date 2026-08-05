@@ -156,11 +156,18 @@ PanelWindow {
                 anchors.fill: parent
                 color: Config.bgPanel
                 radius: Config.surfaceRadius || 18
-                border.width: Config.showBorders ? 3 : 0
-                border.color: Config.showBorders ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                
+                // Border config properties wired dynamically
+                readonly property int effectiveBorderWidth: (Config.borderThickness !== undefined) ? Config.borderThickness : ((Config.showBorders === undefined || Config.showBorders) ? 3 : 0)
+                border.width: effectiveBorderWidth
+                border.color: effectiveBorderWidth > 0 ? Config.accent : "transparent"
                 clip: true
 
                 Behavior on radius {
+                    NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
+                }
+
+                Behavior on border.width {
                     NumberAnimation { duration: 150; easing.type: Easing.OutCubic }
                 }
 
