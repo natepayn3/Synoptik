@@ -494,7 +494,8 @@ Flickable {
 
                     ComboBox {
                         id: resCombo
-                        Layout.preferredWidth: 200
+                        // Use dynamic content width + extra space for left padding and drop arrow indicator
+                        implicitWidth: contentItem.implicitWidth + 12
                         Layout.preferredHeight: 30
 
                         model: {
@@ -502,11 +503,8 @@ Flickable {
                             if (modes && modes.length > 0) return modes
 
                             return [
-                                { text: "2560x1440@164.84Hz", w: 2560, h: 1440, r: 164.84 },
-                                { text: "2560x1440@120.00Hz", w: 2560, h: 1440, r: 120.0 },
-                                { text: "2560x1440@59.95Hz", w: 2560, h: 1440, r: 59.95 },
-                                { text: "1920x1080@144.00Hz", w: 1920, h: 1080, r: 144.0 },
-                                { text: "1920x1080@60.00Hz", w: 1920, h: 1080, r: 60.0 }
+                                { text: "1920x1080@60Hz", w: 1920, h: 1080, r: 60.0 },
+                                { text: "1280x720@60Hz",  w: 1280, h: 720,  r: 60.0 }
                             ]
                         }
                         textRole: "text"
@@ -537,7 +535,7 @@ Flickable {
                             radius: Config.cornerRadius / 2
                         }
 
-                        // Explicit Dropdown Indicator Styling (Fixes Black Arrow)
+                        // Explicit Dropdown Indicator Styling
                         indicator: Text {
                             x: resCombo.width - width - 10
                             y: (resCombo.height - height) / 2
@@ -553,6 +551,7 @@ Flickable {
                             font.pixelSize: Config.size(Config.fontCaption)
                             verticalAlignment: Text.AlignVCenter
                             leftPadding: 10
+                            rightPadding: 24 // Leave space so text doesn't overlap the arrow
                         }
 
                         delegate: ItemDelegate {
