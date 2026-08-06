@@ -1218,7 +1218,6 @@ PanelWindow {
                             ? root.rightBarPopL 
                             : (mainContainer.width - root.barH - root.currentWidth)
                     } else {
-                        // Start content directly at the bar edge
                         return isScreenFrame 
                             ? root.inX 
                             : root.barH
@@ -1233,7 +1232,6 @@ PanelWindow {
                             ? root.bottomBarPopT 
                             : (mainContainer.height - root.barH - root.currentHeight)
                     } else {
-                        // Start content directly at the bar edge
                         return isScreenFrame 
                             ? root.inY 
                             : root.barH
@@ -1247,8 +1245,20 @@ PanelWindow {
             height: root.currentHeight
             
             clip: true
-            visible: root.progress >= 0.98
+            // Keep item rendered while active/animating
+            visible: root.progress > 0.01
+            // Target opacity based on open state and progress threshold
+            opacity: (root.isOpen && root.progress >= 0.95) ? 1.0 : 0.0
             focus: true
+
+            // Smoothly animate opacity changes with opening delay
+            Behavior on opacity {
+                NumberAnimation {
+                    // Delay the fade-in slightly when opening so panel finishes expanding first
+                    duration: (root.isOpen && root.progress >= 0.95) ? 200 : 80
+                    easing.type: Easing.OutCubic
+                }
+            }
 
             TapHandler { onTapped: {} }
 
