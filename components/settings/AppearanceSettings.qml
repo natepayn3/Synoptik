@@ -35,7 +35,7 @@ Flickable {
                 spacing: 6
 
                 Text { 
-                    text: "Wing & Corner Radius"
+                    text: "Corners"
                     color: Config.textMuted
                     font.family: Config.sysFont
                     font.pixelSize: Config.size(Config.fontMicro)
@@ -108,7 +108,7 @@ Flickable {
                 spacing: 6
 
                 Text { 
-                    text: "Border Thickness"
+                    text: "Border"
                     color: Config.textMuted
                     font.family: Config.sysFont
                     font.pixelSize: Config.size(Config.fontMicro)
@@ -184,14 +184,14 @@ Flickable {
                 }
             }
 
-            // --- CARD MARGIN CONTROL (0-32) ---
+            // --- MARGIN CONTROL (0-32) ---
             ColumnLayout {
                 Layout.preferredWidth: 1
                 Layout.fillWidth: true
                 spacing: 6
 
                 Text { 
-                    text: "Card Margin"
+                    text: "Margin"
                     color: Config.textMuted
                     font.family: Config.sysFont
                     font.pixelSize: Config.size(Config.fontMicro)
