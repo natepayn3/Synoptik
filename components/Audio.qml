@@ -89,35 +89,36 @@ Item {
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
                     }
 
-                    Slider {
-                        id: volumeSlider
+                    // Direct Mouse Tracking Output Track
+                    Item {
+                        id: outTrack
                         Layout.fillWidth: true
                         implicitHeight: 32
-                        leftPadding: 0
-                        rightPadding: 0
-                        topPadding: 0
-                        bottomPadding: 0
-                        from: 0
-                        to: 100
-                        value: audioModule.systemVolume
 
-                        background: Rectangle {
-                            x: volumeSlider.leftPadding
-                            y: volumeSlider.topPadding + (volumeSlider.availableHeight / 2) - (height / 2)
-                            width: volumeSlider.availableWidth
+                        property real localRatio: audioModule.systemVolume / 100.0
+                        property bool isDragging: false
+
+                        readonly property real currentRatio: isDragging ? localRatio : (audioModule.systemVolume / 100.0)
+
+                        // Static track line
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: parent.width
                             height: 6
                             radius: 3
                             color: Qt.rgba(255, 255, 255, 0.12)
 
+                            // Active fill
                             Rectangle {
-                                width: volumeSlider.visualPosition * parent.width
+                                width: parent.width * outTrack.currentRatio
                                 height: parent.height
                                 color: audioModule.isMuted ? Config.textMuted : Config.accent
                                 radius: 3
                             }
                         }
 
-                        handle: Rectangle {
+                        // Elastic morphing pill handle
+                        Rectangle {
                             id: outHandle
 
                             readonly property real baseWidth: 12
@@ -138,13 +139,13 @@ Item {
                                 yScale: outHandle.popScale
                             }
 
-                            x: volumeSlider.leftPadding + (volumeSlider.visualPosition * volumeSlider.availableWidth) - (width / 2)
-                            y: volumeSlider.topPadding + (volumeSlider.availableHeight / 2) - (height / 2)
+                            x: (outTrack.width * outTrack.currentRatio) - (width / 2)
+                            y: (parent.height / 2) - (height / 2)
 
                             states: [
                                 State {
                                     name: "dragging"
-                                    when: volumeSlider.pressed
+                                    when: outTrack.isDragging
                                     PropertyChanges { target: outHandle; stretch: 1.2; popScale: 1.0 }
                                 }
                             ]
@@ -167,9 +168,9 @@ Item {
                             ]
 
                             Connections {
-                                target: volumeSlider
-                                function onValueChanged() {
-                                    if (!volumeSlider.pressed) outExternalMorphAnim.restart()
+                                target: audioModule
+                                function onSystemVolumeChanged() {
+                                    if (!outTrack.isDragging) outExternalMorphAnim.restart()
                                 }
                             }
 
@@ -190,12 +191,30 @@ Item {
                             }
                         }
 
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                        // High-precision MouseArea drag handler
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            preventStealing: true
 
-                        onMoved: {
-                            audioModule.systemVolume = Math.round(value)
-                            if (audioModule.isMuted) audioModule.isMuted = false
-                            volWriteTimer.restart()
+                            function updateRatio(mouseXPos) {
+                                if (outTrack.width <= 0) return
+                                let ratio = Math.max(0.0, Math.min(1.0, mouseXPos / outTrack.width))
+                                outTrack.localRatio = ratio
+                                audioModule.systemVolume = Math.round(ratio * 100)
+                                if (audioModule.isMuted) audioModule.isMuted = false
+                                volWriteTimer.restart()
+                            }
+
+                            onPressed: mouse => {
+                                outTrack.isDragging = true
+                                updateRatio(mouse.x)
+                            }
+                            onPositionChanged: mouse => {
+                                if (pressed) updateRatio(mouse.x)
+                            }
+                            onReleased: outTrack.isDragging = false
+                            onCanceled: outTrack.isDragging = false
                         }
                     }
                 }
@@ -321,35 +340,36 @@ Item {
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
                     }
 
-                    Slider {
-                        id: micSlider
+                    // Direct Mouse Tracking Input Track
+                    Item {
+                        id: inTrack
                         Layout.fillWidth: true
                         implicitHeight: 32
-                        leftPadding: 0
-                        rightPadding: 0
-                        topPadding: 0
-                        bottomPadding: 0
-                        from: 0
-                        to: 100
-                        value: audioModule.inputVolume
 
-                        background: Rectangle {
-                            x: micSlider.leftPadding
-                            y: micSlider.topPadding + (micSlider.availableHeight / 2) - (height / 2)
-                            width: micSlider.availableWidth
+                        property real localRatio: audioModule.inputVolume / 100.0
+                        property bool isDragging: false
+
+                        readonly property real currentRatio: isDragging ? localRatio : (audioModule.inputVolume / 100.0)
+
+                        // Static track line
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: parent.width
                             height: 6
                             radius: 3
                             color: Qt.rgba(255, 255, 255, 0.12)
 
+                            // Active fill
                             Rectangle {
-                                width: micSlider.visualPosition * parent.width
+                                width: parent.width * inTrack.currentRatio
                                 height: parent.height
                                 color: audioModule.isInputMuted ? Config.textMuted : Config.accent
                                 radius: 3
                             }
                         }
 
-                        handle: Rectangle {
+                        // Elastic morphing pill handle
+                        Rectangle {
                             id: inHandle
 
                             readonly property real baseWidth: 12
@@ -370,13 +390,13 @@ Item {
                                 yScale: inHandle.popScale
                             }
 
-                            x: micSlider.leftPadding + (micSlider.visualPosition * micSlider.availableWidth) - (width / 2)
-                            y: micSlider.topPadding + (micSlider.availableHeight / 2) - (height / 2)
+                            x: (inTrack.width * inTrack.currentRatio) - (width / 2)
+                            y: (parent.height / 2) - (height / 2)
 
                             states: [
                                 State {
                                     name: "dragging"
-                                    when: micSlider.pressed
+                                    when: inTrack.isDragging
                                     PropertyChanges { target: inHandle; stretch: 1.2; popScale: 1.0 }
                                 }
                             ]
@@ -399,9 +419,9 @@ Item {
                             ]
 
                             Connections {
-                                target: micSlider
-                                function onValueChanged() {
-                                    if (!micSlider.pressed) inExternalMorphAnim.restart()
+                                target: audioModule
+                                function onInputVolumeChanged() {
+                                    if (!inTrack.isDragging) inExternalMorphAnim.restart()
                                 }
                             }
 
@@ -422,12 +442,30 @@ Item {
                             }
                         }
 
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                        // High-precision MouseArea drag handler
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            preventStealing: true
 
-                        onMoved: {
-                            audioModule.inputVolume = Math.round(value)
-                            if (audioModule.isInputMuted) audioModule.isInputMuted = false
-                            micWriteTimer.restart()
+                            function updateRatio(mouseXPos) {
+                                if (inTrack.width <= 0) return
+                                let ratio = Math.max(0.0, Math.min(1.0, mouseXPos / inTrack.width))
+                                inTrack.localRatio = ratio
+                                audioModule.inputVolume = Math.round(ratio * 100)
+                                if (audioModule.isInputMuted) audioModule.isInputMuted = false
+                                micWriteTimer.restart()
+                            }
+
+                            onPressed: mouse => {
+                                inTrack.isDragging = true
+                                updateRatio(mouse.x)
+                            }
+                            onPositionChanged: mouse => {
+                                if (pressed) updateRatio(mouse.x)
+                            }
+                            onReleased: inTrack.isDragging = false
+                            onCanceled: inTrack.isDragging = false
                         }
                     }
                 }
@@ -495,7 +533,7 @@ Item {
         interval: 30
         repeat: false
         onTriggered: {
-            volumeWriteProc.command = ["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", (volumeSlider.value / 100).toFixed(2)]
+            volumeWriteProc.command = ["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", (audioModule.systemVolume / 100).toFixed(2)]
             volumeWriteProc.running = true
         }
     }
@@ -505,7 +543,7 @@ Item {
         interval: 30
         repeat: false
         onTriggered: {
-            volumeWriteProc.command = ["wpctl", "set-volume", "@DEFAULT_AUDIO_SOURCE@", (micSlider.value / 100).toFixed(2)]
+            volumeWriteProc.command = ["wpctl", "set-volume", "@DEFAULT_AUDIO_SOURCE@", (audioModule.inputVolume / 100).toFixed(2)]
             volumeWriteProc.running = true
         }
     }
@@ -598,7 +636,10 @@ Item {
                 let cleaned = this.text.trim()
                 let match = cleaned.match(/Volume:\s+([0-9.]+)/)
                 if (match) {
-                    audioModule.systemVolume = Math.round(parseFloat(match[1]) * 100)
+                    let newVol = Math.round(parseFloat(match[1]) * 100)
+                    if (!outTrack.isDragging) {
+                        audioModule.systemVolume = newVol
+                    }
                     audioModule.isMuted = cleaned.includes("[MUTED]")
                 }
             }
@@ -614,7 +655,10 @@ Item {
                 let cleaned = this.text.trim()
                 let match = cleaned.match(/Volume:\s+([0-9.]+)/)
                 if (match) {
-                    audioModule.inputVolume = Math.round(parseFloat(match[1]) * 100)
+                    let newVol = Math.round(parseFloat(match[1]) * 100)
+                    if (!inTrack.isDragging) {
+                        audioModule.inputVolume = newVol
+                    }
                     audioModule.isInputMuted = cleaned.includes("[MUTED]")
                 }
             }
