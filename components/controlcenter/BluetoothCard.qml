@@ -122,6 +122,7 @@ Item {
                                 text: !cardRoot.hasHardware ? "No Controller" : (!cardRoot.isPowered ? "Off" : (cardRoot.connectedDeviceName !== "" ? cardRoot.connectedDeviceName : "On"))
                                 font.family: Config.sysFont
                                 font.pixelSize: Config.size(Config.fontMicro)
+                                font.bold: cardRoot.connectedDeviceName !== "" && cardRoot.hasHardware
                                 color: cardRoot.connectedDeviceName !== "" && cardRoot.hasHardware ? Config.accent : Config.textMuted
                                 elide: Text.ElideRight
                                 Layout.fillWidth: true

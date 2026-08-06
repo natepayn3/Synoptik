@@ -125,6 +125,7 @@ Item {
                                 text: !cardRoot.hasAdapter ? "No Adapter" : (!cardRoot.wifiPowered ? "Off" : (cardRoot.activeSsid !== "" ? cardRoot.activeSsid : "Disconnected"))
                                 font.family: Config.sysFont
                                 font.pixelSize: Config.size(Config.fontMicro)
+                                font.bold: cardRoot.activeSsid !== "" && cardRoot.hasAdapter
                                 color: cardRoot.activeSsid !== "" && cardRoot.hasAdapter ? Config.accent : Config.textMuted
                                 elide: Text.ElideRight
                                 Layout.fillWidth: true
