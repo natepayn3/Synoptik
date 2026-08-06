@@ -8,8 +8,10 @@ import Quickshell.Io
 Item {
     id: root
 
-    implicitWidth: 380
-    implicitHeight: mainLayout.implicitHeight + 24
+    readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
+
+    implicitWidth: mainLayout.implicitWidth + (cardMargin * 2)
+    implicitHeight: mainLayout.implicitHeight + (cardMargin * 2)
 
     // --- State Properties ---
     property string activeVpnName: ""
@@ -154,16 +156,14 @@ Item {
 
     ColumnLayout {
         id: mainLayout
-        anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.margins: 12
-        spacing: 14
+        anchors.fill: parent
+        anchors.margins: root.cardMargin
+        spacing: root.cardMargin
 
         // Dashboard Panel
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: 14
+            spacing: root.cardMargin
             visible: !root.showFileBrowser
 
             // ==========================================
@@ -171,15 +171,16 @@ Item {
             // ==========================================
             Rectangle {
                 Layout.fillWidth: true
-                implicitHeight: speedCardLayout.implicitHeight + 16
+                implicitWidth: 380
+                implicitHeight: speedCardLayout.implicitHeight + (root.cardMargin * 2)
                 color: Qt.rgba(255, 255, 255, 0.05)
                 radius: Config.cornerRadius
 
                 ColumnLayout {
                     id: speedCardLayout
                     anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 12
+                    anchors.margins: root.cardMargin
+                    spacing: root.cardMargin
 
                     RowLayout {
                         Layout.fillWidth: true
@@ -281,15 +282,15 @@ Item {
             // ==========================================
             Rectangle {
                 Layout.fillWidth: true
-                implicitHeight: vpnCardLayout.implicitHeight + 16
+                implicitHeight: vpnCardLayout.implicitHeight + (root.cardMargin * 2)
                 color: Qt.rgba(255, 255, 255, 0.05)
                 radius: Config.cornerRadius
 
                 ColumnLayout {
                     id: vpnCardLayout
                     anchors.fill: parent
-                    anchors.margins: 12
-                    spacing: 12
+                    anchors.margins: root.cardMargin
+                    spacing: root.cardMargin
 
                     RowLayout {
                         Layout.fillWidth: true
@@ -434,8 +435,7 @@ Item {
         // ==========================================
         Rectangle {
             Layout.fillWidth: true
-            // Dynamic card height driven directly by internal contents
-            implicitHeight: browserLayout.implicitHeight + 24
+            implicitHeight: browserLayout.implicitHeight + (root.cardMargin * 2)
             color: Qt.rgba(255, 255, 255, 0.05)
             radius: Config.cornerRadius
             visible: root.showFileBrowser
@@ -443,8 +443,8 @@ Item {
             ColumnLayout {
                 id: browserLayout
                 anchors.fill: parent
-                anchors.margins: 12
-                spacing: 12
+                anchors.margins: root.cardMargin
+                spacing: root.cardMargin
 
                 RowLayout {
                     Layout.fillWidth: true
@@ -475,11 +475,9 @@ Item {
 
                 Rectangle {
                     Layout.fillWidth: true
-                    // Dynamic list container height with min/max clamps
                     implicitHeight: Math.min(Math.max(fileListView.contentHeight + 12, 120), 320)
                     color: Qt.rgba(0, 0, 0, 0.15)
                     radius: Config.cornerRadius / 2
-                    // 1px border completely removed
                     clip: true
 
                     ListView {

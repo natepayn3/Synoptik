@@ -6,14 +6,16 @@ import Quickshell.Io
 Item {
     id: root
 
+    readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
+
     property bool isRecording: false
 
     readonly property string pos: Config.barPosition || "top"
     readonly property bool isVert: pos === "left" || pos === "right"
 
-    // Card dimensions + 12px margin on all sides inside the drawer surface
-    implicitWidth: mainCard.implicitWidth + 24
-    implicitHeight: mainCard.implicitHeight + 24
+    // Dynamic drawer surface bounds driven by cardMargin
+    implicitWidth: mainCard.implicitWidth + (cardMargin * 2)
+    implicitHeight: mainCard.implicitHeight + (cardMargin * 2)
 
     // Periodically check pgrep to update local recording state
     Timer {
@@ -67,7 +69,7 @@ Item {
     // Outer Margin Wrapper
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 12
+        anchors.margins: root.cardMargin
 
         // Main Card Container
         Rectangle {
@@ -75,9 +77,8 @@ Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
 
-            // Fixed: Always apply 24px horizontal/vertical padding inside mainCard
-            implicitWidth: recordLayout.implicitWidth + 24
-            implicitHeight: recordLayout.implicitHeight + (root.isVert ? 16 : 24)
+            implicitWidth: recordLayout.implicitWidth + (root.cardMargin * 2)
+            implicitHeight: recordLayout.implicitHeight + (root.isVert ? (root.cardMargin + 4) : (root.cardMargin * 2))
 
             radius: Config.cornerRadius / 2
             color: root.isRecording ? Qt.rgba(0.8, 0.2, 0.2, 0.2) : Qt.rgba(1, 1, 1, 0.08)

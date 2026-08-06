@@ -9,15 +9,14 @@ import Quickshell.Widgets
 Item {
     id: root
 
-    readonly property int cardMargin: 12
-    readonly property int cardPadding: 16
+    readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
     // Dynamic panel dimensions based on wallpaper count
     readonly property int minPanelWidth: 480
     readonly property int maxPanelWidth: 800
     
     // Height available for delegate cards
-    readonly property int calcCardHeight: implicitHeight - (cardMargin * 2) - (cardPadding * 2) - 40
+    readonly property int calcCardHeight: implicitHeight - (cardMargin * 4) - 40
     readonly property int activeCardWidth: Math.round(calcCardHeight * (16 / 9))
     
     // Dynamic Content Width Calculation
@@ -25,7 +24,7 @@ Item {
         let count = folderModel.count;
         if (count === 0) return minPanelWidth;
         let unexpandedWidth = (count - 1) * (80 + 8);
-        let totalNeeded = unexpandedWidth + activeCardWidth + (cardMargin * 2) + (cardPadding * 2);
+        let totalNeeded = unexpandedWidth + activeCardWidth + (cardMargin * 4);
         return Math.min(maxPanelWidth, Math.max(minPanelWidth, totalNeeded));
     }
 
@@ -106,8 +105,8 @@ Item {
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: root.cardPadding
-                spacing: folderModel.count === 0 ? 0 : 12
+                anchors.margins: root.cardMargin
+                spacing: folderModel.count === 0 ? 0 : root.cardMargin
 
                 RowLayout {
                     Layout.fillWidth: true

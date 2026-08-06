@@ -10,8 +10,10 @@ FocusScope {
     id: overviewFlyout
     focus: true
 
-    implicitWidth: Math.max(480, (rowContainer.childrenRect.width > 0 ? rowContainer.childrenRect.width + 48 : 480))
-    implicitHeight: Math.max(260, (cardLayout.implicitHeight > 0 ? cardLayout.implicitHeight + 48 : 260))
+    readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
+
+    implicitWidth: Math.max(480, (rowContainer.childrenRect.width > 0 ? rowContainer.childrenRect.width + (cardMargin * 4) : 480))
+    implicitHeight: Math.max(260, (cardLayout.implicitHeight > 0 ? cardLayout.implicitHeight + (cardMargin * 4) : 260))
     
     readonly property bool isOpen: typeof Config.showWorkspacePreview !== "undefined" ? Config.showWorkspacePreview : false
 
@@ -88,8 +90,6 @@ FocusScope {
             let currentId = Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : 1
             let idx = activeWorkspaces.indexOf(currentId)
             highlightedIndex = idx !== -1 ? idx : 0
-            
-            // Removed forceActiveFocus() here
         } else {
             renderDelayTimer.stop()
             contentReady = false
@@ -105,8 +105,6 @@ FocusScope {
             Hyprland.refreshToplevels()
             Hyprland.refreshWorkspaces()
             clientQueryProcess.running = true
-            
-            // Removed forceActiveFocus() here
         }
     }
 
@@ -243,23 +241,23 @@ print(json.dumps(resolved_map))
     ColumnLayout {
         id: mainLayout
         anchors.fill: parent
-        anchors.margins: 12
-        spacing: 12
+        anchors.margins: overviewFlyout.cardMargin
+        spacing: overviewFlyout.cardMargin
 
         opacity: overviewFlyout.contentReady ? 1.0 : 0.0
         Behavior on opacity { NumberAnimation { duration: 150 } }
 
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: cardLayout.implicitHeight + 24
+            implicitHeight: cardLayout.implicitHeight + (overviewFlyout.cardMargin * 2)
             color: Qt.rgba(255, 255, 255, 0.05)
             radius: Config.cornerRadius
 
             ColumnLayout {
                 id: cardLayout
                 anchors.fill: parent
-                anchors.margins: 12
-                spacing: 12
+                anchors.margins: overviewFlyout.cardMargin
+                spacing: overviewFlyout.cardMargin
 
                 Text {
                     text: "WORKSPACE OVERVIEW"
@@ -273,7 +271,7 @@ print(json.dumps(resolved_map))
                 Row {
                     id: rowContainer
                     Layout.alignment: Qt.AlignHCenter
-                    spacing: 12
+                    spacing: overviewFlyout.cardMargin
 
                     Repeater {
                         model: overviewFlyout.activeWorkspaces
@@ -351,8 +349,8 @@ print(json.dumps(resolved_map))
                                 };
                             }
 
-                            width: Math.max(160, viewportFrame.width + 24)
-                            height: viewportFrame.height + headerRow.height + 24
+                            width: Math.max(160, viewportFrame.width + (overviewFlyout.cardMargin * 2))
+                            height: viewportFrame.height + headerRow.height + (overviewFlyout.cardMargin * 2)
 
                             ColumnLayout {
                                 anchors.fill: parent

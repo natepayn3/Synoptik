@@ -8,8 +8,10 @@ import "controlcenter"
 Item {
     id: root
 
-    implicitWidth: 400
-    implicitHeight: mainLayout.implicitHeight + 24
+    readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
+
+    implicitWidth: mainLayout.implicitWidth + (cardMargin * 2)
+    implicitHeight: mainLayout.implicitHeight + (cardMargin * 2)
 
     // --- State Properties ---
     property bool hasWifiAdapter: false
@@ -51,14 +53,15 @@ Item {
     ColumnLayout {
         id: mainLayout
         anchors.fill: parent
-        anchors.margins: 12
-        spacing: 12
+        anchors.margins: root.cardMargin
+        spacing: root.cardMargin
 
         // TOP HEADER & TOGGLES CONTAINER CARD
         Rectangle {
             id: topHeaderCard
             Layout.fillWidth: true
-            implicitHeight: topHeaderLayout.implicitHeight + 24
+            implicitWidth: 400
+            implicitHeight: topHeaderLayout.implicitHeight + (root.cardMargin * 2)
             radius: Config.cornerRadius
             color: Qt.rgba(255, 255, 255, 0.04)
 
@@ -69,8 +72,8 @@ Item {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                anchors.margins: 12
-                spacing: 12
+                anchors.margins: root.cardMargin
+                spacing: root.cardMargin
 
                 Text {
                     text: "CONTROL CENTER"
@@ -84,7 +87,7 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignTop
-                    spacing: 12
+                    spacing: root.cardMargin
 
                     CaffeineCard {
                         Layout.fillWidth: true
@@ -101,7 +104,7 @@ Item {
                     id: staticToggleRow
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignTop
-                    spacing: 12
+                    spacing: root.cardMargin
 
                     z: (wifiCard.shouldExpand || btCard.shouldExpand) ? 10 : 1
 

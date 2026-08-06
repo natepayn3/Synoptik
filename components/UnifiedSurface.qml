@@ -6,7 +6,8 @@ import QtQuick.Shapes
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
-import "../bars"
+import "bars"
+import "osds"
 
 PanelWindow {
     id: root

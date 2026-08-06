@@ -7,8 +7,10 @@ import Quickshell.Services.Notifications as Notifs
 Item {
     id: notifModuleRoot
 
-    implicitWidth: 360
-    implicitHeight: mainLayout.implicitHeight + 24
+    readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
+
+    implicitWidth: mainLayout.implicitWidth + (cardMargin * 2)
+    implicitHeight: mainLayout.implicitHeight + (cardMargin * 2)
 
     // Bind to global shellRoot activeNotifs property safely
     readonly property int activeCount: (typeof shellRoot !== "undefined" && shellRoot.activeNotifs !== undefined) ? shellRoot.activeNotifs : 0
@@ -32,21 +34,22 @@ Item {
     ColumnLayout {
         id: mainLayout
         anchors.fill: parent
-        anchors.margins: 12
-        spacing: 12
+        anchors.margins: notifModuleRoot.cardMargin
+        spacing: notifModuleRoot.cardMargin
 
         // Main Card Container
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: cardContent.implicitHeight + 24
-            color: Qt.rgba(1, 1, 1, 0.05) // Fixed RGBA values (0.0 to 1.0 scale)
+            implicitWidth: 360
+            implicitHeight: cardContent.implicitHeight + (notifModuleRoot.cardMargin * 2)
+            color: Qt.rgba(1, 1, 1, 0.05)
             radius: Config.cornerRadius
 
             ColumnLayout {
                 id: cardContent
                 anchors.fill: parent
-                anchors.margins: 12
-                spacing: 12
+                anchors.margins: notifModuleRoot.cardMargin
+                spacing: notifModuleRoot.cardMargin
 
                 // Header Section
                 RowLayout {
@@ -135,7 +138,7 @@ Item {
                                 delegate: Rectangle {
                                     id: notifCard
                                     Layout.fillWidth: true
-                                    implicitHeight: itemLayout.implicitHeight + 16
+                                    implicitHeight: itemLayout.implicitHeight + (notifModuleRoot.cardMargin * 1.5)
                                     radius: Config.cornerRadius / 2
                                     color: itemHover.hovered ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.15)
 
@@ -144,8 +147,8 @@ Item {
                                     RowLayout {
                                         id: itemLayout
                                         anchors.fill: parent
-                                        anchors.margins: 10
-                                        spacing: 10
+                                        anchors.margins: notifModuleRoot.cardMargin
+                                        spacing: notifModuleRoot.cardMargin
 
                                         ColumnLayout {
                                             Layout.fillWidth: true

@@ -7,8 +7,10 @@ import Quickshell.Io
 Item {
     id: root
 
-    implicitWidth: 360
-    implicitHeight: mainLayout.implicitHeight + 24
+    readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
+
+    implicitWidth: mainLayout.implicitWidth + (cardMargin * 2)
+    implicitHeight: mainLayout.implicitHeight + (cardMargin * 2)
 
     property string battName: (typeof shellRoot !== "undefined" && shellRoot.hasBattery) ? shellRoot.battName : "BAT0"
     property int battCapacity: (typeof shellRoot !== "undefined" && shellRoot.hasBattery && shellRoot.battCapacity > 0) ? shellRoot.battCapacity : 85
@@ -46,21 +48,22 @@ Item {
     ColumnLayout {
         id: mainLayout
         anchors.fill: parent
-        anchors.margins: 12
-        spacing: 12
+        anchors.margins: root.cardMargin
+        spacing: root.cardMargin
 
         // Card 1: Title, Charging Status, & Capacity Track
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: topCardContent.implicitHeight + 24
+            implicitWidth: 360
+            implicitHeight: topCardContent.implicitHeight + (root.cardMargin * 2)
             radius: Config.cornerRadius
             color: Qt.rgba(1, 1, 1, 0.05)
 
             ColumnLayout {
                 id: topCardContent
                 anchors.fill: parent
-                anchors.margins: 12
-                spacing: 12
+                anchors.margins: root.cardMargin
+                spacing: root.cardMargin
 
                 // Header Row
                 RowLayout {
@@ -107,7 +110,7 @@ Item {
                         font.bold: true
                     }
 
-                    // Progress Track with Embedded Icon (Matching VolumeCard Layout)
+                    // Progress Track with Embedded Icon
                     Rectangle {
                         id: battTrack
                         Layout.fillWidth: true
@@ -149,7 +152,6 @@ Item {
                             font.family: "Material Symbols Outlined"
                             font.pixelSize: 20
                             
-                            // Dynamic color matching VolumeCard behavior
                             color: (root.battCapacity > 10) ? Config.bgBase : Config.textMain
                         }
                     }
@@ -160,7 +162,7 @@ Item {
         // Bottom Stats Row
         RowLayout {
             Layout.fillWidth: true
-            spacing: 12
+            spacing: root.cardMargin
 
             // Card 2: Device Stats
             Rectangle {

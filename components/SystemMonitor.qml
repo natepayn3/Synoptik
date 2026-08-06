@@ -7,9 +7,11 @@ import Quickshell.Io
 
 Item {
     id: sysRoot
-    
-    implicitWidth: 420
-    implicitHeight: mainLayout.implicitHeight + 24
+
+    readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
+
+    implicitWidth: mainLayout.implicitWidth + (cardMargin * 2)
+    implicitHeight: mainLayout.implicitHeight + (cardMargin * 2)
 
     property real sysCpu: 0.0
     property real sysGpu: 0.0
@@ -275,23 +277,24 @@ Item {
     ColumnLayout {
         id: mainLayout
         anchors.fill: parent
-        anchors.margins: 12
-        spacing: 14
+        anchors.margins: sysRoot.cardMargin
+        spacing: sysRoot.cardMargin
 
         // ==========================================
         // CARD 1: HARDWARE MONITOR RINGS
         // ==========================================
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: ringCardLayout.implicitHeight + 24
+            implicitWidth: 420
+            implicitHeight: ringCardLayout.implicitHeight + (sysRoot.cardMargin * 2)
             color: Qt.rgba(255, 255, 255, 0.05)
             radius: Config.cornerRadius
 
             ColumnLayout {
                 id: ringCardLayout
                 anchors.fill: parent
-                anchors.margins: 12
-                spacing: 12
+                anchors.margins: sysRoot.cardMargin
+                spacing: sysRoot.cardMargin
 
                 Text {
                     text: "SYSTEM MONITOR"
@@ -323,15 +326,15 @@ Item {
         // ==========================================
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: processCardLayout.implicitHeight + 24
+            implicitHeight: processCardLayout.implicitHeight + (sysRoot.cardMargin * 2)
             color: Qt.rgba(255, 255, 255, 0.05)
             radius: Config.cornerRadius
 
             ColumnLayout {
                 id: processCardLayout
                 anchors.fill: parent
-                anchors.margins: 12
-                spacing: 12
+                anchors.margins: sysRoot.cardMargin
+                spacing: sysRoot.cardMargin
 
                 RowLayout {
                     Layout.fillWidth: true

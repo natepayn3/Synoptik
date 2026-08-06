@@ -7,11 +7,13 @@ import Quickshell.Io
 Item {
     id: powerModule
 
+    readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
+
     property int activeHoverIndex: -1
     property string activeProfile: "balanced"
 
-    implicitWidth: 412
-    implicitHeight: mainLayout.implicitHeight + 24
+    implicitWidth: mainLayout.implicitWidth + (cardMargin * 2)
+    implicitHeight: mainLayout.implicitHeight + (cardMargin * 2)
 
     // FETCH CURRENT POWER PROFILE ON LOAD
     Process {
@@ -35,26 +37,25 @@ Item {
 
     ColumnLayout {
         id: mainLayout
-        anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.margins: 12
-        spacing: 12
+        anchors.fill: parent
+        anchors.margins: powerModule.cardMargin
+        spacing: powerModule.cardMargin
 
         // ==========================================
         // POWER CARD (Title + Actions)
         // ==========================================
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: cardLayout.implicitHeight + 24
+            implicitWidth: 412
+            implicitHeight: cardLayout.implicitHeight + (powerModule.cardMargin * 2)
             color: Qt.rgba(255, 255, 255, 0.05)
             radius: Config.cornerRadius
 
             ColumnLayout {
                 id: cardLayout
                 anchors.fill: parent
-                anchors.margins: 14
-                spacing: 14
+                anchors.margins: powerModule.cardMargin
+                spacing: powerModule.cardMargin
 
                 Text {
                     text: "POWER OPTIONS"
@@ -144,15 +145,15 @@ Item {
         // ==========================================
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: profileCardLayout.implicitHeight + 24
+            implicitHeight: profileCardLayout.implicitHeight + (powerModule.cardMargin * 2)
             color: Qt.rgba(255, 255, 255, 0.05)
             radius: Config.cornerRadius
 
             ColumnLayout {
                 id: profileCardLayout
                 anchors.fill: parent
-                anchors.margins: 14
-                spacing: 12
+                anchors.margins: powerModule.cardMargin
+                spacing: powerModule.cardMargin
 
                 Text {
                     text: "POWER PROFILE"

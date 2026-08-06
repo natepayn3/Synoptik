@@ -11,6 +11,8 @@ import "./settings"
 PanelWindow {
     id: settingsWindow
 
+    readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
+
     WlrLayershell.namespace: "synoptik-shell-settings"
 
     visible: Config.showSettings || progress > 0.0
@@ -178,8 +180,8 @@ PanelWindow {
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 20
-                    spacing: 16
+                    anchors.margins: settingsWindow.cardMargin
+                    spacing: settingsWindow.cardMargin
 
                     // HEADER
                     RowLayout {
@@ -222,7 +224,7 @@ PanelWindow {
                     RowLayout {
                         Layout.fillWidth: true
                         Layout.fillHeight: true
-                        spacing: 14
+                        spacing: settingsWindow.cardMargin
 
                         // LEFT NAVIGATION CARD
                         Rectangle {
@@ -235,7 +237,7 @@ PanelWindow {
 
                             Flickable {
                                 anchors.fill: parent
-                                anchors.margins: 10
+                                anchors.margins: settingsWindow.cardMargin
                                 contentHeight: leftNavColumn.implicitHeight
                                 clip: true
                                 boundsBehavior: Flickable.StopAtBounds
@@ -463,7 +465,7 @@ PanelWindow {
 
                             Item {
                                 anchors.fill: parent
-                                anchors.margins: 16
+                                anchors.margins: settingsWindow.cardMargin
 
                                 DisplaySettings     { anchors.fill: parent; visible: settingsWindow.activeSection === 0 }
                                 AppearanceSettings  { anchors.fill: parent; visible: settingsWindow.activeSection === 1 }
@@ -477,7 +479,7 @@ PanelWindow {
                                 ColumnLayout {
                                     anchors.fill: parent
                                     visible: settingsWindow.activeSection === 7
-                                    spacing: 14
+                                    spacing: settingsWindow.cardMargin
 
                                     Text {
                                         text: "LOCATION & WEATHER"
@@ -626,7 +628,7 @@ PanelWindow {
 
                                     ColumnLayout {
                                         anchors.fill: parent
-                                        spacing: 14
+                                        spacing: settingsWindow.cardMargin
 
                                         Text {
                                             text: "SYNOPTIK SHELL"
@@ -661,7 +663,7 @@ PanelWindow {
                                                 anchors.fill: parent
                                                 anchors.leftMargin: 16
                                                 anchors.rightMargin: 16
-                                                spacing: 12
+                                                spacing: settingsWindow.cardMargin
 
                                                 Text {
                                                     text: "code"
@@ -731,7 +733,7 @@ PanelWindow {
                                                 anchors.rightMargin: 16
                                                 anchors.topMargin: 8
                                                 anchors.bottomMargin: 8
-                                                spacing: 12
+                                                spacing: settingsWindow.cardMargin
 
                                                 Text {
                                                     text: shellView.isBusy ? "sync" : "system_update"
@@ -796,7 +798,6 @@ PanelWindow {
                                                             cursorShape: Qt.PointingHandCursor
                                                             enabled: !shellView.isBusy
                                                             onClicked: {
-                                                                // Kill quickshell process and re-launch using your specific launcher command
                                                                 Quickshell.execDetached(["fish", "-c", "killall qs; and qs -c Synoptik & disown"])
                                                             }
                                                         }

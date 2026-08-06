@@ -7,8 +7,10 @@ import Quickshell.Io
 Item {
     id: clipRoot
 
-    implicitWidth: 380
-    implicitHeight: mainLayout.implicitHeight + 24
+    readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
+
+    implicitWidth: mainLayout.implicitWidth + (cardMargin * 2)
+    implicitHeight: mainLayout.implicitHeight + (cardMargin * 2)
 
     ListModel { id: clipModel }
 
@@ -59,7 +61,6 @@ Item {
                         
                         let isBinary = text.includes("binary data") || text.includes("image") || text.startsWith("[[")
                         let isBase64 = text.startsWith("data:image/")
-                        // Fix 1: Only consider Web URLs valid image previews if they end in standard image extensions
                         let isWebUrl = /^https?:\/\/.*\.(png|jpg|jpeg|webp|gif|svg)(\?.*)?$/i.test(text)
                         let isLocalFile = (text.startsWith("/") || text.startsWith("file://")) && 
                                           /\.(png|jpg|jpeg|webp|gif|svg)$/i.test(text)
@@ -67,7 +68,6 @@ Item {
                         let finalImgPath = ""
                         
                         if (isBinary || isBase64) {
-                            // Fix 2: Don't set the image path immediately on list fetch, let cacheProc inject it when ready
                             finalImgPath = ""
                         } else if (isWebUrl) {
                             finalImgPath = text
@@ -91,7 +91,6 @@ Item {
                     clipModel.append(item)
                 }
 
-                // Immediately kick off the background cache builder once the UI is saturated
                 cacheProc.running = false
                 cacheProc.running = true
             }
@@ -108,7 +107,6 @@ Item {
             "cliphist list | while read -l line; " +
                 "set -l id (string split -m 1 \\t -- \"$line\")[1]; " +
                 "set -l img_path \"/tmp/cliphist/$id.png\"; " +
-                // If file already exists, echo the ID so QML binds it immediately
                 "if test -f \"$img_path\"; " +
                     "echo \"$id\"; " +
                 "else; " +
@@ -137,7 +135,6 @@ Item {
                 let generatedIds = out.trim().split("\n")
                 if (generatedIds.length === 0 || !generatedIds[0]) return
 
-                // Lazily update models for cached items
                 for (let i = 0; i < clipModel.count; i++) {
                     let item = clipModel.get(i)
                     if (generatedIds.includes(item.itemId)) {
@@ -167,16 +164,15 @@ Item {
 
     ColumnLayout {
         id: mainLayout
-        anchors.left: parent.left
-        anchors.right: parent.right
-        anchors.top: parent.top
-        anchors.margins: 12
-        spacing: 12
+        anchors.fill: parent
+        anchors.margins: clipRoot.cardMargin
+        spacing: clipRoot.cardMargin
 
         Rectangle {
             id: mainCard
             Layout.fillWidth: true
-            implicitHeight: cardContent.implicitHeight + 24
+            implicitWidth: 380
+            implicitHeight: cardContent.implicitHeight + (clipRoot.cardMargin * 2)
             color: Qt.rgba(255, 255, 255, 0.05)
             radius: Config.cornerRadius
 
@@ -187,8 +183,8 @@ Item {
             ColumnLayout {
                 id: cardContent
                 anchors.fill: parent
-                anchors.margins: 12
-                spacing: 12
+                anchors.margins: clipRoot.cardMargin
+                spacing: clipRoot.cardMargin
 
                 RowLayout {
                     Layout.fillWidth: true

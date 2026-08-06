@@ -8,13 +8,15 @@ import Quickshell.Io
 Item {
     id: appLauncherModule
 
+    readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
+
     property string pinFilePath: ""
     property var allApps: []
     property var filteredApps: []
     property var localPins: []
 
-    implicitWidth: 420
-    implicitHeight: 480
+    implicitWidth: mainLayout.implicitWidth + (cardMargin * 2)
+    implicitHeight: mainLayout.implicitHeight + (cardMargin * 2)
 
     // Clear search and refresh models when opened
     Connections {
@@ -179,9 +181,9 @@ print(json.dumps(apps))
         id: mainLayout
         
         anchors.fill: parent
-        anchors.margins: 12
+        anchors.margins: appLauncherModule.cardMargin
         
-        spacing: 12
+        spacing: appLauncherModule.cardMargin
 
         // Pure Opacity Fade Animation Logic
         opacity: Config.showAppLauncher ? 1.0 : 0.0
@@ -194,7 +196,8 @@ print(json.dumps(apps))
         // ==========================================
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: cardContentLayout.implicitHeight + 24
+            implicitWidth: 420
+            implicitHeight: cardContentLayout.implicitHeight + (appLauncherModule.cardMargin * 2)
             radius: Config.cornerRadius
             color: Qt.rgba(255, 255, 255, 0.05)
 
@@ -202,9 +205,9 @@ print(json.dumps(apps))
                 id: cardContentLayout
                 
                 anchors.fill: parent
-                anchors.margins: 12
+                anchors.margins: appLauncherModule.cardMargin
                 
-                spacing: 12
+                spacing: appLauncherModule.cardMargin
 
                 Text {
                     text: "APPLICATIONS"
@@ -218,7 +221,7 @@ print(json.dumps(apps))
                 ColumnLayout {
                     id: innerColumn
                     Layout.fillWidth: true
-                    spacing: 12
+                    spacing: appLauncherModule.cardMargin
 
                     // Search Input Surface
                     Rectangle {

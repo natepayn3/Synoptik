@@ -9,6 +9,9 @@ import Quickshell.Io
 Item {
     id: root
 
+    readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
+
+    // Baseline panel bounds to prevent Layout.fillHeight/fillWidth collapse
     implicitWidth: 680
     implicitHeight: 460
 
@@ -126,28 +129,29 @@ Item {
     ListModel { id: reminderModel }
 
     RowLayout {
+        id: mainRow
         anchors.fill: parent
-        anchors.margins: 10
-        spacing: 16
+        anchors.margins: root.cardMargin
+        spacing: root.cardMargin
 
         // --- LEFT COLUMN: CLOCK, WEATHER & REMINDERS ---
         ColumnLayout {
             Layout.fillHeight: true
             Layout.preferredWidth: 250
             Layout.maximumWidth: 250
-            spacing: 12
+            spacing: root.cardMargin
 
             // CARD 1: CLOCK & WEATHER
             Rectangle {
                 Layout.fillWidth: true
-                implicitHeight: clockWeatherCol.implicitHeight + 20
+                implicitHeight: clockWeatherCol.implicitHeight + (root.cardMargin * 2)
                 color: Qt.rgba(1, 1, 1, 0.08)
                 radius: Config.cornerRadius
 
                 ColumnLayout {
                     id: clockWeatherCol
                     anchors.fill: parent
-                    anchors.margins: 10
+                    anchors.margins: root.cardMargin
                     spacing: 4
 
                     Row {
@@ -223,7 +227,7 @@ Item {
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 12
+                    anchors.margins: root.cardMargin
                     spacing: 8
 
                     Text {
@@ -362,7 +366,7 @@ Item {
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 14
+                anchors.margins: root.cardMargin
                 spacing: 10
 
                 RowLayout {
@@ -379,7 +383,7 @@ Item {
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 12
+                    spacing: root.cardMargin
 
                     Text {
                         text: Qt.formatDate(new Date(root.gridYear, root.gridMonth, 1), "MMMM yyyy").toUpperCase()
