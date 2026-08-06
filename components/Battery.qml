@@ -131,14 +131,14 @@ Item {
                         // Progress bar
                         Rectangle {
                             Layout.fillWidth: true
-                            implicitHeight: 6
-                            radius: 3
+                            implicitHeight: 40
+                            radius: Config.cornerRadius / 1.5
                             color: Qt.rgba(255, 255, 255, 0.1)
 
                             Rectangle {
                                 width: parent.width * (root.battCapacity / 100.0)
                                 height: parent.height
-                                radius: 3
+                                radius: Config.cornerRadius / 1.5
                                 color: root.battCapacity <= 15 ? "#ef4444" : Config.accent
 
                                 Behavior on width {
