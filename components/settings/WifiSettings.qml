@@ -60,7 +60,13 @@ ColumnLayout {
             Layout.fillWidth: true
             spacing: 1
             Text { text: "Wi-Fi Network"; font.family: Config.sysFont; font.bold: true; color: Config.textMain; font.pixelSize: Config.size(Config.fontCaption) }
-            Text { text: !root.hasAdapter ? "No Adapter" : (!root.wifiPowered ? "Disabled" : (root.activeSsid !== "" ? root.activeSsid : "Disconnected")); font.family: Config.sysFont; color: Config.textMuted; font.pixelSize: Config.size(Config.fontMicro) }
+            Text { 
+                text: !root.hasAdapter ? "No Adapter" : (!root.wifiPowered ? "Disabled" : (root.activeSsid !== "" ? root.activeSsid : "Disconnected"))
+                font.family: Config.sysFont
+                font.bold: root.activeSsid !== "" && root.wifiPowered && root.hasAdapter
+                color: root.activeSsid !== "" && root.wifiPowered && root.hasAdapter ? Config.accent : Config.textMuted
+                font.pixelSize: Config.size(Config.fontMicro)
+            }
         }
 
         Rectangle {

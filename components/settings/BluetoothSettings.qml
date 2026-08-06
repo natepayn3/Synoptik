@@ -54,7 +54,13 @@ ColumnLayout {
             Layout.fillWidth: true
             spacing: 1
             Text { text: "Bluetooth Controller"; font.family: Config.sysFont; font.bold: true; color: Config.textMain; font.pixelSize: Config.size(Config.fontCaption) }
-            Text { text: !root.hasAdapter ? "No Controller" : (!root.isPowered ? "Powered Off" : (root.activeDeviceName !== "" ? root.activeDeviceName : "Powered On")); font.family: Config.sysFont; color: root.activeDeviceName !== "" && root.hasAdapter ? Config.accent : Config.textMuted; font.pixelSize: Config.size(Config.fontMicro) }
+            Text { 
+                text: !root.hasAdapter ? "No Controller" : (!root.isPowered ? "Powered Off" : (root.activeDeviceName !== "" ? root.activeDeviceName : "Powered On"))
+                font.family: Config.sysFont
+                font.bold: root.activeDeviceName !== "" && root.hasAdapter
+                color: root.activeDeviceName !== "" && root.hasAdapter ? Config.accent : Config.textMuted
+                font.pixelSize: Config.size(Config.fontMicro)
+            }
         }
 
         Rectangle {
