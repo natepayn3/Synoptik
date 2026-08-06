@@ -7,11 +7,14 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import ".."
+import "../osds"
 
 PanelWindow {
     id: root
 
     default property alias content: contentContainer.data
+    property alias surfaceBackground: backgroundSlot.data
+    property alias mainContainer: mainContainer
 
     property bool isOpen: false
     
@@ -73,7 +76,7 @@ PanelWindow {
                 }
             }
         }
-        return isHorizontal ? (baseW + (outerPadding * 2)) : (baseW + outerPadding + barSidePadding)
+        return baseW
     }
 
     readonly property real rawChildHeight: {
@@ -92,7 +95,7 @@ PanelWindow {
                 }
             }
         }
-        return isHorizontal ? (baseH + outerPadding + barSidePadding) : (baseH + (outerPadding * 2))
+        return baseH
     }
 
     property real lastOpenWidth: rawChildWidth
@@ -126,10 +129,10 @@ PanelWindow {
     readonly property real borderWidth: Config.borderThickness !== undefined ? Config.borderThickness : 3
     readonly property real halfB: borderWidth / 2.0
 
-    readonly property real leftBarRx: inX + wingW + currentWidth
-    readonly property real rightBarPopL: inX + inW - wingW - currentWidth
-    readonly property real topBarPopB: inY + wingH + currentHeight
-    readonly property real bottomBarPopT: inY + inH - wingH - currentHeight
+    readonly property real leftBarRx: inX + currentWidth
+    readonly property real rightBarPopL: inX + inW - currentWidth
+    readonly property real topBarPopB: inY + currentHeight
+    readonly property real bottomBarPopT: inY + inH - currentHeight
 
     anchors {
         top: barPosition === "top" || !isHorizontal
@@ -347,6 +350,11 @@ PanelWindow {
             }
         ]
 
+        Item {
+            id: backgroundSlot
+            anchors.fill: parent
+        }
+
         // BAR CONTROLS
         Item {
             id: barContent
@@ -385,21 +393,18 @@ PanelWindow {
         Item {
             id: contentContainer
             
-            readonly property real outerPadding: root.outerPadding
-            readonly property real barSidePadding: root.barSidePadding
-
             x: {
                 if (isHorizontal) {
-                    return root.pLeft + outerPadding
+                    return root.pLeft
                 } else {
                     if (isRight) {
                         return isScreenFrame 
-                            ? (root.rightBarPopL + outerPadding) 
-                            : (mainContainer.width - root.barH - root.wingW - root.currentWidth + outerPadding)
+                            ? root.rightBarPopL 
+                            : (mainContainer.width - root.barH - root.currentWidth)
                     } else {
                         return isScreenFrame 
-                            ? (root.inX + root.wingW + barSidePadding) 
-                            : (root.barH + root.wingW + barSidePadding)
+                            ? root.inX 
+                            : root.barH
                     }
                 }
             }
@@ -408,25 +413,20 @@ PanelWindow {
                 if (isHorizontal) {
                     if (isBottom) {
                         return isScreenFrame 
-                            ? (root.bottomBarPopT + outerPadding) 
-                            : (mainContainer.height - root.barH - root.wingH - root.currentHeight + outerPadding)
+                            ? root.bottomBarPopT 
+                            : (mainContainer.height - root.barH - root.currentHeight)
                     } else {
                         return isScreenFrame 
-                            ? (root.topBarPopB - root.currentHeight + barSidePadding) 
-                            : (root.barH + root.wingH + barSidePadding)
+                            ? root.inY 
+                            : root.barH
                     }
                 } else {
-                    return root.pLeft + outerPadding
+                    return root.pLeft
                 }
             }
 
-            width: isHorizontal 
-                ? Math.max(1, root.currentWidth - (outerPadding * 2)) 
-                : Math.max(1, root.currentWidth - outerPadding - barSidePadding)
-
-            height: isHorizontal 
-                ? Math.max(1, root.currentHeight - outerPadding - barSidePadding) 
-                : Math.max(1, root.currentHeight - (outerPadding * 2))
+            width: root.currentWidth
+            height: root.currentHeight
             
             clip: true
             visible: root.progress >= 0.98
