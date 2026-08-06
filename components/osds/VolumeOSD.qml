@@ -186,7 +186,7 @@ Item {
 
                             var waveAmplitude = 4.0 
                             var waveFrequency = 0.14 
-                            var strokeLineWidth = 4
+                            var strokeLineWidth = 6
                             var centerY = height / 2
 
                             if (waveCanvasH.activeSpan > 0) {
@@ -226,12 +226,58 @@ Item {
                     }
 
                     Rectangle {
-                        width: 6
-                        height: 20
-                        radius: 3
+                        id: toggleLine
+
+                        readonly property real baseWidth: 8
+                        readonly property real baseHeight: 30
+
+                        property real stretch: 0.0
+                        property real popScale: 1.0
+
+                        // Width expands horizontally; height flattens to 16px (2x normal 8px line thickness) at 1.2 stretch
+                        width: Math.max(8, baseWidth + (stretch * 28))
+                        height: Math.max(16, baseHeight - (stretch * 11.67))
+                        radius: height / 2
                         color: Config.textMain
+
+                        transform: Scale {
+                            origin.x: toggleLine.width / 2
+                            origin.y: toggleLine.height / 2
+                            xScale: toggleLine.popScale
+                            yScale: toggleLine.popScale
+                        }
+
                         anchors.verticalCenter: parent.verticalCenter
                         x: Math.max(0, Math.min(parent.width - width, waveCanvasH.activeSpan - (width / 2)))
+
+                        Connections {
+                            target: osdRoot
+                            function onVolumeChanged() {
+                                if (osdRoot.initialized) morphAnim.restart()
+                            }
+                        }
+
+                        SequentialAnimation {
+                            id: morphAnim
+
+                            // Phase 1: Travel & Morph into a 16px-thick horizontal bar (120ms)
+                            ParallelAnimation {
+                                NumberAnimation { target: toggleLine; property: "stretch"; to: 1.2; duration: 120; easing.type: Easing.OutCubic }
+                                NumberAnimation { target: toggleLine; property: "popScale"; to: 1.0; duration: 120; easing.type: Easing.OutCubic }
+                            }
+
+                            // Phase 2: Overshoot Swell at destination (100ms)
+                            ParallelAnimation {
+                                NumberAnimation { target: toggleLine; property: "stretch"; to: -0.4; duration: 100; easing.type: Easing.OutQuad }
+                                NumberAnimation { target: toggleLine; property: "popScale"; to: 1.25; duration: 100; easing.type: Easing.OutBack }
+                            }
+
+                            // Phase 3: Elastic settle back to resting 30x8 vertical line (250ms)
+                            ParallelAnimation {
+                                NumberAnimation { target: toggleLine; property: "stretch"; to: 0.0; duration: 250; easing.type: Easing.OutBack }
+                                NumberAnimation { target: toggleLine; property: "popScale"; to: 1.0; duration: 250; easing.type: Easing.OutBack }
+                            }
+                        }
                     }
                 }
 
