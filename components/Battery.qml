@@ -49,7 +49,7 @@ Item {
         anchors.margins: 12
         spacing: 12
 
-        // Card 1: Title, Charging Status, Icon & Capacity Gauge
+        // Card 1: Title, Charging Status, & Capacity Track
         Rectangle {
             Layout.fillWidth: true
             implicitHeight: topCardContent.implicitHeight + 24
@@ -94,64 +94,70 @@ Item {
                     }
                 }
 
-                // Battery Status Gauge Row
-                RowLayout {
+                // Battery Status Track Row
+                ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 12
+                    spacing: 8
 
                     Text {
-                        text: {
-                            if (root.battStatus === "Charging") return "battery_android_frame_bolt"
-                            if (root.battCapacity <= 10) return "battery_android_frame_0"
-                            if (root.battCapacity <= 25) return "battery_android_frame_1"
-                            if (root.battCapacity <= 40) return "battery_android_frame_2"
-                            if (root.battCapacity <= 60) return "battery_android_frame_3"
-                            if (root.battCapacity <= 75) return "battery_android_frame_4"
-                            if (root.battCapacity <= 90) return "battery_android_frame_5"
-                            if (root.battCapacity < 100) return "battery_android_frame_6"
-                            return "battery_android_frame_full"
-                        }
-                        font.family: "Material Symbols Outlined"
-                        font.pixelSize: 40
-                        color: root.battCapacity <= 15 ? "#ef4444" : Config.accent
+                        text: root.battCapacity + "% Available"
+                        color: Config.textMain
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontSubhead)
+                        font.bold: true
                     }
 
-                    ColumnLayout {
+                    // Progress Track with Embedded Icon (Matching VolumeCard Layout)
+                    Rectangle {
+                        id: battTrack
                         Layout.fillWidth: true
-                        spacing: 4
+                        implicitHeight: 40
+                        radius: Config.cornerRadius / 1.5
+                        color: Qt.rgba(0, 0, 0, 0.35)
+                        clip: true
 
-                        Text {
-                            text: root.battCapacity + "% Available"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontSubhead)
-                            font.bold: true
+                        Rectangle {
+                            id: battFill
+                            readonly property real targetRatio: Math.max(0.0, Math.min(1.0, root.battCapacity / 100.0))
+
+                            width: targetRatio <= 0 ? 0 : Math.max(height, battTrack.width * targetRatio)
+                            height: parent.height
+                            radius: Config.cornerRadius / 1.5
+                            color: root.battCapacity <= 15 ? "#ef4444" : Config.accent
+
+                            Behavior on width {
+                                NumberAnimation { duration: 200; easing.type: Easing.OutQuad }
+                            }
                         }
 
-                        // Progress bar
-                        Rectangle {
-                            Layout.fillWidth: true
-                            implicitHeight: 40
-                            radius: Config.cornerRadius / 1.5
-                            color: Qt.rgba(255, 255, 255, 0.1)
-
-                            Rectangle {
-                                width: parent.width * (root.battCapacity / 100.0)
-                                height: parent.height
-                                radius: Config.cornerRadius / 1.5
-                                color: root.battCapacity <= 15 ? "#ef4444" : Config.accent
-
-                                Behavior on width {
-                                    NumberAnimation { duration: 200 }
-                                }
+                        Text {
+                            anchors.left: parent.left
+                            anchors.leftMargin: 12
+                            anchors.verticalCenter: parent.verticalCenter
+                            
+                            text: {
+                                if (root.battStatus === "Charging") return "battery_charging_full"
+                                if (root.battCapacity <= 10) return "battery_0_bar"
+                                if (root.battCapacity <= 25) return "battery_1_bar"
+                                if (root.battCapacity <= 40) return "battery_2_bar"
+                                if (root.battCapacity <= 60) return "battery_3_bar"
+                                if (root.battCapacity <= 75) return "battery_4_bar"
+                                if (root.battCapacity <= 90) return "battery_5_bar"
+                                if (root.battCapacity < 100) return "battery_6_bar"
+                                return "battery_full"
                             }
+                            font.family: "Material Symbols Outlined"
+                            font.pixelSize: 20
+                            
+                            // Dynamic color matching VolumeCard behavior
+                            color: (root.battCapacity > 10) ? Config.bgBase : Config.textMain
                         }
                     }
                 }
             }
         }
 
-        // Bottom Stats Row: Split into two separate cards
+        // Bottom Stats Row
         RowLayout {
             Layout.fillWidth: true
             spacing: 12
