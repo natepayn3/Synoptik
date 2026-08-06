@@ -228,14 +228,14 @@ Item {
                     Rectangle {
                         id: toggleLine
 
-                        readonly property real baseWidth: 8
+                        readonly property real baseWidth: 16
                         readonly property real baseHeight: 30
 
                         property real stretch: 0.0
                         property real popScale: 1.0
 
-                        // Width expands horizontally; height flattens to 16px (2x normal 8px line thickness) at 1.2 stretch
-                        width: Math.max(8, baseWidth + (stretch * 28))
+                        // ⚡ CHANGED: Multiplier reduced to 18 for a narrower horizontal pill during motion
+                        width: Math.max(8, baseWidth + (stretch * 18))
                         height: Math.max(16, baseHeight - (stretch * 11.67))
                         radius: height / 2
                         color: Config.textMain
@@ -260,19 +260,19 @@ Item {
                         SequentialAnimation {
                             id: morphAnim
 
-                            // Phase 1: Travel & Morph into a 16px-thick horizontal bar (120ms)
+                            // Phase 1: Travel & Morph into a compact 16px-thick pill (120ms)
                             ParallelAnimation {
                                 NumberAnimation { target: toggleLine; property: "stretch"; to: 1.2; duration: 120; easing.type: Easing.OutCubic }
                                 NumberAnimation { target: toggleLine; property: "popScale"; to: 1.0; duration: 120; easing.type: Easing.OutCubic }
                             }
 
-                            // Phase 2: Overshoot Swell at destination (100ms)
+                            // Phase 2: Destination Overshoot / Swell (100ms)
                             ParallelAnimation {
                                 NumberAnimation { target: toggleLine; property: "stretch"; to: -0.4; duration: 100; easing.type: Easing.OutQuad }
                                 NumberAnimation { target: toggleLine; property: "popScale"; to: 1.25; duration: 100; easing.type: Easing.OutBack }
                             }
 
-                            // Phase 3: Elastic settle back to resting 30x8 vertical line (250ms)
+                            // Phase 3: Elastic settle back to 8x30 vertical line (250ms)
                             ParallelAnimation {
                                 NumberAnimation { target: toggleLine; property: "stretch"; to: 0.0; duration: 250; easing.type: Easing.OutBack }
                                 NumberAnimation { target: toggleLine; property: "popScale"; to: 1.0; duration: 250; easing.type: Easing.OutBack }
