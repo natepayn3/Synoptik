@@ -239,7 +239,7 @@ Item {
                                 let step = w / (root.maxGraphPoints - 1)
                                 let xOffset = root.scrollProgress * step
 
-                                // Fill region
+                                // 1. Fill region
                                 ctx.beginPath()
                                 ctx.moveTo(0, h)
 
@@ -256,20 +256,32 @@ Item {
                                 ctx.fillStyle = "rgba(255, 255, 255, 0.05)"
                                 ctx.fill()
 
-                                // Line stroke
-                                ctx.beginPath()
-                                for (let j = 0; j < totalPoints; j++) {
-                                    let nodeValue = graphHistoryModel.get(j).speedValue
-                                    let scaleRatio = nodeValue / activePeak
-                                    let coordX = (j * step) - xOffset
-                                    let coordY = h - (scaleRatio * (h - 4))
-                                    if (j === 0) ctx.moveTo(coordX, coordY)
-                                    else ctx.lineTo(coordX, coordY)
+                                // Path helper for line rendering
+                                function buildLinePath() {
+                                    ctx.beginPath()
+                                    for (let j = 0; j < totalPoints; j++) {
+                                        let nodeValue = graphHistoryModel.get(j).speedValue
+                                        let scaleRatio = nodeValue / activePeak
+                                        let coordX = (j * step) - xOffset
+                                        let coordY = h - (scaleRatio * (h - 4))
+                                        if (j === 0) ctx.moveTo(coordX, coordY)
+                                        else ctx.lineTo(coordX, coordY)
+                                    }
                                 }
+
+                                // 2. Glow pass (blurred background line)
+                                buildLinePath()
                                 ctx.strokeStyle = Config.accent
                                 ctx.lineWidth = 2
                                 ctx.lineCap = "round"
                                 ctx.lineJoin = "round"
+                                ctx.shadowColor = Config.accent
+                                ctx.shadowBlur = 8
+                                ctx.stroke()
+
+                                // 3. Crisp foreground line pass (removes shadow blur so line retains sharp core)
+                                buildLinePath()
+                                ctx.shadowBlur = 0
                                 ctx.stroke()
                             }
                         }
