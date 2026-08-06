@@ -54,6 +54,9 @@ QtObject {
     property int borderThickness: 3
     property real cardMargin: 12.0
 
+    // Single source of truth: 0 = disabled, >0 = enabled
+    readonly property bool showBorders: borderThickness > 0
+
     onSurfaceRadiusChanged: { 
         if (isLoaded) {
             syncHyprlandBorders()
@@ -182,7 +185,6 @@ QtObject {
 
     // Global Visual Toggles & Opacity / Blur Controls
     property string barFrameStyle: "floating" // Options: "floating" | "edge" | "screen"
-    property bool showBorders: true
     property bool animateGradient: true
     property bool showScreenFrame: false
     property real shellOpacity: 1.0
@@ -432,12 +434,6 @@ QtObject {
         }
     }
 
-    onShowBordersChanged: {
-        if (!isLoaded) return
-        syncHyprlandBorders()
-        saveSettings()
-    }
-
     onAnimateGradientChanged: {
         if (!isLoaded) return
         syncHyprlandBorders()
@@ -652,9 +648,9 @@ QtObject {
             return str.length === 8 ? str.substring(2) : str
         }
 
-        let hexAccent = toOpaqueHex(accent)
-        let hexEnd = toOpaqueHex(borderEnd)
-        let hexInactive = toOpaqueHex(bgPanel)
+        let hexAccent = toOpaqueHex(root.accent)
+        let hexEnd = toOpaqueHex(root.borderEnd)
+        let hexInactive = toOpaqueHex(root.bgPanel)
 
         let colorStart = "rgba(" + hexAccent + "ff)"
         let colorEnd = "rgba(" + hexEnd + "ff)"
@@ -668,9 +664,8 @@ QtObject {
             ? '{ colors = { "' + colorStart + '", "' + colorEnd + '" }, angle = 45 }'
             : '"' + colorStart + '"'
 
-        let borderSize = borderThickness
+        let borderSize = root.borderThickness
 
-        // Set gaps_out to 30 for "screen " layout, otherwise 20
         let gapsOut = (barFrameStyle === "screen") ? 30 : 20
         let roundingVal = Math.round(surfaceRadius)
 
@@ -703,7 +698,6 @@ QtObject {
             hyprctlMonitorCmds.push("hyprctl keyword monitor '" + ruleStr + "'")
         })
 
-        // Construct hypr_style.lua content with rounding & gaps_out
         let luaContent = 'hl.config({\n' +
             '    general = {\n' +
             '        gaps_out = ' + gapsOut + ',\n' +
@@ -732,7 +726,6 @@ QtObject {
 
         let monExecCmd = hyprctlMonitorCmds.length > 0 ? " && " + hyprctlMonitorCmds.join(" && ") : ""
 
-        // Write file and instantly push dynamic keywords via IPC
         let cmd = "printf '%s' '" + luaContent.replace(/'/g, "'\\''") + "' > " + hyprThemePath + " && " +
                 "hyprctl keyword general:gaps_out " + gapsOut + " && " +
                 "hyprctl keyword decoration:rounding " + roundingVal + " && " +
@@ -808,7 +801,6 @@ QtObject {
                 "customBgBase": root.customBgBase.toString(),
                 "customBgPanel": root.customBgPanel.toString(),
                 "customAccent": root.customAccent.toString(),
-                "showBorders": root.showBorders,
                 "animateGradient": root.animateGradient,
                 "shellOpacity": root.shellOpacity,
                 "enableBlur": root.enableBlur,
@@ -863,7 +855,7 @@ QtObject {
                             "showMascot", "mascotPath", "mascotPhrases", "fetchOnlineQuotes", "quoteSource",
                             "barFrameStyle", "barPosition", "showScreenFrame", "sysFont", "fontScaleIndex", "locationQuery",
                             "enabledBarScreens", "useCustomColors", "customBgBase", "customBgPanel",
-                            "customAccent", "showBorders", "animateGradient", "shellOpacity", "enableBlur",
+                            "customAccent", "animateGradient", "shellOpacity", "enableBlur",
                             "enableXray", "surfaceRadius", "borderThickness", "cardMargin", "showDesktopClock", "clockStyle", "clockScale", 
                             "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", 
                             "clockShowBackground", "clockPositions", "clockScales", "enabledClockScreens",

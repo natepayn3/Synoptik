@@ -55,7 +55,6 @@ PanelWindow {
     readonly property real inH: actualScreenHeight - padT - padB
     readonly property real inRadi: Math.max(0.1, frameRadius)
 
-    // Calculate natural child width from loaded modules
     readonly property real rawChildWidth: {
         let baseW = 340
         if (root.activeView === "osd") {
@@ -75,7 +74,6 @@ PanelWindow {
         return baseW
     }
 
-    // Calculate natural child height from loaded modules
     readonly property real rawChildHeight: {
         let baseH = 480
         if (root.activeView === "osd") {
@@ -128,10 +126,10 @@ PanelWindow {
     readonly property real wingH: (Config.surfaceRadius || 18) * animScale
     readonly property real radius: Math.max(0.1, (Config.surfaceRadius || 18) * animScale)
 
-    readonly property real borderWidth: Config.borderThickness !== undefined ? Config.borderThickness : 3
+    // Ensure double-casting safely falls back to double value (0.0 or valid number)
+    readonly property real borderWidth: (Config.borderThickness !== undefined && Config.borderThickness !== null) ? Number(Config.borderThickness) : 0.0
     readonly property real halfB: borderWidth / 2.0
 
-    // Exact outer boundaries without adding extra wing spans
     readonly property real leftBarRx: inX + currentWidth
     readonly property real rightBarPopL: inX + inW - currentWidth
     readonly property real topBarPopB: inY + currentHeight
@@ -353,9 +351,6 @@ PanelWindow {
             }
         ]
 
-        // =========================================================
-        // BACKGROUND & BAR SHAPES
-        // =========================================================
         Item {
             id: shadowWrapper
             anchors.fill: parent
@@ -411,7 +406,6 @@ PanelWindow {
                 }
             }
 
-            // 1. FLOATING / EDGE BAR SHAPES
             Shape {
                 id: closedShape
                 anchors.fill: parent
@@ -585,7 +579,6 @@ PanelWindow {
                 }
             }
 
-            // 2. SCREEN FRAME MODE
             Item {
                 id: sfClosedGroup
                 anchors.fill: parent
@@ -1170,7 +1163,6 @@ PanelWindow {
             }
         }
 
-        // BAR CONTROLS
         Item {
             id: barContent
             x: root.isRight ? (mainContainer.width - root.barH + Math.floor(root.halfB)) : Math.floor(root.halfB)
@@ -1205,7 +1197,6 @@ PanelWindow {
             }
         }
 
-        // CONTENT CONTAINER (Starts flush at bar boundary)
         Item {
             id: contentContainer
             
@@ -1245,16 +1236,12 @@ PanelWindow {
             height: root.currentHeight
             
             clip: true
-            // Keep item rendered while active/animating
             visible: root.progress > 0.01
-            // Target opacity based on open state and progress threshold
             opacity: (root.isOpen && root.progress >= 0.95) ? 1.0 : 0.0
             focus: true
 
-            // Smoothly animate opacity changes with opening delay
             Behavior on opacity {
                 NumberAnimation {
-                    // Delay the fade-in slightly when opening so panel finishes expanding first
                     duration: (root.isOpen && root.progress >= 0.95) ? 200 : 80
                     easing.type: Easing.OutCubic
                 }

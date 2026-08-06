@@ -50,7 +50,6 @@ PanelWindow {
     readonly property real rawChildWidth: baseWidth
     readonly property real rawChildHeight: baseHeight
 
-    // Capture dimensions on close trigger to lock evaluation state during transition
     property real lastOpenWidth: rawChildWidth
     property real lastOpenHeight: rawChildHeight
 
@@ -63,7 +62,6 @@ PanelWindow {
         }
     }
 
-    // Fraction-based morphing sizes
     property real targetWidth: isOpen ? rawChildWidth : (isHorizontal ? (lastOpenWidth * 0.50) : (lastOpenWidth * 1.10))
     property real targetHeight: isOpen ? rawChildHeight : (isHorizontal ? (lastOpenHeight * 1.10) : (lastOpenHeight * 0.50))
 
@@ -78,7 +76,6 @@ PanelWindow {
     property real progress: 0.0
     readonly property real animScale: Math.max(0.0, progress)
 
-    // Smooth closing curve and squish math
     readonly property real closeFactor: isOpen ? progress : Math.pow(progress, 1.2)
     readonly property real currentHeight: targetHeight * Math.pow(closeFactor, 1.8)
     readonly property real squishRatio: targetHeight > 0 ? (1.0 - (currentHeight / targetHeight)) : 0.0
@@ -100,7 +97,6 @@ PanelWindow {
         id: fullScreenBounds
         anchors.fill: parent
 
-        // State Machine driving the transition progress
         states: [
             State {
                 name: "open"
@@ -159,8 +155,7 @@ PanelWindow {
                 color: Config.bgPanel
                 radius: Config.surfaceRadius || 18
                 
-                // Border config properties wired dynamically
-                readonly property int effectiveBorderWidth: (Config.borderThickness !== undefined) ? Config.borderThickness : ((Config.showBorders === undefined || Config.showBorders) ? 3 : 0)
+                readonly property int effectiveBorderWidth: Config.borderThickness
                 border.width: effectiveBorderWidth
                 border.color: effectiveBorderWidth > 0 ? Config.accent : "transparent"
                 clip: true
@@ -414,7 +409,7 @@ PanelWindow {
                                         }
                                     }
 
-                                    // BOTTOM NAV ITEM: SHELL (CONSOLIDATED ABOUT + UPDATES)
+                                    // BOTTOM NAV ITEM: SHELL
                                     Rectangle {
                                         id: shellBtn
                                         Layout.fillWidth: true; implicitHeight: 34; radius: Config.cornerRadius / 2
@@ -565,7 +560,7 @@ PanelWindow {
                                     anchors.fill: parent
                                     visible: settingsWindow.activeSection === 10
                                 }
-                                // COMBINED SHELL SECTION (ABOUT + UPDATES)
+
                                 Item {
                                     id: shellView
                                     anchors.fill: parent
@@ -574,10 +569,8 @@ PanelWindow {
                                     property string statusText: "Ready"
                                     property bool isBusy: false
 
-                                    // Direct location of the current file directory
                                     readonly property string repoDir: Qt.resolvedUrl(".").toString().replace(/^file:\/\//, "")
 
-                                    // Process to fetch upstream status and check for remote updates
                                     Process {
                                         id: gitChecker
                                         running: false
@@ -590,7 +583,6 @@ PanelWindow {
                                                 let output = checkOutput.text
                                                 if (output.includes("behind")) {
                                                     shellView.statusText = "Downloading and applying latest files..."
-                                                    // Force-overwrite local files with upstream remote main
                                                     gitPuller.command = ["fish", "-c", "cd '" + shellView.repoDir + "'; and git fetch origin main; and git reset --hard origin/main"]
                                                     gitPuller.running = true
                                                 } else {
@@ -605,7 +597,6 @@ PanelWindow {
                                         }
                                     }
 
-                                    // Process to pull upstream changes and reload shell
                                     Process {
                                         id: gitPuller
                                         running: false
@@ -616,8 +607,6 @@ PanelWindow {
                                             shellView.isBusy = false
                                             if (code === 0) {
                                                 shellView.statusText = "Updated successfully! Reloading..."
-                                                
-                                                // Kill running instance and relaunch quickshell cleanly
                                                 Quickshell.execDetached(["fish", "-c", "killall quickshell; and quickshell"])
                                             } else {
                                                 let err = pullError.text.trim()
@@ -647,7 +636,6 @@ PanelWindow {
                                             wrapMode: Text.WordWrap
                                         }
 
-                                        // GitHub Repository Link Card (Tightly aligned text)
                                         Rectangle {
                                             Layout.fillWidth: true
                                             implicitHeight: 48
@@ -718,7 +706,6 @@ PanelWindow {
                                             HoverHandler { id: gitHubHover }
                                         }
 
-                                        // Repository Status Card (Dynamic height for error logs)
                                         Rectangle {
                                             Layout.fillWidth: true
                                             implicitHeight: Math.max(48, statusRow.implicitHeight + 16)
@@ -768,12 +755,10 @@ PanelWindow {
                                                     }
                                                 }
 
-                                                // Action Buttons Layout
                                                 RowLayout {
                                                     spacing: 8
                                                     Layout.alignment: Qt.AlignVCenter
 
-                                                    // Reload Button
                                                     Rectangle {
                                                         implicitWidth: 100
                                                         implicitHeight: 30
@@ -804,7 +789,6 @@ PanelWindow {
                                                         HoverHandler { id: reloadBtnHover }
                                                     }
 
-                                                    // Update Button
                                                     Rectangle {
                                                         implicitWidth: 110
                                                         implicitHeight: 30
