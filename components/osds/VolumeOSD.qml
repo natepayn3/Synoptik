@@ -17,6 +17,12 @@ Item {
     property bool isMuted: false
     property bool initialized: false 
 
+    // Smoothly animate target volume value instead of layout span to avoid resize jumping
+    property real animVolume: Math.max(0, volume)
+    Behavior on animVolume {
+        NumberAnimation { duration: 120; easing.type: Easing.OutQuad }
+    }
+
     function trigger() {
         if (typeof Config !== "undefined" && (Config.showAudio || Config.showControlCenter)) return
         
@@ -160,11 +166,7 @@ Item {
                         anchors.fill: parent
 
                         property real animPhase: 0.0
-                        property real activeSpan: Math.min(width, width * (Math.max(0, osdRoot.volume) / 100))
-
-                        Behavior on activeSpan {
-                            NumberAnimation { duration: 80; easing.type: Easing.OutQuad }
-                        }
+                        readonly property real activeSpan: Math.min(width, width * (osdRoot.animVolume / 100))
 
                         onActiveSpanChanged: requestPaint()
                         onWidthChanged: requestPaint()
