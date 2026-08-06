@@ -54,7 +54,13 @@ QtObject {
     property int borderThickness: 3
     property real cardMargin: 12.0
 
-    onSurfaceRadiusChanged: { if (isLoaded) saveSettings() }
+    onSurfaceRadiusChanged: { 
+        if (isLoaded) {
+            syncHyprlandBorders()
+            saveSettings()
+        }
+    }
+
     onBorderThicknessChanged: {
         if (isLoaded) {
             syncHyprlandBorders()
@@ -341,7 +347,12 @@ QtObject {
         writer.running = true
     }
 
-    onBarFrameStyleChanged: { if (isLoaded) saveSettings() }
+    onBarFrameStyleChanged: { 
+        if (isLoaded) {
+            syncHyprlandBorders()
+            saveSettings()
+        }
+    }
 
     onShowScreenFrameChanged: {
         if (!isLoaded) return
@@ -657,8 +668,11 @@ QtObject {
             ? '{ colors = { "' + colorStart + '", "' + colorEnd + '" }, angle = 45 }'
             : '"' + colorStart + '"'
 
-        // Bound strictly to borderThickness setting
         let borderSize = borderThickness
+
+        // Set gaps_out to 30 for "screen " layout, otherwise 20
+        let gapsOut = (barFrameStyle === "screen") ? 30 : 20
+        let roundingVal = Math.round(surfaceRadius)
 
         let monitorLuaBlocks = []
         let hyprctlMonitorCmds = []
@@ -689,13 +703,18 @@ QtObject {
             hyprctlMonitorCmds.push("hyprctl keyword monitor '" + ruleStr + "'")
         })
 
+        // Construct hypr_style.lua content with rounding & gaps_out
         let luaContent = 'hl.config({\n' +
             '    general = {\n' +
+            '        gaps_out = ' + gapsOut + ',\n' +
+            '        border_size = ' + borderSize + ',\n' +
             '        col = {\n' +
             '            active_border = ' + activeLua + ',\n' +
             '            inactive_border = "' + inactiveStr + '"\n' +
-            '        },\n' +
-            '        border_size = ' + borderSize + '\n' +
+            '        }\n' +
+            '    },\n' +
+            '    decoration = {\n' +
+            '        rounding = ' + roundingVal + '\n' +
             '    }\n' +
             '})\n\n' +
             'hl.layer_rule({\n' +
@@ -713,10 +732,13 @@ QtObject {
 
         let monExecCmd = hyprctlMonitorCmds.length > 0 ? " && " + hyprctlMonitorCmds.join(" && ") : ""
 
+        // Write file and instantly push dynamic keywords via IPC
         let cmd = "printf '%s' '" + luaContent.replace(/'/g, "'\\''") + "' > " + hyprThemePath + " && " +
-                  "hyprctl keyword general:col.active_border '" + activeStr + "' && " +
-                  "hyprctl keyword general:inactive_border '" + inactiveStr + "' && " +
-                  "hyprctl keyword general:border_size " + borderSize + animCmd + monExecCmd
+                "hyprctl keyword general:gaps_out " + gapsOut + " && " +
+                "hyprctl keyword decoration:rounding " + roundingVal + " && " +
+                "hyprctl keyword general:col.active_border '" + activeStr + "' && " +
+                "hyprctl keyword general:inactive_border '" + inactiveStr + "' && " +
+                "hyprctl keyword general:border_size " + borderSize + animCmd + monExecCmd
 
         writer.command = ["fish", "-c", cmd]
         writer.running = true
