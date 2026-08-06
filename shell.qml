@@ -10,6 +10,9 @@ import Quickshell.Hyprland
 import Quickshell.Io
 import Quickshell.Services.Notifications as Notifs
 import "components"
+import "components/bars"
+import "components/osds"
+import "components/widgets"
 
 ShellRoot {
     id: shellRoot
