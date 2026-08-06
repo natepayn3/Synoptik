@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import Qt5Compat.GraphicalEffects
 import ".."
 
 Rectangle {
@@ -52,66 +53,97 @@ Rectangle {
             }
         }
 
-        Rectangle {
-            id: brightTrack
+        // Slider Container
+        Item {
             Layout.fillWidth: true
             implicitHeight: 40
-            radius: Config.cornerRadius / 1.5
-            color: Qt.rgba(0, 0, 0, 0.35)
-            clip: true
 
-            Rectangle {
-                width: root.hasBacklight ? Math.max(height, parent.width * (root.currentBrightness / 100.0)) : 0
-                height: parent.height
-                radius: Config.cornerRadius / 1.5
+            // Active bar static glow layer on hover/drag
+            RectangularGlow {
+                id: activeGlow
+                anchors.fill: brightFillContainer
+                glowRadius: 8
+                spread: 0.2
                 color: Config.accent
+                cornerRadius: brightTrack.radius
+                opacity: (brightHover.hovered || brightDrag.active) && root.hasBacklight && brightFillContainer.width > 0 ? 0.5 : 0.0
+
+                Behavior on opacity { NumberAnimation { duration: 150 } }
+            }
+
+            // Reference item tracking physical layout bounds of active slider fill
+            Item {
+                id: brightFillContainer
+                x: brightTrack.x
+                y: brightTrack.y
+                height: brightTrack.height
+
+                width: root.hasBacklight ? Math.max(height, brightTrack.width * (root.currentBrightness / 100.0)) : 0
 
                 Behavior on width {
-                    enabled: !brightDrag.pressed
+                    enabled: !brightDrag.active
                     NumberAnimation { duration: 120; easing.type: Easing.OutQuad }
                 }
             }
 
-            Text {
-                anchors.left: parent.left
-                anchors.leftMargin: 12
-                anchors.verticalCenter: parent.verticalCenter
-                text: "brightness_6"
-                font.family: "Material Symbols Outlined"
-                font.pixelSize: 20
-                color: root.hasBacklight ? Config.bgBase : Config.textMuted
-            }
+            Rectangle {
+                id: brightTrack
+                anchors.fill: parent
+                radius: Config.cornerRadius / 1.5
+                color: Qt.rgba(0, 0, 0, 0.35)
+                clip: true
 
-            DragHandler {
-                id: brightDrag
-                target: null
-                enabled: root.hasBacklight
-                onActiveChanged: {
-                    // Removed the release-only signal
+                Rectangle {
+                    id: brightFill
+                    width: brightFillContainer.width
+                    height: parent.height
+                    radius: Config.cornerRadius / 1.5
+                    color: Config.accent
                 }
-                onTranslationChanged: {
-                    if (active && root.hasBacklight) {
-                        let localX = brightDrag.centroid.position.x
-                        let pct = Math.max(1, Math.min(100, Math.round((localX / brightTrack.width) * 100)))
-                        
-                        // Only emit if the value actually ticked up or down
-                        if (pct !== root.currentBrightness) {
-                            root.currentBrightness = pct
-                            root.brightnessChanged(pct)
+
+                Text {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 12
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "brightness_6"
+                    font.family: "Material Symbols Outlined"
+                    font.pixelSize: 20
+                    color: root.hasBacklight ? Config.bgBase : Config.textMuted
+                }
+
+                DragHandler {
+                    id: brightDrag
+                    target: null
+                    enabled: root.hasBacklight
+                    onActiveChanged: {
+                        // Removed the release-only signal
+                    }
+                    onTranslationChanged: {
+                        if (active && root.hasBacklight) {
+                            let localX = brightDrag.centroid.position.x
+                            let pct = Math.max(1, Math.min(100, Math.round((localX / brightTrack.width) * 100)))
+                            
+                            // Only emit if the value actually ticked up or down
+                            if (pct !== root.currentBrightness) {
+                                root.currentBrightness = pct
+                                root.brightnessChanged(pct)
+                            }
                         }
                     }
                 }
-            }
 
-            MouseArea {
-                anchors.fill: parent
-                enabled: root.hasBacklight
-                cursorShape: root.hasBacklight ? Qt.PointingHandCursor : Qt.ForbiddenCursor
-                onClicked: {
-                    let pct = Math.max(1, Math.min(100, Math.round((mouseX / brightTrack.width) * 100)))
-                    root.currentBrightness = pct
-                    root.brightnessChanged(pct)
+                MouseArea {
+                    anchors.fill: parent
+                    enabled: root.hasBacklight
+                    cursorShape: root.hasBacklight ? Qt.PointingHandCursor : Qt.ForbiddenCursor
+                    onClicked: {
+                        let pct = Math.max(1, Math.min(100, Math.round((mouseX / brightTrack.width) * 100)))
+                        root.currentBrightness = pct
+                        root.brightnessChanged(pct)
+                    }
                 }
+
+                HoverHandler { id: brightHover }
             }
         }
     }
