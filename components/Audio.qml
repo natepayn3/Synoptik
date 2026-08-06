@@ -9,7 +9,6 @@ Item {
 
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
-    // Pure content-driven size derived from mainLayout
     implicitWidth: mainLayout.implicitWidth + (cardMargin * 2)
     implicitHeight: mainLayout.implicitHeight + (cardMargin * 2)
 
@@ -29,7 +28,6 @@ Item {
         // ==========================================
         Rectangle {
             Layout.fillWidth: true
-            // Baseline card width enables mainLayout to calculate implicitWidth
             implicitWidth: 360 
             implicitHeight: outputLayout.implicitHeight + (audioModule.cardMargin * 2)
             color: outputCardHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.05)
@@ -78,7 +76,7 @@ Item {
                     Text {
                         text: audioModule.isMuted ? "volume_off" : "volume_up"
                         font.family: "Material Symbols Outlined"
-                        font.pixelSize: 18
+                        font.pixelSize: 24
                         color: Config.accent
 
                         TapHandler {
@@ -94,37 +92,102 @@ Item {
                     Slider {
                         id: volumeSlider
                         Layout.fillWidth: true
+                        implicitHeight: 32
                         leftPadding: 0
                         rightPadding: 0
+                        topPadding: 0
+                        bottomPadding: 0
                         from: 0
                         to: 100
                         value: audioModule.systemVolume
 
                         background: Rectangle {
                             x: volumeSlider.leftPadding
-                            y: volumeSlider.topPadding + volumeSlider.availableHeight / 2 - height / 2
-                            implicitWidth: 200
-                            implicitHeight: 4
+                            y: volumeSlider.topPadding + (volumeSlider.availableHeight / 2) - (height / 2)
                             width: volumeSlider.availableWidth
-                            height: implicitHeight
-                            radius: 2
-                            color: Qt.rgba(255, 255, 255, 0.1)
+                            height: 6
+                            radius: 3
+                            color: Qt.rgba(255, 255, 255, 0.12)
 
                             Rectangle {
                                 width: volumeSlider.visualPosition * parent.width
                                 height: parent.height
-                                color: Config.accent
-                                radius: 2
+                                color: audioModule.isMuted ? Config.textMuted : Config.accent
+                                radius: 3
                             }
                         }
 
                         handle: Rectangle {
-                            x: volumeSlider.leftPadding + volumeSlider.visualPosition * (volumeSlider.availableWidth - width)
-                            y: volumeSlider.topPadding + volumeSlider.availableHeight / 2 - height / 2
-                            implicitWidth: 12
-                            implicitHeight: 12
-                            radius: 6
+                            id: outHandle
+
+                            readonly property real baseWidth: 12
+                            readonly property real baseHeight: 24
+
+                            property real stretch: 0.0
+                            property real popScale: 1.0
+
+                            width: Math.max(8, baseWidth + (stretch * 18))
+                            height: Math.max(16, baseHeight - (stretch * 11.67))
+                            radius: height / 2
                             color: Config.textMain
+
+                            transform: Scale {
+                                origin.x: outHandle.width / 2
+                                origin.y: outHandle.height / 2
+                                xScale: outHandle.popScale
+                                yScale: outHandle.popScale
+                            }
+
+                            x: volumeSlider.leftPadding + (volumeSlider.visualPosition * volumeSlider.availableWidth) - (width / 2)
+                            y: volumeSlider.topPadding + (volumeSlider.availableHeight / 2) - (height / 2)
+
+                            states: [
+                                State {
+                                    name: "dragging"
+                                    when: volumeSlider.pressed
+                                    PropertyChanges { target: outHandle; stretch: 1.2; popScale: 1.0 }
+                                }
+                            ]
+
+                            transitions: [
+                                Transition {
+                                    from: "dragging"
+                                    to: ""
+                                    SequentialAnimation {
+                                        ParallelAnimation {
+                                            NumberAnimation { target: outHandle; property: "stretch"; to: -0.4; duration: 100; easing.type: Easing.OutQuad }
+                                            NumberAnimation { target: outHandle; property: "popScale"; to: 1.25; duration: 100; easing.type: Easing.OutBack }
+                                        }
+                                        ParallelAnimation {
+                                            NumberAnimation { target: outHandle; property: "stretch"; to: 0.0; duration: 250; easing.type: Easing.OutBack }
+                                            NumberAnimation { target: outHandle; property: "popScale"; to: 1.0; duration: 250; easing.type: Easing.OutBack }
+                                        }
+                                    }
+                                }
+                            ]
+
+                            Connections {
+                                target: volumeSlider
+                                function onValueChanged() {
+                                    if (!volumeSlider.pressed) outExternalMorphAnim.restart()
+                                }
+                            }
+
+                            SequentialAnimation {
+                                id: outExternalMorphAnim
+                                ParallelAnimation {
+                                    NumberAnimation { target: outHandle; property: "stretch"; to: 1.2; duration: 120; easing.type: Easing.OutCubic }
+                                    NumberAnimation { target: outHandle; property: "popScale"; to: 1.0; duration: 120; easing.type: Easing.OutCubic }
+                                }
+                                ParallelAnimation {
+                                    NumberAnimation { target: outHandle; property: "stretch"; to: -0.4; duration: 100; easing.type: Easing.OutQuad }
+                                    NumberAnimation { target: outHandle; property: "popScale"; to: 1.25; duration: 100; easing.type: Easing.OutBack }
+                                }
+                                ParallelAnimation {
+                                    NumberAnimation { target: outHandle; property: "stretch"; to: 0.0; duration: 250; easing.type: Easing.OutBack }
+                                    NumberAnimation { target: outHandle; property: "popScale"; to: 1.0; duration: 250; easing.type: Easing.OutBack }
+                                }
+                            }
                         }
 
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
@@ -132,8 +195,7 @@ Item {
                         onMoved: {
                             audioModule.systemVolume = Math.round(value)
                             if (audioModule.isMuted) audioModule.isMuted = false
-                            volumeWriteProc.command = ["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", (value / 100).toFixed(2)]
-                            volumeWriteProc.running = true
+                            volWriteTimer.restart()
                         }
                     }
                 }
@@ -148,7 +210,7 @@ Item {
 
                         delegate: Rectangle {
                             Layout.fillWidth: true
-                            implicitHeight: 34
+                            implicitHeight: model.isDefault ? 38 : 34
                             radius: Config.cornerRadius / 2
                             color: model.isDefault ? Qt.rgba(255, 255, 255, 0.12) : (itemHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent")
                             border.color: model.isDefault ? Config.accent : "transparent"
@@ -165,7 +227,7 @@ Item {
                                     text: model.sinkName
                                     color: model.isDefault ? Config.accent : Config.textMain
                                     font.family: Config.sysFont
-                                    font.pixelSize: Config.size(Config.fontCaption)
+                                    font.pixelSize: model.isDefault ? Config.size(Config.fontBody) : Config.size(Config.fontCaption)
                                     font.bold: model.isDefault
                                     Layout.fillWidth: true
                                     elide: Text.ElideRight
@@ -174,7 +236,7 @@ Item {
                                 Text {
                                     text: "✓"
                                     font.family: Config.sysFont
-                                    font.pixelSize: Config.size(Config.fontCaption)
+                                    font.pixelSize: model.isDefault ? Config.size(Config.fontBody) : Config.size(Config.fontCaption)
                                     font.bold: true
                                     color: Config.accent
                                     visible: model.isDefault
@@ -246,7 +308,7 @@ Item {
                     Text {
                         text: audioModule.isInputMuted ? "mic_off" : "mic"
                         font.family: "Material Symbols Outlined"
-                        font.pixelSize: 18
+                        font.pixelSize: 24
                         color: Config.accent
 
                         TapHandler {
@@ -262,37 +324,102 @@ Item {
                     Slider {
                         id: micSlider
                         Layout.fillWidth: true
+                        implicitHeight: 32
                         leftPadding: 0
                         rightPadding: 0
+                        topPadding: 0
+                        bottomPadding: 0
                         from: 0
                         to: 100
                         value: audioModule.inputVolume
 
                         background: Rectangle {
                             x: micSlider.leftPadding
-                            y: micSlider.topPadding + micSlider.availableHeight / 2 - height / 2
-                            implicitWidth: 200
-                            implicitHeight: 4
+                            y: micSlider.topPadding + (micSlider.availableHeight / 2) - (height / 2)
                             width: micSlider.availableWidth
-                            height: implicitHeight
-                            radius: 2
-                            color: Qt.rgba(255, 255, 255, 0.1)
+                            height: 6
+                            radius: 3
+                            color: Qt.rgba(255, 255, 255, 0.12)
 
                             Rectangle {
                                 width: micSlider.visualPosition * parent.width
                                 height: parent.height
-                                color: Config.accent
-                                radius: 2
+                                color: audioModule.isInputMuted ? Config.textMuted : Config.accent
+                                radius: 3
                             }
                         }
 
                         handle: Rectangle {
-                            x: micSlider.leftPadding + micSlider.visualPosition * (micSlider.availableWidth - width)
-                            y: micSlider.topPadding + micSlider.availableHeight / 2 - height / 2
-                            implicitWidth: 12
-                            implicitHeight: 12
-                            radius: 6
+                            id: inHandle
+
+                            readonly property real baseWidth: 12
+                            readonly property real baseHeight: 24
+
+                            property real stretch: 0.0
+                            property real popScale: 1.0
+
+                            width: Math.max(8, baseWidth + (stretch * 18))
+                            height: Math.max(16, baseHeight - (stretch * 11.67))
+                            radius: height / 2
                             color: Config.textMain
+
+                            transform: Scale {
+                                origin.x: inHandle.width / 2
+                                origin.y: inHandle.height / 2
+                                xScale: inHandle.popScale
+                                yScale: inHandle.popScale
+                            }
+
+                            x: micSlider.leftPadding + (micSlider.visualPosition * micSlider.availableWidth) - (width / 2)
+                            y: micSlider.topPadding + (micSlider.availableHeight / 2) - (height / 2)
+
+                            states: [
+                                State {
+                                    name: "dragging"
+                                    when: micSlider.pressed
+                                    PropertyChanges { target: inHandle; stretch: 1.2; popScale: 1.0 }
+                                }
+                            ]
+
+                            transitions: [
+                                Transition {
+                                    from: "dragging"
+                                    to: ""
+                                    SequentialAnimation {
+                                        ParallelAnimation {
+                                            NumberAnimation { target: inHandle; property: "stretch"; to: -0.4; duration: 100; easing.type: Easing.OutQuad }
+                                            NumberAnimation { target: inHandle; property: "popScale"; to: 1.25; duration: 100; easing.type: Easing.OutBack }
+                                        }
+                                        ParallelAnimation {
+                                            NumberAnimation { target: inHandle; property: "stretch"; to: 0.0; duration: 250; easing.type: Easing.OutBack }
+                                            NumberAnimation { target: inHandle; property: "popScale"; to: 1.0; duration: 250; easing.type: Easing.OutBack }
+                                        }
+                                    }
+                                }
+                            ]
+
+                            Connections {
+                                target: micSlider
+                                function onValueChanged() {
+                                    if (!micSlider.pressed) inExternalMorphAnim.restart()
+                                }
+                            }
+
+                            SequentialAnimation {
+                                id: inExternalMorphAnim
+                                ParallelAnimation {
+                                    NumberAnimation { target: inHandle; property: "stretch"; to: 1.2; duration: 120; easing.type: Easing.OutCubic }
+                                    NumberAnimation { target: inHandle; property: "popScale"; to: 1.0; duration: 120; easing.type: Easing.OutCubic }
+                                }
+                                ParallelAnimation {
+                                    NumberAnimation { target: inHandle; property: "stretch"; to: -0.4; duration: 100; easing.type: Easing.OutQuad }
+                                    NumberAnimation { target: inHandle; property: "popScale"; to: 1.25; duration: 100; easing.type: Easing.OutBack }
+                                }
+                                ParallelAnimation {
+                                    NumberAnimation { target: inHandle; property: "stretch"; to: 0.0; duration: 250; easing.type: Easing.OutBack }
+                                    NumberAnimation { target: inHandle; property: "popScale"; to: 1.0; duration: 250; easing.type: Easing.OutBack }
+                                }
+                            }
                         }
 
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
@@ -300,8 +427,7 @@ Item {
                         onMoved: {
                             audioModule.inputVolume = Math.round(value)
                             if (audioModule.isInputMuted) audioModule.isInputMuted = false
-                            volumeWriteProc.command = ["wpctl", "set-volume", "@DEFAULT_AUDIO_SOURCE@", (value / 100).toFixed(2)]
-                            volumeWriteProc.running = true
+                            micWriteTimer.restart()
                         }
                     }
                 }
@@ -316,7 +442,7 @@ Item {
 
                         delegate: Rectangle {
                             Layout.fillWidth: true
-                            implicitHeight: 34
+                            implicitHeight: model.isDefault ? 38 : 34
                             radius: Config.cornerRadius / 2
                             color: model.isDefault ? Qt.rgba(255, 255, 255, 0.12) : (itemHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent")
                             border.color: model.isDefault ? Config.accent : "transparent"
@@ -333,7 +459,7 @@ Item {
                                     text: model.sourceName
                                     color: model.isDefault ? Config.accent : Config.textMain
                                     font.family: Config.sysFont
-                                    font.pixelSize: Config.size(Config.fontCaption)
+                                    font.pixelSize: model.isDefault ? Config.size(Config.fontBody) : Config.size(Config.fontCaption)
                                     font.bold: model.isDefault
                                     Layout.fillWidth: true
                                     elide: Text.ElideRight
@@ -342,7 +468,7 @@ Item {
                                 Text {
                                     text: "✓"
                                     font.family: Config.sysFont
-                                    font.pixelSize: Config.size(Config.fontCaption)
+                                    font.pixelSize: model.isDefault ? Config.size(Config.fontBody) : Config.size(Config.fontCaption)
                                     font.bold: true
                                     color: Config.accent
                                     visible: model.isDefault
@@ -364,6 +490,26 @@ Item {
     }
 
     // Backend Process Handlers
+    Timer {
+        id: volWriteTimer
+        interval: 30
+        repeat: false
+        onTriggered: {
+            volumeWriteProc.command = ["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", (volumeSlider.value / 100).toFixed(2)]
+            volumeWriteProc.running = true
+        }
+    }
+
+    Timer {
+        id: micWriteTimer
+        interval: 30
+        repeat: false
+        onTriggered: {
+            volumeWriteProc.command = ["wpctl", "set-volume", "@DEFAULT_AUDIO_SOURCE@", (micSlider.value / 100).toFixed(2)]
+            volumeWriteProc.running = true
+        }
+    }
+
     Timer {
         id: debounceAudioTimer
         interval: 150 
