@@ -10,11 +10,46 @@ Flickable {
     clip: true
     boundsBehavior: Flickable.StopAtBounds
 
+    // Custom Thicker Horizontal Slider with Dot Handle
+    component ThickHorizontalSlider : Slider {
+        id: slider
+        implicitHeight: 24
+
+        background: Rectangle {
+            x: slider.leftPadding
+            y: slider.topPadding + slider.availableHeight / 2 - height / 2
+            width: slider.availableWidth
+            implicitHeight: 6
+            height: implicitHeight
+            radius: 4
+            color: Qt.rgba(255, 255, 255, 0.1)
+
+            Rectangle {
+                width: slider.visualPosition * parent.width
+                height: parent.height
+                color: Config.accent
+                radius: 4
+            }
+        }
+
+        handle: Rectangle {
+            x: slider.leftPadding + slider.visualPosition * (slider.availableWidth - width)
+            y: slider.topPadding + slider.availableHeight / 2 - height / 2
+            implicitWidth: 16
+            implicitHeight: 16
+            radius: 8
+            color: slider.pressed ? Config.accent : Config.textMain
+        }
+    }
+
     ColumnLayout {
         id: mainColumn
         width: parent.width
-        spacing: 10
+        spacing: 12
 
+        // ==========================================
+        // GEOMETRY SECTION
+        // ==========================================
         Text {
             text: "UNIFIED SURFACE GEOMETRY"
             color: Config.textMuted
@@ -23,253 +58,113 @@ Flickable {
             font.bold: true
         }
 
-        // Section Grid for Geometries (Centering each column cleanly)
+        // --- Corners Slider ---
         RowLayout {
             Layout.fillWidth: true
-            spacing: 16
+            spacing: 12
 
-            // --- WING & CORNER RADIUS CONTROL ---
-            ColumnLayout {
-                Layout.preferredWidth: 1
-                Layout.fillWidth: true
-                spacing: 6
-
-                Text { 
-                    text: "Corners"
-                    color: Config.textMuted
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontMicro)
-                    font.bold: true
-                    Layout.alignment: Qt.AlignHCenter 
-                }
-
-                RowLayout {
-                    spacing: 6
-                    Layout.alignment: Qt.AlignHCenter
-
-                    // Minus Button
-                    Rectangle {
-                        implicitWidth: 24; implicitHeight: 24
-                        radius: 8
-                        color: minusHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.15)
-
-                        Text { 
-                            anchors.centerIn: parent 
-                            text: "-" 
-                            color: Config.accent
-                            font.bold: true 
-                            font.pixelSize: 16 
-                        }
-
-                        TapHandler { onTapped: Config.surfaceRadius = Math.max(0, Config.surfaceRadius - 1) }
-                        HoverHandler { id: minusHover; cursorShape: Qt.PointingHandCursor }
-                    }
-
-                    // Value Box
-                    Rectangle {
-                        implicitWidth: 48; implicitHeight: 32
-                        radius: 8
-                        color: Qt.rgba(0, 0, 0, 0.15)
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: Config.surfaceRadius.toString()
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontSubhead)
-                            font.bold: true
-                        }
-                    }
-
-                    // Plus Button
-                    Rectangle {
-                        implicitWidth: 24; implicitHeight: 24
-                        radius: 8
-                        color: plusHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.15)
-
-                        Text { 
-                            anchors.centerIn: parent 
-                            text: "+" 
-                            color: Config.accent
-                            font.bold: true 
-                            font.pixelSize: 16 
-                        }
-
-                        TapHandler { onTapped: Config.surfaceRadius = Config.surfaceRadius + 1 }
-                        HoverHandler { id: plusHover; cursorShape: Qt.PointingHandCursor }
-                    }
-                }
+            Text {
+                text: "Corners"
+                color: Config.textMain
+                font.family: Config.sysFont
+                font.pixelSize: Config.size(Config.fontCaption)
+                Layout.preferredWidth: 60
             }
 
-            // --- BORDER THICKNESS CONTROL (0-10) ---
-            ColumnLayout {
-                Layout.preferredWidth: 1
+            ThickHorizontalSlider {
+                id: cornersSlider
                 Layout.fillWidth: true
-                spacing: 6
-
-                Text { 
-                    text: "Border"
-                    color: Config.textMuted
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontMicro)
-                    font.bold: true
-                    Layout.alignment: Qt.AlignHCenter 
-                }
-
-                RowLayout {
-                    spacing: 6
-                    Layout.alignment: Qt.AlignHCenter
-
-                    // Minus Button
-                    Rectangle {
-                        implicitWidth: 24; implicitHeight: 24
-                        radius: 8
-                        color: bMinusHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.15)
-
-                        Text { 
-                            anchors.centerIn: parent 
-                            text: "-" 
-                            color: Config.accent
-                            font.bold: true 
-                            font.pixelSize: 16 
-                        }
-
-                        TapHandler { 
-                            onTapped: {
-                                let val = (Config.borderThickness !== undefined) ? Config.borderThickness : 3
-                                Config.borderThickness = Math.max(0, val - 1)
-                            } 
-                        }
-                        HoverHandler { id: bMinusHover; cursorShape: Qt.PointingHandCursor }
-                    }
-
-                    // Value Box (Raw Integer)
-                    Rectangle {
-                        implicitWidth: 48; implicitHeight: 32
-                        radius: 8
-                        color: Qt.rgba(0, 0, 0, 0.15)
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: ((Config.borderThickness !== undefined) ? Config.borderThickness : 3).toString()
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontSubhead)
-                            font.bold: true
-                        }
-                    }
-
-                    // Plus Button
-                    Rectangle {
-                        implicitWidth: 24; implicitHeight: 24
-                        radius: 8
-                        color: bPlusHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.15)
-
-                        Text { 
-                            anchors.centerIn: parent 
-                            text: "+" 
-                            color: Config.accent
-                            font.bold: true 
-                            font.pixelSize: 16 
-                        }
-
-                        TapHandler { 
-                            onTapped: {
-                                let val = (Config.borderThickness !== undefined) ? Config.borderThickness : 3
-                                Config.borderThickness = Math.min(10, val + 1)
-                            } 
-                        }
-                        HoverHandler { id: bPlusHover; cursorShape: Qt.PointingHandCursor }
-                    }
-                }
+                from: 0
+                to: 40
+                stepSize: 1
+                value: Config.surfaceRadius
+                onValueChanged: Config.surfaceRadius = value
             }
 
-            // --- MARGIN CONTROL (0-32) ---
-            ColumnLayout {
-                Layout.preferredWidth: 1
-                Layout.fillWidth: true
-                spacing: 6
-
-                Text { 
-                    text: "Margin"
-                    color: Config.textMuted
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontMicro)
-                    font.bold: true
-                    Layout.alignment: Qt.AlignHCenter 
-                }
-
-                RowLayout {
-                    spacing: 6
-                    Layout.alignment: Qt.AlignHCenter
-
-                    // Minus Button
-                    Rectangle {
-                        implicitWidth: 24; implicitHeight: 24
-                        radius: 8
-                        color: cMinusHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.15)
-
-                        Text { 
-                            anchors.centerIn: parent 
-                            text: "-" 
-                            color: Config.accent
-                            font.bold: true 
-                            font.pixelSize: 16 
-                        }
-
-                        TapHandler { 
-                            onTapped: {
-                                let val = (Config.cardMargin !== undefined) ? Config.cardMargin : 12
-                                Config.cardMargin = Math.max(0, val - 1)
-                            } 
-                        }
-                        HoverHandler { id: cMinusHover; cursorShape: Qt.PointingHandCursor }
-                    }
-
-                    // Value Box (Raw Integer, No "px")
-                    Rectangle {
-                        implicitWidth: 48; implicitHeight: 32
-                        radius: 8
-                        color: Qt.rgba(0, 0, 0, 0.15)
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: ((Config.cardMargin !== undefined) ? Config.cardMargin : 12).toString()
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontSubhead)
-                            font.bold: true
-                        }
-                    }
-
-                    // Plus Button
-                    Rectangle {
-                        implicitWidth: 24; implicitHeight: 24
-                        radius: 8
-                        color: cPlusHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.15)
-
-                        Text { 
-                            anchors.centerIn: parent 
-                            text: "+" 
-                            color: Config.accent
-                            font.bold: true 
-                            font.pixelSize: 16 
-                        }
-
-                        TapHandler { 
-                            onTapped: {
-                                let val = (Config.cardMargin !== undefined) ? Config.cardMargin : 12
-                                Config.cardMargin = Math.min(32, val + 1)
-                            } 
-                        }
-                        HoverHandler { id: cPlusHover; cursorShape: Qt.PointingHandCursor }
-                    }
-                }
+            Text {
+                text: Math.round(cornersSlider.value).toString()
+                color: Config.accent
+                font.family: Config.sysFont
+                font.bold: true
+                font.pixelSize: Config.size(Config.fontCaption)
+                horizontalAlignment: Text.AlignRight
+                Layout.preferredWidth: 36
             }
         }
 
-        Item { Layout.fillWidth: true }
+        // --- Border Slider ---
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 12
 
+            Text {
+                text: "Border"
+                color: Config.textMain
+                font.family: Config.sysFont
+                font.pixelSize: Config.size(Config.fontCaption)
+                Layout.preferredWidth: 60
+            }
+
+            ThickHorizontalSlider {
+                id: borderSlider
+                Layout.fillWidth: true
+                from: 0
+                to: 10
+                stepSize: 1
+                value: (Config.borderThickness !== undefined) ? Config.borderThickness : 3
+                onValueChanged: Config.borderThickness = value
+            }
+
+            Text {
+                text: Math.round(borderSlider.value).toString()
+                color: Config.accent
+                font.family: Config.sysFont
+                font.bold: true
+                font.pixelSize: Config.size(Config.fontCaption)
+                horizontalAlignment: Text.AlignRight
+                Layout.preferredWidth: 36
+            }
+        }
+
+        // --- Margin Slider ---
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 12
+
+            Text {
+                text: "Margin"
+                color: Config.textMain
+                font.family: Config.sysFont
+                font.pixelSize: Config.size(Config.fontCaption)
+                Layout.preferredWidth: 60
+            }
+
+            ThickHorizontalSlider {
+                id: marginSlider
+                Layout.fillWidth: true
+                from: 0
+                to: 32
+                stepSize: 1
+                value: (Config.cardMargin !== undefined) ? Config.cardMargin : 12
+                onValueChanged: Config.cardMargin = value
+            }
+
+            Text {
+                text: Math.round(marginSlider.value).toString()
+                color: Config.accent
+                font.family: Config.sysFont
+                font.bold: true
+                font.pixelSize: Config.size(Config.fontCaption)
+                horizontalAlignment: Text.AlignRight
+                Layout.preferredWidth: 36
+            }
+        }
+
+        Item { implicitHeight: 4 }
+
+        // ==========================================
+        // THEMES & COLORS SECTION
+        // ==========================================
         Text {
             text: "THEMES & COLORS"
             color: Config.textMuted
@@ -278,7 +173,7 @@ Flickable {
             font.bold: true
         }
 
-        // Gradient, Blur, and Xray Controls
+        // Theme Toggles (Gradient, Blur, Xray)
         RowLayout {
             id: themeControlsRow
             Layout.fillWidth: true
@@ -292,16 +187,16 @@ Flickable {
                 Rectangle {
                     implicitWidth: 18; implicitHeight: 18; radius: 4
                     color: (themeControlsRow.hasBorders && Config.animateGradient) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                    
-                    Text { 
-                        anchors.centerIn: parent 
-                        text: "✓" 
-                        color: Config.bgBase 
-                        visible: themeControlsRow.hasBorders && Config.animateGradient 
-                        font.pixelSize: 11 
-                        font.bold: true 
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "✓"
+                        color: Config.bgBase
+                        visible: themeControlsRow.hasBorders && Config.animateGradient
+                        font.pixelSize: 11
+                        font.bold: true
                     }
-                    
+
                     TapHandler { onTapped: { if (themeControlsRow.hasBorders) Config.animateGradient = !Config.animateGradient } }
                     HoverHandler { cursorShape: Qt.PointingHandCursor }
                 }
@@ -334,55 +229,40 @@ Flickable {
             }
         }
 
-        // Opacity Slider Block
+        // --- Opacity Slider ---
         RowLayout {
             Layout.fillWidth: true
-            spacing: 8
+            spacing: 12
 
-            Text { 
+            Text {
                 text: "Opacity"
                 color: Config.textMain
                 font.family: Config.sysFont
-                font.pixelSize: Config.size(Config.fontCaption) 
+                font.pixelSize: Config.size(Config.fontCaption)
+                Layout.preferredWidth: 60
             }
 
-            Slider {
+            ThickHorizontalSlider {
                 id: opacitySlider
                 Layout.fillWidth: true
                 from: 0.1
                 to: 1.0
                 value: Config.shellOpacity
                 onValueChanged: Config.shellOpacity = value
+            }
 
-                background: Rectangle {
-                    x: opacitySlider.leftPadding
-                    y: opacitySlider.topPadding + opacitySlider.availableHeight / 2 - height / 2
-                    implicitWidth: 100
-                    implicitHeight: 4
-                    width: opacitySlider.availableWidth
-                    height: implicitHeight
-                    radius: 2
-                    color: Qt.rgba(255, 255, 255, 0.1)
-
-                    Rectangle {
-                        width: opacitySlider.visualPosition * parent.width
-                        height: parent.height
-                        color: Config.accent
-                        radius: 2
-                    }
-                }
-
-                handle: Rectangle {
-                    x: opacitySlider.leftPadding + opacitySlider.visualPosition * (opacitySlider.availableWidth - width)
-                    y: opacitySlider.topPadding + opacitySlider.availableHeight / 2 - height / 2
-                    implicitWidth: 14
-                    implicitHeight: 14
-                    radius: 7
-                    color: opacitySlider.pressed ? Config.accent : Config.textMain
-                }
+            Text {
+                text: Math.round(opacitySlider.value * 100) + "%"
+                color: Config.accent
+                font.family: Config.sysFont
+                font.bold: true
+                font.pixelSize: Config.size(Config.fontCaption)
+                horizontalAlignment: Text.AlignRight
+                Layout.preferredWidth: 36
             }
         }
 
+        // Palette Header
         RowLayout {
             Layout.fillWidth: true
             spacing: 4
@@ -414,7 +294,7 @@ Flickable {
             Item { Layout.fillWidth: true }
         }
 
-        // EQUAL SPACING PALETTE GRID
+        // Original 10-Column Palette Grid
         Item {
             Layout.fillWidth: true
             implicitHeight: paletteGrid.implicitHeight
@@ -433,7 +313,7 @@ Flickable {
                         let cols = 10
                         let remainder = total % cols
                         let dummyCount = remainder === 0 ? 0 : (cols - remainder)
-                        
+
                         let list = []
                         for (let i = 0; i < total; i++) {
                             list.push({ theme: Config.themes[i], realIndex: i, isDummy: false })
@@ -481,10 +361,10 @@ Flickable {
                                 }
                             }
 
-                            HoverHandler { 
+                            HoverHandler {
                                 id: hover
                                 enabled: !isDummy
-                                cursorShape: Qt.PointingHandCursor 
+                                cursorShape: Qt.PointingHandCursor
                             }
 
                             Rectangle {
@@ -515,6 +395,7 @@ Flickable {
             }
         }
 
+        // Custom Hex Overrides Header
         RowLayout {
             Layout.fillWidth: true
 
@@ -544,6 +425,7 @@ Flickable {
             }
         }
 
+        // Custom Hex Inputs
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
@@ -656,6 +538,7 @@ Flickable {
             }
         }
 
+        // Save Palette Controls
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
