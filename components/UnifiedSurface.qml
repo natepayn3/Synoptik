@@ -54,11 +54,9 @@ PanelWindow {
     readonly property real inH: actualScreenHeight - padT - padB
     readonly property real inRadi: Math.max(0.1, frameRadius)
 
-    readonly property real outerPadding: 16
-    readonly property real barSidePadding: 0 // Gap facing the bar
-
+    // Calculate natural child width from loaded modules
     readonly property real rawChildWidth: {
-        let baseW = 420
+        let baseW = 340
         if (root.activeView === "osd") {
             baseW = volumeOsdModule.implicitWidth
         } else if (root.activeView === "notifOsd") {
@@ -73,9 +71,10 @@ PanelWindow {
                 }
             }
         }
-        return isHorizontal ? (baseW + (outerPadding * 2)) : (baseW + outerPadding + barSidePadding)
+        return baseW
     }
 
+    // Calculate natural child height from loaded modules
     readonly property real rawChildHeight: {
         let baseH = 480
         if (root.activeView === "osd") {
@@ -92,7 +91,7 @@ PanelWindow {
                 }
             }
         }
-        return isHorizontal ? (baseH + outerPadding + barSidePadding) : (baseH + (outerPadding * 2))
+        return baseH
     }
 
     property real lastOpenWidth: rawChildWidth
@@ -131,10 +130,11 @@ PanelWindow {
     readonly property real borderWidth: Config.borderThickness !== undefined ? Config.borderThickness : 3
     readonly property real halfB: borderWidth / 2.0
 
-    readonly property real leftBarRx: inX + wingW + currentWidth
-    readonly property real rightBarPopL: inX + inW - wingW - currentWidth
-    readonly property real topBarPopB: inY + wingH + currentHeight
-    readonly property real bottomBarPopT: inY + inH - wingH - currentHeight
+    // Exact outer boundaries without adding extra wing spans
+    readonly property real leftBarRx: inX + currentWidth
+    readonly property real rightBarPopL: inX + inW - currentWidth
+    readonly property real topBarPopB: inY + currentHeight
+    readonly property real bottomBarPopT: inY + inH - currentHeight
 
     anchors {
         top: barPosition === "top" || !isHorizontal
@@ -460,10 +460,10 @@ PanelWindow {
                     PathArc { x: root.barH - root.halfB; y: root.isLeftFlush ? root.halfB : (root.halfB + root.barRadius); radiusX: root.isLeftFlush ? 0 : root.barRadius; radiusY: root.isLeftFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
                     PathLine { x: root.barH - root.halfB; y: root.isLeftFlush ? root.pLeft : (root.pLeft - root.wingW) }
                     PathCubic { x: root.barH - root.halfB + root.wingW; y: root.pLeft; control1X: root.barH - root.halfB; control1Y: root.isLeftFlush ? root.pLeft : (root.pLeft - (root.wingW * 0.5)); control2X: root.barH - root.halfB + (root.wingW * 0.5); control2Y: root.pLeft }
-                    PathLine { x: root.barH - root.halfB + root.wingW + root.currentWidth - root.radius; y: root.pLeft }
-                    PathArc { x: root.barH - root.halfB + root.wingW + root.currentWidth; y: root.pLeft + root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
-                    PathLine { x: root.barH - root.halfB + root.wingW + root.currentWidth; y: root.pRight - root.radius }
-                    PathArc { x: root.barH - root.halfB + root.wingW + root.currentWidth - root.radius; y: root.pRight; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
+                    PathLine { x: root.barH - root.halfB + root.currentWidth - root.radius; y: root.pLeft }
+                    PathArc { x: root.barH - root.halfB + root.currentWidth; y: root.pLeft + root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
+                    PathLine { x: root.barH - root.halfB + root.currentWidth; y: root.pRight - root.radius }
+                    PathArc { x: root.barH - root.halfB + root.currentWidth - root.radius; y: root.pRight; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
                     PathLine { x: root.barH - root.halfB + root.wingW; y: root.pRight }
                     PathCubic { x: root.barH - root.halfB; y: root.isRightFlush ? root.pRight : (root.pRight + root.wingW); control1X: root.barH - root.halfB + (root.wingW * 0.5); control1Y: root.pRight; control2X: root.barH - root.halfB; control2Y: root.isRightFlush ? root.pRight : (root.pRight + (root.wingW * 0.5)) }
                     PathLine { x: root.barH - root.halfB; y: root.isRightFlush ? (mainContainer.height - root.halfB) : (mainContainer.height - root.halfB - root.barRadius) }
@@ -491,14 +491,14 @@ PanelWindow {
                     startY: root.halfB
                     PathLine { x: mainContainer.width - root.halfB - root.barRadius; y: root.halfB }
                     PathArc { x: mainContainer.width - root.halfB; y: root.halfB + root.barRadius; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
-                    PathLine { x: mainContainer.width - root.halfB; y: root.isRightFlush ? (root.barBottomY + root.wingH + root.currentHeight - root.radius) : (root.barBottomY - root.barRadius) }
-                    PathArc { x: root.isRightFlush ? (mainContainer.width - root.halfB) : (mainContainer.width - root.halfB - root.barRadius); y: root.isRightFlush ? (root.barBottomY + root.wingH + root.currentHeight - root.radius) : root.barBottomY; radiusX: root.isRightFlush ? 0 : root.barRadius; radiusY: root.isRightFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
-                    PathLine { x: root.isRightFlush ? (mainContainer.width - root.halfB) : (root.pRight + root.wingW); y: root.isRightFlush ? (root.barBottomY + root.wingH + root.currentHeight - root.radius) : root.barBottomY }
-                    PathCubic { x: root.isRightFlush ? (mainContainer.width - root.halfB) : root.pRight; y: root.isRightFlush ? (root.barBottomY + root.wingH + root.currentHeight - root.radius) : (root.barBottomY + root.wingH); control1X: root.isRightFlush ? (mainContainer.width - root.halfB) : (root.pRight + (root.wingW * 0.5)); control1Y: root.isRightFlush ? (root.barBottomY + root.wingH + root.currentHeight - root.radius) : root.barBottomY; control2X: root.isRightFlush ? (mainContainer.width - root.halfB) : root.pRight; control2Y: root.isRightFlush ? (root.barBottomY + root.wingH + root.currentHeight - root.radius) : (root.barBottomY + (root.wingH * 0.5)) }
-                    PathLine { x: root.isRightFlush ? (mainContainer.width - root.halfB) : root.pRight; y: root.barBottomY + root.wingH + root.currentHeight - root.radius }
-                    PathArc { x: root.isRightFlush ? (mainContainer.width - root.halfB - root.radius) : (root.pRight - root.radius); y: root.barBottomY + root.wingH + root.currentHeight; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
-                    PathLine { x: root.isLeftFlush ? (root.halfB + root.radius) : (root.pLeft + root.radius); y: root.barBottomY + root.wingH + root.currentHeight }
-                    PathArc { x: root.isLeftFlush ? root.halfB : root.pLeft; y: root.barBottomY + root.wingH + root.currentHeight - root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
+                    PathLine { x: mainContainer.width - root.halfB; y: root.isRightFlush ? (root.barBottomY + root.currentHeight - root.radius) : (root.barBottomY - root.barRadius) }
+                    PathArc { x: root.isRightFlush ? (mainContainer.width - root.halfB) : (mainContainer.width - root.halfB - root.barRadius); y: root.isRightFlush ? (root.barBottomY + root.currentHeight - root.radius) : root.barBottomY; radiusX: root.isRightFlush ? 0 : root.barRadius; radiusY: root.isRightFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
+                    PathLine { x: root.isRightFlush ? (mainContainer.width - root.halfB) : (root.pRight + root.wingW); y: root.isRightFlush ? (root.barBottomY + root.currentHeight - root.radius) : root.barBottomY }
+                    PathCubic { x: root.isRightFlush ? (mainContainer.width - root.halfB) : root.pRight; y: root.isRightFlush ? (root.barBottomY + root.currentHeight - root.radius) : (root.barBottomY + root.wingH); control1X: root.isRightFlush ? (mainContainer.width - root.halfB) : (root.pRight + (root.wingW * 0.5)); control1Y: root.isRightFlush ? (root.barBottomY + root.currentHeight - root.radius) : root.barBottomY; control2X: root.isRightFlush ? (mainContainer.width - root.halfB) : root.pRight; control2Y: root.isRightFlush ? (root.barBottomY + root.currentHeight - root.radius) : (root.barBottomY + (root.wingH * 0.5)) }
+                    PathLine { x: root.isRightFlush ? (mainContainer.width - root.halfB) : root.pRight; y: root.barBottomY + root.currentHeight - root.radius }
+                    PathArc { x: root.isRightFlush ? (mainContainer.width - root.halfB - root.radius) : (root.pRight - root.radius); y: root.barBottomY + root.currentHeight; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
+                    PathLine { x: root.isLeftFlush ? (root.halfB + root.radius) : (root.pLeft + root.radius); y: root.barBottomY + root.currentHeight }
+                    PathArc { x: root.isLeftFlush ? root.halfB : root.pLeft; y: root.barBottomY + root.currentHeight - root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
                     PathLine { x: root.isLeftFlush ? root.halfB : root.pLeft; y: root.isLeftFlush ? (root.halfB + root.barRadius) : (root.barBottomY + root.wingH) }
                     PathCubic { x: root.isLeftFlush ? root.halfB : (root.pLeft - root.wingW); y: root.isLeftFlush ? (root.halfB + root.barRadius) : root.barBottomY; control1X: root.isLeftFlush ? root.halfB : root.pLeft; control1Y: root.isLeftFlush ? (root.halfB + root.barRadius) : (root.barBottomY + (root.wingH * 0.5)); control2X: root.isLeftFlush ? root.halfB : (root.pLeft - (root.wingW * 0.5)); control2Y: root.isLeftFlush ? root.barBottomY : root.barBottomY }
                     PathLine { x: root.isLeftFlush ? root.halfB : (root.halfB + root.barRadius); y: root.isLeftFlush ? (root.halfB + root.barRadius) : root.barBottomY }
@@ -526,10 +526,10 @@ PanelWindow {
                     PathArc { x: root.halfB + (root.isLeftFlush ? 0 : root.barRadius); y: openShapeBottomFloating.barTopY; radiusX: root.isLeftFlush ? 0 : root.barRadius; radiusY: root.isLeftFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
                     PathLine { x: root.isLeftFlush ? root.halfB : (root.pLeft - root.wingW); y: openShapeBottomFloating.barTopY }
                     PathCubic { x: root.pLeft; y: root.isLeftFlush ? openShapeBottomFloating.barTopY : (openShapeBottomFloating.barTopY - root.wingH); control1X: root.isLeftFlush ? root.halfB : (root.pLeft - (root.wingW * 0.5)); control1Y: openShapeBottomFloating.barTopY; control2X: root.pLeft; control2Y: root.isLeftFlush ? openShapeBottomFloating.barTopY : (openShapeBottomFloating.barTopY - (root.wingH * 0.5)) }
-                    PathLine { x: root.pLeft; y: openShapeBottomFloating.barTopY - root.wingH - root.currentHeight + root.radius }
-                    PathArc { x: root.pLeft + root.radius; y: openShapeBottomFloating.barTopY - root.wingH - root.currentHeight; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
-                    PathLine { x: root.pRight - root.radius; y: openShapeBottomFloating.barTopY - root.wingH - root.currentHeight }
-                    PathArc { x: root.pRight; y: openShapeBottomFloating.barTopY - root.wingH - root.currentHeight + root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
+                    PathLine { x: root.pLeft; y: openShapeBottomFloating.barTopY - root.currentHeight + root.radius }
+                    PathArc { x: root.pLeft + root.radius; y: openShapeBottomFloating.barTopY - root.currentHeight; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
+                    PathLine { x: root.pRight - root.radius; y: openShapeBottomFloating.barTopY - root.currentHeight }
+                    PathArc { x: root.pRight; y: openShapeBottomFloating.barTopY - root.currentHeight + root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
                     PathLine { x: root.pRight; y: root.isRightFlush ? openShapeBottomFloating.barTopY : (openShapeBottomFloating.barTopY - root.wingH) }
                     PathCubic { x: root.isRightFlush ? (mainContainer.width - root.halfB) : (root.pRight + root.wingW); y: openShapeBottomFloating.barTopY; control1X: root.pRight; control1Y: root.isRightFlush ? openShapeBottomFloating.barTopY : (openShapeBottomFloating.barTopY - (root.wingH * 0.5)); control2X: root.isRightFlush ? (mainContainer.width - root.halfB) : (root.pRight + (root.wingW * 0.5)); control2Y: openShapeBottomFloating.barTopY }
                     PathLine { x: root.isRightFlush ? (mainContainer.width - root.halfB) : (mainContainer.width - root.halfB - root.barRadius); y: openShapeBottomFloating.barTopY }
@@ -565,10 +565,10 @@ PanelWindow {
                     PathArc { x: openShapeRightFloating.rX + root.halfB; y: mainContainer.height - root.halfB - (root.isRightFlush ? 0 : root.barRadius); radiusX: root.isRightFlush ? 0 : root.barRadius; radiusY: root.isRightFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
                     PathLine { x: openShapeRightFloating.rX + root.halfB; y: root.isRightFlush ? (mainContainer.height - root.halfB) : (root.pRight + root.wingW) }
                     PathCubic { x: root.isRightFlush ? (openShapeRightFloating.rX + root.halfB) : (openShapeRightFloating.rX + root.halfB - root.wingW); y: root.pRight; control1X: openShapeRightFloating.rX + root.halfB; control1Y: root.isRightFlush ? (mainContainer.height - root.halfB) : (root.pRight + (root.wingW * 0.5)); control2X: root.isRightFlush ? (openShapeRightFloating.rX + root.halfB) : (openShapeRightFloating.rX + root.halfB - (root.wingW * 0.5)); control2Y: root.pRight }
-                    PathLine { x: openShapeRightFloating.rX + root.halfB - root.wingW - root.currentWidth + root.radius; y: root.pRight }
-                    PathArc { x: openShapeRightFloating.rX + root.halfB - root.wingW - root.currentWidth; y: root.pRight - root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
-                    PathLine { x: openShapeRightFloating.rX + root.halfB - root.wingW - root.currentWidth; y: root.pLeft + root.radius }
-                    PathArc { x: openShapeRightFloating.rX + root.halfB - root.wingW - root.currentWidth + root.radius; y: root.pLeft; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
+                    PathLine { x: openShapeRightFloating.rX + root.halfB - root.currentWidth + root.radius; y: root.pRight }
+                    PathArc { x: openShapeRightFloating.rX + root.halfB - root.currentWidth; y: root.pRight - root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
+                    PathLine { x: openShapeRightFloating.rX + root.halfB - root.currentWidth; y: root.pLeft + root.radius }
+                    PathArc { x: openShapeRightFloating.rX + root.halfB - root.currentWidth + root.radius; y: root.pLeft; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
                     PathLine { x: root.isLeftFlush ? (openShapeRightFloating.rX + root.halfB) : (openShapeRightFloating.rX + root.halfB - root.wingW); y: root.pLeft }
                     
                     PathCubic { 
@@ -595,10 +595,7 @@ PanelWindow {
                 Rectangle { x: 0; y: root.inY; width: root.inX; height: root.inH; color: Config.bgPanel }
                 Rectangle { x: root.inX + root.inW; y: root.inY; width: mainContainer.width - (root.inX + root.inW); height: root.inH; color: Config.bgPanel }
 
-                Loader {
-                    anchors.fill: parent
-                    sourceComponent: screenFrameCorners
-                }
+                Loader { anchors.fill: parent; sourceComponent: screenFrameCorners }
 
                 Shape {
                     anchors.fill: parent
@@ -1207,24 +1204,23 @@ PanelWindow {
             }
         }
 
+        // CONTENT CONTAINER (Starts flush at bar boundary)
         Item {
             id: contentContainer
             
-            readonly property real outerPadding: root.outerPadding
-            readonly property real barSidePadding: root.barSidePadding
-
             x: {
                 if (isHorizontal) {
-                    return root.pLeft + outerPadding
+                    return root.pLeft
                 } else {
                     if (isRight) {
                         return isScreenFrame 
-                            ? (root.rightBarPopL + outerPadding) 
-                            : (mainContainer.width - root.barH - root.wingW - root.currentWidth + outerPadding)
+                            ? root.rightBarPopL 
+                            : (mainContainer.width - root.barH - root.currentWidth)
                     } else {
+                        // Start content directly at the bar edge
                         return isScreenFrame 
-                            ? (root.inX + root.wingW + barSidePadding) 
-                            : (root.barH + root.wingW + barSidePadding)
+                            ? root.inX 
+                            : root.barH
                     }
                 }
             }
@@ -1233,25 +1229,21 @@ PanelWindow {
                 if (isHorizontal) {
                     if (isBottom) {
                         return isScreenFrame 
-                            ? (root.bottomBarPopT + outerPadding) 
-                            : (mainContainer.height - root.barH - root.wingH - root.currentHeight + outerPadding)
+                            ? root.bottomBarPopT 
+                            : (mainContainer.height - root.barH - root.currentHeight)
                     } else {
+                        // Start content directly at the bar edge
                         return isScreenFrame 
-                            ? (root.topBarPopB - root.currentHeight + barSidePadding) 
-                            : (root.barH + root.wingH + barSidePadding)
+                            ? root.inY 
+                            : root.barH
                     }
                 } else {
-                    return root.pLeft + outerPadding
+                    return root.pLeft
                 }
             }
 
-            width: isHorizontal 
-                ? Math.max(1, root.currentWidth - (outerPadding * 2)) 
-                : Math.max(1, root.currentWidth - outerPadding - barSidePadding)
-
-            height: isHorizontal 
-                ? Math.max(1, root.currentHeight - outerPadding - barSidePadding) 
-                : Math.max(1, root.currentHeight - (outerPadding * 2))
+            width: root.currentWidth
+            height: root.currentHeight
             
             clip: true
             visible: root.progress >= 0.98

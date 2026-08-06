@@ -7,8 +7,11 @@ import Quickshell.Io
 Item {
     id: audioModule
 
-    implicitWidth: Config.isVertical ? (parent ? parent.width : 360) : 360
-    implicitHeight: mainLayout.implicitHeight + 24
+    readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
+
+    // Pure content-driven size derived from mainLayout
+    implicitWidth: mainLayout.implicitWidth + (cardMargin * 2)
+    implicitHeight: mainLayout.implicitHeight + (cardMargin * 2)
 
     property int systemVolume: 50
     property bool isMuted: false
@@ -18,15 +21,17 @@ Item {
     ColumnLayout {
         id: mainLayout
         anchors.fill: parent
-        anchors.margins: 12
-        spacing: 12
+        anchors.margins: audioModule.cardMargin
+        spacing: audioModule.cardMargin
 
         // ==========================================
         // CARD 1: AUDIO OUTPUT
         // ==========================================
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: outputLayout.implicitHeight + 24
+            // Baseline card width enables mainLayout to calculate implicitWidth
+            implicitWidth: 360 
+            implicitHeight: outputLayout.implicitHeight + (audioModule.cardMargin * 2)
             color: outputCardHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.05)
             radius: Config.cornerRadius
             clip: true
@@ -37,9 +42,11 @@ Item {
 
             ColumnLayout {
                 id: outputLayout
-                anchors.fill: parent
-                anchors.margins: 12
-                spacing: 12
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: audioModule.cardMargin
+                spacing: audioModule.cardMargin
 
                 // Audio Output Header
                 RowLayout {
@@ -66,7 +73,7 @@ Item {
                 // Output Slider Block
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 12
+                    spacing: audioModule.cardMargin
 
                     Text {
                         text: audioModule.isMuted ? "volume_off" : "volume_up"
@@ -192,8 +199,8 @@ Item {
         // ==========================================
         Rectangle {
             Layout.fillWidth: true
-            // Restored the + 24 height buffer for inner margins
-            implicitHeight: inputLayout.implicitHeight + 24
+            implicitWidth: 360
+            implicitHeight: inputLayout.implicitHeight + (audioModule.cardMargin * 2)
             color: inputCardHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.05)
             radius: Config.cornerRadius
 
@@ -203,9 +210,11 @@ Item {
 
             ColumnLayout {
                 id: inputLayout
-                anchors.fill: parent
-                anchors.margins: 12
-                spacing: 12
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: audioModule.cardMargin
+                spacing: audioModule.cardMargin
 
                 // Audio Input Header
                 RowLayout {
@@ -232,7 +241,7 @@ Item {
                 // Input Slider Block
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 12
+                    spacing: audioModule.cardMargin
 
                     Text {
                         text: audioModule.isInputMuted ? "mic_off" : "mic"

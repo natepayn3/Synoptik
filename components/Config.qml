@@ -52,6 +52,7 @@ QtObject {
     // --- UNIFIED SURFACE GEOMETRY ---
     property real surfaceRadius: 18.0
     property int borderThickness: 3
+    property real cardMargin: 12.0
 
     onSurfaceRadiusChanged: { if (isLoaded) saveSettings() }
     onBorderThicknessChanged: {
@@ -60,6 +61,7 @@ QtObject {
             saveSettings()
         }
     }
+    onCardMarginChanged: { if (isLoaded) saveSettings() }
 
     // Backward-compatibility aliases
     readonly property real cornerRadius: surfaceRadius
@@ -798,6 +800,7 @@ QtObject {
 
                 "surfaceRadius": root.surfaceRadius,
                 "borderThickness": root.borderThickness,
+                "cardMargin": root.cardMargin,
 
                 "showDesktopClock": root.showDesktopClock,
                 "clockStyle": root.clockStyle,
@@ -839,7 +842,7 @@ QtObject {
                             "barFrameStyle", "barPosition", "showScreenFrame", "sysFont", "fontScaleIndex", "locationQuery",
                             "enabledBarScreens", "useCustomColors", "customBgBase", "customBgPanel",
                             "customAccent", "showBorders", "animateGradient", "shellOpacity", "enableBlur",
-                            "enableXray", "surfaceRadius", "borderThickness", "showDesktopClock", "clockStyle", "clockScale", 
+                            "enableXray", "surfaceRadius", "borderThickness", "cardMargin", "showDesktopClock", "clockStyle", "clockScale", 
                             "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", 
                             "clockShowBackground", "clockPositions", "clockScales", "enabledClockScreens",
                             "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons"
