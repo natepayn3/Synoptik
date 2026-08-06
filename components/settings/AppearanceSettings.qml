@@ -26,7 +26,7 @@ Flickable {
         // Section Grid for Geometries (Centering each column cleanly)
         RowLayout {
             Layout.fillWidth: true
-            spacing: 24
+            spacing: 16
 
             // --- WING & CORNER RADIUS CONTROL ---
             ColumnLayout {
@@ -101,7 +101,7 @@ Flickable {
                 }
             }
 
-            // --- BORDER THICKNESS CONTROL (0-5) ---
+            // --- BORDER THICKNESS CONTROL (0-10) ---
             ColumnLayout {
                 Layout.preferredWidth: 1
                 Layout.fillWidth: true
@@ -180,6 +180,89 @@ Flickable {
                             } 
                         }
                         HoverHandler { id: bPlusHover; cursorShape: Qt.PointingHandCursor }
+                    }
+                }
+            }
+
+            // --- CARD MARGIN CONTROL (0-32) ---
+            ColumnLayout {
+                Layout.preferredWidth: 1
+                Layout.fillWidth: true
+                spacing: 6
+
+                Text { 
+                    text: "Card Margin"
+                    color: Config.textMuted
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontMicro)
+                    font.bold: true
+                    Layout.alignment: Qt.AlignHCenter 
+                }
+
+                RowLayout {
+                    spacing: 6
+                    Layout.alignment: Qt.AlignHCenter
+
+                    // Minus Button
+                    Rectangle {
+                        implicitWidth: 24; implicitHeight: 24
+                        radius: 8
+                        color: cMinusHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.15)
+
+                        Text { 
+                            anchors.centerIn: parent 
+                            text: "-" 
+                            color: Config.accent
+                            font.bold: true 
+                            font.pixelSize: 16 
+                        }
+
+                        TapHandler { 
+                            onTapped: {
+                                let val = (Config.cardMargin !== undefined) ? Config.cardMargin : 12
+                                Config.cardMargin = Math.max(0, val - 1)
+                            } 
+                        }
+                        HoverHandler { id: cMinusHover; cursorShape: Qt.PointingHandCursor }
+                    }
+
+                    // Value Box (Raw Integer, No "px")
+                    Rectangle {
+                        implicitWidth: 48; implicitHeight: 32
+                        radius: 8
+                        color: Qt.rgba(0, 0, 0, 0.15)
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: ((Config.cardMargin !== undefined) ? Config.cardMargin : 12).toString()
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontSubhead)
+                            font.bold: true
+                        }
+                    }
+
+                    // Plus Button
+                    Rectangle {
+                        implicitWidth: 24; implicitHeight: 24
+                        radius: 8
+                        color: cPlusHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.15)
+
+                        Text { 
+                            anchors.centerIn: parent 
+                            text: "+" 
+                            color: Config.accent
+                            font.bold: true 
+                            font.pixelSize: 16 
+                        }
+
+                        TapHandler { 
+                            onTapped: {
+                                let val = (Config.cardMargin !== undefined) ? Config.cardMargin : 12
+                                Config.cardMargin = Math.min(32, val + 1)
+                            } 
+                        }
+                        HoverHandler { id: cPlusHover; cursorShape: Qt.PointingHandCursor }
                     }
                 }
             }
