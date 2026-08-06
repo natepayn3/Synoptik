@@ -343,7 +343,7 @@ PanelWindow {
             },
             Transition {
                 from: "open"; to: "closed"
-                NumberAnimation { target: root; property: "progress"; duration: 300; easing.type: Easing.InBack; easing.overshoot: 1.6 }
+                NumberAnimation { target: root; property: "progress"; duration: 500; easing.type: Easing.InBack; easing.overshoot: 1.6 }
             }
         ]
 
