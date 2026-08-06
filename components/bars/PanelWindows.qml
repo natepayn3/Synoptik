@@ -126,7 +126,8 @@ PanelWindow {
     readonly property real wingH: (Config.surfaceRadius || 18) * animScale
     readonly property real radius: Math.max(0.1, (Config.surfaceRadius || 18) * animScale)
 
-    readonly property real borderWidth: Config.borderThickness !== undefined ? Config.borderThickness : 3
+    // Ensure double-casting safely falls back to double value (0.0 or valid number)
+    readonly property real borderWidth: (Config.borderThickness !== undefined && Config.borderThickness !== null) ? Number(Config.borderThickness) : 0.0
     readonly property real halfB: borderWidth / 2.0
 
     readonly property real leftBarRx: inX + currentWidth
@@ -355,7 +356,6 @@ PanelWindow {
             anchors.fill: parent
         }
 
-        // BAR CONTROLS
         Item {
             id: barContent
             x: root.isRight ? (mainContainer.width - root.barH + Math.floor(root.halfB)) : Math.floor(root.halfB)
