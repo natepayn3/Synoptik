@@ -228,7 +228,7 @@ Item {
                     Rectangle {
                         id: toggleLine
 
-                        readonly property real baseWidth: 16
+                        readonly property real baseWidth: 12
                         readonly property real baseHeight: 30
 
                         property real stretch: 0.0
