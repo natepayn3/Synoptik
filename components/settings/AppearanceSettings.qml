@@ -15,6 +15,10 @@ Flickable {
         id: slider
         implicitHeight: 24
 
+        HoverHandler {
+            cursorShape: Qt.PointingHandCursor
+        }
+
         background: Rectangle {
             x: slider.leftPadding
             y: slider.topPadding + slider.availableHeight / 2 - height / 2
