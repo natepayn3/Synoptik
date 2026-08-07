@@ -126,7 +126,6 @@ PanelWindow {
     readonly property real wingH: (Config.surfaceRadius || 18) * animScale
     readonly property real radius: Math.max(0.1, (Config.surfaceRadius || 18) * animScale)
 
-    // Ensure double-casting safely falls back to double value (0.0 or valid number)
     readonly property real borderWidth: (Config.borderThickness !== undefined && Config.borderThickness !== null) ? Number(Config.borderThickness) : 0.0
     readonly property real halfB: borderWidth / 2.0
 
@@ -222,8 +221,8 @@ PanelWindow {
         let isFocused = !screen || screen.name === (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : "")
 
         if (isFocused) {
-            if (typeof Config.showOSD !== "undefined" && Config.showOSD) nextView = "osd"
-            else if (typeof Config.showNotificationOsd !== "undefined" && Config.showNotificationOsd) nextView = "notifOsd"
+            // Drawers take priority so an open drawer won't close when volume/notification OSDs trigger
+            if (Config.showSettings) nextView = "settings"
             else if (Config.showWorkspacePreview) nextView = "workspacePreview"
             else if (Config.showPower) nextView = "power"
             else if (Config.showWallpaper) nextView = "wallpaper"
@@ -237,6 +236,9 @@ PanelWindow {
             else if (Config.showClipboard) nextView = "clipboard"
             else if (Config.showScreenRecorder) nextView = "screenRecorder"
             else if (Config.showControlCenter) nextView = "controlCenter"
+            // OSDs only active when no drawer is active
+            else if (typeof Config.showOSD !== "undefined" && Config.showOSD) nextView = "osd"
+            else if (typeof Config.showNotificationOsd !== "undefined" && Config.showNotificationOsd) nextView = "notifOsd"
         }
 
         if (nextView === "none") {
@@ -258,28 +260,35 @@ PanelWindow {
     }
 
     function closeOthers(except) {
+        // If an OSD triggers closeOthers, leave active drawers open
+        let isOsdTrigger = (except === "osd" || except === "notifOsd")
+
         if (except !== "osd" && typeof Config.showOSD !== "undefined") Config.showOSD = false
         if (except !== "notifOsd" && typeof Config.showNotificationOsd !== "undefined") Config.showNotificationOsd = false
-        if (except !== "workspacePreview") Config.showWorkspacePreview = false
-        if (except !== "power") Config.showPower = false
-        if (except !== "wallpaper") Config.showWallpaper = false
-        if (except !== "appLauncher") Config.showAppLauncher = false
-        if (except !== "calendar") Config.showCalendar = false
-        if (except !== "notifications") Config.showNotifications = false
-        if (except !== "audio") Config.showAudio = false
-        if (except !== "network") Config.showNetwork = false
-        if (except !== "systemMonitor") Config.showSystemMonitor = false
-        if (except !== "battery") Config.showBattery = false
-        if (except !== "clipboard") Config.showClipboard = false
-        if (except !== "screenRecorder") Config.showScreenRecorder = false
-        if (except !== "controlCenter") Config.showControlCenter = false
+
+        if (!isOsdTrigger) {
+            if (except !== "workspacePreview") Config.showWorkspacePreview = false
+            if (except !== "power") Config.showPower = false
+            if (except !== "wallpaper") Config.showWallpaper = false
+            if (except !== "appLauncher") Config.showAppLauncher = false
+            if (except !== "calendar") Config.showCalendar = false
+            if (except !== "notifications") Config.showNotifications = false
+            if (except !== "audio") Config.showAudio = false
+            if (except !== "network") Config.showNetwork = false
+            if (except !== "systemMonitor") Config.showSystemMonitor = false
+            if (except !== "battery") Config.showBattery = false
+            if (except !== "clipboard") Config.showClipboard = false
+            if (except !== "screenRecorder") Config.showScreenRecorder = false
+            if (except !== "controlCenter") Config.showControlCenter = false
+            if (except !== "settings") Config.showSettings = false
+        }
     }
 
     Connections {
         target: Config
         ignoreUnknownSignals: true
         function onShowOSDChanged() {
-            if (Config.showOSD) {
+            if (Config.showOSD && activeView === "none") {
                 closeOthers("osd")
                 root.isCentered = false
                 if (root.isHorizontal) root.popoutXOffset = mainContainer.width
@@ -288,7 +297,7 @@ PanelWindow {
             updateActiveView()
         }
         function onShowNotificationOsdChanged() {
-            if (Config.showNotificationOsd) {
+            if (Config.showNotificationOsd && activeView === "none") {
                 closeOthers("notifOsd")
                 root.isCentered = false
                 root.popoutXOffset = 0
@@ -304,6 +313,17 @@ PanelWindow {
                 root.popoutYOffset = mainContainer.height / 2.0
             } else if (activeView === "workspacePreview") {
                 root.isCentered = false
+            }
+            updateActiveView()
+        }
+        function onShowSettingsChanged() {
+            if (Config.showSettings) {
+                closeOthers("settings")
+                if (leftCard && leftCard.btnSettings) {
+                    setPopoutPos(leftCard.btnSettings)
+                } else if (rightCard && rightCard.btnSettings) {
+                    setPopoutPos(rightCard.btnSettings)
+                }
             }
             updateActiveView()
         }
@@ -497,7 +517,7 @@ PanelWindow {
                     PathLine { x: root.isLeftFlush ? root.halfB : root.pLeft; y: root.isLeftFlush ? (root.halfB + root.barRadius) : (root.barBottomY + root.wingH) }
                     PathCubic { x: root.isLeftFlush ? root.halfB : (root.pLeft - root.wingW); y: root.isLeftFlush ? (root.halfB + root.barRadius) : root.barBottomY; control1X: root.isLeftFlush ? root.halfB : root.pLeft; control1Y: root.isLeftFlush ? (root.halfB + root.barRadius) : (root.barBottomY + (root.wingH * 0.5)); control2X: root.isLeftFlush ? root.halfB : (root.pLeft - (root.wingW * 0.5)); control2Y: root.isLeftFlush ? root.barBottomY : root.barBottomY }
                     PathLine { x: root.isLeftFlush ? root.halfB : (root.halfB + root.barRadius); y: root.isLeftFlush ? (root.halfB + root.barRadius) : root.barBottomY }
-                    PathArc { x: root.halfB; y: root.isLeftFlush ? (root.halfB + root.barRadius) : (root.barBottomY - root.barRadius); radiusX: root.isLeftFlush ? 0 : root.barRadius; radiusY: root.isLeftFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
+                    PathArc { x: root.halfB; y: root.isLeftFlush ? 0 : root.barRadius; radiusX: root.isLeftFlush ? 0 : root.barRadius; radiusY: root.isLeftFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
                     PathLine { x: root.halfB; y: root.halfB + root.barRadius }
                     PathArc { x: root.halfB + root.barRadius; y: root.halfB; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
                 }
@@ -1155,112 +1175,112 @@ PanelWindow {
                         PathCubic { x: root.pLeft - root.wingW; y: root.inY + root.inH - root.halfB; control1X: root.pLeft; control1Y: root.inY + root.inH - root.halfB - root.wingW * 0.5; control2X: root.pLeft - root.wingW * 0.5; control2Y: root.inY + root.inH - root.halfB } 
                         
                         PathLine { x: root.inX + root.inRadi; y: root.inY + root.inH - root.halfB } 
-                        PathArc { x: root.inX + root.halfB; y: root.inY + root.inH - root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
+                        PathArc { x: root.halfB; y: root.inY + root.inH - root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                         PathLine { x: root.inX + root.halfB; y: root.inY + root.inRadi } 
                         PathArc { x: root.inX + root.inRadi; y: root.inY + root.halfB; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                     }
                 }
             }
-        }
 
-        Item {
-            id: barContent
-            x: root.isRight ? (mainContainer.width - root.barH + Math.floor(root.halfB)) : Math.floor(root.halfB)
-            y: root.isBottom ? (mainContainer.height - root.barH + Math.floor(root.halfB)) : Math.floor(root.halfB)
-            
-            transform: Translate {
-                x: root.isScreenFrame ? (root.barPosition === "left" ? root.framePadding / 2 : (root.barPosition === "right" ? -root.framePadding / 2 : 0)) : 0
-                y: root.isScreenFrame ? (root.barPosition === "top" ? root.framePadding / 2 : (root.barPosition === "bottom" ? -root.framePadding / 2 : 0)) : 0
+            Item {
+                id: barContent
+                x: root.isRight ? (mainContainer.width - root.barH + Math.floor(root.halfB)) : Math.floor(root.halfB)
+                y: root.isBottom ? (mainContainer.height - root.barH + Math.floor(root.halfB)) : Math.floor(root.halfB)
+                
+                transform: Translate {
+                    x: root.isScreenFrame ? (root.barPosition === "left" ? root.framePadding / 2 : (root.barPosition === "right" ? -root.framePadding / 2 : 0)) : 0
+                    y: root.isScreenFrame ? (root.barPosition === "top" ? root.framePadding / 2 : (root.barPosition === "bottom" ? -root.framePadding / 2 : 0)) : 0
+                }
+
+                width: root.isHorizontal ? (mainContainer.width - Math.ceil(root.borderWidth)) : (root.barH - Math.ceil(root.borderWidth))
+                height: root.isHorizontal ? (root.barH - Math.ceil(root.borderWidth)) : (mainContainer.height - Math.ceil(root.borderWidth))
+
+                LeftModules {
+                    id: leftCard
+                    rootRef: root
+                    onPopoutRequested: item => root.setPopoutPos(item)
+                }
+
+                CenterModules {
+                    id: centerGroupContainer
+                    rootRef: root
+                    leftCardRef: leftCard
+                    rightCardRef: rightCard
+                    barContentRef: barContent
+                }
+
+                RightModules {
+                    id: rightCard
+                    rootRef: root
+                    onPopoutRequested: item => root.setPopoutPos(item)
+                }
             }
 
-            width: root.isHorizontal ? (mainContainer.width - Math.ceil(root.borderWidth)) : (root.barH - Math.ceil(root.borderWidth))
-            height: root.isHorizontal ? (root.barH - Math.ceil(root.borderWidth)) : (mainContainer.height - Math.ceil(root.borderWidth))
-
-            LeftModules {
-                id: leftCard
-                rootRef: root
-                onPopoutRequested: item => root.setPopoutPos(item)
-            }
-
-            CenterModules {
-                id: centerGroupContainer
-                rootRef: root
-                leftCardRef: leftCard
-                rightCardRef: rightCard
-                barContentRef: barContent
-            }
-
-            RightModules {
-                id: rightCard
-                rootRef: root
-                onPopoutRequested: item => root.setPopoutPos(item)
-            }
-        }
-
-        Item {
-            id: contentContainer
-            
-            x: {
-                if (isHorizontal) {
-                    return root.pLeft
-                } else {
-                    if (isRight) {
-                        return isScreenFrame 
-                            ? root.rightBarPopL 
-                            : (mainContainer.width - root.barH - root.currentWidth)
+            Item {
+                id: contentContainer
+                
+                x: {
+                    if (isHorizontal) {
+                        return root.pLeft
                     } else {
-                        return isScreenFrame 
-                            ? root.inX 
-                            : root.barH
+                        if (isRight) {
+                            return isScreenFrame 
+                                ? root.rightBarPopL 
+                                : (mainContainer.width - root.barH - root.currentWidth)
+                        } else {
+                            return isScreenFrame 
+                                ? root.inX 
+                                : root.barH
+                        }
                     }
                 }
-            }
 
-            y: {
-                if (isHorizontal) {
-                    if (isBottom) {
-                        return isScreenFrame 
-                            ? root.bottomBarPopT 
-                            : (mainContainer.height - root.barH - root.currentHeight)
+                y: {
+                    if (isHorizontal) {
+                        if (isBottom) {
+                            return isScreenFrame 
+                                ? root.bottomBarPopT 
+                                : (mainContainer.height - root.barH - root.currentHeight)
+                        } else {
+                            return isScreenFrame 
+                                ? root.inY 
+                                : root.barH
+                        }
                     } else {
-                        return isScreenFrame 
-                            ? root.inY 
-                            : root.barH
+                        return root.pLeft
                     }
-                } else {
-                    return root.pLeft
                 }
-            }
 
-            width: root.currentWidth
-            height: root.currentHeight
-            
-            clip: true
-            visible: root.progress > 0.01
-            opacity: (root.isOpen && root.progress >= 0.95) ? 1.0 : 0.0
-            focus: true
+                width: root.currentWidth
+                height: root.currentHeight
+                
+                clip: true
+                visible: root.progress > 0.01
+                opacity: (root.isOpen && root.progress >= 0.95) ? 1.0 : 0.0
+                focus: true
 
-            Behavior on opacity {
-                NumberAnimation {
-                    duration: (root.isOpen && root.progress >= 0.95) ? 200 : 80
-                    easing.type: Easing.OutCubic
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: (root.isOpen && root.progress >= 0.95) ? 200 : 80
+                        easing.type: Easing.OutCubic
+                    }
                 }
-            }
 
-            TapHandler { onTapped: {} }
+                TapHandler { onTapped: {} }
 
-            VolumeOSD {
-                id: volumeOsdModule
-                objectName: "internalOsd"
-                anchors.fill: parent
-                visible: root.activeView === "osd"
-            }
+                VolumeOSD {
+                    id: volumeOsdModule
+                    objectName: "internalOsd"
+                    anchors.fill: parent
+                    visible: root.activeView === "osd"
+                }
 
-            NotificationOSD {
-                id: notifOsdModule
-                objectName: "internalNotifOsd"
-                anchors.fill: parent
-                visible: root.activeView === "notifOsd"
+                NotificationOSD {
+                    id: notifOsdModule
+                    objectName: "internalNotifOsd"
+                    anchors.fill: parent
+                    visible: root.activeView === "notifOsd"
+                }
             }
         }
     }
