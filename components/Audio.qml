@@ -233,7 +233,7 @@ Item {
                             radius: Config.cornerRadius / 2
                             color: model.isDefault ? Qt.rgba(255, 255, 255, 0.12) : (itemHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent")
                             border.color: model.isDefault ? Config.accent : "transparent"
-                            border.width: model.isDefault ? 1 : 0
+                            border.width: model.isDefault ? 2 : 0
 
                             Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -484,7 +484,7 @@ Item {
                             radius: Config.cornerRadius / 2
                             color: model.isDefault ? Qt.rgba(255, 255, 255, 0.12) : (itemHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent")
                             border.color: model.isDefault ? Config.accent : "transparent"
-                            border.width: model.isDefault ? 1 : 0
+                            border.width: model.isDefault ? 2 : 0
 
                             Behavior on color { ColorAnimation { duration: 150 } }
 
