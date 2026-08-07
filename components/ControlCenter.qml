@@ -10,6 +10,7 @@ Item {
 
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
+    // Calculate root implicit dimensions cleanly from mainLayout
     implicitWidth: mainLayout.implicitWidth + (cardMargin * 2)
     implicitHeight: mainLayout.implicitHeight + (cardMargin * 2)
 
@@ -52,8 +53,13 @@ Item {
 
     ColumnLayout {
         id: mainLayout
-        anchors.fill: parent
-        anchors.margins: root.cardMargin
+        
+        // Define explicit width and top-left anchoring to prevent parent stretch locking
+        width: 400
+        anchors.top: parent.top
+        anchors.left: parent.left
+        anchors.topMargin: root.cardMargin
+        anchors.leftMargin: root.cardMargin
         spacing: root.cardMargin
 
         // TOP HEADER & TOGGLES CONTAINER CARD
