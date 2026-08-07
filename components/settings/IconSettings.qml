@@ -245,7 +245,6 @@ ColumnLayout {
                             model: [
                                 { id: "audio", label: "Audio" },
                                 { id: "sys", label: "System" },
-                                { id: "batt", label: "Battery" },
                                 { id: "cc", label: "Control Center" },
                                 { id: "network", label: "Network" },
                                 { id: "clipboard", label: "Clipboard" }
