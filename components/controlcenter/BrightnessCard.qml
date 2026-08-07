@@ -58,7 +58,7 @@ Rectangle {
             Layout.fillWidth: true
             implicitHeight: 40
 
-            // Active bar static glow layer on hover/drag
+            // Unclipped glow layer matching track corner radius
             RectangularGlow {
                 id: activeGlow
                 anchors.fill: brightFillContainer
@@ -71,14 +71,17 @@ Rectangle {
                 Behavior on opacity { NumberAnimation { duration: 150 } }
             }
 
-            // Reference item tracking physical layout bounds of active slider fill
+            // Unclipped reference container tracking physical fill dimensions
             Item {
                 id: brightFillContainer
                 x: brightTrack.x
                 y: brightTrack.y
                 height: brightTrack.height
 
-                width: root.hasBacklight ? Math.max(height, brightTrack.width * (root.currentBrightness / 100.0)) : 0
+                // Guard against 0% value while keeping minimum height width for proper corner rendering
+                width: (root.hasBacklight && root.currentBrightness > 0) 
+                    ? Math.max(height, brightTrack.width * (root.currentBrightness / 100.0)) 
+                    : 0
 
                 Behavior on width {
                     enabled: !brightDrag.active
@@ -91,7 +94,7 @@ Rectangle {
                 anchors.fill: parent
                 radius: Config.cornerRadius / 1.5
                 color: Qt.rgba(0, 0, 0, 0.35)
-                clip: true
+                clip: true // Enforce inner fill clipping to track boundaries
 
                 Rectangle {
                     id: brightFill
@@ -115,15 +118,11 @@ Rectangle {
                     id: brightDrag
                     target: null
                     enabled: root.hasBacklight
-                    onActiveChanged: {
-                        // Removed the release-only signal
-                    }
                     onTranslationChanged: {
                         if (active && root.hasBacklight) {
                             let localX = brightDrag.centroid.position.x
                             let pct = Math.max(1, Math.min(100, Math.round((localX / brightTrack.width) * 100)))
                             
-                            // Only emit if the value actually ticked up or down
                             if (pct !== root.currentBrightness) {
                                 root.currentBrightness = pct
                                 root.brightnessChanged(pct)
