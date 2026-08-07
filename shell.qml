@@ -156,7 +156,6 @@ ShellRoot {
         running: true
         stdout: StdioCollector {
             onStreamFinished: {
-                // Ignore background PipeWire status updates while dragging/setting volume
                 if (shellRoot.isUserSettingVolume) return;
 
                 let cleaned = this.text.trim()
