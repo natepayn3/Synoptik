@@ -7,7 +7,6 @@ Item {
     
     property bool isVertical: false
 
-    // Explicitly swap parent dimensions when vertical so parent containers don't collapse
     implicitWidth: isVertical ? mainLayout.implicitWidth : mainLayout.implicitWidth
     implicitHeight: isVertical ? mainLayout.implicitHeight : mainLayout.implicitHeight
 
@@ -104,7 +103,6 @@ Item {
 
     Component.onCompleted: root.rebuildWorkspaceData()
 
-    // Outer layout containing both groups
     Flow {
         id: mainLayout
         anchors.centerIn: parent
@@ -137,7 +135,6 @@ Item {
                     Rectangle {
                         anchors.centerIn: parent
 
-                        // Inner pill grows +4px on hover without pushing neighboring layout
                         implicitWidth: pillSlot.basePillW + (pillHover.hovered ? 4 : 0)
                         implicitHeight: pillSlot.basePillH + (pillHover.hovered ? 4 : 0)
                         radius: root.isVertical ? width / 3 : height / 3
@@ -167,7 +164,7 @@ Item {
         // --- GROUP 2: ACTION BUTTONS ---
         Flow {
             flow: root.isVertical ? Flow.TopToBottom : Flow.LeftToRight
-            spacing: 2 // Reduced spacing between action/special buttons
+            spacing: 2
 
             // ADD BUTTON
             Item {
@@ -211,7 +208,7 @@ Item {
                     anchors.centerIn: parent
                     font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
                     color: (Config.showWorkspacePreview || overviewHover.hovered) ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
-                    text: "select_window_2"
+                    text: Config.getIcon("overview")
                 }
                 TapHandler { onTapped: if (typeof Config.showWorkspacePreview !== "undefined") Config.showWorkspacePreview = !Config.showWorkspacePreview }
                 HoverHandler { id: overviewHover; cursorShape: Qt.PointingHandCursor }
@@ -234,7 +231,7 @@ Item {
                     font.family: "Material Symbols Outlined"; font.weight: Font.Bold
                     font.pixelSize: root.isMagicActive ? 24 : 20
                     color: (root.isMagicActive || magicHover.hovered) ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
-                    text: root.isMagicActive ? "family_star" : "kid_star"
+                    text: root.isMagicActive ? Config.getIcon("magic_active") : Config.getIcon("magic")
                 }
                 TapHandler { onTapped: Hyprland.dispatch("hl.dsp.workspace.toggle_special(\"magic\")") }
                 HoverHandler { id: magicHover; cursorShape: Qt.PointingHandCursor }
@@ -256,7 +253,7 @@ Item {
                     font.family: "Material Symbols Outlined"; font.weight: Font.Bold
                     font.pixelSize: root.isMusicActive ? 24 : 20
                     color: (root.isMusicActive || musicHover.hovered) ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
-                    text: root.isMusicActive ? "genres" : "music_note"
+                    text: root.isMusicActive ? Config.getIcon("music_active") : Config.getIcon("music")
                 }
                 TapHandler { onTapped: Hyprland.dispatch("hl.dsp.workspace.toggle_special(\"music\")") }
                 HoverHandler { id: musicHover; cursorShape: Qt.PointingHandCursor }
@@ -278,7 +275,7 @@ Item {
                     font.family: "Material Symbols Outlined"; font.weight: Font.Bold
                     font.pixelSize: root.isPrivateActive ? 24 : 20
                     color: (root.isPrivateActive || privateHover.hovered) ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
-                    text: root.isPrivateActive ? "lock_open" : "lock"
+                    text: root.isPrivateActive ? Config.getIcon("private_active") : Config.getIcon("private")
                 }
                 TapHandler { onTapped: Hyprland.dispatch("hl.dsp.workspace.toggle_special(\"private\")") }
                 HoverHandler { id: privateHover; cursorShape: Qt.PointingHandCursor }
