@@ -10,7 +10,6 @@ import "./settings"
 Item {
     id: settingsRoot
 
-    // Dimensions for UnifiedSurface dynamic sampling
     implicitWidth: 1000
     implicitHeight: 700
 
@@ -118,7 +117,8 @@ Item {
                                     { id: 0, name: "Display",     icon: "aspect_ratio" },
                                     { id: 1, name: "Appearance",  icon: "palette" },
                                     { id: 2, name: "Typography",  icon: "match_case" },
-                                    { id: 3, name: "Wallpaper",   icon: "wallpaper" }
+                                    { id: 3, name: "Wallpaper",   icon: "wallpaper" },
+                                    { id: 12, name: "Icons",      icon: "account_circle" }
                                 ]
 
                                 delegate: Rectangle {
@@ -675,6 +675,11 @@ Item {
 
                             Item { Layout.fillHeight: true }
                         }
+                    }
+
+                    IconSettings {
+                        anchors.fill: parent
+                        visible: settingsRoot.activeSection === 12
                     }
                 }
             }

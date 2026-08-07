@@ -30,6 +30,51 @@ QtObject {
     property bool showClipboard: false
     property bool showScreenRecorder: false
 
+    // --- ICON MAP & OVERRIDES ---
+    property var iconOverrides: ({})
+
+    readonly property var defaultIcons: ({
+        "power": "electrical_services",
+        "recorder": "videocam",
+        "screenshot": "crop",
+        "notifications": "inbox",
+        "wallpaper": "wall_art",
+        "settings": "build",
+        "launcher": "terminal_2",
+        "audio": "ear_sound",
+        "sys": "neurology",
+        "batt": "battery_android_frame_full",
+        "cc": "widgets",
+        "network": "lan",
+        "clipboard": "content_paste",
+        "overview": "select_window_2",
+        "magic": "kid_star",
+        "magic_active": "family_star",
+        "music": "music_note",
+        "music_active": "genres",
+        "private": "lock",
+        "private_active": "lock_open"
+    })
+
+    function getIcon(iconId) {
+        if (iconOverrides && iconOverrides[iconId]) {
+            return iconOverrides[iconId]
+        }
+        return defaultIcons[iconId] || "help_outline"
+    }
+
+    function setIconOverride(iconId, glyphName) {
+        let current = Object.assign({}, iconOverrides)
+        current[iconId] = glyphName
+        iconOverrides = current
+        saveSettings()
+    }
+
+    function resetIcons() {
+        iconOverrides = {}
+        saveSettings()
+    }
+
     // --- ICON GROUPS COLLAPSE & PINNING STATE ---
     property bool leftCardCollapsed: false
     property bool rightCardCollapsed: false
@@ -54,7 +99,6 @@ QtObject {
     property int borderThickness: 3
     property real cardMargin: 12.0
 
-    // Single source of truth: 0 = disabled, >0 = enabled
     readonly property bool showBorders: borderThickness > 0
 
     onSurfaceRadiusChanged: { 
@@ -72,7 +116,6 @@ QtObject {
     }
     onCardMarginChanged: { if (isLoaded) saveSettings() }
 
-    // Backward-compatibility aliases
     readonly property real cornerRadius: surfaceRadius
     readonly property real surfaceWingSize: surfaceRadius
 
@@ -160,7 +203,7 @@ QtObject {
     }
 
     property Timer weatherTimer: Timer {
-        interval: 900000 // 15 minutes
+        interval: 900000
         running: root.isLoaded
         repeat: true
         onTriggered: root.weather.fetchWeather(true)
@@ -169,7 +212,6 @@ QtObject {
     onSelectedWallpaperMonitorsChanged: { if (isLoaded) saveSettings() }
     onWallpaperTransitionTypeChanged: { if (isLoaded) saveSettings() }
 
-    // --- DESKTOP CLOCK SIGNAL BINDERS ---
     onShowDesktopClockChanged: { if (isLoaded) saveSettings() }
     onClockStyleChanged: { if (isLoaded) saveSettings() }
     onClockScaleChanged: { if (isLoaded) saveSettings() }
@@ -183,15 +225,13 @@ QtObject {
     property bool showOsk: false
     property string oskLayout: "Normal"
 
-    // Global Visual Toggles & Opacity / Blur Controls
-    property string barFrameStyle: "floating" // Options: "floating" | "edge" | "screen"
+    property string barFrameStyle: "floating"
     property bool animateGradient: true
     property bool showScreenFrame: false
     property real shellOpacity: 1.0
     property bool enableBlur: true
     property bool enableXray: true
 
-    // Backward compatibility helper
     readonly property bool isFloatingBar: barFrameStyle === "floating"
 
     // --- DESKTOP MASCOT STATE & PERSISTENCE ---
@@ -811,6 +851,7 @@ QtObject {
                 "leftCardCollapsed": root.leftCardCollapsed,
                 "rightCardCollapsed": root.rightCardCollapsed,
                 "pinnedIcons": root.pinnedIcons,
+                "iconOverrides": root.iconOverrides,
 
                 "surfaceRadius": root.surfaceRadius,
                 "borderThickness": root.borderThickness,
@@ -859,7 +900,7 @@ QtObject {
                             "enableXray", "surfaceRadius", "borderThickness", "cardMargin", "showDesktopClock", "clockStyle", "clockScale", 
                             "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", 
                             "clockShowBackground", "clockPositions", "clockScales", "enabledClockScreens",
-                            "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons"
+                            "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides"
                         ]
 
                         props.forEach(p => {
