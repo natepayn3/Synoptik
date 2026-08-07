@@ -10,7 +10,7 @@ import "./settings"
 Item {
     id: settingsRoot
 
-    // Expose target dimensions for UnifiedSurface dynamic sizing
+    // Dimensions for UnifiedSurface dynamic sampling
     implicitWidth: 1000
     implicitHeight: 700
 
