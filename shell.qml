@@ -257,6 +257,7 @@ ShellRoot {
                 Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false;
                 Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false;
                 Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
+                Config.showClipboard = false;
             }
             Config.showPower = !Config.showPower
         }
@@ -270,6 +271,7 @@ ShellRoot {
                 Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
                 Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false;
                 Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
+                Config.showClipboard = false;
             }
             Config.showAppLauncher = !Config.showAppLauncher
         }
@@ -283,6 +285,7 @@ ShellRoot {
                 Config.showPower = false; Config.showSettings = false; Config.showAppLauncher = false;
                 Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false;
                 Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
+                Config.showClipboard = false;
             }
             Config.showWallpaper = !Config.showWallpaper
         }
@@ -296,6 +299,7 @@ ShellRoot {
                 Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
                 Config.showAppLauncher = false; Config.showCalendar = false; Config.showBattery = false;
                 Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
+                Config.showClipboard = false;
             }
             Config.showNotifications = !Config.showNotifications
         }
@@ -309,6 +313,7 @@ ShellRoot {
                 Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
                 Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false;
                 Config.showBattery = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
+                Config.showClipboard = false;
             }
             Config.showWorkspacePreview = !Config.showWorkspacePreview
         }
@@ -322,6 +327,7 @@ ShellRoot {
                 Config.showPower = false; Config.showWallpaper = false; Config.showAppLauncher = false;
                 Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false;
                 Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
+                Config.showClipboard = false;
             }
             Config.showSettings = !Config.showSettings
         }
@@ -400,7 +406,6 @@ ShellRoot {
         delegate: UnifiedSurface {
             id: mainSurface
             
-            // Declare modelData on the root object of the delegate
             required property var modelData
 
             screen: modelData
@@ -433,6 +438,7 @@ ShellRoot {
                         case "clipboard": return clipboardComp;
                         case "screenRecorder": return screenRecorderComp;
                         case "controlCenter": return controlCenterComp;
+                        case "settings": return settingsComp;
                         default: return null;
                     }
                 }
@@ -453,8 +459,8 @@ ShellRoot {
     Component { id: clipboardComp; Clipboard {} }
     Component { id: screenRecorderComp; ScreenRecorder {} }
     Component { id: controlCenterComp; ControlCenter {} }
+    Component { id: settingsComp; Settings {} }
 
-    Settings { id: settings }
     VolumeOSD { id: volumeOsd }
     NotificationOSD { id: notificationOsd }
     Mascot { id: mascotWidget }
