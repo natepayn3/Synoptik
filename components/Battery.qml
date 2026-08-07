@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import Qt5Compat.GraphicalEffects
 import Quickshell
 import Quickshell.Io
 
@@ -71,6 +72,24 @@ Item {
                     spacing: 8
 
                     Text {
+                        text: {
+                            if (root.battStatus === "Charging") return "battery_android_frame_bolt"
+                            if (root.battCapacity <= 10) return "battery_android_frame_0"
+                            if (root.battCapacity <= 25) return "battery_android_frame_1"
+                            if (root.battCapacity <= 40) return "battery_android_frame_2"
+                            if (root.battCapacity <= 60) return "battery_android_frame_3"
+                            if (root.battCapacity <= 75) return "battery_android_frame_4"
+                            if (root.battCapacity <= 90) return "battery_android_frame_5"
+                            if (root.battCapacity < 100) return "battery_android_frame_6"
+                            return "battery_android_frame_full"
+                        }
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: Config.size(Config.fontTitle)
+                        color: Config.textMain
+                        Layout.alignment: Qt.AlignVCenter
+                    }
+
+                    Text {
                         text: "BATTERY"
                         color: Config.textMain
                         font.family: Config.sysFont
@@ -110,49 +129,55 @@ Item {
                         font.bold: true
                     }
 
-                    // Progress Track with Embedded Icon
-                    Rectangle {
-                        id: battTrack
+                    // Slider Container
+                    Item {
                         Layout.fillWidth: true
                         implicitHeight: 40
-                        radius: Config.cornerRadius / 1.5
-                        color: Qt.rgba(0, 0, 0, 0.35)
-                        clip: true
 
-                        Rectangle {
-                            id: battFill
+                        // Unclipped glow layer matching track corner radius
+                        RectangularGlow {
+                            id: activeGlow
+                            anchors.fill: battFillContainer
+                            glowRadius: 16
+                            spread: 0.2
+                            color: root.battCapacity <= 15 ? "#ef4444" : Config.accent
+                            cornerRadius: battTrack.radius
+                            opacity: root.battStatus === "Charging" && battFillContainer.width > 0 ? 0.5 : 0.0
+
+                            Behavior on opacity { NumberAnimation { duration: 150 } }
+                        }
+
+                        // Unclipped reference container tracking physical fill dimensions
+                        Item {
+                            id: battFillContainer
+                            x: battTrack.x
+                            y: battTrack.y
+                            height: battTrack.height
+
                             readonly property real targetRatio: Math.max(0.0, Math.min(1.0, root.battCapacity / 100.0))
 
                             width: targetRatio <= 0 ? 0 : Math.max(height, battTrack.width * targetRatio)
-                            height: parent.height
-                            radius: Config.cornerRadius / 1.5
-                            color: root.battCapacity <= 15 ? "#ef4444" : Config.accent
 
                             Behavior on width {
                                 NumberAnimation { duration: 200; easing.type: Easing.OutQuad }
                             }
                         }
 
-                        Text {
-                            anchors.left: parent.left
-                            anchors.leftMargin: 12
-                            anchors.verticalCenter: parent.verticalCenter
-                            
-                            text: {
-                                if (root.battStatus === "Charging") return "battery_charging_full"
-                                if (root.battCapacity <= 10) return "battery_0_bar"
-                                if (root.battCapacity <= 25) return "battery_1_bar"
-                                if (root.battCapacity <= 40) return "battery_2_bar"
-                                if (root.battCapacity <= 60) return "battery_3_bar"
-                                if (root.battCapacity <= 75) return "battery_4_bar"
-                                if (root.battCapacity <= 90) return "battery_5_bar"
-                                if (root.battCapacity < 100) return "battery_6_bar"
-                                return "battery_full"
+                        // Progress Track
+                        Rectangle {
+                            id: battTrack
+                            anchors.fill: parent
+                            radius: Config.cornerRadius / 1.5
+                            color: Qt.rgba(0, 0, 0, 0.35)
+                            clip: true
+
+                            Rectangle {
+                                id: battFill
+                                width: battFillContainer.width
+                                height: parent.height
+                                radius: Config.cornerRadius / 1.5
+                                color: root.battCapacity <= 15 ? "#ef4444" : Config.accent
                             }
-                            font.family: "Material Symbols Outlined"
-                            font.pixelSize: 20
-                            
-                            color: (root.battCapacity > 10) ? Config.bgBase : Config.textMain
                         }
                     }
                 }
