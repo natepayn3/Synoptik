@@ -9,7 +9,6 @@ Rectangle {
     property var rootRef
     signal popoutRequested(var item)
 
-    // Button Aliases for PanelWindows.qml popout tracking
     property alias btnPower: btnPower
     property alias btnRecorder: btnRecorder
     property alias btnNotifications: btnNotifications
@@ -78,7 +77,7 @@ Rectangle {
 
             Text {
                 anchors.centerIn: parent
-                text: "electrical_services"
+                text: Config.getIcon("power")
                 color: Config.showPower ? Config.accent : Config.textMain
                 font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
             }
@@ -112,7 +111,7 @@ Rectangle {
 
             Text {
                 anchors.centerIn: parent
-                text: (typeof shellRoot !== "undefined" && shellRoot.isRecording) ? "radio_button_checked" : "videocam"
+                text: (typeof shellRoot !== "undefined" && shellRoot.isRecording) ? "radio_button_checked" : Config.getIcon("recorder")
                 color: (typeof shellRoot !== "undefined" && shellRoot.isRecording) ? "#ef4444" : (Config.showScreenRecorder ? Config.accent : Config.textMain)
                 font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
             }
@@ -145,7 +144,7 @@ Rectangle {
 
             Text {
                 anchors.centerIn: parent
-                text: "crop"
+                text: Config.getIcon("screenshot")
                 color: Config.textMain
                 font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
             }
@@ -179,7 +178,7 @@ Rectangle {
 
             Text {
                 anchors.centerIn: parent
-                text: (typeof shellRoot !== "undefined" && shellRoot.activeNotifs > 0) ? "inbox_text" : "inbox"
+                text: (typeof shellRoot !== "undefined" && shellRoot.activeNotifs > 0) ? "inbox_text" : Config.getIcon("notifications")
                 color: (Config.showNotifications || (typeof shellRoot !== "undefined" && shellRoot.activeNotifs > 0)) ? Config.accent : Config.textMain
                 font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
 
@@ -215,7 +214,7 @@ Rectangle {
 
             Text {
                 anchors.centerIn: parent
-                text: "wall_art"
+                text: Config.getIcon("wallpaper")
                 color: Config.showWallpaper ? Config.accent : Config.textMain
                 font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
             }
@@ -249,7 +248,7 @@ Rectangle {
 
             Text {
                 anchors.centerIn: parent
-                text: "build"
+                text: Config.getIcon("settings")
                 color: Config.showSettings ? Config.accent : Config.textMain
                 font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
             }
@@ -283,7 +282,7 @@ Rectangle {
 
             Text {
                 anchors.centerIn: parent
-                text: "terminal_2"
+                text: Config.getIcon("launcher")
                 color: Config.showAppLauncher ? Config.accent : Config.textMain
                 font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
             }

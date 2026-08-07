@@ -8,7 +8,6 @@ Rectangle {
     property var rootRef
     signal popoutRequested(var item)
 
-    // Button Aliases for PanelWindows.qml popout tracking
     property alias btnAudio: btnAudio
     property alias btnSys: btnSys
     property alias btnBatt: btnBatt
@@ -97,7 +96,7 @@ Rectangle {
 
             Text {
                 anchors.centerIn: parent
-                text: shellRoot.audioMuted ? "hearing_disabled" : (shellRoot.audioVolume === 0 ? "hearing_disabled" : (shellRoot.audioVolume < 50 ? "hearing" : "ear_sound"))
+                text: shellRoot.audioMuted ? "hearing_disabled" : (shellRoot.audioVolume === 0 ? "hearing_disabled" : Config.getIcon("audio"))
                 color: Config.showAudio ? Config.accent : (shellRoot.audioMuted ? Config.textMuted : Config.textMain)
                 font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
             }
@@ -131,7 +130,7 @@ Rectangle {
 
             Text {
                 anchors.centerIn: parent
-                text: "neurology"
+                text: Config.getIcon("sys")
                 color: Config.showSystemMonitor ? Config.accent : Config.textMain
                 font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
             }
@@ -168,13 +167,7 @@ Rectangle {
                 text: {
                     if (shellRoot.battStatus === "Charging") return "battery_android_frame_bolt"
                     if (shellRoot.battCapacity <= 10) return "battery_android_frame_alert"
-                    if (shellRoot.battCapacity <= 25) return "battery_android_frame_1"
-                    if (shellRoot.battCapacity <= 40) return "battery_android_frame_2"
-                    if (shellRoot.battCapacity <= 55) return "battery_android_frame_3"
-                    if (shellRoot.battCapacity <= 70) return "battery_android_frame_4"
-                    if (shellRoot.battCapacity <= 85) return "battery_android_frame_5"
-                    if (shellRoot.battCapacity < 100) return "battery_android_frame_6"
-                    return "battery_android_frame_full"
+                    return Config.getIcon("batt")
                 }
                 color: Config.showBattery ? Config.accent : (shellRoot.battCapacity <= 15 ? "#ef4444" : Config.textMain)
                 font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
@@ -209,7 +202,7 @@ Rectangle {
 
             Text {
                 anchors.centerIn: parent
-                text: "widgets"
+                text: Config.getIcon("cc")
                 color: Config.showControlCenter ? Config.accent : Config.textMain
                 font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
             }
@@ -243,7 +236,7 @@ Rectangle {
 
             Text {
                 anchors.centerIn: parent
-                text: shellRoot.vpnActive ? "vpn_key" : "lan"
+                text: shellRoot.vpnActive ? "vpn_key" : Config.getIcon("network")
                 color: Config.showNetwork ? Config.accent : Config.textMain
                 font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
             }
@@ -277,7 +270,7 @@ Rectangle {
 
             Text {
                 anchors.centerIn: parent
-                text: "content_paste"
+                text: Config.getIcon("clipboard")
                 color: Config.showClipboard ? Config.accent : Config.textMain
                 font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
             }
