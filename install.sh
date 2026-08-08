@@ -116,7 +116,8 @@ set PACMAN_PKGS \
     sed \
     coreutils \
     util-linux \
-    power-profiles-daemon
+    power-profiles-daemon \
+    python-gobject
 
 say "Installing pacman packages..."
 sudo pacman -S --needed --noconfirm $PACMAN_PKGS
