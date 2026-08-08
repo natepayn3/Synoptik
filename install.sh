@@ -127,7 +127,8 @@ set AUR_PKGS \
     awww \
     mpvpaper \
     cliphist \
-    ttf-material-symbols-variable-git
+    ttf-material-symbols-variable-git \
+    iris-colors
 
 # Check both exact package names and provided capabilities via pacman -T / pacman -Qs
 set MISSING_AUR_PKGS
