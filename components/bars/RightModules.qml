@@ -166,8 +166,14 @@ Rectangle {
                 anchors.centerIn: parent
                 text: {
                     if (shellRoot.battStatus === "Charging") return "battery_android_frame_bolt"
-                    if (shellRoot.battCapacity <= 10) return "battery_android_frame_alert"
-                    return Config.getIcon("batt")
+                    if (shellRoot.battCapacity <= 10) return "battery_android_frame_0"
+                    if (shellRoot.battCapacity <= 25) return "battery_android_frame_1"
+                    if (shellRoot.battCapacity <= 40) return "battery_android_frame_2"
+                    if (shellRoot.battCapacity <= 60) return "battery_android_frame_3"
+                    if (shellRoot.battCapacity <= 75) return "battery_android_frame_4"
+                    if (shellRoot.battCapacity <= 90) return "battery_android_frame_5"
+                    if (shellRoot.battCapacity < 100) return "battery_android_frame_6"
+                    return "battery_android_frame_full"
                 }
                 color: Config.showBattery ? Config.accent : (shellRoot.battCapacity <= 15 ? "#ef4444" : Config.textMain)
                 font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
