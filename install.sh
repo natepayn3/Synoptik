@@ -87,6 +87,7 @@ set PACMAN_PKGS \
     qt6-multimedia \
     fish \
     python \
+    python-gobject \
     curl \
     jq \
     wireplumber \
@@ -116,8 +117,7 @@ set PACMAN_PKGS \
     sed \
     coreutils \
     util-linux \
-    power-profiles-daemon \
-    python-gobject
+    power-profiles-daemon
 
 say "Installing pacman packages..."
 sudo pacman -S --needed --noconfirm $PACMAN_PKGS
@@ -134,8 +134,8 @@ set AUR_PKGS \
 # Check both exact package names and provided capabilities via pacman -T / pacman -Qs
 set MISSING_AUR_PKGS
 for pkg in $AUR_PKGS
-    # 1. Strip -git to check if base package name is installed
-    set base_pkg (string replace -r \'-git$\' \'\' $pkg)
+    # 1. Strip -git using double quotes to prevent breaking outer Bash single-quoted block
+    set base_pkg (string replace -r "-git\$" "" $pkg)
     
     # 2. Test if package or base_pkg or capability is satisfied
     if pacman -T $pkg >/dev/null 2>&1
