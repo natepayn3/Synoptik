@@ -98,12 +98,35 @@ Item {
         id: diskGpuProc
         command: [
             "fish", "-c",
-            "cat /sys/class/drm/card0/device/gpu_busy_percent 2>/dev/null || cat /sys/class/hwmon/hwmon*/device/gpu_busy_percent 2>/dev/null || nvidia-smi --query-gpu=utilization.gpu --format=csv,noheader,nounits 2>/dev/null || echo 0; " +
+            // 1. GPU Utilization
+            "if command -q nvidia-smi; " +
+                "set -l gpu (nvidia-smi --query-gpu=utilization.gpu,utilization.decoder --format=csv,noheader,nounits 2>/dev/null | awk -F', ' '{print ($1 > $2 ? $1 : $2)}' | head -n1 | string trim); " +
+                "echo (test -n \"$gpu\"; and echo $gpu; or echo 0); " +
+            "else; " +
+                "set -l sysgpu (cat /sys/class/drm/card*/device/gpu_busy_percent 2>/dev/null | head -n1); " +
+                "echo (test -n \"$sysgpu\"; and echo $sysgpu; or echo 0); " +
+            "end; " +
+            // 2. Disk Usage (%)
             "df / | awk 'NR==2 {print $5}' | sed 's/%//'; " +
-            "math (cat /sys/class/thermal/thermal_zone*/temp 2>/dev/null | head -n 1 || echo 0) / 1000; " +
-            "nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits 2>/dev/null || math (cat /sys/class/hwmon/hwmon*/temp1_input 2>/dev/null | head -n 1 || echo 0) / 1000; " +
-            "set rtemp (cat /sys/class/hwmon/hwmon*/name 2>/dev/null | grep -i -n 'spd5118\\|dram' | cut -d: -f1); " +
-            "if test -n \"$rtemp\"; math (cat /sys/class/hwmon/hwmon\"$rtemp\"/temp1_input 2>/dev/null || echo 0) / 1000; else; echo 0; end"
+            // 3. CPU Temp (°C)
+            "set -l raw_ct (cat /sys/class/thermal/thermal_zone*/temp 2>/dev/null | head -n1); " +
+            "test -n \"$raw_ct\"; and math -s0 \"$raw_ct / 1000\"; or echo 0; " +
+            // 4. GPU Temp (°C)
+            "if command -q nvidia-smi; " +
+                "set -l gtemp (nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits 2>/dev/null | head -n1 | string trim); " +
+                "echo (test -n \"$gtemp\"; and echo $gtemp; or echo 0); " +
+            "else; " +
+                "set -l raw_gt (cat /sys/class/hwmon/hwmon*/temp1_input 2>/dev/null | head -n1); " +
+                "test -n \"$raw_gt\"; and math -s0 \"$raw_gt / 1000\"; or echo 0; " +
+            "end; " +
+            // 5. RAM Temp (°C)
+            "set -l rtemp (cat /sys/class/hwmon/hwmon*/name 2>/dev/null | grep -i -n 'spd5118\\|dram' | cut -d: -f1 | head -n1); " +
+            "if test -n \"$rtemp\"; " +
+                "set -l raw_rt (cat /sys/class/hwmon/hwmon\"$rtemp\"/temp1_input 2>/dev/null || echo 0); " +
+                "math -s0 \"$raw_rt / 1000\"; " +
+            "else; " +
+                "echo 0; " +
+            "end"
         ]
         running: false
         stdout: StdioCollector {
@@ -129,21 +152,18 @@ Item {
         id: allProcessesFetcher
         command: [
             "/bin/fish", "-c",
+            // CPU Processes
             "echo '___CAT___|CPU'; " +
             "ps -eo pid,pcpu,comm --sort=-pcpu | head -n 11 | tail -n +2 | awk -v cores=(nproc) '{print $1\"|\"$2/cores\"|\"$3}'; " +
+            // GPU Processes
             "echo '___CAT___|GPU'; " +
-            "if command -v nvidia-smi >/dev/null 2>&1 && nvidia-smi >/dev/null 2>&1; " +
+            "set -l g_pids (string match -ra '\\d+' (fuser /dev/nvidia* /dev/dri/renderD* 2>/dev/null) | sort -u); " +
+            "if test (count $g_pids) -gt 0; " +
+                "ps -p (string join ',' $g_pids) -o pid,pmem,comm --sort=-pmem 2>/dev/null | head -n 11 | tail -n +2 | awk '{print $1\"|\"$2\"%|\"$3}'; " +
+            "else if command -q nvidia-smi; " +
                 "nvidia-smi --query-compute-apps=pid,used_memory,process_name --format=csv,noheader,nounits 2>/dev/null | head -n 10 | awk -F', ' '{print $1\"|\"$2\" MB|\"$3}'; " +
-            "else if test -d /dev/dri; " +
-                "set pids (fuser /dev/dri/renderD* /dev/dri/card* 2>/dev/null | string split -n ' '); " +
-                "if test (count $pids) -gt 0; " +
-                    "ps -p (string join ',' $pids) -o pmem,comm --sort=-pmem 2>/dev/null | head -n 11 | tail -n +2 | awk '{print $1\"|\"$2\"%|\"$3}'; " +
-                "else; " +
-                    "ps -eo pid,pmem,comm --sort=-pmem | head -n 11 | tail -n +2 | awk '{print $1\"|\"$2\"%|\"$3}'; " +
-                "end; " +
-            "else; " +
-                "ps -eo pid,pmem,comm --sort=-pmem | head -n 11 | tail -n +2 | awk '{print $1\"|\"$2\"%|\"$3}'; " +
             "end; " +
+            // RAM Processes
             "echo '___CAT___|RAM'; " +
             "ps -eo pid,pmem,comm --sort=-pmem | head -n 11 | tail -n +2 | awk '{print $1\"|\"$2\"|\"$3}'"
         ]
@@ -162,9 +182,14 @@ Item {
                     } else if (parts.length === 3) {
                         let metricVal = parts[1];
                         
-                        if (currentCat !== "GPU" && !metricVal.includes("%")) {
-                            let rounded = Math.round(parseFloat(parts[1]));
-                            metricVal = (rounded > 100 ? 100 : rounded) + "%";
+                        if (metricVal.includes("%")) {
+                            let val = parseFloat(metricVal.replace("%", "")) || 0.0;
+                            let clamped = val > 100 ? 100 : val;
+                            metricVal = (clamped < 1.0) ? clamped.toFixed(1) + "%" : Math.round(clamped) + "%";
+                        } else if (!metricVal.includes("MB")) {
+                            let val = parseFloat(metricVal) || 0.0;
+                            let clamped = val > 100 ? 100 : val;
+                            metricVal = (clamped < 1.0) ? clamped.toFixed(1) + "%" : Math.round(clamped) + "%";
                         }
                         
                         parsedItems.push({
@@ -425,6 +450,7 @@ Item {
                                 font.family: Config.sysFont
                                 font.pixelSize: Config.size(Config.fontMicro)
                                 Layout.preferredWidth: 40
+                                Layout.alignment: Qt.AlignVCenter
                                 horizontalAlignment: Text.AlignRight
                             }
 
@@ -435,6 +461,7 @@ Item {
                                 font.pixelSize: Config.size(Config.fontCaption)
                                 font.bold: true
                                 Layout.preferredWidth: 45
+                                Layout.alignment: Qt.AlignVCenter
                                 horizontalAlignment: Text.AlignRight
                             }
 
