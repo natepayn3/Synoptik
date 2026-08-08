@@ -60,6 +60,9 @@ Item {
         function triggerBackendRun(filePath, activeOnly) {
             if (!filePath || filePath === "") return;
 
+            // Inline Comment: Assigning activeWallpaperPath notifies Config.qml to trigger applyIrisColors()
+            Config.activeWallpaperPath = filePath;
+
             let ext = filePath.split('.').pop().toLowerCase();
             let waylandDisplay = Quickshell.env("WAYLAND_DISPLAY") || "wayland-1";
             let sockPath = "/run/user/" + Quickshell.env("UID") + "/" + waylandDisplay + "-awww-daemon.sock";
@@ -70,20 +73,25 @@ Item {
             
             if (activeOnly) {
                 if (ext === "mp4" || ext === "webm") {
-                    script += "awww clear -o \"$TARGET_MON\" 2>/dev/null; pkill -f \"mpvpaper.*$TARGET_MON\"; mpvpaper -vs -o 'loop no-audio' \"$TARGET_MON\" '" + filePath + "'; ";
+                    script += "awww clear -o \"$TARGET_MON\" 2>/dev/null; pkill -f \"mpvpaper.*$TARGET_MON\"; mpvpaper -vs -o 'loop no-audio' \"$TARGET_MON\" '" + filePath + "' >/dev/null 2>&1 & disown; ";
                 } else {
                     script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; ";
                     script += "awww img -o \"$TARGET_MON\" '" + filePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; ";
                 }
             } else {
                 if (ext === "mp4" || ext === "webm") {
-                    script += "awww kill 2>/dev/null; killall -9 -q awww-daemon; rm -f " + sockPath + "; mpvpaper -vs -o 'loop no-audio' '*' '" + filePath + "'; ";
+                    script += "awww kill 2>/dev/null; killall -9 -q awww-daemon; rm -f " + sockPath + "; mpvpaper -vs -o 'loop no-audio' '*' '" + filePath + "' >/dev/null 2>&1 & disown; ";
                 } else {
                     script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; ";
                     script += "awww img '" + filePath + "' --transition-type " + transition + " --transition-step 64 --transition-duration 2; ";
                 }
             }
 
+            // Inline Comment: Execute CLI iris command directly in fish subshell
+            if (Config.enableIris) {
+                script += "iris '" + filePath + "'; ";
+            }
+            
             command = ["fish", "-c", script];
             running = false;
             running = true;

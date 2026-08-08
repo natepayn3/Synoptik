@@ -181,6 +181,7 @@ QtObject {
     // --- WALLPAPER CONFIG STATE & PERSISTENCE ---
     property var selectedWallpaperMonitors: []
     property string wallpaperTransitionType: "wipe"
+    property string activeWallpaperPath: ""
 
     function toggleWallpaperMonitor(screenName) {
         let current = selectedWallpaperMonitors ? selectedWallpaperMonitors.slice() : []
@@ -231,6 +232,86 @@ QtObject {
     property real shellOpacity: 1.0
     property bool enableBlur: true
     property bool enableXray: true
+    property bool enableIris: false
+
+    // Process to run Iris, redirect stderr, and parse JSON colors reliably
+    property Process irisRunner: Process {
+        id: runner
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    let text = this.text ? this.text.trim() : ""
+                    if (text.length > 0) {
+                        // Regex match JSON block starting with { and ending with }
+                        let match = text.match(/\{[\s\S]*\}/)
+                        if (match) {
+                            let jsonStr = match[0]
+
+                            // Verify extracted string contains Iris JSON color keys
+                            if (jsonStr.includes('"bg"') || jsonStr.includes('"surface"') || jsonStr.includes('"accent"')) {
+                                let parsed = JSON.parse(jsonStr)
+
+                                let baseCol = parsed.bg || "#13141c"
+                                let panelCol = parsed.surface || "#1a1b26"
+                                let accentCol = parsed.accent || "#ff4da6"
+
+                                root.customBgBase = baseCol
+                                root.customBgPanel = panelCol
+                                root.customAccent = accentCol
+
+                                root.bgBase = Qt.rgba(Qt.color(baseCol).r, Qt.color(baseCol).g, Qt.color(baseCol).b, root.shellOpacity)
+                                root.bgPanel = Qt.rgba(Qt.color(panelCol).r, Qt.color(panelCol).g, Qt.color(panelCol).b, root.shellOpacity)
+                                root.accent = accentCol
+
+                                root.syncHyprlandBorders()
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.error("Failed to parse Iris JSON colors:", e)
+                }
+            }
+        }
+    }
+
+    onEnableIrisChanged: {
+        if (!isLoaded) return
+        if (enableIris) {
+            applyIrisColors()
+        } else {
+            applyTheme(currentThemeIndex)
+        }
+        saveSettings()
+    }
+
+    onActiveWallpaperPathChanged: {
+        if (isLoaded && enableIris && activeWallpaperPath !== "") {
+            applyIrisColors(activeWallpaperPath)
+        }
+    }
+
+    function applyIrisColors(filePath) {
+        if (!enableIris) return
+
+        let path = filePath || root.activeWallpaperPath
+
+        if (!path && root.wallpapers && root.wallpapers.length > 0) {
+            path = root.wallpapers[0]
+        }
+
+        if (!path) {
+            let cmd = "set W (find ~/Pictures/Wallpapers -type f \\( -name '*.jpg' -o -name '*.png' -o -name '*.webp' \\) 2>/dev/null | head -n 1); if test -n \"$W\"; iris --json-only \"$W\" 2>/dev/null; end"
+            runner.command = ["fish", "-c", cmd]
+        } else {
+            let cmd = "iris --json-only '" + path + "' 2>/dev/null"
+            runner.command = ["fish", "-c", cmd]
+        }
+
+        // Inline Comment: Reset running state to false first so Quickshell re-executes the process
+        runner.running = false
+        runner.running = true
+    }
 
     readonly property bool isFloatingBar: barFrameStyle === "floating"
 
@@ -404,7 +485,11 @@ QtObject {
 
     onShellOpacityChanged: {
         if (!isLoaded) return
-        applyTheme(currentThemeIndex)
+        if (enableIris) {
+            applyIrisColors()
+        } else {
+            applyTheme(currentThemeIndex)
+        }
         saveSettings()
     }
 
@@ -482,19 +567,19 @@ QtObject {
 
     onCustomBgBaseChanged: {
         if (!isLoaded) return
-        if (useCustomColors) applyTheme(currentThemeIndex)
+        if (useCustomColors && !enableIris) applyTheme(currentThemeIndex)
         saveSettings()
     }
 
     onCustomBgPanelChanged: {
         if (!isLoaded) return
-        if (useCustomColors) applyTheme(currentThemeIndex)
+        if (useCustomColors && !enableIris) applyTheme(currentThemeIndex)
         saveSettings()
     }
 
     onCustomAccentChanged: {
         if (!isLoaded) return
-        if (useCustomColors) {
+        if (useCustomColors && !enableIris) {
             accent = customAccent
             syncHyprlandBorders()
         }
@@ -503,7 +588,7 @@ QtObject {
 
     onUseCustomColorsChanged: {
         if (!isLoaded) return
-        applyTheme(currentThemeIndex)
+        if (!enableIris) applyTheme(currentThemeIndex)
         saveSettings()
     }
 
@@ -822,6 +907,7 @@ QtObject {
                 "monitorConfigs": root.monitorConfigs,
                 "selectedWallpaperMonitors": root.selectedWallpaperMonitors,
                 "wallpaperTransitionType": root.wallpaperTransitionType,
+                "activeWallpaperPath": root.activeWallpaperPath,
                 "showOsk": root.showOsk,
                 "oskLayout": root.oskLayout,
                 "showMascot": root.showMascot,
@@ -845,6 +931,7 @@ QtObject {
                 "shellOpacity": root.shellOpacity,
                 "enableBlur": root.enableBlur,
                 "enableXray": root.enableXray,
+                "enableIris": root.enableIris,
                 "customThemes": customPalettes,
                 "windowStyle": root.windowStyle,
 
@@ -892,12 +979,12 @@ QtObject {
                         var parsed = JSON.parse(text)
 
                         let props = [
-                            "monitorConfigs", "selectedWallpaperMonitors", "wallpaperTransitionType", "showOsk", "oskLayout",
+                            "monitorConfigs", "selectedWallpaperMonitors", "wallpaperTransitionType", "activeWallpaperPath", "showOsk", "oskLayout",
                             "showMascot", "mascotPath", "mascotPhrases", "fetchOnlineQuotes", "quoteSource",
                             "barFrameStyle", "barPosition", "showScreenFrame", "sysFont", "fontScaleIndex", "locationQuery",
                             "enabledBarScreens", "useCustomColors", "customBgBase", "customBgPanel",
                             "customAccent", "animateGradient", "shellOpacity", "enableBlur",
-                            "enableXray", "surfaceRadius", "borderThickness", "cardMargin", "showDesktopClock", "clockStyle", "clockScale", 
+                            "enableXray", "enableIris", "surfaceRadius", "borderThickness", "cardMargin", "showDesktopClock", "clockStyle", "clockScale", 
                             "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", 
                             "clockShowBackground", "clockPositions", "clockScales", "enabledClockScreens",
                             "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides"
@@ -920,7 +1007,11 @@ QtObject {
                             root.currentThemeIndex = Math.min(parsed.currentThemeIndex, root.themes.length - 1)
                         }
 
-                        root.applyTheme(root.currentThemeIndex)
+                        if (root.enableIris) {
+                            root.applyIrisColors()
+                        } else {
+                            root.applyTheme(root.currentThemeIndex)
+                        }
                     } catch (e) {
                         console.error("Failed to parse settings JSON:", e)
                     }
@@ -1031,6 +1122,8 @@ QtObject {
     }
 
     function applyTheme(index) {
+        if (enableIris) return
+
         var baseColor = useCustomColors ? customBgBase : (themes[index] || themes[0]).bgBase
         var panelColor = useCustomColors ? customBgPanel : (themes[index] || themes[0]).bgPanel
         var accentColor = useCustomColors ? customAccent : (themes[index] || themes[0]).bgPanel ? (themes[index] || themes[0]).accent : "#ff4da6"
@@ -1063,6 +1156,6 @@ QtObject {
     }
 
     Component.onCompleted: {
-        applyTheme(currentThemeIndex)
+        if (!enableIris) applyTheme(currentThemeIndex)
     }
 }
