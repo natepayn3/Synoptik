@@ -69,13 +69,6 @@ ColumnLayout {
                 cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor
             }
         }
-
-        Text {
-            text: "."
-            color: Config.textMuted
-            font.family: Config.sysFont
-            font.pixelSize: Config.size(Config.fontCaption)
-        }
     }
 
     // --- MULTI-ROW BAR MOCKUP SECTION ---
