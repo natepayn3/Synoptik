@@ -1092,9 +1092,7 @@ QtObject {
         { name: "Midnight City",    bgBase: "#090a10", bgPanel: "#121420", accent: "#00d2ff" },
         { name: "Toxic Emerald",    bgBase: "#01120a", bgPanel: "#022414", accent: "#00ff87" },
         { name: "Inferno Glow",     bgBase: "#140200", bgPanel: "#260500", accent: "#ff3300" },
-        { name: "Ultra Violet",     bgBase: "#0d0614", bgPanel: "#180b26", accent: "#9900ff" },
-        { name: "Electric Gold",    bgBase: "#121000", bgPanel: "#242000", accent: "#ffe600" },
-        { name: "Abyssal Teal",     bgBase: "#001214", bgPanel: "#002226", accent: "#00f5d4" }
+        { name: "Ultra Violet",     bgBase: "#0d0614", bgPanel: "#180b26", accent: "#9900ff" }
     ]
 
     property var themes: stockThemes.slice()
