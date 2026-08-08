@@ -30,6 +30,7 @@ Flickable {
             if (!filePath || filePath === "") return;
 
             root.currentWallpaperPath = filePath;
+            Config.activeWallpaperPath = filePath;
 
             let ext = filePath.split('.').pop().toLowerCase();
             let waylandDisplay = Quickshell.env("WAYLAND_DISPLAY") || "wayland-1";
@@ -43,7 +44,7 @@ Flickable {
                 for (let i = 0; i < targets.length; i++) {
                     let mon = targets[i];
                     if (ext === "mp4" || ext === "webm") {
-                        script += "awww clear -o \"" + mon + "\" 2>/dev/null; pkill -f \"mpvpaper.*" + mon + "\"; mpvpaper -vs -o 'loop no-audio' \"" + mon + "\" '" + filePath + "'; ";
+                        script += "awww clear -o \"" + mon + "\" 2>/dev/null; pkill -f \"mpvpaper.*" + mon + "\"; mpvpaper -vs -o 'loop no-audio' \"" + mon + "\" '" + filePath + "' >/dev/null 2>&1 & disown; ";
                     } else {
                         script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; ";
                         script += "awww img -o \"" + mon + "\" '" + filePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; ";
@@ -51,16 +52,26 @@ Flickable {
                 }
             } else {
                 if (ext === "mp4" || ext === "webm") {
-                    script += "awww kill 2>/dev/null; killall -9 -q awww-daemon; rm -f " + sockPath + "; mpvpaper -vs -o 'loop no-audio' '*' '" + filePath + "'; ";
+                    script += "awww kill 2>/dev/null; killall -9 -q awww-daemon; rm -f " + sockPath + "; mpvpaper -vs -o 'loop no-audio' '*' '" + filePath + "' >/dev/null 2>&1 & disown; ";
                 } else {
                     script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; ";
                     script += "awww img '" + filePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; ";
                 }
             }
 
+            // Inline Comment: Execute CLI iris command directly in fish subshell
+            if (Config.enableIris) {
+                script += "iris '" + filePath + "'; ";
+            }
+
             command = ["fish", "-c", script];
             running = false;
             running = true;
+
+            // Inline Comment: Direct QML JSON color extraction trigger bypassing subshell exit handlers
+            if (Config.enableIris) {
+                Config.applyIrisColors(filePath);
+            }
         }
     }
 
@@ -157,12 +168,6 @@ Flickable {
                 font.bold: true
             }
 
-            //color: Config.textMuted
-            //font.family: Config.sysFont
-            //font.pixelSize: Config.size(Config.fontMicro)
-            //font.bold: true }
-
-
             GridLayout {
                 columns: 4
                 rowSpacing: 6
@@ -255,7 +260,6 @@ Flickable {
                         anchors.fill: parent
                         anchors.margins: 3
 
-                        // Native Quickshell Rounded Masking Wrapper
                         ClippingRectangle {
                             anchors.fill: parent
                             radius: Config.cornerRadius / 2
@@ -270,7 +274,6 @@ Flickable {
                             }
                         }
 
-                        // Video Indicator Badge
                         Rectangle {
                             width: 18
                             height: 18
@@ -290,7 +293,6 @@ Flickable {
                             }
                         }
 
-                        // Selective Accent Border Overlay
                         Rectangle {
                             anchors.fill: parent
                             radius: Config.cornerRadius / 2

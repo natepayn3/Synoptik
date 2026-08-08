@@ -177,7 +177,7 @@ Flickable {
             font.bold: true
         }
 
-        // Theme Toggles (Gradient, Blur, Xray)
+        // Theme Toggles (Gradient, Blur, Xray, Iris)
         RowLayout {
             id: themeControlsRow
             Layout.fillWidth: true
@@ -231,6 +231,19 @@ Flickable {
                 }
                 Text { text: "Xray"; color: Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption) }
             }
+
+            // Inline Comment: Added Iris toggle row after Xray
+            RowLayout {
+                spacing: 8
+                Rectangle {
+                    implicitWidth: 18; implicitHeight: 18; radius: 4
+                    color: Config.enableIris ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                    Text { anchors.centerIn: parent; text: "✓"; color: Config.bgBase; visible: Config.enableIris; font.pixelSize: 11; font.bold: true }
+                    TapHandler { onTapped: Config.enableIris = !Config.enableIris }
+                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                }
+                Text { text: "Auto-color (Iris)"; color: Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption) }
+            }
         }
 
         // --- Opacity Slider ---
@@ -270,6 +283,7 @@ Flickable {
         RowLayout {
             Layout.fillWidth: true
             spacing: 4
+            opacity: Config.enableIris ? 0.3 : 1.0
 
             Text {
                 text: "Color Palettes"
@@ -288,7 +302,7 @@ Flickable {
             }
 
             Text {
-                text: Config.useCustomColors ? "Custom (Unsaved)" : (Config.themes[Config.currentThemeIndex] ? Config.themes[Config.currentThemeIndex].name : "")
+                text: Config.enableIris ? "Iris (Wallpaper Colors)" : (Config.useCustomColors ? "Custom (Unsaved)" : (Config.themes[Config.currentThemeIndex] ? Config.themes[Config.currentThemeIndex].name : ""))
                 color: Config.accent
                 font.family: Config.sysFont
                 font.pixelSize: Config.size(Config.fontMicro)
@@ -298,10 +312,12 @@ Flickable {
             Item { Layout.fillWidth: true }
         }
 
-        // Original 10-Column Palette Grid
+        // 10-Column Palette Grid (Disabled when Iris active)
         Item {
             Layout.fillWidth: true
             implicitHeight: paletteGrid.implicitHeight
+            enabled: !Config.enableIris
+            opacity: Config.enableIris ? 0.3 : (Config.useCustomColors ? 0.4 : 1.0)
 
             GridLayout {
                 id: paletteGrid
@@ -309,7 +325,6 @@ Flickable {
                 columns: 10
                 rowSpacing: 10
                 columnSpacing: 10
-                opacity: Config.useCustomColors ? 0.4 : 1.0
 
                 Repeater {
                     model: {
@@ -402,6 +417,7 @@ Flickable {
         // Custom Hex Overrides Header
         RowLayout {
             Layout.fillWidth: true
+            opacity: Config.enableIris ? 0.3 : 1.0
 
             Text {
                 text: "Custom Hex Overrides"
@@ -414,27 +430,27 @@ Flickable {
 
             Rectangle {
                 implicitWidth: 32; implicitHeight: 18; radius: 9
-                color: Config.useCustomColors ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                color: (!Config.enableIris && Config.useCustomColors) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
 
                 Rectangle {
-                    x: Config.useCustomColors ? 16 : 2
+                    x: (!Config.enableIris && Config.useCustomColors) ? 16 : 2
                     anchors.verticalCenter: parent.verticalCenter
                     width: 14; height: 14; radius: 7
-                    color: Config.useCustomColors ? Config.bgBase : Config.textMuted
+                    color: (!Config.enableIris && Config.useCustomColors) ? Config.bgBase : Config.textMuted
                     Behavior on x { NumberAnimation { duration: 150 } }
                 }
 
-                TapHandler { onTapped: Config.useCustomColors = !Config.useCustomColors }
-                HoverHandler { cursorShape: Qt.PointingHandCursor }
+                TapHandler { enabled: !Config.enableIris; onTapped: Config.useCustomColors = !Config.useCustomColors }
+                HoverHandler { cursorShape: Config.enableIris ? Qt.ForbiddenCursor : Qt.PointingHandCursor }
             }
         }
 
-        // Custom Hex Inputs
+        // Custom Hex Inputs (Disabled when Iris active)
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
-            enabled: Config.useCustomColors
-            opacity: Config.useCustomColors ? 1.0 : 0.4
+            enabled: Config.useCustomColors && !Config.enableIris
+            opacity: (Config.useCustomColors && !Config.enableIris) ? 1.0 : 0.4
 
             ColumnLayout {
                 Layout.fillWidth: true
@@ -542,11 +558,11 @@ Flickable {
             }
         }
 
-        // Save Palette Controls
+        // Save Palette Controls (Visible only when custom colors are active and Iris is disabled)
         RowLayout {
             Layout.fillWidth: true
             spacing: 8
-            visible: Config.useCustomColors
+            visible: Config.useCustomColors && !Config.enableIris
 
             Rectangle {
                 Layout.fillWidth: true
