@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import QtMultimedia
 import Qt5Compat.GraphicalEffects
 import Quickshell
 import Quickshell.Services.Notifications as Notifs
@@ -19,6 +20,27 @@ Item {
     property string notifBody: ""
     property string notifApp: ""
     property int notifUrgency: Notifs.NotificationUrgency.Normal
+
+    // Native audio engine for instant notification playback
+    AudioOutput {
+        id: audioOutput
+        volume: 1.0
+    }
+
+    MediaPlayer {
+        id: notifSoundPlayer
+        // Inline Comment: Dynamically target notification sound asset from Quickshell directory
+        source: Quickshell.shellDir.toString() + "/assets/" + (Config.notificationSoundPath || "sound1.mp3")
+        audioOutput: audioOutput
+    }
+
+    function playNotificationSound() {
+        if (!Config.playSystemSounds) return
+
+        // Inline Comment: Reset buffer to play instantly on consecutive notification triggers
+        notifSoundPlayer.stop()
+        notifSoundPlayer.play()
+    }
 
     readonly property string appIcon: {
         let app = osdRoot.notifApp.toLowerCase()
@@ -55,6 +77,9 @@ Item {
         osdHideTimer.stop()
         Config.showNotificationOsd = true
         
+        // Play notification arrival sound effect
+        osdRoot.playNotificationSound()
+
         if (osdRoot.notifUrgency !== Notifs.NotificationUrgency.Critical) {
             osdHideTimer.restart()
         }

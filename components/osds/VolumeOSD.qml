@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import QtMultimedia
 import Quickshell
 import Quickshell.Io
 import ".."
@@ -21,6 +22,18 @@ Item {
     property real animVolume: Math.max(0, volume)
     Behavior on animVolume {
         NumberAnimation { duration: 120; easing.type: Easing.OutQuad }
+    }
+
+    // Audio routing pipeline matching shell panel architecture
+    AudioOutput {
+        id: audioOutput
+        volume: 0.3
+    }
+
+    MediaPlayer {
+        id: volumeTick
+        source: Quickshell.shellDir.toString() + "/assets/sound2.mp3"
+        audioOutput: audioOutput
     }
 
     function trigger() {
@@ -234,7 +247,6 @@ Item {
                         property real stretch: 0.0
                         property real popScale: 1.0
 
-                        // ⚡ CHANGED: Multiplier reduced to 18 for a narrower horizontal pill during motion
                         width: Math.max(8, baseWidth + (stretch * 18))
                         height: Math.max(16, baseHeight - (stretch * 11.67))
                         radius: height / 2
@@ -253,26 +265,29 @@ Item {
                         Connections {
                             target: osdRoot
                             function onVolumeChanged() {
-                                if (osdRoot.initialized) morphAnim.restart()
+                                if (osdRoot.initialized) {
+                                    morphAnim.restart()
+                                    
+                                    // Reset buffer and play instantly on volume steps
+                                    volumeTick.stop()
+                                    volumeTick.play()
+                                }
                             }
                         }
 
                         SequentialAnimation {
                             id: morphAnim
 
-                            // Phase 1: Travel & Morph into a compact 16px-thick pill (120ms)
                             ParallelAnimation {
                                 NumberAnimation { target: toggleLine; property: "stretch"; to: 1.2; duration: 120; easing.type: Easing.OutCubic }
                                 NumberAnimation { target: toggleLine; property: "popScale"; to: 1.0; duration: 120; easing.type: Easing.OutCubic }
                             }
 
-                            // Phase 2: Destination Overshoot / Swell (100ms)
                             ParallelAnimation {
                                 NumberAnimation { target: toggleLine; property: "stretch"; to: -0.4; duration: 100; easing.type: Easing.OutQuad }
                                 NumberAnimation { target: toggleLine; property: "popScale"; to: 1.25; duration: 100; easing.type: Easing.OutBack }
                             }
 
-                            // Phase 3: Elastic settle back to 8x30 vertical line (250ms)
                             ParallelAnimation {
                                 NumberAnimation { target: toggleLine; property: "stretch"; to: 0.0; duration: 250; easing.type: Easing.OutBack }
                                 NumberAnimation { target: toggleLine; property: "popScale"; to: 1.0; duration: 250; easing.type: Easing.OutBack }
