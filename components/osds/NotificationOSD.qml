@@ -35,9 +35,8 @@ Item {
     }
 
     function playNotificationSound() {
-        if (!Config.playSystemSounds) return
+        if (!Config.playNotificationSounds) return
 
-        // Inline Comment: Reset buffer to play instantly on consecutive notification triggers
         notifSoundPlayer.stop()
         notifSoundPlayer.play()
     }
