@@ -98,24 +98,17 @@ PanelWindow {
     property real lastOpenWidth: rawChildWidth
     property real lastOpenHeight: rawChildHeight
 
-    // Native audio output engine for zero-delay instant playback
-    AudioOutput {
-        id: audioOutput
-        volume: 0.5
-    }
-
-    MediaPlayer {
+    SoundEffect {
         id: soundPlayer
-        // Inline Comment: Dynamic sound path resolution based on Config active window sound selection
-        source: Quickshell.shellDir.toString() + "/assets/" + (Config.windowSoundPath || "sound1.mp3")
-        audioOutput: audioOutput
+        // Inline Comment: Resolve full QUrl for the selected window sound asset
+        source: Qt.resolvedUrl(Quickshell.shellDir.toString() + "/assets/" + (Config.windowSoundPath || "sound1.wav"))
+        volume: 0.5
     }
 
     function playOpenSound() {
         if (!Config.playWindowSounds || root.activeView === "notifOsd" || root.activeView === "osd") return
 
-        // Inline Comment: Stop and rewind buffer to start to instantly re-trigger on rapid toggles
-        soundPlayer.stop()
+        // Inline Comment: SoundEffect plays instantly without needing stop() or rewind calls
         soundPlayer.play()
     }
 

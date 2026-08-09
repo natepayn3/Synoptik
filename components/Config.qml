@@ -33,8 +33,8 @@ QtObject {
     // --- SYSTEM SOUNDS CONFIGURATION ---
     property bool playWindowSounds: true
     property bool playNotificationSounds: true
-    property string windowSoundPath: "sound1.mp3"
-    property string notificationSoundPath: "sound1.mp3"
+    property string windowSoundPath: "sound1.wav"
+    property string notificationSoundPath: "sound1.wav"
 
     onPlayWindowSoundsChanged: { if (isLoaded) saveSettings() }
     onPlayNotificationSoundsChanged: { if (isLoaded) saveSettings() }
