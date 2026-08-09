@@ -166,7 +166,7 @@ Item {
         id: mainLayout
         anchors.fill: parent
         anchors.margins: clipRoot.cardMargin
-        spacing: clipRoot.cardMargin
+        spacing: clipRoot.cardMargin / 2
 
         Rectangle {
             id: mainCard

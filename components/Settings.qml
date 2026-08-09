@@ -24,7 +24,7 @@ Item {
     ColumnLayout {
         anchors.fill: parent
         anchors.margins: settingsRoot.cardMargin
-        spacing: settingsRoot.cardMargin
+        spacing: settingsRoot.cardMargin / 2
 
         // HEADER
         RowLayout {
@@ -67,7 +67,7 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: settingsRoot.cardMargin
+            spacing: settingsRoot.cardMargin / 2
 
             // LEFT NAVIGATION CARD
             Rectangle {

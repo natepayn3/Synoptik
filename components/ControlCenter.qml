@@ -60,13 +60,14 @@ Item {
         anchors.left: parent.left
         anchors.topMargin: root.cardMargin
         anchors.leftMargin: root.cardMargin
-        spacing: root.cardMargin
+        spacing: root.cardMargin / 2
 
         // TOP HEADER & TOGGLES CONTAINER CARD
         Rectangle {
             id: topHeaderCard
             Layout.fillWidth: true
             implicitWidth: 400
+            // Inline Comment: Reduced height addition to match half-margin top/bottom (cardMargin/2 * 2 = cardMargin)
             implicitHeight: topHeaderLayout.implicitHeight + (root.cardMargin * 2)
             radius: Config.cornerRadius
             color: Qt.rgba(255, 255, 255, 0.04)
@@ -78,8 +79,9 @@ Item {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
+                // Inline Comment: Reduced outer padding around the title and toggle cards
                 anchors.margins: root.cardMargin
-                spacing: root.cardMargin
+                spacing: root.cardMargin / 2
 
                 Text {
                     text: "CONTROL CENTER"
@@ -93,7 +95,7 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignTop
-                    spacing: root.cardMargin
+                    spacing: root.cardMargin / 2
 
                     CaffeineCard {
                         Layout.fillWidth: true
@@ -110,7 +112,7 @@ Item {
                     id: staticToggleRow
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignTop
-                    spacing: root.cardMargin
+                    spacing: root.cardMargin / 2
 
                     z: (wifiCard.shouldExpand || btCard.shouldExpand) ? 10 : 1
 
@@ -145,19 +147,20 @@ Item {
             }
         }
 
-        BrightnessCard {
+        SlidersCard {
+            id: slidersCard
+            
+            // Brightness Bindings
             currentBrightness: root.currentBrightness
             hasBacklight: root.hasBacklight
             onBrightnessChanged: pct => setBrightnessProc.setVal(pct)
-        }
 
-        VolumeCard {
-            id: volumeCard
+            // Volume Bindings
             currentVolume: root.currentVolume
             isAudioMuted: root.isAudioMuted
             onIsUserDraggingVolChanged: {
-                root.isUserDraggingVol = volumeCard.isUserDraggingVol
-                if (typeof shellRoot !== "undefined") shellRoot.isUserSettingVolume = volumeCard.isUserDraggingVol
+                root.isUserDraggingVol = slidersCard.isUserDraggingVol
+                if (typeof shellRoot !== "undefined") shellRoot.isUserSettingVolume = slidersCard.isUserDraggingVol
             }
             onVolumeChanged: pct => {
                 root.isSettingVolume = true

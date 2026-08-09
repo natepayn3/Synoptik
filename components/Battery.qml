@@ -50,7 +50,7 @@ Item {
         id: mainLayout
         anchors.fill: parent
         anchors.margins: root.cardMargin
-        spacing: root.cardMargin
+        spacing: root.cardMargin / 2
 
         // Card 1: Title, Charging Status, & Capacity Track
         Rectangle {

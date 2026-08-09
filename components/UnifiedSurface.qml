@@ -102,7 +102,7 @@ PanelWindow {
         id: soundPlayer
         // Inline Comment: Resolve full QUrl for the selected window sound asset
         source: Qt.resolvedUrl(Quickshell.shellDir.toString() + "/assets/" + (Config.windowSoundPath || "sound1.wav"))
-        volume: 0.5
+        volume: 0.25
     }
 
     function playOpenSound() {

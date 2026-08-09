@@ -21,7 +21,7 @@ Item {
         id: mainLayout
         anchors.fill: parent
         anchors.margins: audioModule.cardMargin
-        spacing: audioModule.cardMargin
+        spacing: audioModule.cardMargin / 2
 
         // ==========================================
         // CARD 1: AUDIO OUTPUT

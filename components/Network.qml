@@ -163,7 +163,7 @@ Item {
         // Dashboard Panel
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: root.cardMargin
+            spacing: root.cardMargin / 2
             visible: !root.showFileBrowser
 
             // ==========================================

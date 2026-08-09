@@ -132,14 +132,14 @@ Item {
         id: mainRow
         anchors.fill: parent
         anchors.margins: root.cardMargin
-        spacing: root.cardMargin
+        spacing: root.cardMargin / 2
 
         // --- LEFT COLUMN: CLOCK, WEATHER & REMINDERS ---
         ColumnLayout {
             Layout.fillHeight: true
             Layout.preferredWidth: 250
             Layout.maximumWidth: 250
-            spacing: root.cardMargin
+            spacing: root.cardMargin / 2
 
             // CARD 1: CLOCK & WEATHER
             Rectangle {
@@ -227,7 +227,7 @@ Item {
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: root.cardMargin
+                    anchors.margins: root.cardMargin / 2
                     spacing: 8
 
                     Text {

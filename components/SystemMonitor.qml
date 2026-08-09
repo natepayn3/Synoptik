@@ -303,7 +303,7 @@ Item {
         id: mainLayout
         anchors.fill: parent
         anchors.margins: sysRoot.cardMargin
-        spacing: sysRoot.cardMargin
+        spacing: sysRoot.cardMargin / 2
 
         // ==========================================
         // CARD 1: HARDWARE MONITOR RINGS

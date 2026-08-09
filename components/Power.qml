@@ -39,7 +39,7 @@ Item {
         id: mainLayout
         anchors.fill: parent
         anchors.margins: powerModule.cardMargin
-        spacing: powerModule.cardMargin
+        spacing: powerModule.cardMargin / 2
 
         // ==========================================
         // POWER CARD (Title + Actions)
