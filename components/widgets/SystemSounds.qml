@@ -75,22 +75,26 @@ ColumnLayout {
                 spacing: 8
                 Layout.fillWidth: true
 
-                // Checkbox container styled directly from ClockWidget design system
-                Rectangle {
+                // Checkbox matching OSK keycap design
+                Item {
                     implicitWidth: 20
                     implicitHeight: 20
-                    radius: Config.cornerRadius / 4
-                    color: Config.playWindowSounds ? Config.accent : Config.bgPanel
-                    border.width: Config.showBorders ? 2 : 1
-                    border.color: Config.showBorders ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: Config.cornerRadius / 4
+                        color: Config.playWindowSounds ? Config.accent : Config.bgPanel
+                        border.color: Config.playWindowSounds ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                        border.width: 1
+                    }
 
                     Text {
                         anchors.centerIn: parent
-                        text: "check"
-                        color: Config.playWindowSounds ? Config.bgBase : Config.textMuted
-                        font.family: "Material Symbols Outlined"
-                        font.pixelSize: 14
+                        text: "✓"
+                        color: Config.playWindowSounds ? Config.bgBase : Config.textMain
                         font.bold: true
+                        font.pixelSize: 12
+                        font.family: Config.sysFont
                         visible: Config.playWindowSounds
                     }
 
@@ -203,22 +207,26 @@ ColumnLayout {
                 spacing: 8
                 Layout.fillWidth: true
 
-                // Checkbox container styled directly from ClockWidget design system
-                Rectangle {
+                // Checkbox matching OSK keycap design
+                Item {
                     implicitWidth: 20
                     implicitHeight: 20
-                    radius: Config.cornerRadius / 4
-                    color: Config.playNotificationSounds ? Config.accent : Config.bgPanel
-                    border.width: Config.showBorders ? 2 : 1
-                    border.color: Config.showBorders ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
+
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: Config.cornerRadius / 4
+                        color: Config.playNotificationSounds ? Config.accent : Config.bgPanel
+                        border.color: Config.playNotificationSounds ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                        border.width: 1
+                    }
 
                     Text {
                         anchors.centerIn: parent
-                        text: "check"
-                        color: Config.playNotificationSounds ? Config.bgBase : Config.textMuted
-                        font.family: "Material Symbols Outlined"
-                        font.pixelSize: 14
+                        text: "✓"
+                        color: Config.playNotificationSounds ? Config.bgBase : Config.textMain
                         font.bold: true
+                        font.pixelSize: 12
+                        font.family: Config.sysFont
                         visible: Config.playNotificationSounds
                     }
 
