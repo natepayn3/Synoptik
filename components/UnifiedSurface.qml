@@ -112,7 +112,7 @@ PanelWindow {
     }
 
     function playOpenSound() {
-        if (!Config.playSystemSounds || root.activeView === "notifOsd" || root.activeView === "osd") return
+        if (!Config.playWindowSounds || root.activeView === "notifOsd" || root.activeView === "osd") return
 
         // Inline Comment: Stop and rewind buffer to start to instantly re-trigger on rapid toggles
         soundPlayer.stop()
