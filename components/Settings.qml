@@ -684,7 +684,7 @@ Item {
                         visible: settingsRoot.activeSection === 12
                     }
 
-                    SystemSoundsSettings {
+                    SystemSounds {
                         anchors.fill: parent
                         visible: settingsRoot.activeSection === 13
                     }
