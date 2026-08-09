@@ -380,8 +380,15 @@ ColumnLayout {
             id: iconGrid
             anchors.fill: parent
             anchors.margins: 10
-            cellWidth: 54
-            cellHeight: 54
+            clip: true
+
+            // Inline Comment: Calculate columns from min size, then stretch cellWidth to fill 100% of parent width
+            readonly property real minCellWidth: 50
+            readonly property int columns: Math.max(1, Math.floor(width / minCellWidth))
+            
+            cellWidth: width / columns
+            cellHeight: 52
+
             visible: iconSettingsRoot.selectedIconId !== "" && (!iconSettingsRoot.isLoadingIcons || iconSettingsRoot.allIconsList.length > 0)
 
             model: {
@@ -391,35 +398,45 @@ ColumnLayout {
                 return iconSettingsRoot.allIconsList.filter(name => name.includes(iconSettingsRoot.searchQuery)).slice(0, 300)
             }
 
-            delegate: Rectangle {
-                width: 46; height: 46
-                radius: 8
-                readonly property bool isAssigned: iconSettingsRoot.selectedIconId !== "" && Config.getIcon(iconSettingsRoot.selectedIconId) === modelData
-                color: isAssigned ? Qt.rgba(255, 255, 255, 0.25) : (gridHover.hovered ? Qt.rgba(255, 255, 255, 0.1) : "transparent")
-                border.color: isAssigned ? Config.accent : "transparent"
-                border.width: isAssigned ? 2 : 0
+            delegate: Item {
+                width: GridView.view.cellWidth
+                height: GridView.view.cellHeight
 
-                Text {
+                Rectangle {
+                    // Inline Comment: Center the visual button inside the dynamically sized grid slot
                     anchors.centerIn: parent
-                    text: modelData
-                    color: parent.isAssigned ? Config.accent : Config.textMain
-                    font.family: "Material Symbols Outlined"
-                    font.weight: Font.Bold
-                    font.pixelSize: 22
-                }
+                    width: 44
+                    height: 44
+                    radius: 8
+                    readonly property bool isAssigned: iconSettingsRoot.selectedIconId !== "" && Config.getIcon(iconSettingsRoot.selectedIconId) === modelData
+                    color: isAssigned ? Qt.rgba(255, 255, 255, 0.25) : (gridHover.hovered ? Qt.rgba(255, 255, 255, 0.1) : "transparent")
+                    border.color: isAssigned ? Config.accent : "transparent"
+                    border.width: isAssigned ? 2 : 0
 
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    enabled: iconSettingsRoot.selectedIconId !== ""
-                    onClicked: {
-                        if (iconSettingsRoot.selectedIconId !== "") {
-                            Config.setIconOverride(iconSettingsRoot.selectedIconId, modelData)
+                    Text {
+                        anchors.fill: parent
+                        horizontalAlignment: Text.AlignHCenter
+                        verticalAlignment: Text.AlignVCenter
+                        text: modelData
+                        color: parent.isAssigned ? Config.accent : Config.textMain
+                        font.family: "Material Symbols Outlined"
+                        font.weight: Font.Bold
+                        font.pixelSize: 22
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        enabled: iconSettingsRoot.selectedIconId !== ""
+                        onClicked: {
+                            if (iconSettingsRoot.selectedIconId !== "") {
+                                Config.setIconOverride(iconSettingsRoot.selectedIconId, modelData)
+                            }
                         }
                     }
-                }
 
-                HoverHandler { id: gridHover }
+                    HoverHandler { id: gridHover }
+                }
             }
         }
     }
