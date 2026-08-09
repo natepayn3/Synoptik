@@ -24,16 +24,11 @@ Item {
         NumberAnimation { duration: 120; easing.type: Easing.OutQuad }
     }
 
-    // Audio routing pipeline matching shell panel architecture
-    AudioOutput {
-        id: audioOutput
-        volume: 0.1
-    }
-
-    MediaPlayer {
+    SoundEffect {
         id: volumeTick
-        source: Quickshell.shellDir.toString() + "/assets/sound2.mp3"
-        audioOutput: audioOutput
+        // Inline Comment: Pre-buffer volume step tick WAV
+        source: Qt.resolvedUrl(Quickshell.shellDir.toString() + "/assets/sound2.wav")
+        volume: 0.1
     }
 
     function trigger() {
@@ -268,8 +263,7 @@ Item {
                                 if (osdRoot.initialized) {
                                     morphAnim.restart()
                                     
-                                    // Reset buffer and play instantly on volume steps
-                                    volumeTick.stop()
+                                    // Inline Comment: Re-trigger PCM sample instantly on rapid volume changes
                                     volumeTick.play()
                                 }
                             }

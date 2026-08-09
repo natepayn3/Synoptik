@@ -21,23 +21,16 @@ Item {
     property string notifApp: ""
     property int notifUrgency: Notifs.NotificationUrgency.Normal
 
-    // Native audio engine for instant notification playback
-    AudioOutput {
-        id: audioOutput
-        volume: 1.0
-    }
-
-    MediaPlayer {
+    SoundEffect {
         id: notifSoundPlayer
-        // Inline Comment: Dynamically target notification sound asset from Quickshell directory
-        source: Quickshell.shellDir.toString() + "/assets/" + (Config.notificationSoundPath || "sound1.mp3")
-        audioOutput: audioOutput
+        // Inline Comment: Dynamically target notification sound WAV asset from Quickshell directory
+        source: Qt.resolvedUrl(Quickshell.shellDir.toString() + "/assets/" + (Config.notificationSoundPath || "sound1.wav"))
+        volume: 0.5
     }
 
     function playNotificationSound() {
         if (!Config.playNotificationSounds) return
-
-        notifSoundPlayer.stop()
+        // Inline Comment: Instant sample trigger without FFmpeg demuxer buffer rewinds
         notifSoundPlayer.play()
     }
 
