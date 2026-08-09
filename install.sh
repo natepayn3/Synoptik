@@ -56,6 +56,7 @@ function say
     echo $argv
 end
 
+# Check for or bootstrap an AUR helper (paru or yay)
 set AUR_HELPER ""
 if command -v paru >/dev/null
     set AUR_HELPER paru
@@ -77,6 +78,7 @@ else
     set AUR_HELPER yay
 end
 
+# Official Arch packages (added libcanberra here)
 set PACMAN_PKGS \
     hyprland \
     base-devel \
@@ -117,12 +119,14 @@ set PACMAN_PKGS \
     sed \
     coreutils \
     util-linux \
-    power-profiles-daemon
+    power-profiles-daemon \
+    libcanberra
 
 say "Installing pacman packages..."
 sudo pacman -S --needed --noconfirm $PACMAN_PKGS
 or exit 1
 
+# Explicit AUR packages
 set AUR_PKGS \
     quickshell-git \
     awww \
@@ -134,10 +138,10 @@ set AUR_PKGS \
 # Check both exact package names and provided capabilities via pacman -T / pacman -Qs
 set MISSING_AUR_PKGS
 for pkg in $AUR_PKGS
-    # 1. Strip -git using double quotes to prevent breaking outer Bash single-quoted block
+    # Strip -git suffix for local capability comparison
     set base_pkg (string replace -r "-git\$" "" $pkg)
     
-    # 2. Test if package or base_pkg or capability is satisfied
+    # Test if package, base package, or capability is satisfied
     if pacman -T $pkg >/dev/null 2>&1
         continue
     else if pacman -T $base_pkg >/dev/null 2>&1
@@ -169,6 +173,7 @@ mkdir -p "$HOME/.config/quickshell"
 # CD out of target directory to ensure working directory stays valid during clone/removal
 cd "$HOME"
 
+# Clone or pull latest repository state
 if test -d "$TARGET_DIR/.git"
     say "Existing git installation detected at $TARGET_DIR. Syncing with remote..."
     cd "$TARGET_DIR"
