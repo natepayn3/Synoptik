@@ -154,6 +154,14 @@ Item {
     }
 
     Process {
+        id: deleteSingleProc
+        running: false
+        onExited: {
+            refreshClipboard()
+        }
+    }
+
+    Process {
         id: wipeProc
         running: false
         command: ["fish", "-c", "cliphist wipe; and rm -rf /tmp/cliphist/*"]
@@ -264,9 +272,9 @@ Item {
                             Text {
                                 visible: !delegateRoot.isImage || delegateRoot.imagePath === "" || imgPreview.status !== Image.Ready
                                 anchors {
-                                    left: parent.left; right: parent.right
+                                    left: parent.left; right: deleteBtn.left
                                     verticalCenter: parent.verticalCenter
-                                    leftMargin: 10; rightMargin: 10
+                                    leftMargin: 10; rightMargin: 6
                                 }
                                 text: delegateRoot.previewText
                                 color: Config.textMain
@@ -279,7 +287,7 @@ Item {
                                 id: imgPreview
                                 visible: delegateRoot.isImage && delegateRoot.imagePath !== "" && status === Image.Ready
                                 anchors {
-                                    fill: parent
+                                    top: parent.top; bottom: parent.bottom; left: parent.left; right: deleteBtn.left
                                     margins: 6
                                 }
                                 source: (delegateRoot.isImage && delegateRoot.imagePath !== "") ? delegateRoot.imagePath : ""
@@ -289,14 +297,60 @@ Item {
                                 asynchronous: true
                             }
 
-                            TapHandler {
-                                onTapped: {
+                            // Inline Comment: Explicit left-side MouseArea to copy without overlapping the delete button
+                            MouseArea {
+                                anchors {
+                                    left: parent.left
+                                    top: parent.top
+                                    bottom: parent.bottom
+                                    right: deleteBtn.left
+                                }
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
                                     copyProc.command = ["fish", "-c", "cliphist list | awk 'BEGIN{FS=\"\\t\"} $1 == \"" + itemId + "\" {print $0}' | cliphist decode | wl-copy"]
                                     copyProc.running = false
                                     copyProc.running = true
                                 }
                             }
-                            HoverHandler { id: itemHover; cursorShape: Qt.PointingHandCursor }
+
+                            // Inline Comment: Per-item delete button with awk tab-field matching
+                            Rectangle {
+                                id: deleteBtn
+                                anchors {
+                                    right: parent.right
+                                    verticalCenter: parent.verticalCenter
+                                    rightMargin: 6
+                                }
+                                width: 24
+                                height: 24
+                                radius: 4
+                                color: deleteHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                                Behavior on color { ColorAnimation { duration: 150 } }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "close"
+                                    color: deleteHover.hovered ? Config.accent : Config.textMuted
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 16
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        // Inline Comment: Extract exact line by ID column via awk and pipe to cliphist delete
+                                        deleteSingleProc.command = ["fish", "-c", "cliphist list | awk -F '\\t' '$1 == \"" + itemId + "\"' | cliphist delete; and rm -f /tmp/cliphist/" + itemId + ".png"]
+                                        deleteSingleProc.running = false
+                                        deleteSingleProc.running = true
+                                    }
+                                }
+
+                                HoverHandler { id: deleteHover }
+                            }
+
+                            HoverHandler { id: itemHover }
                         }
 
                         ColumnLayout {
