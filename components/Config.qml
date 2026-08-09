@@ -58,6 +58,7 @@ QtObject {
         "cc": "widgets",
         "network": "lan",
         "clipboard": "content_paste",
+        "clock": "calendar_month",
         "overview": "select_window_2",
         "magic": "kid_star",
         "magic_active": "family_star",
@@ -104,6 +105,27 @@ QtObject {
 
     onLeftCardCollapsedChanged: { if (isLoaded) saveSettings() }
     onRightCardCollapsedChanged: { if (isLoaded) saveSettings() }
+
+    // --- DYNAMIC MODULE ORDERING ---
+    property var leftCardOrder: ["power", "recorder", "screenshot", "notifications", "wallpaper", "settings", "launcher"]
+    property var rightCardOrder: ["audio", "sys", "batt", "cc", "network", "clipboard", "clock"]
+
+    function moveModule(cardKey, iconId, direction) {
+        let list = (cardKey === "left" ? leftCardOrder : rightCardOrder).slice()
+        let idx = list.indexOf(iconId)
+        if (idx === -1) return
+
+        let targetIdx = idx + direction
+        if (targetIdx < 0 || targetIdx >= list.length) return
+
+        let item = list.splice(idx, 1)[0]
+        list.splice(targetIdx, 0, item)
+
+        if (cardKey === "left") leftCardOrder = list
+        else rightCardOrder = list
+
+        saveSettings()
+    }
 
     // --- UNIFIED SURFACE GEOMETRY ---
     property real surfaceRadius: 18.0

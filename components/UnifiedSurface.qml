@@ -267,6 +267,7 @@ PanelWindow {
     }
 
     function setPopoutPos(item) {
+        if (!item) return
         root.isCentered = false
         if (isHorizontal) {
             root.popoutXOffset = item.mapToItem(mainContainer, item.width / 2, 0).x
@@ -334,26 +335,23 @@ PanelWindow {
         function onShowSettingsChanged() {
             if (Config.showSettings) {
                 closeOthers("settings")
-                if (leftCard && leftCard.btnSettings) {
-                    setPopoutPos(leftCard.btnSettings)
-                } else if (rightCard && rightCard.btnSettings) {
-                    setPopoutPos(rightCard.btnSettings)
-                }
+                let btn = leftCard ? leftCard.getButton("settings") : (rightCard ? rightCard.getButton("settings") : null)
+                if (btn) setPopoutPos(btn)
             }
             updateActiveView()
         }
-        function onShowAppLauncherChanged() { if (Config.showAppLauncher) { closeOthers("appLauncher"); setPopoutPos(leftCard.btnLauncher); } updateActiveView() }
-        function onShowPowerChanged() { if (Config.showPower) { closeOthers("power"); setPopoutPos(leftCard.btnPower); } updateActiveView() }
-        function onShowWallpaperChanged() { if (Config.showWallpaper) { closeOthers("wallpaper"); setPopoutPos(leftCard.btnWallpaper); } updateActiveView() }
-        function onShowCalendarChanged() { if (Config.showCalendar) { closeOthers("calendar"); setPopoutPos(rightCard.btnClock); } updateActiveView() }
-        function onShowNotificationsChanged() { if (Config.showNotifications) { closeOthers("notifications"); setPopoutPos(leftCard.btnNotifications); } updateActiveView() }
-        function onShowAudioChanged() { if (Config.showAudio) { closeOthers("audio"); setPopoutPos(rightCard.btnAudio); } updateActiveView() }
-        function onShowNetworkChanged() { if (Config.showNetwork) { closeOthers("network"); setPopoutPos(rightCard.btnNetwork); } updateActiveView() }
-        function onShowSystemMonitorChanged() { if (Config.showSystemMonitor) { closeOthers("systemMonitor"); setPopoutPos(rightCard.btnSys); } updateActiveView() }
-        function onShowBatteryChanged() { if (Config.showBattery) { closeOthers("battery"); setPopoutPos(rightCard.btnBatt); } updateActiveView() }
-        function onShowClipboardChanged() { if (Config.showClipboard) { closeOthers("clipboard"); setPopoutPos(rightCard.btnClipboard); } updateActiveView() }
-        function onShowScreenRecorderChanged() { if (Config.showScreenRecorder) { closeOthers("screenRecorder"); setPopoutPos(leftCard.btnRecorder); } updateActiveView() }
-        function onShowControlCenterChanged() { if (Config.showControlCenter) { closeOthers("controlCenter"); setPopoutPos(rightCard.btnCC); } updateActiveView() }
+        function onShowAppLauncherChanged() { if (Config.showAppLauncher) { closeOthers("appLauncher"); let btn = leftCard ? leftCard.getButton("launcher") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowPowerChanged() { if (Config.showPower) { closeOthers("power"); let btn = leftCard ? leftCard.getButton("power") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowWallpaperChanged() { if (Config.showWallpaper) { closeOthers("wallpaper"); let btn = leftCard ? leftCard.getButton("wallpaper") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowCalendarChanged() { if (Config.showCalendar) { closeOthers("calendar"); let btn = rightCard ? rightCard.getButton("clock") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowNotificationsChanged() { if (Config.showNotifications) { closeOthers("notifications"); let btn = leftCard ? leftCard.getButton("notifications") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowAudioChanged() { if (Config.showAudio) { closeOthers("audio"); let btn = rightCard ? rightCard.getButton("audio") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowNetworkChanged() { if (Config.showNetwork) { closeOthers("network"); let btn = rightCard ? rightCard.getButton("network") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowSystemMonitorChanged() { if (Config.showSystemMonitor) { closeOthers("systemMonitor"); let btn = rightCard ? rightCard.getButton("sys") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowBatteryChanged() { if (Config.showBattery) { closeOthers("battery"); let btn = rightCard ? rightCard.getButton("batt") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowClipboardChanged() { if (Config.showClipboard) { closeOthers("clipboard"); let btn = rightCard ? rightCard.getButton("clipboard") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowScreenRecorderChanged() { if (Config.showScreenRecorder) { closeOthers("screenRecorder"); let btn = leftCard ? leftCard.getButton("recorder") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowControlCenterChanged() { if (Config.showControlCenter) { closeOthers("controlCenter"); let btn = rightCard ? rightCard.getButton("cc") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
     }
 
     Item {
@@ -837,7 +835,7 @@ PanelWindow {
                         PathCubic { x: root.inX + root.inW - root.wingW; y: root.pLeft; control1X: root.inX + root.inW; control1Y: root.pLeft - root.wingW * 0.5; control2X: root.inX + root.inW - root.wingW * 0.5; control2Y: root.pLeft }
                         
                         PathLine { x: root.rightBarPopL + root.radius; y: root.pLeft } 
-                        PathArc { x: root.rightBarPopL; y: root.pLeft + root.radius; radiusX: root.radius; radiusY: root.radius; direction: PathArc.Counterclockwise } 
+                        PathArc { x: root.rightBarPopL; y: root.pLeft + root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Counterclockwise } 
                         
                         PathLine { x: root.rightBarPopL; y: root.inY + root.inH - root.wingW } 
                         PathCubic { x: root.rightBarPopL - root.wingW; y: root.inY + root.inH; control1X: root.rightBarPopL; control1Y: root.inY + root.inH - root.wingW * 0.5; control2X: root.rightBarPopL - root.wingW * 0.5; control2Y: root.inY + root.inH } 
@@ -1046,7 +1044,7 @@ PanelWindow {
                         PathLine { x: root.inX + root.inW - root.halfB; y: root.inY + root.inH - root.inRadi }
                         PathArc { x: root.inX + root.inW - root.inRadi; y: root.inY + root.inH - root.halfB; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                         PathLine { x: root.inX + root.inRadi; y: root.inY + root.inH - root.halfB }
-                        PathArc { x: root.inX + root.halfB; y: root.inY + root.inH - root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
+                        PathArc { x: root.halfB; y: root.inY + root.inH - root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                         PathLine { x: root.inX + root.halfB; y: root.inY + root.inRadi }
                         PathArc { x: root.inX + root.inRadi; y: root.inY + root.halfB; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                     }
