@@ -23,7 +23,7 @@ ColumnLayout {
 
     SoundEffect {
         id: previewPlayer
-        volume: 1.0
+        volume: 0.25
     }
 
     function previewSound(fileName) {
