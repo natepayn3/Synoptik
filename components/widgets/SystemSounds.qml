@@ -10,33 +10,32 @@ ColumnLayout {
     spacing: Config.cardMargin
 
     readonly property var soundFiles: [
-        "sound1.mp3", "sound2.mp3", "sound3.mp3",
-        "sound4.mp3", "sound5.mp3", "sound6.mp3",
-        "sound7.mp3", "sound8.mp3", "sound9.mp3"
+        "sound1.wav", "sound2.wav", "sound3.wav",
+        "sound4.wav", "sound5.wav", "sound6.wav",
+        "sound7.wav", "sound8.wav", "sound9.wav"
     ]
 
     function formatSoundName(fileName) {
-        // Inline Comment: Convert raw filename 'sound1.mp3' to display label 'Sound 1'
-        let clean = fileName.replace(".mp3", "")
+        // Inline Comment: Convert raw filename 'sound1.wav' to display label 'Sound 1'
+        let clean = fileName.replace(".wav", "")
         return clean.charAt(0).toUpperCase() + clean.slice(1).replace(/(\d+)/, " $1")
     }
 
-    AudioOutput {
-        id: previewOutput
+    SoundEffect {
+        id: previewPlayer
         volume: 1.0
     }
 
-    MediaPlayer {
-        id: previewPlayer
-        audioOutput: previewOutput
-    }
-
     function previewSound(fileName) {
-        // Inline Comment: Clean URL format for QtMultimedia preview
+        if (!fileName) return
         let baseDir = Quickshell.shellDir.toString()
         if (!baseDir.endsWith("/")) baseDir += "/"
-        previewPlayer.source = baseDir + "assets/" + fileName
+        
+        // Inline Comment: Convert to a strict QUrl to keep QtMultimedia happy
+        let fullUrl = Qt.resolvedUrl(baseDir + "assets/" + fileName)
+        
         previewPlayer.stop()
+        previewPlayer.source = fullUrl
         previewPlayer.play()
     }
 
