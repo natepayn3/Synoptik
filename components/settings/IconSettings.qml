@@ -8,15 +8,20 @@ import ".."
 ColumnLayout {
     id: iconSettingsRoot
     anchors.fill: parent
-    spacing: Config.cardMargin || 12
+    spacing: Config.cardMargin / 2 || 12
 
-    // Unset by default until explicitly clicked
     property string selectedIconId: ""
     property string searchQuery: ""
     property var allIconsList: []
     property bool isLoadingIcons: true
 
-    // --- FETCH FULL MATERIAL SYMBOLS LIST ---
+    // Inline Comment: Helper check to disable reordering for unselected or workspace icons
+    readonly property bool canMoveSelected: {
+        if (!iconSettingsRoot.selectedIconId) return false
+        return Config.leftCardOrder.includes(iconSettingsRoot.selectedIconId) 
+            || Config.rightCardOrder.includes(iconSettingsRoot.selectedIconId)
+    }
+
     Process {
         id: iconFetcher
         running: true
@@ -50,7 +55,6 @@ ColumnLayout {
         font.bold: true
     }
 
-    // --- DESCRIPTION WITH DIRECT LINK TO GOOGLE ICONS ---
     RowLayout {
         Layout.fillWidth: true
         spacing: 4
@@ -109,26 +113,18 @@ ColumnLayout {
                         spacing: 6
 
                         Repeater {
-                            model: [
-                                { id: "power", label: "Power" },
-                                { id: "recorder", label: "Recorder" },
-                                { id: "screenshot", label: "Screenshot" },
-                                { id: "notifications", label: "Notifications" },
-                                { id: "wallpaper", label: "Wallpaper" },
-                                { id: "settings", label: "Settings" },
-                                { id: "launcher", label: "Launcher" }
-                            ]
+                            model: Config.leftCardOrder || ["power", "recorder", "screenshot", "notifications", "wallpaper", "settings", "launcher"]
 
                             delegate: Rectangle {
                                 implicitWidth: 32; implicitHeight: 32; radius: 8
-                                readonly property bool isSelected: iconSettingsRoot.selectedIconId === modelData.id
+                                readonly property bool isSelected: iconSettingsRoot.selectedIconId === modelData
                                 color: isSelected ? Qt.rgba(255, 255, 255, 0.2) : (btnHoverL.hovered ? Qt.rgba(255, 255, 255, 0.1) : "transparent")
                                 border.color: isSelected ? Config.accent : "transparent"
                                 border.width: isSelected ? 2 : 0
 
                                 Text {
                                     anchors.centerIn: parent
-                                    text: Config.getIcon(modelData.id)
+                                    text: Config.getIcon(modelData)
                                     color: parent.isSelected ? Config.accent : Config.textMain
                                     font.family: "Material Symbols Outlined"
                                     font.weight: Font.Bold
@@ -138,7 +134,7 @@ ColumnLayout {
                                 MouseArea {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: iconSettingsRoot.selectedIconId = modelData.id
+                                    onClicked: iconSettingsRoot.selectedIconId = modelData
                                 }
                                 HoverHandler { id: btnHoverL }
                             }
@@ -147,7 +143,7 @@ ColumnLayout {
                 }
             }
 
-            // ROW 2: WORKSPACES / SPECIALS
+            // ROW 2: WORKSPACES / SPECIALS (Fixed Row)
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
@@ -235,24 +231,18 @@ ColumnLayout {
                         spacing: 6
 
                         Repeater {
-                            model: [
-                                { id: "audio", label: "Audio" },
-                                { id: "sys", label: "System" },
-                                { id: "cc", label: "Control Center" },
-                                { id: "network", label: "Network" },
-                                { id: "clipboard", label: "Clipboard" }
-                            ]
+                            model: Config.rightCardOrder || ["audio", "sys", "batt", "cc", "network", "clipboard", "clock"]
 
                             delegate: Rectangle {
                                 implicitWidth: 32; implicitHeight: 32; radius: 8
-                                readonly property bool isSelected: iconSettingsRoot.selectedIconId === modelData.id
+                                readonly property bool isSelected: iconSettingsRoot.selectedIconId === modelData
                                 color: isSelected ? Qt.rgba(255, 255, 255, 0.2) : (btnHoverR.hovered ? Qt.rgba(255, 255, 255, 0.1) : "transparent")
                                 border.color: isSelected ? Config.accent : "transparent"
                                 border.width: isSelected ? 2 : 0
 
                                 Text {
                                     anchors.centerIn: parent
-                                    text: Config.getIcon(modelData.id)
+                                    text: Config.getIcon(modelData)
                                     color: parent.isSelected ? Config.accent : Config.textMain
                                     font.family: "Material Symbols Outlined"
                                     font.weight: Font.Bold
@@ -262,13 +252,83 @@ ColumnLayout {
                                 MouseArea {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: iconSettingsRoot.selectedIconId = modelData.id
+                                    onClicked: iconSettingsRoot.selectedIconId = modelData
                                 }
                                 HoverHandler { id: btnHoverR }
                             }
                         }
                     }
                 }
+            }
+        }
+    }
+
+    // --- CENTERED REORDER CONTROLS ---
+    RowLayout {
+        // Inline Comment: Centered horizontally beneath the mockup box
+        Layout.alignment: Qt.AlignHCenter
+        spacing: 4
+
+        // Shift Left
+        Rectangle {
+            implicitWidth: 32; implicitHeight: 32; radius: 6
+            // Inline Comment: Greys out when middle row or no icon is selected
+            opacity: canMoveSelected ? 1.0 : 0.35
+            color: (canMoveSelected && moveLeftHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(0, 0, 0, 0.2)
+
+            Behavior on opacity { NumberAnimation { duration: 150 } }
+            Behavior on color { ColorAnimation { duration: 150 } }
+
+            Text {
+                anchors.centerIn: parent
+                text: "arrow_back"
+                font.family: "Material Symbols Outlined"
+                font.pixelSize: 18
+                color: canMoveSelected ? Config.textMain : Config.textMuted
+            }
+
+            TapHandler {
+                enabled: canMoveSelected
+                onTapped: {
+                    let isLeft = Config.leftCardOrder.includes(iconSettingsRoot.selectedIconId)
+                    Config.moveModule(isLeft ? "left" : "right", iconSettingsRoot.selectedIconId, -1)
+                }
+            }
+            HoverHandler { 
+                id: moveLeftHover
+                enabled: canMoveSelected
+                cursorShape: canMoveSelected ? Qt.PointingHandCursor : Qt.ArrowCursor 
+            }
+        }
+
+        // Shift Right
+        Rectangle {
+            implicitWidth: 32; implicitHeight: 32; radius: 6
+            opacity: canMoveSelected ? 1.0 : 0.35
+            color: (canMoveSelected && moveRightHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(0, 0, 0, 0.2)
+
+            Behavior on opacity { NumberAnimation { duration: 150 } }
+            Behavior on color { ColorAnimation { duration: 150 } }
+
+            Text {
+                anchors.centerIn: parent
+                text: "arrow_forward"
+                font.family: "Material Symbols Outlined"
+                font.pixelSize: 18
+                color: canMoveSelected ? Config.textMain : Config.textMuted
+            }
+
+            TapHandler {
+                enabled: canMoveSelected
+                onTapped: {
+                    let isLeft = Config.leftCardOrder.includes(iconSettingsRoot.selectedIconId)
+                    Config.moveModule(isLeft ? "left" : "right", iconSettingsRoot.selectedIconId, 1)
+                }
+            }
+            HoverHandler { 
+                id: moveRightHover
+                enabled: canMoveSelected
+                cursorShape: canMoveSelected ? Qt.PointingHandCursor : Qt.ArrowCursor 
             }
         }
     }
@@ -330,7 +390,6 @@ ColumnLayout {
             }
         }
 
-        // Reset to Defaults
         Rectangle {
             implicitWidth: 110; implicitHeight: 38
             radius: Config.cornerRadius / 2
@@ -379,11 +438,9 @@ ColumnLayout {
         GridView {
             id: iconGrid
             anchors.fill: parent
-            // Inline Comment: Fixed outer margins prevent QML anchor-to-width binding loops
             anchors.margins: 10
             clip: true
 
-            // Inline Comment: Derive columns from static parent width and stretch cellWidth edge-to-edge
             readonly property real minCellWidth: 50
             readonly property int columns: Math.max(1, Math.floor(width / minCellWidth))
             
@@ -404,7 +461,6 @@ ColumnLayout {
                 height: GridView.view.cellHeight
 
                 Rectangle {
-                    // Inline Comment: Center the selection button cleanly inside the dynamically sized grid cell
                     anchors.centerIn: parent
                     width: 44
                     height: 44
