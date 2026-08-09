@@ -25,7 +25,7 @@ Item {
         id: notifSoundPlayer
         // Inline Comment: Dynamically target notification sound WAV asset from Quickshell directory
         source: Qt.resolvedUrl(Quickshell.shellDir.toString() + "/assets/" + (Config.notificationSoundPath || "sound1.wav"))
-        volume: 0.5
+        volume: 0.25
     }
 
     function playNotificationSound() {
