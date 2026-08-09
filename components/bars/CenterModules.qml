@@ -11,17 +11,26 @@ Rectangle {
     property var barContentRef
 
     anchors.centerIn: parent
-    anchors.horizontalCenterOffset: (rootRef.isHorizontal && rootRef.isScreenFrame) ? (rootRef.barPosition === "left" ? (rootRef.framePadding / 2) : (rootRef.barPosition === "right" ? -(rootRef.framePadding / 2) : 0)) : 0
-    anchors.verticalCenterOffset: (!rootRef.isHorizontal && rootRef.isScreenFrame) ? (rootRef.barPosition === "top" ? (rootRef.framePadding / 2) : (rootRef.barPosition === "bottom" ? -(rootRef.framePadding / 2) : 0)) : 0
+    anchors.horizontalCenterOffset: (rootRef && rootRef.isHorizontal && rootRef.isScreenFrame) ? (rootRef.barPosition === "left" ? (rootRef.framePadding / 2) : (rootRef.barPosition === "right" ? -(rootRef.framePadding / 2) : 0)) : 0
+    anchors.verticalCenterOffset: (rootRef && !rootRef.isHorizontal && rootRef.isScreenFrame) ? (rootRef.barPosition === "top" ? (rootRef.framePadding / 2) : (rootRef.barPosition === "bottom" ? -(rootRef.framePadding / 2) : 0)) : 0
 
-    readonly property real availableW: Math.max(32, barContentRef.width - leftCardRef.width - rightCardRef.width - 48)
-    readonly property real availableH: Math.max(32, barContentRef.height - leftCardRef.height - rightCardRef.height - 48)
+    // Inline Comment: Safe null-checks prevent initialization property lookup errors
+    readonly property real leftW: leftCardRef ? leftCardRef.width : 0
+    readonly property real rightW: rightCardRef ? rightCardRef.width : 0
+    readonly property real barW: barContentRef ? barContentRef.width : 1920
 
-    width: rootRef.isHorizontal 
+    readonly property real leftH: leftCardRef ? leftCardRef.height : 0
+    readonly property real rightH: rightCardRef ? rightCardRef.height : 0
+    readonly property real barH: barContentRef ? barContentRef.height : 54
+
+    readonly property real availableW: Math.max(32, barW - leftW - rightW - 48)
+    readonly property real availableH: Math.max(32, barH - leftH - rightH - 48)
+
+    width: (rootRef && rootRef.isHorizontal) 
         ? Math.min(centerContentLayout.implicitWidth + 16, availableW) 
         : 36
 
-    height: rootRef.isHorizontal 
+    height: (rootRef && rootRef.isHorizontal) 
         ? 36
         : Math.min(centerContentLayout.implicitHeight + 16, availableH)
     
@@ -32,12 +41,12 @@ Rectangle {
     Loader {
         id: centerContentLayout
         anchors.fill: parent
-        anchors.leftMargin: rootRef.isHorizontal ? 8 : 2
-        anchors.rightMargin: rootRef.isHorizontal ? 8 : 2
-        anchors.topMargin: !rootRef.isHorizontal ? 8 : 2
-        anchors.bottomMargin: !rootRef.isHorizontal ? 8 : 2
+        anchors.leftMargin: (rootRef && rootRef.isHorizontal) ? 8 : 2
+        anchors.rightMargin: (rootRef && rootRef.isHorizontal) ? 8 : 2
+        anchors.topMargin: (rootRef && !rootRef.isHorizontal) ? 8 : 2
+        anchors.bottomMargin: (rootRef && !rootRef.isHorizontal) ? 8 : 2
 
-        sourceComponent: rootRef.isHorizontal ? horizCenterComp : vertCenterComp
+        sourceComponent: (rootRef && rootRef.isHorizontal) ? horizCenterComp : vertCenterComp
     }
 
     Component {
@@ -72,7 +81,7 @@ Rectangle {
 
                     sourceComponent: Taskbar {
                         isVertical: false
-                        activeScreenName: rootRef.screen ? rootRef.screen.name : ""
+                        activeScreenName: (rootRef && rootRef.screen) ? rootRef.screen.name : ""
                     }
                 }
             }
@@ -111,7 +120,7 @@ Rectangle {
 
                     sourceComponent: Taskbar {
                         isVertical: true
-                        activeScreenName: rootRef.screen ? rootRef.screen.name : ""
+                        activeScreenName: (rootRef && rootRef.screen) ? rootRef.screen.name : ""
                     }
                 }
             }

@@ -8,13 +8,16 @@ Rectangle {
     property var rootRef
     signal popoutRequested(var item)
 
-    property alias btnAudio: btnAudio
-    property alias btnSys: btnSys
-    property alias btnBatt: btnBatt
-    property alias btnCC: btnCC
-    property alias btnNetwork: btnNetwork
-    property alias btnClipboard: btnClipboard
-    property alias btnClock: btnClock
+    // Inline Comment: Map instantiated child items by icon key for PanelWindow origin tracking
+    function getButton(key) {
+        for (let i = 0; i < repeater.count; i++) {
+            let loader = repeater.itemAt(i)
+            if (loader && loader.itemKey === key && loader.item) {
+                return loader.item
+            }
+        }
+        return rightCard
+    }
 
     width: rootRef.isHorizontal ? (rightModules.implicitWidth + 4) : 36
     height: rootRef.isHorizontal ? 36 : (rightModules.implicitHeight + 4)
@@ -80,6 +83,34 @@ Rectangle {
             HoverHandler { id: chevronRightHover; cursorShape: Qt.PointingHandCursor }
         }
 
+        Repeater {
+            id: repeater
+            model: Config.rightCardOrder || ["audio", "sys", "batt", "cc", "network", "clipboard", "clock"]
+
+            delegate: Loader {
+                readonly property string itemKey: modelData
+
+                // Inline Comment: Fallback to true while item is null so Loader instantiates before checking item.visible
+                visible: item ? item.visible : true
+
+                sourceComponent: {
+                    switch(itemKey) {
+                        case "audio": return audioComp
+                        case "sys": return sysComp
+                        case "batt": return battComp
+                        case "cc": return ccComp
+                        case "network": return networkComp
+                        case "clipboard": return clipComp
+                        case "clock": return clockComp
+                        default: return null
+                    }
+                }
+            }
+        }
+    }
+
+    Component {
+        id: audioComp
         Rectangle {
             id: btnAudio
             visible: !Config.rightCardCollapsed || Config.isPinned("audio")
@@ -113,7 +144,10 @@ Rectangle {
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("audio") }
             HoverHandler { id: audioHover; cursorShape: Qt.PointingHandCursor }
         }
+    }
 
+    Component {
+        id: sysComp
         Rectangle {
             id: btnSys
             visible: !Config.rightCardCollapsed || Config.isPinned("sys")
@@ -147,7 +181,10 @@ Rectangle {
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("sys") }
             HoverHandler { id: sysHover; cursorShape: Qt.PointingHandCursor }
         }
+    }
 
+    Component {
+        id: battComp
         Rectangle {
             id: btnBatt
             visible: shellRoot.hasBattery && (!Config.rightCardCollapsed || Config.isPinned("batt"))
@@ -191,7 +228,10 @@ Rectangle {
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("batt") }
             HoverHandler { id: battHover; cursorShape: Qt.PointingHandCursor }
         }
+    }
 
+    Component {
+        id: ccComp
         Rectangle {
             id: btnCC
             visible: !Config.rightCardCollapsed || Config.isPinned("cc")
@@ -225,7 +265,10 @@ Rectangle {
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("cc") }
             HoverHandler { id: ccHover; cursorShape: Qt.PointingHandCursor }
         }
+    }
 
+    Component {
+        id: networkComp
         Rectangle {
             id: btnNetwork
             visible: !Config.rightCardCollapsed || Config.isPinned("network")
@@ -259,7 +302,10 @@ Rectangle {
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("network") }
             HoverHandler { id: networkHover; cursorShape: Qt.PointingHandCursor }
         }
+    }
 
+    Component {
+        id: clipComp
         Rectangle {
             id: btnClipboard
             visible: !Config.rightCardCollapsed || Config.isPinned("clipboard")
@@ -293,7 +339,10 @@ Rectangle {
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("clipboard") }
             HoverHandler { id: clipHover; cursorShape: Qt.PointingHandCursor }
         }
+    }
 
+    Component {
+        id: clockComp
         Rectangle {
             id: btnClock
             visible: !Config.rightCardCollapsed || Config.isPinned("clock")
@@ -316,6 +365,7 @@ Rectangle {
                 visible: !Config.rightCardCollapsed && Config.isPinned("clock")
             }
 
+            // Inline Comment: Live horizontal time layout
             RowLayout {
                 id: dateRow
                 visible: rootRef.isHorizontal
@@ -344,6 +394,7 @@ Rectangle {
                 }
             }
 
+            // Inline Comment: Live vertical time layout
             ColumnLayout {
                 id: dateColumn
                 visible: !rootRef.isHorizontal
