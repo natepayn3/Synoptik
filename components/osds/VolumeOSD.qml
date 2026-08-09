@@ -27,7 +27,7 @@ Item {
     // Audio routing pipeline matching shell panel architecture
     AudioOutput {
         id: audioOutput
-        volume: 0.3
+        volume: 0.25
     }
 
     MediaPlayer {
