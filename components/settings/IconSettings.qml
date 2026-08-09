@@ -379,10 +379,11 @@ ColumnLayout {
         GridView {
             id: iconGrid
             anchors.fill: parent
+            // Inline Comment: Fixed outer margins prevent QML anchor-to-width binding loops
             anchors.margins: 10
             clip: true
 
-            // Inline Comment: Calculate columns from min size, then stretch cellWidth to fill 100% of parent width
+            // Inline Comment: Derive columns from static parent width and stretch cellWidth edge-to-edge
             readonly property real minCellWidth: 50
             readonly property int columns: Math.max(1, Math.floor(width / minCellWidth))
             
@@ -403,7 +404,7 @@ ColumnLayout {
                 height: GridView.view.cellHeight
 
                 Rectangle {
-                    // Inline Comment: Center the visual button inside the dynamically sized grid slot
+                    // Inline Comment: Center the selection button cleanly inside the dynamically sized grid cell
                     anchors.centerIn: parent
                     width: 44
                     height: 44
