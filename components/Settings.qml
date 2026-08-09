@@ -6,6 +6,7 @@ import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
 import "./settings"
+import "./widgets"
 
 Item {
     id: settingsRoot
@@ -229,7 +230,8 @@ Item {
                                 model: [
                                     { id: 8, name: "Mascot", icon: "smart_toy" },
                                     { id: 9, name: "Clock", icon: "schedule" },
-                                    { id: 10, name: "Keyboard", icon: "keyboard" }
+                                    { id: 10, name: "Keyboard", icon: "keyboard" },
+                                    { id: 13, name: "Sounds", icon: "volume_up" }
                                 ]
 
                                 delegate: Rectangle {
@@ -680,6 +682,11 @@ Item {
                     IconSettings {
                         anchors.fill: parent
                         visible: settingsRoot.activeSection === 12
+                    }
+
+                    SystemSoundsSettings {
+                        anchors.fill: parent
+                        visible: settingsRoot.activeSection === 13
                     }
                 }
             }

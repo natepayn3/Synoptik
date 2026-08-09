@@ -30,6 +30,15 @@ QtObject {
     property bool showClipboard: false
     property bool showScreenRecorder: false
 
+    // --- SYSTEM SOUNDS CONFIGURATION ---
+    property bool playSystemSounds: true
+    property string windowSoundPath: "sound1.mp3"
+    property string notificationSoundPath: "sound1.mp3"
+
+    onPlaySystemSoundsChanged: { if (isLoaded) saveSettings() }
+    onWindowSoundPathChanged: { if (isLoaded) saveSettings() }
+    onNotificationSoundPathChanged: { if (isLoaded) saveSettings() }
+
     // --- ICON MAP & OVERRIDES ---
     property var iconOverrides: ({})
 
@@ -243,12 +252,10 @@ QtObject {
                 try {
                     let text = this.text ? this.text.trim() : ""
                     if (text.length > 0) {
-                        // Regex match JSON block starting with { and ending with }
                         let match = text.match(/\{[\s\S]*\}/)
                         if (match) {
                             let jsonStr = match[0]
 
-                            // Verify extracted string contains Iris JSON color keys
                             if (jsonStr.includes('"bg"') || jsonStr.includes('"surface"') || jsonStr.includes('"accent"')) {
                                 let parsed = JSON.parse(jsonStr)
 
@@ -934,6 +941,9 @@ QtObject {
                 "enableIris": root.enableIris,
                 "customThemes": customPalettes,
                 "windowStyle": root.windowStyle,
+                "playSystemSounds": root.playSystemSounds,
+                "windowSoundPath": root.windowSoundPath,
+                "notificationSoundPath": root.notificationSoundPath,
 
                 "leftCardCollapsed": root.leftCardCollapsed,
                 "rightCardCollapsed": root.rightCardCollapsed,
@@ -987,7 +997,8 @@ QtObject {
                             "enableXray", "enableIris", "surfaceRadius", "borderThickness", "cardMargin", "showDesktopClock", "clockStyle", "clockScale", 
                             "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", 
                             "clockShowBackground", "clockPositions", "clockScales", "enabledClockScreens",
-                            "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides"
+                            "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides",
+                            "playSystemSounds", "windowSoundPath", "notificationSoundPath"
                         ]
 
                         props.forEach(p => {

@@ -3,7 +3,9 @@ import QtQuick.Effects
 import QtQuick.Layouts
 import QtQuick.Controls
 import QtQuick.Shapes
+import QtMultimedia
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import "bars"
@@ -96,8 +98,31 @@ PanelWindow {
     property real lastOpenWidth: rawChildWidth
     property real lastOpenHeight: rawChildHeight
 
+    // Native audio output engine for zero-delay instant playback
+    AudioOutput {
+        id: audioOutput
+        volume: 1.0
+    }
+
+    MediaPlayer {
+        id: soundPlayer
+        // Inline Comment: Dynamic sound path resolution based on Config active window sound selection
+        source: Quickshell.shellDir.toString() + "/assets/" + (Config.windowSoundPath || "sound1.mp3")
+        audioOutput: audioOutput
+    }
+
+    function playOpenSound() {
+        if (!Config.playSystemSounds || root.activeView === "notifOsd" || root.activeView === "osd") return
+
+        // Inline Comment: Stop and rewind buffer to start to instantly re-trigger on rapid toggles
+        soundPlayer.stop()
+        soundPlayer.play()
+    }
+
     onIsOpenChanged: {
-        if (!isOpen) {
+        if (isOpen) {
+            root.playOpenSound()
+        } else {
             lastOpenWidth = rawChildWidth
             lastOpenHeight = rawChildHeight
         }
@@ -221,7 +246,6 @@ PanelWindow {
         let isFocused = !screen || screen.name === (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : "")
 
         if (isFocused) {
-            // Drawers take priority so an open drawer won't close when volume/notification OSDs trigger
             if (Config.showSettings) nextView = "settings"
             else if (Config.showWorkspacePreview) nextView = "workspacePreview"
             else if (Config.showPower) nextView = "power"
@@ -236,7 +260,6 @@ PanelWindow {
             else if (Config.showClipboard) nextView = "clipboard"
             else if (Config.showScreenRecorder) nextView = "screenRecorder"
             else if (Config.showControlCenter) nextView = "controlCenter"
-            // OSDs only active when no drawer is active
             else if (typeof Config.showOSD !== "undefined" && Config.showOSD) nextView = "osd"
             else if (typeof Config.showNotificationOsd !== "undefined" && Config.showNotificationOsd) nextView = "notifOsd"
         }
@@ -260,7 +283,6 @@ PanelWindow {
     }
 
     function closeOthers(except) {
-        // If an OSD triggers closeOthers, leave active drawers open
         let isOsdTrigger = (except === "osd" || except === "notifOsd")
 
         if (except !== "osd" && typeof Config.showOSD !== "undefined") Config.showOSD = false
@@ -859,18 +881,22 @@ PanelWindow {
                     ShapePath {
                         fillColor: "transparent"; strokeWidth: root.borderWidth; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
                         startX: root.inX + root.inRadi; startY: root.inY + root.halfB
-                        PathLine { x: root.rightBarPopL - root.wingW; y: root.inY + root.halfB }
-                        PathCubic { x: root.rightBarPopL; y: root.inY + root.halfB + root.wingW; control1X: root.rightBarPopL - root.wingW * 0.5; control1Y: root.inY + root.halfB; control2X: root.rightBarPopL; control2Y: root.inY + root.halfB + root.wingW * 0.5 }
-                        PathLine { x: root.rightBarPopL; y: root.pRight - root.radius }
-                        PathArc { x: root.rightBarPopL + root.radius; y: root.pRight; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Counterclockwise }
-                        PathLine { x: root.inX + root.inW - root.wingW; y: root.pRight }
-                        PathCubic { x: root.inX + root.inW - root.halfB; y: root.pRight + root.wingW; control1X: root.inX + root.inW - root.wingW * 0.5; control1Y: root.pRight; control2X: root.inX + root.inW - root.halfB; control2Y: root.pRight + root.wingW * 0.5 }
+                        PathArc { x: root.inX + root.inW - root.halfB; y: root.inY + root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                         PathLine { x: root.inX + root.inW - root.halfB; y: root.inY + root.inH - root.inRadi }
                         PathArc { x: root.inX + root.inW - root.inRadi; y: root.inY + root.inH - root.halfB; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                         PathLine { x: root.inX + root.inRadi; y: root.inY + root.inH - root.halfB }
                         PathArc { x: root.inX + root.halfB; y: root.inY + root.inH - root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
-                        PathLine { x: root.inX + root.halfB; y: root.inY + root.inRadi }
-                        PathArc { x: root.inX + root.inRadi; y: root.inY + root.halfB; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
+                        
+                        PathLine { x: root.inX + root.halfB; y: root.pRight + root.wingW } 
+                        PathCubic { x: root.inX + root.wingW; y: root.pRight; control1X: root.inX + root.halfB; control1Y: root.pRight + root.wingW * 0.5; control2X: root.inX + root.wingW * 0.5; control2Y: root.pRight } 
+                        
+                        PathLine { x: root.leftBarRx - root.radius; y: root.pRight } 
+                        PathArc { x: root.leftBarRx; y: root.pRight - root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Counterclockwise } 
+                        
+                        PathLine { x: root.leftBarRx; y: root.inY + root.halfB + root.wingW } 
+                        PathCubic { x: root.leftBarRx + root.wingW; y: root.inY + root.halfB; control1X: root.leftBarRx; control1Y: root.inY + root.halfB + root.wingW * 0.5; control2X: root.leftBarRx + root.wingW * 0.5; control2Y: root.inY + root.halfB } 
+                        
+                        PathLine { x: root.inX + root.inW - root.inRadi; y: root.inY + root.halfB } 
                     }
                 }
                 Shape {
@@ -889,7 +915,7 @@ PanelWindow {
                         PathArc { x: root.rightBarPopL; y: root.pLeft + root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Counterclockwise } 
                         
                         PathLine { x: root.rightBarPopL; y: root.inY + root.inH - root.halfB - root.wingW } 
-                        PathCubic { x: root.rightBarPopL - root.wingW; y: root.inY + root.inH - root.halfB; control1X: root.rightBarPopL; control1Y: root.inY + root.inH - root.halfB - root.wingW * 0.5; control2X: root.rightBarPopL - root.wingW * 0.5; control2Y: root.inY + root.inH - root.halfB } 
+                        PathCubic { x: root.rightBarPopL - root.wingW; y: root.inY + root.inH - root.halfB; control1X: root.rightBarPopL; control1Y: root.inY + root.inH - root.halfB - root.wingW * 0.5; control2X: root.rightBarPopL - root.wingW * 0.5; control2Y: root.inY + root.inH } 
                         
                         PathLine { x: root.inX + root.inRadi; y: root.inY + root.inH - root.halfB } 
                         PathArc { x: root.halfB; y: root.inY + root.inH - root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
@@ -1122,7 +1148,7 @@ PanelWindow {
                         PathLine { x: root.pLeft + root.radius; y: root.bottomBarPopT }
                         PathArc { x: root.pLeft; y: root.bottomBarPopT + root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Counterclockwise }
                         PathLine { x: root.pLeft; y: root.inY + root.inH - root.halfB - root.wingW }
-                        PathCubic { x: root.pLeft - root.wingW; y: root.inY + root.inH - root.halfB; control1X: root.pLeft; control1Y: root.inY + root.inH - root.halfB - root.wingW * 0.5; control2X: root.pLeft - root.wingW * 0.5; control2Y: root.inY + root.inH - root.halfB }
+                        PathCubic { x: root.pLeft - root.wingW; y: root.inY + root.inH - root.halfB; control1X: root.pLeft; control1Y: root.inY + root.inH - root.halfB - root.wingW * 0.5; control2X: root.pLeft - root.wingW * 0.5; control2Y: root.inY + root.inH }
                         PathLine { x: root.inX + root.inRadi; y: root.inY + root.inH - root.halfB }
                         PathArc { x: root.inX + root.halfB; y: root.inY + root.inH - root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                         PathLine { x: root.inX + root.halfB; y: root.inY + root.inRadi }
@@ -1172,7 +1198,7 @@ PanelWindow {
                         PathArc { x: root.pLeft; y: root.bottomBarPopT + root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Counterclockwise } 
                         
                         PathLine { x: root.pLeft; y: root.inY + root.inH - root.halfB - root.wingW } 
-                        PathCubic { x: root.pLeft - root.wingW; y: root.inY + root.inH - root.halfB; control1X: root.pLeft; control1Y: root.inY + root.inH - root.halfB - root.wingW * 0.5; control2X: root.pLeft - root.wingW * 0.5; control2Y: root.inY + root.inH - root.halfB } 
+                        PathCubic { x: root.pLeft - root.wingW; y: root.inY + root.inH - root.halfB; control1X: root.pLeft; control1Y: root.inY + root.inH - root.halfB - root.wingW * 0.5; control2X: root.pLeft - root.wingW * 0.5; control2Y: root.inY + root.inH } 
                         
                         PathLine { x: root.inX + root.inRadi; y: root.inY + root.inH - root.halfB } 
                         PathArc { x: root.halfB; y: root.inY + root.inH - root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
