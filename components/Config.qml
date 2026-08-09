@@ -31,11 +31,13 @@ QtObject {
     property bool showScreenRecorder: false
 
     // --- SYSTEM SOUNDS CONFIGURATION ---
-    property bool playSystemSounds: true
+    property bool playWindowSounds: true
+    property bool playNotificationSounds: true
     property string windowSoundPath: "sound1.mp3"
     property string notificationSoundPath: "sound1.mp3"
 
-    onPlaySystemSoundsChanged: { if (isLoaded) saveSettings() }
+    onPlayWindowSoundsChanged: { if (isLoaded) saveSettings() }
+    onPlayNotificationSoundsChanged: { if (isLoaded) saveSettings() }
     onWindowSoundPathChanged: { if (isLoaded) saveSettings() }
     onNotificationSoundPathChanged: { if (isLoaded) saveSettings() }
 
@@ -941,7 +943,8 @@ QtObject {
                 "enableIris": root.enableIris,
                 "customThemes": customPalettes,
                 "windowStyle": root.windowStyle,
-                "playSystemSounds": root.playSystemSounds,
+                "playWindowSounds": root.playWindowSounds,
+                "playNotificationSounds": root.playNotificationSounds,
                 "windowSoundPath": root.windowSoundPath,
                 "notificationSoundPath": root.notificationSoundPath,
 
@@ -998,7 +1001,7 @@ QtObject {
                             "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", 
                             "clockShowBackground", "clockPositions", "clockScales", "enabledClockScreens",
                             "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides",
-                            "playSystemSounds", "windowSoundPath", "notificationSoundPath"
+                            "playWindowSounds", "playNotificationSounds", "windowSoundPath", "notificationSoundPath"
                         ]
 
                         props.forEach(p => {

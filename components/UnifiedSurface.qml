@@ -101,7 +101,7 @@ PanelWindow {
     // Native audio output engine for zero-delay instant playback
     AudioOutput {
         id: audioOutput
-        volume: 1.0
+        volume: 0.5
     }
 
     MediaPlayer {
