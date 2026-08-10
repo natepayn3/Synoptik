@@ -71,6 +71,10 @@ Rectangle {
 
             delegate: Loader {
                 readonly property string itemKey: modelData
+                
+                // Inline Comment: Standard Item visible property automatically collapses GridLayout cells/spacing
+                visible: !Config.leftCardCollapsed || Config.isPinned(itemKey)
+
                 sourceComponent: {
                     switch(itemKey) {
                         case "power": return powerComp
@@ -110,16 +114,11 @@ Rectangle {
         id: powerComp
         Rectangle {
             id: btnPower
-            visible: !Config.leftCardCollapsed || Config.isPinned("power")
-            opacity: visible ? 1.0 : 0.0
-            implicitWidth: visible ? 32 : 0
-            implicitHeight: visible ? 32 : 0
+            implicitWidth: 32
+            implicitHeight: 32
             radius: 10
             color: (Config.showPower || powerHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
-            Behavior on opacity { NumberAnimation { duration: 150 } }
-            Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-            Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
             Behavior on color { ColorAnimation { duration: 150 } }
 
             Text {
@@ -147,16 +146,11 @@ Rectangle {
         id: recorderComp
         Rectangle {
             id: btnRecorder
-            visible: !Config.leftCardCollapsed || Config.isPinned("recorder")
-            opacity: visible ? 1.0 : 0.0
-            implicitWidth: visible ? 32 : 0
-            implicitHeight: visible ? 32 : 0
+            implicitWidth: 32
+            implicitHeight: 32
             radius: 10
             color: (Config.showScreenRecorder || recordHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
-            Behavior on opacity { NumberAnimation { duration: 150 } }
-            Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-            Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
             Behavior on color { ColorAnimation { duration: 150 } }
 
             Text {
@@ -183,16 +177,11 @@ Rectangle {
     Component {
         id: screenshotComp
         Rectangle {
-            visible: !Config.leftCardCollapsed || Config.isPinned("screenshot")
-            opacity: visible ? 1.0 : 0.0
-            implicitWidth: visible ? 32 : 0
-            implicitHeight: visible ? 32 : 0
+            implicitWidth: 32
+            implicitHeight: 32
             radius: 10
             color: screenshotHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
-            Behavior on opacity { NumberAnimation { duration: 150 } }
-            Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-            Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
             Behavior on color { ColorAnimation { duration: 150 } }
 
             Text {
@@ -220,16 +209,11 @@ Rectangle {
         id: notifComp
         Rectangle {
             id: btnNotifications
-            visible: !Config.leftCardCollapsed || Config.isPinned("notifications")
-            opacity: visible ? 1.0 : 0.0
-            implicitWidth: visible ? 32 : 0
-            implicitHeight: visible ? 32 : 0
+            implicitWidth: 32
+            implicitHeight: 32
             radius: 10
             color: (Config.showNotifications || notificationsHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
-            Behavior on opacity { NumberAnimation { duration: 150 } }
-            Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-            Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
             Behavior on color { ColorAnimation { duration: 150 } }
 
             Text {
@@ -259,16 +243,11 @@ Rectangle {
         id: wallpaperComp
         Rectangle {
             id: btnWallpaper
-            visible: !Config.leftCardCollapsed || Config.isPinned("wallpaper")
-            opacity: visible ? 1.0 : 0.0
-            implicitWidth: visible ? 32 : 0
-            implicitHeight: visible ? 32 : 0
+            implicitWidth: 32
+            implicitHeight: 32
             radius: 10
             color: (Config.showWallpaper || wallpaperHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
-            Behavior on opacity { NumberAnimation { duration: 150 } }
-            Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-            Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
             Behavior on color { ColorAnimation { duration: 150 } }
 
             Text {
@@ -296,16 +275,11 @@ Rectangle {
         id: settingsComp
         Rectangle {
             id: btnSettings
-            visible: !Config.leftCardCollapsed || Config.isPinned("settings")
-            opacity: visible ? 1.0 : 0.0
-            implicitWidth: visible ? 32 : 0
-            implicitHeight: visible ? 32 : 0
+            implicitWidth: 32
+            implicitHeight: 32
             radius: 10
             color: (Config.showSettings || settingsHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
-            Behavior on opacity { NumberAnimation { duration: 150 } }
-            Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-            Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
             Behavior on color { ColorAnimation { duration: 150 } }
 
             Text {
@@ -333,16 +307,11 @@ Rectangle {
         id: launcherComp
         Rectangle {
             id: btnLauncher
-            visible: !Config.leftCardCollapsed || Config.isPinned("launcher")
-            opacity: visible ? 1.0 : 0.0
-            implicitWidth: visible ? 32 : 0
-            implicitHeight: visible ? 32 : 0
+            implicitWidth: 32
+            implicitHeight: 32
             radius: 10
             color: (Config.showAppLauncher || launcherHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
-            Behavior on opacity { NumberAnimation { duration: 150 } }
-            Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-            Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
             Behavior on color { ColorAnimation { duration: 150 } }
 
             Text {
