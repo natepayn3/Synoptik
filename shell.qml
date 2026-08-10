@@ -367,6 +367,14 @@ ShellRoot {
         }
     }
 
+    IpcHandler {
+        target: "mirror"
+        function toggle(): void {
+            if (!shellRoot.isFocusedBarEnabled) return;
+            Config.showMirror = !Config.showMirror
+        }
+    }
+
     // --- CLOCK & DATE FORMATTING ---
     property string timeStr: Qt.formatTime(new Date(), "h:mm ap")
     property string shortDateStr: Qt.formatDate(new Date(), "MMM d")
@@ -464,6 +472,7 @@ ShellRoot {
     NotificationOSD { id: notificationOsd }
     Mascot { id: mascotWidget }
     OSK { id: oskWidget }
+    Mirror { id: mirrorWidget }
 
     Variants {
         model: Quickshell.screens
