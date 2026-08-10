@@ -49,6 +49,13 @@ QtObject {
     onWindowSoundPathChanged: { if (isLoaded) saveSettings() }
     onNotificationSoundPathChanged: { if (isLoaded) saveSettings() }
 
+    // --- MIRROR WIDGET CONFIGURATION ---
+    property bool mirrorMirrored: true
+    property bool mirrorKeepAspect: true
+
+    onMirrorMirroredChanged: { if (isLoaded) saveSettings() }
+    onMirrorKeepAspectChanged: { if (isLoaded) saveSettings() }
+
     // --- ICON MAP & OVERRIDES ---
     property var iconOverrides: ({})
 
@@ -979,6 +986,9 @@ QtObject {
                 "windowSoundPath": root.windowSoundPath,
                 "notificationSoundPath": root.notificationSoundPath,
 
+                "mirrorMirrored": root.mirrorMirrored,
+                "mirrorKeepAspect": root.mirrorKeepAspect,
+
                 "leftCardCollapsed": root.leftCardCollapsed,
                 "rightCardCollapsed": root.rightCardCollapsed,
                 "pinnedIcons": root.pinnedIcons,
@@ -1032,7 +1042,8 @@ QtObject {
                             "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", 
                             "clockShowBackground", "clockPositions", "clockScales", "enabledClockScreens",
                             "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides",
-                            "playWindowSounds", "playNotificationSounds", "windowSoundPath", "notificationSoundPath"
+                            "playWindowSounds", "playNotificationSounds", "windowSoundPath", "notificationSoundPath",
+                            "mirrorMirrored", "mirrorKeepAspect"
                         ]
 
                         props.forEach(p => {

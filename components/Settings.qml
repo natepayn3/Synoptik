@@ -26,7 +26,7 @@ Item {
     function expandActiveCategory(sectionId) {
         if ([0, 1, 2, 3, 12].includes(sectionId)) visualsExpanded = true
         else if ([4, 5, 6, 7].includes(sectionId)) connectivityExpanded = true
-        else if ([8, 9, 10, 13].includes(sectionId)) widgetsExpanded = true
+        else if ([8, 9, 10, 13, 14].includes(sectionId)) widgetsExpanded = true
     }
 
     Component.onCompleted: {
@@ -261,7 +261,8 @@ Item {
                                     { id: 8, name: "Mascot", icon: "smart_toy" },
                                     { id: 9, name: "Clock", icon: "schedule" },
                                     { id: 10, name: "Keyboard", icon: "keyboard" },
-                                    { id: 13, name: "Sounds", icon: "volume_up" }
+                                    { id: 13, name: "Sounds", icon: "volume_up" },
+                                    { id: 14, name: "Mirror", icon: "photo_camera" }
                                 ]
 
                                 delegate: Rectangle {
@@ -717,6 +718,11 @@ Item {
                     SystemSounds {
                         anchors.fill: parent
                         visible: settingsRoot.activeSection === 13
+                    }
+
+                    MirrorSettings {
+                        anchors.fill: parent
+                        visible: settingsRoot.activeSection === 14
                     }
                 }
             }
