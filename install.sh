@@ -78,7 +78,7 @@ else
     set AUR_HELPER yay
 end
 
-# Official Arch packages (added libcanberra here)
+# Official Arch packages
 set PACMAN_PKGS \
     hyprland \
     base-devel \
@@ -87,6 +87,11 @@ set PACMAN_PKGS \
     qt6-declarative \
     qt6-5compat \
     qt6-multimedia \
+    qt6-multimedia-ffmpeg \
+    gst-plugins-good \
+    gst-plugins-bad \
+    gst-plugin-pipewire \
+    v4l-utils \
     fish \
     python \
     python-gobject \
