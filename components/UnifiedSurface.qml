@@ -68,7 +68,7 @@ PanelWindow {
         } else {
             for (let i = 0; i < contentContainer.children.length; i++) {
                 let child = contentContainer.children[i]
-                if (child.objectName !== "internalOsd" && child.objectName !== "internalNotifOsd") {
+                if (child.objectName !== "internalOsd" && child.objectName !== "internalNotifOsd" && child.objectName !== "internalTaskOverflow") {
                     if (child.item && child.item.implicitWidth > 0) baseW = child.item.implicitWidth
                     else if (child.implicitWidth > 0) baseW = child.implicitWidth
                     break
@@ -89,7 +89,7 @@ PanelWindow {
         } else {
             for (let i = 0; i < contentContainer.children.length; i++) {
                 let child = contentContainer.children[i]
-                if (child.objectName !== "internalOsd" && child.objectName !== "internalNotifOsd") {
+                if (child.objectName !== "internalOsd" && child.objectName !== "internalNotifOsd" && child.objectName !== "internalTaskOverflow") {
                     if (child.item && child.item.implicitHeight > 0) baseH = child.item.implicitHeight
                     else if (child.implicitHeight > 0) baseH = child.implicitHeight
                     break
@@ -1313,6 +1313,7 @@ PanelWindow {
 
                 TaskOverflow {
                     id: taskOverflowModule
+                    objectName: "internalTaskOverflow"
                     anchors.fill: parent
                     activeScreenName: screen ? screen.name : ""
                     visible: root.activeView === "taskOverflow"
