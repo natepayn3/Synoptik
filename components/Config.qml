@@ -7,6 +7,8 @@ import "settings"
 QtObject {
     id: root
 
+    property bool showTaskOverflow: false
+
     // --- INITIALIZATION GUARD ---
     property bool isLoaded: false
 

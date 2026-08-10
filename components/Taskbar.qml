@@ -11,15 +11,14 @@ Item {
     signal popoutRequested(var item)
     property alias viewAppsBtn: btnViewApps
 
-    // Inline Comment: Measure open windows for active display
-    readonly property var activeClients: Hyprland.toplevels.values.filter(c => c.monitor && c.monitor.name === activeScreenName)
+    // Inline Comment: Lenient monitor match to prevent client count dropping to 0 on screen name re-binds
+    readonly property var activeClients: Hyprland.toplevels.values.filter(c => !activeScreenName || !c.monitor || c.monitor.name === activeScreenName)
     readonly property int totalCount: activeClients.length
 
-    // Static size locked to the single trigger button
     implicitWidth: 28
     implicitHeight: 28
 
-    // Inline Comment: Only show single view_apps trigger button in the bar
+    // Inline Comment: Static trigger icon remains permanently visible
     Rectangle {
         id: btnViewApps
         anchors.centerIn: parent
@@ -38,7 +37,7 @@ Item {
             color: Config.showTaskOverflow ? Config.accent : Config.textMain
         }
 
-        // Active running indicator dot when windows are open
+        // Accent indicator dot shown when active windows exist
         Rectangle {
             anchors.bottom: parent.bottom
             anchors.horizontalCenter: parent.horizontalCenter

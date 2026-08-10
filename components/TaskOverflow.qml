@@ -10,8 +10,8 @@ Rectangle {
 
     property string activeScreenName: ""
 
-    // Inline Comment: Fetch running windows on active display
-    readonly property var activeClients: Hyprland.toplevels.values.filter(c => c.monitor && c.monitor.name === overflowRoot.activeScreenName)
+    // Inline Comment: Fallback filter ensuring open windows display even if activeScreenName isn't set yet
+    readonly property var activeClients: Hyprland.toplevels.values.filter(c => !activeScreenName || !c.monitor || c.monitor.name === overflowRoot.activeScreenName)
 
     implicitWidth: 220
     implicitHeight: Math.max(64, mainCol.implicitHeight + 24)
