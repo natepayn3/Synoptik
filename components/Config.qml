@@ -10,6 +10,7 @@ QtObject {
     property bool showTaskOverflow: false
 
     property bool showMirror: false
+    property bool mirrorShowPanel: true
 
     // --- INITIALIZATION GUARD ---
     property bool isLoaded: false
@@ -76,6 +77,7 @@ QtObject {
         "clipboard": "content_paste",
         "clock": "calendar_month",
         "overview": "select_window_2",
+        "apps_view": "view_apps",
         "magic": "kid_star",
         "magic_active": "family_star",
         "music": "music_note",

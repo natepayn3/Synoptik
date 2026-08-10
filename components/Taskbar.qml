@@ -32,7 +32,7 @@ Item {
 
         Text {
             anchors.centerIn: parent
-            text: "view_apps"
+            text: Config.getIcon("apps_view")
             font.family: "Material Symbols Outlined"
             font.weight: Font.Bold
             font.pixelSize: 18
