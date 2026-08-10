@@ -55,7 +55,13 @@ PanelWindow {
         id: mirrorContainer
 
         width: 320
-        height: 320
+
+        // Calculate native camera ratio or fallback to 4:3
+        readonly property real nativeRatio: (videoOutput.sourceRect.width > 0 && videoOutput.sourceRect.height > 0)
+            ? (videoOutput.sourceRect.height / videoOutput.sourceRect.width)
+            : 0.75
+
+        height: Config.mirrorKeepAspect ? width : Math.round(width * nativeRatio)
 
         x: mirrorWindow.savedX >= 0 ? mirrorWindow.savedX : (mirrorWindow.width > 0 ? mirrorWindow.width - width - Config.cardMargin : Config.cardMargin)
         y: mirrorWindow.savedY >= 0 ? mirrorWindow.savedY : (Config.barHeight + Config.cardMargin * 2)
@@ -70,27 +76,24 @@ PanelWindow {
             border.color: (typeof shellRoot !== "undefined" && shellRoot.currentBorderColor) ? shellRoot.currentBorderColor : Config.accent
 
             property real padding: Config.cardMargin + container.border.width
-            property real videoRadius: Math.max(6, Config.surfaceRadius - 6)
+            property real videoRadius: Math.max(4, Config.surfaceRadius - Config.cardMargin)
 
-            // Shader-Masked Video Wrapper
+            // Outer wrapper item applying horizontal scale matrix across center origin
             Item {
                 id: videoWrapper
                 anchors.fill: parent
                 anchors.margins: container.padding
 
+                transform: Scale {
+                    origin.x: videoWrapper.width / 2
+                    xScale: Config.mirrorMirrored ? -1 : 1
+                }
+
                 VideoOutput {
                     id: videoOutput
                     anchors.fill: parent
-                    fillMode: VideoOutput.PreserveAspectCrop
+                    fillMode: Config.mirrorKeepAspect ? VideoOutput.PreserveAspectCrop : VideoOutput.PreserveAspectFit
                     visible: false
-                    layer.enabled: true
-
-                    transform: Rotation {
-                        origin.x: videoOutput.width / 2
-                        origin.y: videoOutput.height / 2
-                        axis { x: 0; y: 1; z: 0 }
-                        angle: 180
-                    }
                 }
 
                 Rectangle {
@@ -99,7 +102,6 @@ PanelWindow {
                     radius: container.videoRadius
                     visible: false
                     color: "black"
-                    layer.enabled: true
                 }
 
                 OpacityMask {
@@ -139,13 +141,9 @@ PanelWindow {
 
                 onWheel: (wheel) => {
                     let step = wheel.angleDelta.y > 0 ? 32 : -32
-                    let newSize = Math.max(160, Math.min(800, mirrorContainer.width + step))
+                    let newWidth = Math.max(160, Math.min(800, mirrorContainer.width + step))
 
-                    mirrorContainer.x -= (newSize - mirrorContainer.width) / 2
-                    mirrorContainer.y -= (newSize - mirrorContainer.height) / 2
-
-                    mirrorContainer.width = newSize
-                    mirrorContainer.height = newSize
+                    mirrorContainer.width = newWidth
                     mirrorWindow.savePosition()
                 }
 
