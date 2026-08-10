@@ -102,18 +102,10 @@ PanelWindow {
     property real lastOpenWidth: rawChildWidth
     property real lastOpenHeight: rawChildHeight
 
-    SoundEffect {
-        id: soundPlayer
-        source: Qt.resolvedUrl(Quickshell.shellDir.toString() + "/assets/" + (Config.windowSoundPath || "sound1.wav"))
-        volume: 0.25
-    }
-
     function playOpenSound() {
         if (!Config.playWindowSounds || root.activeView === "notifOsd" || root.activeView === "osd") return
-        
-        // Fire-and-forget audio playback via PipeWire native player
         let soundFile = Quickshell.shellDir.toString().replace(/^file:\/\//, "") + "/assets/" + (Config.windowSoundPath || "sound1.wav")
-        Quickshell.execDetached(["pw-play", soundFile])
+        Quickshell.execDetached(["pw-play", "--volume", "0.25", soundFile])
     }
 
     onIsOpenChanged: {
