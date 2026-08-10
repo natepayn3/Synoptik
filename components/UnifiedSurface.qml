@@ -63,6 +63,8 @@ PanelWindow {
             baseW = volumeOsdModule.implicitWidth
         } else if (root.activeView === "notifOsd") {
             baseW = notifOsdModule.implicitWidth
+        } else if (root.activeView === "taskOverflow") {
+            baseW = taskOverflowModule.implicitWidth
         } else {
             for (let i = 0; i < contentContainer.children.length; i++) {
                 let child = contentContainer.children[i]
@@ -82,6 +84,8 @@ PanelWindow {
             baseH = volumeOsdModule.implicitHeight
         } else if (root.activeView === "notifOsd") {
             baseH = notifOsdModule.implicitHeight
+        } else if (root.activeView === "taskOverflow") {
+            baseH = taskOverflowModule.implicitHeight
         } else {
             for (let i = 0; i < contentContainer.children.length; i++) {
                 let child = contentContainer.children[i]
@@ -100,15 +104,12 @@ PanelWindow {
 
     SoundEffect {
         id: soundPlayer
-        // Inline Comment: Resolve full QUrl for the selected window sound asset
         source: Qt.resolvedUrl(Quickshell.shellDir.toString() + "/assets/" + (Config.windowSoundPath || "sound1.wav"))
         volume: 0.25
     }
 
     function playOpenSound() {
         if (!Config.playWindowSounds || root.activeView === "notifOsd" || root.activeView === "osd") return
-
-        // Inline Comment: SoundEffect plays instantly without needing stop() or rewind calls
         soundPlayer.play()
     }
 
@@ -253,6 +254,7 @@ PanelWindow {
             else if (Config.showClipboard) nextView = "clipboard"
             else if (Config.showScreenRecorder) nextView = "screenRecorder"
             else if (Config.showControlCenter) nextView = "controlCenter"
+            else if (typeof Config.showTaskOverflow !== "undefined" && Config.showTaskOverflow) nextView = "taskOverflow"
             else if (typeof Config.showOSD !== "undefined" && Config.showOSD) nextView = "osd"
             else if (typeof Config.showNotificationOsd !== "undefined" && Config.showNotificationOsd) nextView = "notifOsd"
         }
@@ -297,6 +299,7 @@ PanelWindow {
             if (except !== "screenRecorder") Config.showScreenRecorder = false
             if (except !== "controlCenter") Config.showControlCenter = false
             if (except !== "settings") Config.showSettings = false
+            if (except !== "taskOverflow" && typeof Config.showTaskOverflow !== "undefined") Config.showTaskOverflow = false
         }
     }
 
@@ -340,15 +343,16 @@ PanelWindow {
             }
             updateActiveView()
         }
-        function onShowAppLauncherChanged() { 
-            if (Config.showAppLauncher) { 
-                closeOthers("appLauncher"); 
-                let btn = centerGroupContainer ? centerGroupContainer.getButton("apps") : (leftCard ? leftCard.getButton("launcher") : null); 
-                if (btn) setPopoutPos(btn); 
-            } 
-            updateActiveView() 
+        function onShowTaskOverflowChanged() {
+            if (Config.showTaskOverflow) {
+                closeOthers("taskOverflow")
+                let btn = centerGroupContainer ? centerGroupContainer.getButton("apps") : null
+                if (btn) setPopoutPos(btn)
+            }
+            updateActiveView()
         }
-function onShowPowerChanged() { if (Config.showPower) { closeOthers("power"); let btn = leftCard ? leftCard.getButton("power") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowAppLauncherChanged() { if (Config.showAppLauncher) { closeOthers("appLauncher"); let btn = leftCard ? leftCard.getButton("launcher") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowPowerChanged() { if (Config.showPower) { closeOthers("power"); let btn = leftCard ? leftCard.getButton("power") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowWallpaperChanged() { if (Config.showWallpaper) { closeOthers("wallpaper"); let btn = leftCard ? leftCard.getButton("wallpaper") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowCalendarChanged() { if (Config.showCalendar) { closeOthers("calendar"); let btn = rightCard ? rightCard.getButton("clock") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowNotificationsChanged() { if (Config.showNotifications) { closeOthers("notifications"); let btn = leftCard ? leftCard.getButton("notifications") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
@@ -1305,6 +1309,13 @@ function onShowPowerChanged() { if (Config.showPower) { closeOthers("power"); le
                     objectName: "internalNotifOsd"
                     anchors.fill: parent
                     visible: root.activeView === "notifOsd"
+                }
+
+                TaskOverflow {
+                    id: taskOverflowModule
+                    anchors.fill: parent
+                    activeScreenName: screen ? screen.name : ""
+                    visible: root.activeView === "taskOverflow"
                 }
             }
         }
