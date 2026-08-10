@@ -156,7 +156,6 @@ ColumnLayout {
                     font.family: Config.sysFont
                     font.pixelSize: Config.size(Config.fontCaption)
                     font.bold: true
-                    // Inline Comment: Unified column width and centered alignment so icon rows stay matching width
                     Layout.preferredWidth: 135
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
@@ -175,6 +174,7 @@ ColumnLayout {
                         Repeater {
                             model: [
                                 { id: "overview", label: "Overview" },
+                                { id: "apps_view", label: "Apps View" },
                                 { id: "magic", label: "Magic" },
                                 { id: "magic_active", label: "Magic (Active)" },
                                 { id: "music", label: "Music" },
