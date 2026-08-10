@@ -9,6 +9,8 @@ QtObject {
 
     property bool showTaskOverflow: false
 
+    property bool showMirror: false
+
     // --- INITIALIZATION GUARD ---
     property bool isLoaded: false
 
@@ -53,6 +55,7 @@ QtObject {
     readonly property var defaultIcons: ({
         "power": "electrical_services",
         "recorder": "videocam",
+        "mirror": "photo_camera",
         "screenshot": "crop",
         "notifications": "inbox",
         "wallpaper": "wall_art",
@@ -113,7 +116,7 @@ QtObject {
     onRightCardCollapsedChanged: { if (isLoaded) saveSettings() }
 
     // --- DYNAMIC MODULE ORDERING ---
-    property var leftCardOrder: ["power", "recorder", "screenshot", "notifications", "wallpaper", "settings", "launcher"]
+    property var leftCardOrder: ["power", "recorder", "mirror", "screenshot", "notifications", "wallpaper", "settings", "launcher"]
     property var rightCardOrder: ["audio", "sys", "batt", "cc", "network", "clipboard", "clock"]
 
     function moveModule(cardKey, iconId, direction) {
@@ -345,7 +348,6 @@ QtObject {
             runner.command = ["fish", "-c", cmd]
         }
 
-        // Inline Comment: Reset running state to false first so Quickshell re-executes the process
         runner.running = false
         runner.running = true
     }
