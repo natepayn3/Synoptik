@@ -8,7 +8,7 @@ import ".."
 ColumnLayout {
     id: iconSettingsRoot
     anchors.fill: parent
-    spacing: Config.cardMargin / 2 || 12
+    spacing: Config.cardMargin / 2 || 10
 
     property string selectedIconId: ""
     property string searchQuery: ""
@@ -57,7 +57,6 @@ ColumnLayout {
 
     RowLayout {
         Layout.fillWidth: true
-        spacing: 4
 
         Text {
             textFormat: Text.StyledText
@@ -78,15 +77,15 @@ ColumnLayout {
     // --- MULTI-ROW BAR MOCKUP SECTION ---
     Rectangle {
         Layout.fillWidth: true
-        implicitHeight: mockupColumn.implicitHeight + 16
+        implicitHeight: mockupColumn.implicitHeight + 12
         radius: Config.cornerRadius / 2
         color: Qt.rgba(0, 0, 0, 0.25)
 
         ColumnLayout {
             id: mockupColumn
             anchors.fill: parent
-            anchors.margins: 8
-            spacing: 8
+            anchors.margins: 6
+            spacing: 6
 
             // ROW 1: LEFT MODULES
             RowLayout {
@@ -94,33 +93,36 @@ ColumnLayout {
                 spacing: 8
 
                 Text {
-                    text: "Left Card:"
+                    text: "Left/Top Icons:"
                     color: Config.textMuted
                     font.family: Config.sysFont
                     font.pixelSize: Config.size(Config.fontCaption)
                     font.bold: true
-                    Layout.preferredWidth: 90
+                    // Inline Comment: Unified column width and centered alignment so icon rows stay matching width
+                    Layout.preferredWidth: 135
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
                 }
 
                 Rectangle {
                     Layout.fillWidth: true
-                    implicitHeight: 38
+                    implicitHeight: 30
                     radius: Config.cornerRadius / 2
                     color: Qt.rgba(255, 255, 255, 0.05)
 
                     RowLayout {
                         anchors.centerIn: parent
-                        spacing: 6
+                        spacing: 4
 
                         Repeater {
                             model: Config.leftCardOrder || ["power", "recorder", "screenshot", "notifications", "wallpaper", "settings", "launcher"]
 
                             delegate: Rectangle {
-                                implicitWidth: 32; implicitHeight: 32; radius: 8
+                                implicitWidth: 26; implicitHeight: 26; radius: 6
                                 readonly property bool isSelected: iconSettingsRoot.selectedIconId === modelData
                                 color: isSelected ? Qt.rgba(255, 255, 255, 0.2) : (btnHoverL.hovered ? Qt.rgba(255, 255, 255, 0.1) : "transparent")
                                 border.color: isSelected ? Config.accent : "transparent"
-                                border.width: isSelected ? 2 : 0
+                                border.width: isSelected ? 1.5 : 0
 
                                 Text {
                                     anchors.centerIn: parent
@@ -128,7 +130,7 @@ ColumnLayout {
                                     color: parent.isSelected ? Config.accent : Config.textMain
                                     font.family: "Material Symbols Outlined"
                                     font.weight: Font.Bold
-                                    font.pixelSize: 18
+                                    font.pixelSize: 16
                                 }
 
                                 MouseArea {
@@ -149,23 +151,26 @@ ColumnLayout {
                 spacing: 8
 
                 Text {
-                    text: "Workspaces:"
+                    text: "Workspace Icons:"
                     color: Config.textMuted
                     font.family: Config.sysFont
                     font.pixelSize: Config.size(Config.fontCaption)
                     font.bold: true
-                    Layout.preferredWidth: 90
+                    // Inline Comment: Unified column width and centered alignment so icon rows stay matching width
+                    Layout.preferredWidth: 135
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
                 }
 
                 Rectangle {
                     Layout.fillWidth: true
-                    implicitHeight: 38
+                    implicitHeight: 30
                     radius: Config.cornerRadius / 2
                     color: Qt.rgba(255, 255, 255, 0.05)
 
                     RowLayout {
                         anchors.centerIn: parent
-                        spacing: 6
+                        spacing: 4
 
                         Repeater {
                             model: [
@@ -179,11 +184,11 @@ ColumnLayout {
                             ]
 
                             delegate: Rectangle {
-                                implicitWidth: 32; implicitHeight: 32; radius: 8
+                                implicitWidth: 26; implicitHeight: 26; radius: 6
                                 readonly property bool isSelected: iconSettingsRoot.selectedIconId === modelData.id
                                 color: isSelected ? Qt.rgba(255, 255, 255, 0.2) : (btnHoverC.hovered ? Qt.rgba(255, 255, 255, 0.1) : "transparent")
                                 border.color: isSelected ? Config.accent : "transparent"
-                                border.width: isSelected ? 2 : 0
+                                border.width: isSelected ? 1.5 : 0
 
                                 Text {
                                     anchors.centerIn: parent
@@ -191,7 +196,7 @@ ColumnLayout {
                                     color: parent.isSelected ? Config.accent : Config.textMain
                                     font.family: "Material Symbols Outlined"
                                     font.weight: Font.Bold
-                                    font.pixelSize: 18
+                                    font.pixelSize: 16
                                 }
 
                                 MouseArea {
@@ -212,33 +217,36 @@ ColumnLayout {
                 spacing: 8
 
                 Text {
-                    text: "Right Card:"
+                    text: "Right/Bottom Icons:"
                     color: Config.textMuted
                     font.family: Config.sysFont
                     font.pixelSize: Config.size(Config.fontCaption)
                     font.bold: true
-                    Layout.preferredWidth: 90
+                    // Inline Comment: Unified column width and centered alignment so icon rows stay matching width
+                    Layout.preferredWidth: 135
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
                 }
 
                 Rectangle {
                     Layout.fillWidth: true
-                    implicitHeight: 38
+                    implicitHeight: 30
                     radius: Config.cornerRadius / 2
                     color: Qt.rgba(255, 255, 255, 0.05)
 
                     RowLayout {
                         anchors.centerIn: parent
-                        spacing: 6
+                        spacing: 4
 
                         Repeater {
                             model: Config.rightCardOrder || ["audio", "sys", "batt", "cc", "network", "clipboard", "clock"]
 
                             delegate: Rectangle {
-                                implicitWidth: 32; implicitHeight: 32; radius: 8
+                                implicitWidth: 26; implicitHeight: 26; radius: 6
                                 readonly property bool isSelected: iconSettingsRoot.selectedIconId === modelData
                                 color: isSelected ? Qt.rgba(255, 255, 255, 0.2) : (btnHoverR.hovered ? Qt.rgba(255, 255, 255, 0.1) : "transparent")
                                 border.color: isSelected ? Config.accent : "transparent"
-                                border.width: isSelected ? 2 : 0
+                                border.width: isSelected ? 1.5 : 0
 
                                 Text {
                                     anchors.centerIn: parent
@@ -246,7 +254,7 @@ ColumnLayout {
                                     color: parent.isSelected ? Config.accent : Config.textMain
                                     font.family: "Material Symbols Outlined"
                                     font.weight: Font.Bold
-                                    font.pixelSize: 18
+                                    font.pixelSize: 16
                                 }
 
                                 MouseArea {
@@ -271,7 +279,7 @@ ColumnLayout {
 
         // Shift Left
         Rectangle {
-            implicitWidth: 32; implicitHeight: 32; radius: 6
+            implicitWidth: 28; implicitHeight: 28; radius: 6
             // Inline Comment: Greys out when middle row or no icon is selected
             opacity: canMoveSelected ? 1.0 : 0.35
             color: (canMoveSelected && moveLeftHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(0, 0, 0, 0.2)
@@ -283,7 +291,7 @@ ColumnLayout {
                 anchors.centerIn: parent
                 text: "arrow_back"
                 font.family: "Material Symbols Outlined"
-                font.pixelSize: 18
+                font.pixelSize: 16
                 color: canMoveSelected ? Config.textMain : Config.textMuted
             }
 
@@ -303,7 +311,7 @@ ColumnLayout {
 
         // Shift Right
         Rectangle {
-            implicitWidth: 32; implicitHeight: 32; radius: 6
+            implicitWidth: 28; implicitHeight: 28; radius: 6
             opacity: canMoveSelected ? 1.0 : 0.35
             color: (canMoveSelected && moveRightHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(0, 0, 0, 0.2)
 
@@ -314,7 +322,7 @@ ColumnLayout {
                 anchors.centerIn: parent
                 text: "arrow_forward"
                 font.family: "Material Symbols Outlined"
-                font.pixelSize: 18
+                font.pixelSize: 16
                 color: canMoveSelected ? Config.textMain : Config.textMuted
             }
 
@@ -340,11 +348,11 @@ ColumnLayout {
 
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: 38
+            implicitHeight: 34
             color: Qt.rgba(0, 0, 0, 0.2)
             radius: Config.cornerRadius / 2
             border.color: (iconSearchInput.activeFocus || searchBoxHover.hovered) ? Config.accent : "transparent"
-            border.width: 2
+            border.width: 1.5
 
             Behavior on border.color { ColorAnimation { duration: 150 } }
 
@@ -360,7 +368,7 @@ ColumnLayout {
                     text: "search"
                     color: Config.textMuted
                     font.family: "Material Symbols Outlined"
-                    font.pixelSize: 18
+                    font.pixelSize: 16
                 }
 
                 TextInput {
@@ -391,11 +399,11 @@ ColumnLayout {
         }
 
         Rectangle {
-            implicitWidth: 110; implicitHeight: 38
+            implicitWidth: 100; implicitHeight: 34
             radius: Config.cornerRadius / 2
             color: resetHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2)
             border.color: resetHover.hovered ? Config.accent : "transparent"
-            border.width: 2
+            border.width: 1.5
 
             Behavior on color { ColorAnimation { duration: 150 } }
             Behavior on border.color { ColorAnimation { duration: 150 } }
@@ -438,14 +446,14 @@ ColumnLayout {
         GridView {
             id: iconGrid
             anchors.fill: parent
-            anchors.margins: 10
+            anchors.margins: 8
             clip: true
 
-            readonly property real minCellWidth: 50
+            readonly property real minCellWidth: 44
             readonly property int columns: Math.max(1, Math.floor(width / minCellWidth))
             
             cellWidth: width / columns
-            cellHeight: 52
+            cellHeight: 46
 
             visible: iconSettingsRoot.selectedIconId !== "" && (!iconSettingsRoot.isLoadingIcons || iconSettingsRoot.allIconsList.length > 0)
 
@@ -462,13 +470,13 @@ ColumnLayout {
 
                 Rectangle {
                     anchors.centerIn: parent
-                    width: 44
-                    height: 44
-                    radius: 8
+                    width: 38
+                    height: 38
+                    radius: 6
                     readonly property bool isAssigned: iconSettingsRoot.selectedIconId !== "" && Config.getIcon(iconSettingsRoot.selectedIconId) === modelData
                     color: isAssigned ? Qt.rgba(255, 255, 255, 0.25) : (gridHover.hovered ? Qt.rgba(255, 255, 255, 0.1) : "transparent")
                     border.color: isAssigned ? Config.accent : "transparent"
-                    border.width: isAssigned ? 2 : 0
+                    border.width: isAssigned ? 1.5 : 0
 
                     Text {
                         anchors.fill: parent
@@ -478,7 +486,7 @@ ColumnLayout {
                         color: parent.isAssigned ? Config.accent : Config.textMain
                         font.family: "Material Symbols Outlined"
                         font.weight: Font.Bold
-                        font.pixelSize: 22
+                        font.pixelSize: 20
                     }
 
                     MouseArea {
