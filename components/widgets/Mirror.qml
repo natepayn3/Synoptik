@@ -22,12 +22,21 @@ PanelWindow {
         }
     }
 
-    onVisibleChanged: {
-        if (visible && savedX >= 0 && savedY >= 0) {
-            mirrorContainer.x = Math.max(0, Math.min(savedX, mirrorWindow.width - mirrorContainer.width))
-            mirrorContainer.y = Math.max(0, Math.min(savedY, mirrorWindow.height - mirrorContainer.height))
+    function restorePosition() {
+        if (width <= 0 || height <= 0) return
+
+        if (savedX >= 0 && savedY >= 0) {
+            mirrorContainer.x = Math.max(0, Math.min(savedX, width - mirrorContainer.width))
+            mirrorContainer.y = Math.max(0, Math.min(savedY, height - mirrorContainer.height))
+        } else {
+            mirrorContainer.x = Config.cardMargin
+            mirrorContainer.y = Config.cardMargin
         }
     }
+
+    onVisibleChanged: if (visible) restorePosition()
+    onWidthChanged: if (visible) restorePosition()
+    onHeightChanged: if (visible) restorePosition()
 
     anchors {
         top: true
@@ -56,6 +65,11 @@ PanelWindow {
 
         width: 320
 
+        x: Config.cardMargin
+        y: Config.cardMargin
+
+        Component.onCompleted: mirrorWindow.restorePosition()
+
         // Track the visibility state of the panel safely
         readonly property bool showPanel: typeof Config.mirrorShowPanel !== "undefined" ? Config.mirrorShowPanel : true
 
@@ -69,9 +83,6 @@ PanelWindow {
         height: Config.mirrorKeepAspect 
             ? width 
             : Math.round(((width - (containerPadding * 2)) * nativeRatio) + (containerPadding * 2))
-
-        x: mirrorWindow.savedX >= 0 ? mirrorWindow.savedX : Config.cardMargin
-        y: mirrorWindow.savedY >= 0 ? mirrorWindow.savedY : Config.cardMargin
 
         Rectangle {
             id: container
