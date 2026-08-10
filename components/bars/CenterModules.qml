@@ -12,11 +12,11 @@ Rectangle {
 
     signal popoutRequested(var item)
 
-    // Inline Comment: Safe instance lookup via Loader item to avoid Component-scoped ReferenceErrors
+    // Inline Comment: Origin lookup for PanelWindow popout placement
     function getButton(key) {
         if (key === "apps" || key === "launcher" || key === "view_apps") {
             let activeLayout = centerContentLayout.item
-            if (activeLayout && activeLayout.viewAppsButton && activeLayout.viewAppsButton.visible) {
+            if (activeLayout && activeLayout.viewAppsButton) {
                 return activeLayout.viewAppsButton
             }
             return null
@@ -69,8 +69,7 @@ Rectangle {
             spacing: 8
             anchors.fill: parent
 
-            // Inline Comment: Static Taskbar base spacing calculation decouples binding dependency
-            implicitWidth: wsIndHoriz.implicitWidth + (horizTaskbarLoader.item ? (horizTaskbarLoader.item.totalCount * 36) : 36) + spacing
+            implicitWidth: wsIndHoriz.implicitWidth + 36 + spacing
 
             readonly property var viewAppsButton: horizTaskbarWrapper.viewAppsBtn
 
@@ -118,8 +117,7 @@ Rectangle {
             spacing: 8
             anchors.fill: parent
 
-            // Inline Comment: Calculate total item span directly from active client count to break loop
-            implicitHeight: wsIndVert.implicitHeight + (vertTaskbarLoader.item ? (vertTaskbarLoader.item.totalCount * 36) : 36) + spacing
+            implicitHeight: wsIndVert.implicitHeight + 36 + spacing
 
             readonly property var viewAppsButton: vertTaskbarWrapper.viewAppsBtn
 
