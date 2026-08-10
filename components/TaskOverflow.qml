@@ -8,12 +8,12 @@ import Quickshell.Widgets
 Item {
     id: overflowRoot
 
-    // Inline Comment: Exact card margin logic matching BatteryCard structure
+    // Inline Comment: Card margin token pulled from global Config
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
     property string activeScreenName: ""
 
-    // Inline Comment: Fallback filter ensuring open windows display even if activeScreenName isn't set yet
+    // Inline Comment: Running client instances on current active display
     readonly property var activeClients: Hyprland.toplevels.values.filter(c => !activeScreenName || !c.monitor || c.monitor.name === overflowRoot.activeScreenName)
 
     implicitWidth: mainLayout.implicitWidth + (cardMargin * 2)
@@ -25,10 +25,10 @@ Item {
         anchors.margins: overflowRoot.cardMargin
         spacing: overflowRoot.cardMargin
 
-        // Primary Inner Card Box (Matches Battery Card 1 Structure)
+        // Inner Surface Frame
         Rectangle {
             Layout.fillWidth: true
-            implicitWidth: 280
+            implicitWidth: 320
             implicitHeight: cardContentLayout.implicitHeight + (overflowRoot.cardMargin * 2)
             radius: Config.cornerRadius
             color: Qt.rgba(255, 255, 255, 0.05)
@@ -60,7 +60,7 @@ Item {
                     Layout.bottomMargin: 8
                 }
 
-                // Window Items List
+                // Single Column Task List
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 6
@@ -70,21 +70,23 @@ Item {
 
                         delegate: Rectangle {
                             Layout.fillWidth: true
-                            implicitHeight: 38
-                            radius: Config.cornerRadius / 2
+                            implicitHeight: 52
+                            radius: Config.cornerRadius / 1.5
                             color: itemHover.hovered ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(0, 0, 0, 0.25)
+
+                            Behavior on color { ColorAnimation { duration: 150 } }
 
                             readonly property string appId: modelData.wayland?.appId || modelData.lastIpcObject?.class || ""
 
                             RowLayout {
                                 anchors.fill: parent
                                 anchors.leftMargin: 10
-                                anchors.rightMargin: 10
-                                spacing: 10
+                                anchors.rightMargin: 12
+                                spacing: 12
 
                                 IconImage {
-                                    Layout.preferredWidth: 20
-                                    Layout.preferredHeight: 20
+                                    Layout.preferredWidth: 36
+                                    Layout.preferredHeight: 36
                                     asynchronous: true
                                     source: {
                                         let id = parent.parent.appId
