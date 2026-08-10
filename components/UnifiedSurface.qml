@@ -340,8 +340,15 @@ PanelWindow {
             }
             updateActiveView()
         }
-        function onShowAppLauncherChanged() { if (Config.showAppLauncher) { closeOthers("appLauncher"); let btn = leftCard ? leftCard.getButton("launcher") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
-        function onShowPowerChanged() { if (Config.showPower) { closeOthers("power"); let btn = leftCard ? leftCard.getButton("power") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowAppLauncherChanged() { 
+            if (Config.showAppLauncher) { 
+                closeOthers("appLauncher"); 
+                let btn = centerGroupContainer ? centerGroupContainer.getButton("apps") : (leftCard ? leftCard.getButton("launcher") : null); 
+                if (btn) setPopoutPos(btn); 
+            } 
+            updateActiveView() 
+        }
+function onShowPowerChanged() { if (Config.showPower) { closeOthers("power"); let btn = leftCard ? leftCard.getButton("power") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowWallpaperChanged() { if (Config.showWallpaper) { closeOthers("wallpaper"); let btn = leftCard ? leftCard.getButton("wallpaper") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowCalendarChanged() { if (Config.showCalendar) { closeOthers("calendar"); let btn = rightCard ? rightCard.getButton("clock") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowNotificationsChanged() { if (Config.showNotifications) { closeOthers("notifications"); let btn = leftCard ? leftCard.getButton("notifications") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
@@ -1224,6 +1231,7 @@ PanelWindow {
                     leftCardRef: leftCard
                     rightCardRef: rightCard
                     barContentRef: barContent
+                    onPopoutRequested: item => root.setPopoutPos(item)
                 }
 
                 RightModules {

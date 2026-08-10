@@ -4,42 +4,34 @@ import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Widgets
 
-Flickable {
+Item {
     id: taskbarRoot
     property string activeScreenName: ""
     property bool isVertical: false
 
+    signal popoutRequested(var item)
+    property alias viewAppsBtn: btnViewApps
+
     anchors.fill: parent
+
+    // Inline Comment: Active window filter for the current monitor
+    readonly property var activeClients: Hyprland.toplevels.values.filter(c => c.monitor && c.monitor.name === activeScreenName)
+    readonly property int totalCount: activeClients.length
+
+    // Inline Comment: Dynamic icon capacity calculation based on pixel bounds
+    readonly property int maxVisibleCount: {
+        let span = isVertical ? height : width
+        return Math.max(1, Math.floor((span + 8) / 36))
+    }
+
+    readonly property bool hasOverflow: totalCount > maxVisibleCount
+    readonly property int visibleLimit: hasOverflow ? Math.max(1, maxVisibleCount - 1) : totalCount
 
     readonly property real calculatedWidth: grid.childrenRect.width > 0 ? grid.childrenRect.width : grid.implicitWidth
     readonly property real calculatedHeight: grid.childrenRect.height > 0 ? grid.childrenRect.height : grid.implicitHeight
 
-    contentWidth: isVertical ? width : calculatedWidth
-    contentHeight: isVertical ? calculatedHeight : height
-
     implicitWidth: calculatedWidth
     implicitHeight: calculatedHeight
-
-    interactive: true
-    clip: true
-    boundsBehavior: Flickable.StopAtBounds
-
-    WheelHandler {
-        id: wheelHandler
-        orientation: taskbarRoot.isVertical ? Qt.Vertical : Qt.Horizontal
-        onWheel: (event) => {
-            let maxScrollY = Math.max(0, taskbarRoot.contentHeight - taskbarRoot.height)
-            let maxScrollX = Math.max(0, taskbarRoot.contentWidth - taskbarRoot.width)
-            
-            if (taskbarRoot.isVertical) {
-                let delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x
-                taskbarRoot.contentY = Math.max(0, Math.min(taskbarRoot.contentY - delta, maxScrollY))
-            } else {
-                let delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x
-                taskbarRoot.contentX = Math.max(0, Math.min(taskbarRoot.contentX - delta, maxScrollX))
-            }
-        }
-    }
 
     GridLayout {
         id: grid
@@ -55,18 +47,13 @@ Flickable {
         rows: taskbarRoot.isVertical ? -1 : 1
 
         Repeater {
-            model: ScriptModel {
-                values: Hyprland.toplevels.values
-            }
+            model: taskbarRoot.activeClients.slice(0, taskbarRoot.visibleLimit)
 
             delegate: Item {
                 id: clientDelegate
                 
-                readonly property bool isOnThisScreen: modelData.monitor && (modelData.monitor.name === taskbarRoot.activeScreenName)
-                
-                implicitWidth: isOnThisScreen ? 28 : 0
-                implicitHeight: isOnThisScreen ? 28 : 0
-                visible: isOnThisScreen
+                implicitWidth: 28
+                implicitHeight: 28
 
                 readonly property string appId: modelData.wayland?.appId || modelData.lastIpcObject?.class || ""
 
@@ -135,6 +122,34 @@ Flickable {
                     }
                 }
             }
+        }
+
+        // Inline Comment: Running windows overflow trigger button
+        Rectangle {
+            id: btnViewApps
+            visible: taskbarRoot.hasOverflow
+            implicitWidth: visible ? 28 : 0
+            implicitHeight: visible ? 28 : 0
+            radius: 8
+            color: (Config.showTaskOverflow || viewAppsHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+            Behavior on color { ColorAnimation { duration: 150 } }
+
+            Text {
+                anchors.centerIn: parent
+                text: "unfold_more"
+                font.family: "Material Symbols Outlined"
+                font.weight: Font.Bold
+                font.pixelSize: 18
+                color: Config.showTaskOverflow ? Config.accent : Config.textMain
+            }
+
+            TapHandler {
+                onTapped: {
+                    taskbarRoot.popoutRequested(btnViewApps)
+                    Config.showTaskOverflow = !Config.showTaskOverflow
+                }
+            }
+            HoverHandler { id: viewAppsHover; cursorShape: Qt.PointingHandCursor }
         }
     }
 }
