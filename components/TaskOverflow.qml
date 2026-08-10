@@ -10,11 +10,11 @@ Rectangle {
 
     property string activeScreenName: ""
 
-    // Inline Comment: Access running toplevels for the active monitor
+    // Inline Comment: Fetch running windows on active display
     readonly property var activeClients: Hyprland.toplevels.values.filter(c => c.monitor && c.monitor.name === overflowRoot.activeScreenName)
 
-    implicitWidth: 260
-    implicitHeight: mainCol.implicitHeight + 24
+    implicitWidth: 220
+    implicitHeight: Math.max(64, mainCol.implicitHeight + 24)
     radius: Config.cornerRadius
     color: Qt.rgba(255, 255, 255, 0.05)
 
@@ -22,14 +22,25 @@ Rectangle {
         id: mainCol
         anchors.fill: parent
         anchors.margins: 12
-        spacing: 10
+        spacing: 8
 
         Text {
-            text: "OVERFLOW WINDOWS"
+            text: "RUNNING TASKS"
             color: Config.textMuted
             font.family: Config.sysFont
             font.pixelSize: Config.size(Config.fontCaption)
             font.bold: true
+        }
+
+        Text {
+            visible: overflowRoot.activeClients.length === 0
+            text: "No active windows"
+            color: Config.textMuted
+            font.family: Config.sysFont
+            font.pixelSize: Config.size(Config.fontBody)
+            Layout.alignment: Qt.AlignHCenter
+            Layout.topMargin: 8
+            Layout.bottomMargin: 8
         }
 
         Repeater {
