@@ -77,7 +77,6 @@ QtObject {
         "clipboard": "content_paste",
         "clock": "calendar_month",
         "overview": "select_window_2",
-        "apps_view": "view_apps",
         "magic": "kid_star",
         "magic_active": "family_star",
         "music": "music_note",
