@@ -19,7 +19,6 @@ Rectangle {
             if (activeLayout && activeLayout.viewAppsButton && activeLayout.viewAppsButton.visible) {
                 return activeLayout.viewAppsButton
             }
-            // Inline Comment: Return null when no overflow button is active so PanelWindow falls back to LeftModules launcher
             return null
         }
         return centerGroupContainer
@@ -66,13 +65,17 @@ Rectangle {
     Component {
         id: horizCenterComp
         RowLayout {
+            id: horizLayout
             spacing: 8
             anchors.fill: parent
 
-            // Inline Comment: Expose overflow button handle to Component parent
+            // Inline Comment: Static Taskbar base spacing calculation decouples binding dependency
+            implicitWidth: wsIndHoriz.implicitWidth + (horizTaskbarLoader.item ? (horizTaskbarLoader.item.totalCount * 36) : 36) + spacing
+
             readonly property var viewAppsButton: horizTaskbarWrapper.viewAppsBtn
 
             WorkspaceIndicators {
+                id: wsIndHoriz
                 isVertical: false
                 Layout.alignment: Qt.AlignVCenter
             }
@@ -84,7 +87,6 @@ Rectangle {
                 Layout.alignment: Qt.AlignVCenter
                 clip: true
                 
-                implicitWidth: horizTaskbarLoader.item ? horizTaskbarLoader.item.implicitWidth : 32
                 readonly property var viewAppsBtn: horizTaskbarLoader.item ? horizTaskbarLoader.item.viewAppsBtn : null
 
                 Timer {
@@ -112,13 +114,17 @@ Rectangle {
     Component {
         id: vertCenterComp
         ColumnLayout {
+            id: vertLayout
             spacing: 8
             anchors.fill: parent
 
-            // Inline Comment: Expose overflow button handle to Component parent
+            // Inline Comment: Calculate total item span directly from active client count to break loop
+            implicitHeight: wsIndVert.implicitHeight + (vertTaskbarLoader.item ? (vertTaskbarLoader.item.totalCount * 36) : 36) + spacing
+
             readonly property var viewAppsButton: vertTaskbarWrapper.viewAppsBtn
 
             WorkspaceIndicators {
+                id: wsIndVert
                 isVertical: true
                 Layout.alignment: Qt.AlignHCenter
             }
@@ -130,7 +136,6 @@ Rectangle {
                 Layout.alignment: Qt.AlignHCenter
                 clip: true
 
-                implicitHeight: vertTaskbarLoader.item ? vertTaskbarLoader.item.implicitHeight : 32
                 readonly property var viewAppsBtn: vertTaskbarLoader.item ? vertTaskbarLoader.item.viewAppsBtn : null
 
                 Timer {
