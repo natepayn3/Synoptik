@@ -16,6 +16,17 @@ Flickable {
         width: parent.width
         spacing: 12
 
+        // SECTION TITLE
+        Text {
+            text: "CAMERA MIRROR"
+            color: Config.textMain
+            font.family: Config.sysFont
+            font.pixelSize: Config.size(Config.fontSubhead)
+            font.bold: true
+        }
+
+        Item { implicitHeight: 4 } // Spacing element to maintain layout flow
+
         Text {
             text: "MIRROR WIDGET"
             color: Config.textMuted
@@ -77,6 +88,40 @@ Flickable {
                 }
                 Text {
                     text: "Square Crop"
+                    color: Config.textMain
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontCaption)
+                }
+            }
+
+            // Checkbox 3: Show Panel
+            RowLayout {
+                spacing: 8
+                Rectangle {
+                    implicitWidth: 18; implicitHeight: 18; radius: 4
+                    property bool isChecked: typeof Config.mirrorShowPanel !== "undefined" ? Config.mirrorShowPanel : true
+                    color: isChecked ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "✓"
+                        color: Config.bgBase
+                        visible: parent.isChecked
+                        font.pixelSize: 11
+                        font.bold: true
+                    }
+
+                    TapHandler { 
+                        onTapped: {
+                            if (typeof Config.mirrorShowPanel !== "undefined") {
+                                Config.mirrorShowPanel = !Config.mirrorShowPanel
+                            }
+                        } 
+                    }
+                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                }
+                Text {
+                    text: "Background"
                     color: Config.textMain
                     font.family: Config.sysFont
                     font.pixelSize: Config.size(Config.fontCaption)
