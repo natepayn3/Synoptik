@@ -11,14 +11,16 @@ Item {
     signal popoutRequested(var item)
     property alias viewAppsBtn: btnViewApps
 
-    // Inline Comment: Lenient monitor match to prevent client count dropping to 0 on screen name re-binds
+    // Inline Comment: Lenient monitor match to ensure dot indicator reflects active windows
     readonly property var activeClients: Hyprland.toplevels.values.filter(c => !activeScreenName || !c.monitor || c.monitor.name === activeScreenName)
     readonly property int totalCount: activeClients.length
 
+    // Explicit static footprint avoids parent layout feedback loops
     implicitWidth: 28
     implicitHeight: 28
+    Layout.preferredWidth: 28
+    Layout.preferredHeight: 28
 
-    // Inline Comment: Static trigger icon remains permanently visible
     Rectangle {
         id: btnViewApps
         anchors.centerIn: parent
@@ -37,7 +39,7 @@ Item {
             color: Config.showTaskOverflow ? Config.accent : Config.textMain
         }
 
-        // Accent indicator dot shown when active windows exist
+        // Active running indicator dot shown when open windows exist
         Rectangle {
             anchors.bottom: parent.bottom
             anchors.horizontalCenter: parent.horizontalCenter
