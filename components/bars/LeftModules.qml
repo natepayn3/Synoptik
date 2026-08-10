@@ -9,7 +9,7 @@ Rectangle {
     property var rootRef
     signal popoutRequested(var item)
 
-    // Inline Comment: Map instantiated child items by icon key for PanelWindow origin tracking
+    // Map instantiated child items by icon key for PanelWindow origin tracking
     function getButton(key) {
         for (let i = 0; i < repeater.count; i++) {
             let loader = repeater.itemAt(i)
@@ -67,18 +67,19 @@ Rectangle {
 
         Repeater {
             id: repeater
-            model: Config.leftCardOrder || ["power", "recorder", "screenshot", "notifications", "wallpaper", "settings", "launcher"]
+            model: Config.leftCardOrder || ["power", "recorder", "mirror", "screenshot", "notifications", "wallpaper", "settings", "launcher"]
 
             delegate: Loader {
                 readonly property string itemKey: modelData
                 
-                // Inline Comment: Standard Item visible property automatically collapses GridLayout cells/spacing
+                // Standard Item visible property automatically collapses GridLayout cells/spacing
                 visible: !Config.leftCardCollapsed || Config.isPinned(itemKey)
 
                 sourceComponent: {
                     switch(itemKey) {
                         case "power": return powerComp
                         case "recorder": return recorderComp
+                        case "mirror": return mirrorComp
                         case "screenshot": return screenshotComp
                         case "notifications": return notifComp
                         case "wallpaper": return wallpaperComp
@@ -171,6 +172,40 @@ Rectangle {
             TapHandler { onTapped: { popoutRequested(btnRecorder); Config.showScreenRecorder = !Config.showScreenRecorder; } }
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("recorder") }
             HoverHandler { id: recordHover; cursorShape: Qt.PointingHandCursor }
+        }
+    }
+
+    Component {
+        id: mirrorComp
+        Rectangle {
+            implicitWidth: 32
+            implicitHeight: 32
+            radius: 10
+            color: (Config.showMirror || mirrorHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+            Behavior on color { ColorAnimation { duration: 150 } }
+
+            Text {
+                anchors.centerIn: parent
+                text: Config.getIcon("mirror")
+                color: Config.showMirror ? Config.accent : Config.textMain
+                font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+            }
+
+            Rectangle {
+                anchors.top: parent.top; anchors.right: parent.right
+                anchors.topMargin: 2; anchors.rightMargin: 2
+                width: 5; height: 5; radius: 2.5
+                color: Config.accent
+                visible: !Config.leftCardCollapsed && Config.isPinned("mirror")
+            }
+
+            // Direct in-memory toggle
+            TapHandler { 
+                onTapped: Config.showMirror = !Config.showMirror 
+            }
+            TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("mirror") }
+            HoverHandler { id: mirrorHover; cursorShape: Qt.PointingHandCursor }
         }
     }
 
