@@ -30,6 +30,10 @@ QtObject {
     property bool showClipboard: false
     property bool showScreenRecorder: false
 
+    // --- NAVIGATION PERSISTENCE ---
+    property int lastSettingsSection: 0
+    onLastSettingsSectionChanged: { if (isLoaded) saveSettings() }
+
     // --- SYSTEM SOUNDS CONFIGURATION ---
     property bool playWindowSounds: true
     property bool playNotificationSounds: true
@@ -935,6 +939,7 @@ QtObject {
             var customPalettes = themes.filter(function(t) { return t.isCustom === true })
 
             var data = {
+                "lastSettingsSection": root.lastSettingsSection,
                 "monitorConfigs": root.monitorConfigs,
                 "selectedWallpaperMonitors": root.selectedWallpaperMonitors,
                 "wallpaperTransitionType": root.wallpaperTransitionType,
@@ -1014,7 +1019,7 @@ QtObject {
                         var parsed = JSON.parse(text)
 
                         let props = [
-                            "monitorConfigs", "selectedWallpaperMonitors", "wallpaperTransitionType", "activeWallpaperPath", "showOsk", "oskLayout",
+                            "lastSettingsSection", "monitorConfigs", "selectedWallpaperMonitors", "wallpaperTransitionType", "activeWallpaperPath", "showOsk", "oskLayout",
                             "showMascot", "mascotPath", "mascotPhrases", "fetchOnlineQuotes", "quoteSource",
                             "barFrameStyle", "barPosition", "showScreenFrame", "sysFont", "fontScaleIndex", "locationQuery",
                             "enabledBarScreens", "useCustomColors", "customBgBase", "customBgPanel",

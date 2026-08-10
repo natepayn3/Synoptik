@@ -16,10 +16,40 @@ Item {
 
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
-    property int activeSection: 0
+    // Inline Comment: Initialize activeSection to match saved Config state
+    property int activeSection: Config.lastSettingsSection
     property bool visualsExpanded: false
     property bool connectivityExpanded: false
     property bool widgetsExpanded: false
+
+    // Inline Comment: Expand parent accordion menu containing the selected tab
+    function expandActiveCategory(sectionId) {
+        if ([0, 1, 2, 3, 12].includes(sectionId)) visualsExpanded = true
+        else if ([4, 5, 6, 7].includes(sectionId)) connectivityExpanded = true
+        else if ([8, 9, 10, 13].includes(sectionId)) widgetsExpanded = true
+    }
+
+    Component.onCompleted: {
+        activeSection = Config.lastSettingsSection
+        expandActiveCategory(activeSection)
+    }
+
+    Connections {
+        target: Config
+        function onLastSettingsSectionChanged() {
+            if (settingsRoot.activeSection !== Config.lastSettingsSection) {
+                settingsRoot.activeSection = Config.lastSettingsSection
+                settingsRoot.expandActiveCategory(settingsRoot.activeSection)
+            }
+        }
+    }
+
+    onActiveSectionChanged: {
+        if (Config.isLoaded && Config.lastSettingsSection !== activeSection) {
+            Config.lastSettingsSection = activeSection
+        }
+        expandActiveCategory(activeSection)
+    }
 
     ColumnLayout {
         anchors.fill: parent
