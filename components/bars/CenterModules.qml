@@ -69,43 +69,20 @@ Rectangle {
             spacing: 8
             anchors.fill: parent
 
-            implicitWidth: wsIndHoriz.implicitWidth + 36 + spacing
-
-            readonly property var viewAppsButton: horizTaskbarWrapper.viewAppsBtn
+            readonly property var viewAppsButton: taskbarHoriz.viewAppsBtn
 
             WorkspaceIndicators {
-                id: wsIndHoriz
                 isVertical: false
                 Layout.alignment: Qt.AlignVCenter
             }
 
-            Item {
-                id: horizTaskbarWrapper
-                Layout.fillWidth: true
-                Layout.fillHeight: true
+            // Inline Comment: Direct instantiation guarantees instant rendering without 350ms blank state
+            Taskbar {
+                id: taskbarHoriz
+                isVertical: false
+                activeScreenName: (rootRef && rootRef.screen) ? rootRef.screen.name : ""
                 Layout.alignment: Qt.AlignVCenter
-                clip: true
-                
-                readonly property var viewAppsBtn: horizTaskbarLoader.item ? horizTaskbarLoader.item.viewAppsBtn : null
-
-                Timer {
-                    interval: 350
-                    running: true
-                    repeat: false
-                    onTriggered: horizTaskbarLoader.active = true
-                }
-
-                Loader {
-                    id: horizTaskbarLoader
-                    active: false
-                    anchors.fill: parent
-
-                    sourceComponent: Taskbar {
-                        isVertical: false
-                        activeScreenName: (rootRef && rootRef.screen) ? rootRef.screen.name : ""
-                        onPopoutRequested: item => centerGroupContainer.popoutRequested(item)
-                    }
-                }
+                onPopoutRequested: item => centerGroupContainer.popoutRequested(item)
             }
         }
     }
@@ -117,43 +94,20 @@ Rectangle {
             spacing: 8
             anchors.fill: parent
 
-            implicitHeight: wsIndVert.implicitHeight + 36 + spacing
-
-            readonly property var viewAppsButton: vertTaskbarWrapper.viewAppsBtn
+            readonly property var viewAppsButton: taskbarVert.viewAppsBtn
 
             WorkspaceIndicators {
-                id: wsIndVert
                 isVertical: true
                 Layout.alignment: Qt.AlignHCenter
             }
 
-            Item {
-                id: vertTaskbarWrapper
-                Layout.fillWidth: true
-                Layout.fillHeight: true
+            // Inline Comment: Direct instantiation guarantees instant rendering without 350ms blank state
+            Taskbar {
+                id: taskbarVert
+                isVertical: true
+                activeScreenName: (rootRef && rootRef.screen) ? rootRef.screen.name : ""
                 Layout.alignment: Qt.AlignHCenter
-                clip: true
-
-                readonly property var viewAppsBtn: vertTaskbarLoader.item ? vertTaskbarLoader.item.viewAppsBtn : null
-
-                Timer {
-                    interval: 350
-                    running: true
-                    repeat: false
-                    onTriggered: vertTaskbarLoader.active = true
-                }
-
-                Loader {
-                    id: vertTaskbarLoader
-                    active: false
-                    anchors.fill: parent
-
-                    sourceComponent: Taskbar {
-                        isVertical: true
-                        activeScreenName: (rootRef && rootRef.screen) ? rootRef.screen.name : ""
-                        onPopoutRequested: item => centerGroupContainer.popoutRequested(item)
-                    }
-                }
+                onPopoutRequested: item => centerGroupContainer.popoutRequested(item)
             }
         }
     }
