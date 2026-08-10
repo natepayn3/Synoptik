@@ -70,8 +70,8 @@ PanelWindow {
             ? width 
             : Math.round(((width - (containerPadding * 2)) * nativeRatio) + (containerPadding * 2))
 
-        x: mirrorWindow.savedX >= 0 ? mirrorWindow.savedX : (mirrorWindow.width > 0 ? mirrorWindow.width - width - Config.cardMargin : Config.cardMargin)
-        y: mirrorWindow.savedY >= 0 ? mirrorWindow.savedY : (Config.barHeight + Config.cardMargin * 2)
+        x: mirrorWindow.savedX >= 0 ? mirrorWindow.savedX : Config.cardMargin
+        y: mirrorWindow.savedY >= 0 ? mirrorWindow.savedY : Config.cardMargin
 
         Rectangle {
             id: container
