@@ -110,7 +110,10 @@ PanelWindow {
 
     function playOpenSound() {
         if (!Config.playWindowSounds || root.activeView === "notifOsd" || root.activeView === "osd") return
-        soundPlayer.play()
+        
+        // Fire-and-forget audio playback via PipeWire native player
+        let soundFile = Quickshell.shellDir.toString().replace(/^file:\/\//, "") + "/assets/" + (Config.windowSoundPath || "sound1.wav")
+        Quickshell.execDetached(["pw-play", soundFile])
     }
 
     onIsOpenChanged: {
