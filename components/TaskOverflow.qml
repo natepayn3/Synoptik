@@ -4,13 +4,14 @@ import QtQuick.Controls
 import Quickshell
 import Quickshell.Hyprland
 import Quickshell.Widgets
+import ".."
 
 Rectangle {
     id: overflowRoot
 
     property string activeScreenName: ""
 
-    // Inline Comment: Access running toplevels for active screen
+    // Inline Comment: Access running toplevels for the active monitor
     readonly property var activeClients: Hyprland.toplevels.values.filter(c => c.monitor && c.monitor.name === overflowRoot.activeScreenName)
 
     implicitWidth: 260
