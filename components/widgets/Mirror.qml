@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Shapes
 import QtMultimedia
+import Qt.labs.platform
 import Quickshell
 import Quickshell.Wayland
 import ".."
@@ -32,6 +33,24 @@ PanelWindow {
             mirrorContainer.x = Config.cardMargin
             mirrorContainer.y = Config.cardMargin
         }
+    }
+
+    function takeSnapshot() {
+        let timestamp = Qt.formatDateTime(new Date(), "yyyyMMdd_hhmmss")
+        let picturesDir = StandardPaths.writableLocation(StandardPaths.PicturesLocation).toString().replace(/^file:\/\//, "")
+        let targetPath = `${picturesDir}/mirror_snap_${timestamp}.png`
+
+        // Trigger visual feedback flash
+        flashAnimation.restart()
+
+        // Grabbing from parent wrapper forces child transforms (xScale) to render into the FBO
+        videoWrapper.grabToImage(function(result) {
+            if (result.saveToFile(targetPath)) {
+                console.log("Snapshot saved to:", targetPath)
+            } else {
+                console.warn("Failed to save snapshot to:", targetPath)
+            }
+        })
     }
 
     onVisibleChanged: if (visible) restorePosition()
@@ -70,10 +89,7 @@ PanelWindow {
 
         Component.onCompleted: mirrorWindow.restorePosition()
 
-        // Track the visibility state of the panel safely
         readonly property bool showPanel: typeof Config.mirrorShowPanel !== "undefined" ? Config.mirrorShowPanel : true
-
-        // Drop padding to 0 when panel is hidden so the video completely fills the draggable bounds
         readonly property real containerPadding: showPanel ? (Config.cardMargin + (Config.showBorders ? Config.borderThickness : 0)) : 0
 
         readonly property real nativeRatio: (videoOutput.sourceRect.width > 0 && videoOutput.sourceRect.height > 0)
@@ -95,16 +111,42 @@ PanelWindow {
 
             property real padding: mirrorContainer.containerPadding
 
-            VideoOutput {
-                id: videoOutput
+            // Wrapper item ensures child scale transform is baked into grabToImage
+            Item {
+                id: videoWrapper
                 anchors.fill: parent
                 anchors.margins: container.padding
-                fillMode: Config.mirrorKeepAspect ? VideoOutput.PreserveAspectCrop : VideoOutput.PreserveAspectFit
-                visible: true
+                clip: true
 
-                transform: Scale {
-                    origin.x: videoOutput.width / 2
-                    xScale: Config.mirrorMirrored ? 1 : -1
+                VideoOutput {
+                    id: videoOutput
+                    anchors.fill: parent
+                    fillMode: Config.mirrorKeepAspect ? VideoOutput.PreserveAspectCrop : VideoOutput.PreserveAspectFit
+                    visible: true
+
+                    transform: Scale {
+                        origin.x: videoOutput.width / 2
+                        xScale: Config.mirrorMirrored ? 1 : -1
+                    }
+                }
+            }
+
+            // Camera shutter flash feedback layer
+            Rectangle {
+                id: flashOverlay
+                anchors.fill: videoWrapper
+                color: "#ffffff"
+                opacity: 0.0
+                z: 99
+                radius: mirrorContainer.showPanel ? Config.surfaceRadius : 0
+
+                NumberAnimation on opacity {
+                    id: flashAnimation
+                    running: false
+                    from: 0.85
+                    to: 0.0
+                    duration: 200
+                    easing.type: Easing.OutQuad
                 }
             }
 
@@ -193,11 +235,11 @@ PanelWindow {
                 onDoubleClicked: Config.showMirror = false
             }
 
+            // Top-Right Close Button
             Rectangle {
                 anchors.top: parent.top
                 anchors.right: parent.right
                 
-                // Keep the button from clipping into the video corners when padding hits 0
                 anchors.topMargin: mirrorContainer.showPanel ? (container.padding + 6) : 6
                 anchors.rightMargin: mirrorContainer.showPanel ? (container.padding + 6) : 6
                 
@@ -222,6 +264,37 @@ PanelWindow {
                     onTapped: Config.showMirror = false
                 }
                 HoverHandler { id: closeHover; cursorShape: Qt.PointingHandCursor }
+            }
+
+            // Bottom-Right Snapshot Button
+            Rectangle {
+                anchors.bottom: parent.bottom
+                anchors.right: parent.right
+                
+                anchors.bottomMargin: mirrorContainer.showPanel ? (container.padding + 6) : 6
+                anchors.rightMargin: mirrorContainer.showPanel ? (container.padding + 6) : 6
+                
+                width: 24
+                height: 24
+                radius: width / 2
+                color: snapHover.hovered ? Config.accent : Qt.rgba(0, 0, 0, 0.4)
+                opacity: snapHover.hovered ? 1.0 : 0.6
+                z: 101
+
+                Behavior on color { ColorAnimation { duration: 150 } }
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "photo_camera"
+                    color: "#ffffff"
+                    font.family: "Material Symbols Outlined"
+                    font.pixelSize: 14
+                }
+
+                TapHandler {
+                    onTapped: mirrorWindow.takeSnapshot()
+                }
+                HoverHandler { id: snapHover; cursorShape: Qt.PointingHandCursor }
             }
         }
     }
