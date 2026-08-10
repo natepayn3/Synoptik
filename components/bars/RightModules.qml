@@ -90,8 +90,11 @@ Rectangle {
             delegate: Loader {
                 readonly property string itemKey: modelData
 
-                // Inline Comment: Fallback to true while item is null so Loader instantiates before checking item.visible
-                visible: item ? item.visible : true
+                // Inline Comment: Directly evaluate module visibility on the Loader to prevent child binding loops
+                visible: {
+                    if (itemKey === "batt" && typeof shellRoot !== "undefined" && !shellRoot.hasBattery) return false
+                    return !Config.rightCardCollapsed || Config.isPinned(itemKey)
+                }
 
                 sourceComponent: {
                     switch(itemKey) {
@@ -113,16 +116,11 @@ Rectangle {
         id: audioComp
         Rectangle {
             id: btnAudio
-            visible: !Config.rightCardCollapsed || Config.isPinned("audio")
-            opacity: visible ? 1.0 : 0.0
-            implicitWidth: visible ? 32 : 0
-            implicitHeight: visible ? 32 : 0
+            implicitWidth: 32
+            implicitHeight: 32
             radius: 10
             color: (Config.showAudio || audioHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
-            Behavior on opacity { NumberAnimation { duration: 150 } }
-            Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-            Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
             Behavior on color { ColorAnimation { duration: 150 } }
 
             Text {
@@ -150,16 +148,11 @@ Rectangle {
         id: sysComp
         Rectangle {
             id: btnSys
-            visible: !Config.rightCardCollapsed || Config.isPinned("sys")
-            opacity: visible ? 1.0 : 0.0
-            implicitWidth: visible ? 32 : 0
-            implicitHeight: visible ? 32 : 0
+            implicitWidth: 32
+            implicitHeight: 32
             radius: 10
             color: (Config.showSystemMonitor || sysHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
-            Behavior on opacity { NumberAnimation { duration: 150 } }
-            Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-            Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
             Behavior on color { ColorAnimation { duration: 150 } }
 
             Text {
@@ -187,16 +180,11 @@ Rectangle {
         id: battComp
         Rectangle {
             id: btnBatt
-            visible: shellRoot.hasBattery && (!Config.rightCardCollapsed || Config.isPinned("batt"))
-            opacity: visible ? 1.0 : 0.0
-            implicitWidth: visible ? 32 : 0
-            implicitHeight: visible ? 32 : 0
+            implicitWidth: 32
+            implicitHeight: 32
             radius: 10
             color: (Config.showBattery || battHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
-            Behavior on opacity { NumberAnimation { duration: 150 } }
-            Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-            Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
             Behavior on color { ColorAnimation { duration: 150 } }
 
             Text {
@@ -234,16 +222,11 @@ Rectangle {
         id: ccComp
         Rectangle {
             id: btnCC
-            visible: !Config.rightCardCollapsed || Config.isPinned("cc")
-            opacity: visible ? 1.0 : 0.0
-            implicitWidth: visible ? 32 : 0
-            implicitHeight: visible ? 32 : 0
+            implicitWidth: 32
+            implicitHeight: 32
             radius: 10
             color: (Config.showControlCenter || ccHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
-            Behavior on opacity { NumberAnimation { duration: 150 } }
-            Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-            Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
             Behavior on color { ColorAnimation { duration: 150 } }
 
             Text {
@@ -271,16 +254,11 @@ Rectangle {
         id: networkComp
         Rectangle {
             id: btnNetwork
-            visible: !Config.rightCardCollapsed || Config.isPinned("network")
-            opacity: visible ? 1.0 : 0.0
-            implicitWidth: visible ? 32 : 0
-            implicitHeight: visible ? 32 : 0
+            implicitWidth: 32
+            implicitHeight: 32
             radius: 10
             color: (Config.showNetwork || networkHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
-            Behavior on opacity { NumberAnimation { duration: 150 } }
-            Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-            Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
             Behavior on color { ColorAnimation { duration: 150 } }
 
             Text {
@@ -308,16 +286,11 @@ Rectangle {
         id: clipComp
         Rectangle {
             id: btnClipboard
-            visible: !Config.rightCardCollapsed || Config.isPinned("clipboard")
-            opacity: visible ? 1.0 : 0.0
-            implicitWidth: visible ? 32 : 0
-            implicitHeight: visible ? 32 : 0
+            implicitWidth: 32
+            implicitHeight: 32
             radius: 10
             color: (Config.showClipboard || clipHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
-            Behavior on opacity { NumberAnimation { duration: 150 } }
-            Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-            Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
             Behavior on color { ColorAnimation { duration: 150 } }
 
             Text {
@@ -345,16 +318,11 @@ Rectangle {
         id: clockComp
         Rectangle {
             id: btnClock
-            visible: !Config.rightCardCollapsed || Config.isPinned("clock")
-            opacity: visible ? 1.0 : 0.0
-            implicitWidth: visible ? (rootRef.isHorizontal ? dateRow.implicitWidth + 20 : 32) : 0
-            implicitHeight: visible ? (rootRef.isHorizontal ? 32 : dateColumn.implicitHeight + 12) : 0
+            implicitWidth: rootRef.isHorizontal ? dateRow.implicitWidth + 20 : 32
+            implicitHeight: rootRef.isHorizontal ? 32 : dateColumn.implicitHeight + 12
             radius: 10
             color: (Config.showCalendar || clockHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
-            Behavior on opacity { NumberAnimation { duration: 150 } }
-            Behavior on implicitWidth { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-            Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
             Behavior on color { ColorAnimation { duration: 150 } }
 
             Rectangle {

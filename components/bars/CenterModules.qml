@@ -10,11 +10,25 @@ Rectangle {
     property var rightCardRef
     property var barContentRef
 
+    signal popoutRequested(var item)
+
+    // Inline Comment: Safe instance lookup via Loader item to avoid Component-scoped ReferenceErrors
+    function getButton(key) {
+        if (key === "apps" || key === "launcher" || key === "view_apps") {
+            let activeLayout = centerContentLayout.item
+            if (activeLayout && activeLayout.viewAppsButton && activeLayout.viewAppsButton.visible) {
+                return activeLayout.viewAppsButton
+            }
+            // Inline Comment: Return null when no overflow button is active so PanelWindow falls back to LeftModules launcher
+            return null
+        }
+        return centerGroupContainer
+    }
+
     anchors.centerIn: parent
     anchors.horizontalCenterOffset: (rootRef && rootRef.isHorizontal && rootRef.isScreenFrame) ? (rootRef.barPosition === "left" ? (rootRef.framePadding / 2) : (rootRef.barPosition === "right" ? -(rootRef.framePadding / 2) : 0)) : 0
     anchors.verticalCenterOffset: (rootRef && !rootRef.isHorizontal && rootRef.isScreenFrame) ? (rootRef.barPosition === "top" ? (rootRef.framePadding / 2) : (rootRef.barPosition === "bottom" ? -(rootRef.framePadding / 2) : 0)) : 0
 
-    // Inline Comment: Safe null-checks prevent initialization property lookup errors
     readonly property real leftW: leftCardRef ? leftCardRef.width : 0
     readonly property real rightW: rightCardRef ? rightCardRef.width : 0
     readonly property real barW: barContentRef ? barContentRef.width : 1920
@@ -23,8 +37,8 @@ Rectangle {
     readonly property real rightH: rightCardRef ? rightCardRef.height : 0
     readonly property real barH: barContentRef ? barContentRef.height : 54
 
-    readonly property real availableW: Math.max(32, barW - leftW - rightW - 48)
-    readonly property real availableH: Math.max(32, barH - leftH - rightH - 48)
+    readonly property real availableW: Math.max(32, barW - (2 * Math.max(leftW, rightW)) - 48)
+    readonly property real availableH: Math.max(32, barH - (2 * Math.max(leftH, rightH)) - 48)
 
     width: (rootRef && rootRef.isHorizontal) 
         ? Math.min(centerContentLayout.implicitWidth + 16, availableW) 
@@ -55,17 +69,23 @@ Rectangle {
             spacing: 8
             anchors.fill: parent
 
+            // Inline Comment: Expose overflow button handle to Component parent
+            readonly property var viewAppsButton: horizTaskbarWrapper.viewAppsBtn
+
             WorkspaceIndicators {
                 isVertical: false
                 Layout.alignment: Qt.AlignVCenter
             }
 
             Item {
+                id: horizTaskbarWrapper
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 Layout.alignment: Qt.AlignVCenter
+                clip: true
                 
                 implicitWidth: horizTaskbarLoader.item ? horizTaskbarLoader.item.implicitWidth : 32
+                readonly property var viewAppsBtn: horizTaskbarLoader.item ? horizTaskbarLoader.item.viewAppsBtn : null
 
                 Timer {
                     interval: 350
@@ -82,6 +102,7 @@ Rectangle {
                     sourceComponent: Taskbar {
                         isVertical: false
                         activeScreenName: (rootRef && rootRef.screen) ? rootRef.screen.name : ""
+                        onPopoutRequested: item => centerGroupContainer.popoutRequested(item)
                     }
                 }
             }
@@ -94,17 +115,23 @@ Rectangle {
             spacing: 8
             anchors.fill: parent
 
+            // Inline Comment: Expose overflow button handle to Component parent
+            readonly property var viewAppsButton: vertTaskbarWrapper.viewAppsBtn
+
             WorkspaceIndicators {
                 isVertical: true
                 Layout.alignment: Qt.AlignHCenter
             }
 
             Item {
+                id: vertTaskbarWrapper
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 Layout.alignment: Qt.AlignHCenter
+                clip: true
 
                 implicitHeight: vertTaskbarLoader.item ? vertTaskbarLoader.item.implicitHeight : 32
+                readonly property var viewAppsBtn: vertTaskbarLoader.item ? vertTaskbarLoader.item.viewAppsBtn : null
 
                 Timer {
                     interval: 350
@@ -121,6 +148,7 @@ Rectangle {
                     sourceComponent: Taskbar {
                         isVertical: true
                         activeScreenName: (rootRef && rootRef.screen) ? rootRef.screen.name : ""
+                        onPopoutRequested: item => centerGroupContainer.popoutRequested(item)
                     }
                 }
             }
