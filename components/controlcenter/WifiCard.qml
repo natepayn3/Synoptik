@@ -27,6 +27,13 @@ Item {
     property var knownNetworks: ({})
     property var wifiModel
 
+    // Inline Comment: Optimistic state guard to prevent delayed updates when connecting/disconnecting
+    readonly property string displaySsid: {
+        if (connectingSsid !== "") return connectingSsid
+        if (disconnectingSsid !== "") return "Disconnecting..."
+        return activeSsid
+    }
+
     // Sticky expansion: Stay open on hover OR while a specific network row is expanded
     property bool shouldExpand: hasAdapter && (cardHover.hovered || expandedSsid !== "") && wifiPowered && wifiModel && wifiModel.count > 0
 
@@ -36,11 +43,20 @@ Item {
     signal disconnectSsid(string ssid)
     signal forgetSsid(string ssid)
 
+    // Inline Comment: Reduced timeout interval so scans don't lock UI state transitions unnecessarily
     Timer {
         id: cardScanTimeoutTimer
-        interval: 3500
+        interval: 1500
         repeat: false
         onTriggered: cardRoot.wifiScanning = false
+    }
+
+    // Inline Comment: Instantly clear pending connecting states when activeSsid updates from backend
+    onActiveSsidChanged: {
+        if (activeSsid !== "") {
+            connectingSsid = ""
+            disconnectingSsid = ""
+        }
     }
 
     // Floating overlay that reparents to the main ControlCenter layout tree
@@ -122,11 +138,12 @@ Item {
                             }
 
                             Text {
-                                text: !cardRoot.hasAdapter ? "No Adapter" : (!cardRoot.wifiPowered ? "Off" : (cardRoot.activeSsid !== "" ? cardRoot.activeSsid : "Disconnected"))
+                                // Inline Comment: Use displaySsid for zero-latency header status reflection
+                                text: !cardRoot.hasAdapter ? "No Adapter" : (!cardRoot.wifiPowered ? "Off" : (cardRoot.displaySsid !== "" ? cardRoot.displaySsid : "Disconnected"))
                                 font.family: Config.sysFont
                                 font.pixelSize: Config.size(Config.fontMicro)
-                                font.bold: cardRoot.activeSsid !== "" && cardRoot.hasAdapter
-                                color: cardRoot.activeSsid !== "" && cardRoot.hasAdapter ? Config.accent : Config.textMuted
+                                font.bold: cardRoot.displaySsid !== "" && cardRoot.hasAdapter
+                                color: cardRoot.displaySsid !== "" && cardRoot.hasAdapter ? Config.accent : Config.textMuted
                                 elide: Text.ElideRight
                                 Layout.fillWidth: true
                             }
@@ -219,7 +236,7 @@ Item {
 
                     color: hasError 
                         ? Qt.rgba(255, 80, 80, 0.15) 
-                        : (model.connected ? Qt.rgba(255, 255, 255, 0.12) : (wifiItemHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.15)))
+                        : (model.connected || isConnecting ? Qt.rgba(255, 255, 255, 0.12) : (wifiItemHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.15)))
                     border.color: hasError ? "#ff5555" : "transparent"
                     border.width: hasError ? 1 : 0
 
@@ -236,10 +253,10 @@ Item {
                             Layout.fillWidth: true
                             Text {
                                 text: model.ssid
-                                color: model.connected ? Config.accent : Config.textMain
+                                color: (model.connected || isConnecting) ? Config.accent : Config.textMain
                                 font.family: Config.sysFont
                                 font.pixelSize: Config.size(Config.fontCaption)
-                                font.bold: model.connected
+                                font.bold: model.connected || isConnecting
                                 elide: Text.ElideRight
                                 Layout.fillWidth: true
                             }
@@ -248,7 +265,7 @@ Item {
                                 text: model.isSecure ? "lock" : "wifi"
                                 font.family: "Material Symbols Outlined"
                                 font.pixelSize: 12
-                                color: model.connected ? Config.accent : Config.textMuted
+                                color: (model.connected || isConnecting) ? Config.accent : Config.textMuted
                             }
                         }
 
@@ -286,7 +303,13 @@ Item {
                                         echoMode: TextInput.Password
                                         enabled: !isConnecting && !isDisconnecting
                                         selectByMouse: true
-                                        onAccepted: if (!isConnecting && cardRoot.hasAdapter) cardRoot.connectTo(model.ssid, passInput.text, false)
+                                        onAccepted: {
+                                            if (!isConnecting && cardRoot.hasAdapter) {
+                                                // Inline Comment: Set connecting state immediately to trigger local UI updates
+                                                cardRoot.connectingSsid = model.ssid
+                                                cardRoot.connectTo(model.ssid, passInput.text, false)
+                                            }
+                                        }
                                         onTextChanged: {
                                             if (hasError) {
                                                 cardRoot.errorSsid = ""
@@ -310,7 +333,10 @@ Item {
 
                                     TapHandler {
                                         enabled: !isConnecting && !isDisconnecting && cardRoot.hasAdapter
-                                        onTapped: cardRoot.connectTo(model.ssid, passInput.text, false)
+                                        onTapped: {
+                                            cardRoot.connectingSsid = model.ssid
+                                            cardRoot.connectTo(model.ssid, passInput.text, false)
+                                        }
                                     }
                                     HoverHandler { id: joinNewHover; cursorShape: Qt.PointingHandCursor }
                                 }
@@ -337,7 +363,10 @@ Item {
                                     }
                                     TapHandler {
                                         enabled: !isDisconnecting && !isConnecting && cardRoot.hasAdapter
-                                        onTapped: cardRoot.disconnectSsid(model.ssid)
+                                        onTapped: {
+                                            cardRoot.disconnectingSsid = model.ssid
+                                            cardRoot.disconnectSsid(model.ssid)
+                                        }
                                     }
                                     HoverHandler { id: discHover; cursorShape: Qt.PointingHandCursor }
                                 }
@@ -357,7 +386,10 @@ Item {
                                     }
                                     TapHandler {
                                         enabled: !isConnecting && !isDisconnecting && cardRoot.hasAdapter
-                                        onTapped: cardRoot.connectTo(model.ssid, "", isKnown)
+                                        onTapped: {
+                                            cardRoot.connectingSsid = model.ssid
+                                            cardRoot.connectTo(model.ssid, "", isKnown)
+                                        }
                                     }
                                     HoverHandler { id: connHover; cursorShape: Qt.PointingHandCursor }
                                 }
