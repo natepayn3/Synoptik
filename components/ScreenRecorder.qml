@@ -43,7 +43,7 @@ Item {
         let dateStr = Qt.formatDateTime(new Date(), "yyyy-MM-dd_hh-mm-ss")
         let savePath = home + "/Videos/recording_" + dateStr + ".mp4"
 
-        let script = "sleep 0.15; and set -l geom (slurp -b '#00000000' -c '#ef4444' -w 2); and test -n \"$geom\"; and mkdir -p ~/Videos; and exec wf-recorder -f " + savePath + " -g \"$geom\""
+        let script = "mkdir -p ~/Videos; set -l geom (slurp -b '#00000000' -c '#ef4444' -w 2); test -n \"$geom\"; and exec wf-recorder -f \"" + savePath + "\" -g \"$geom\""
 
         Quickshell.execDetached(["fish", "-c", script])
     }
@@ -55,7 +55,8 @@ Item {
         let dateStr = Qt.formatDateTime(new Date(), "yyyy-MM-dd_hh-mm-ss")
         let savePath = home + "/Videos/recording_" + dateStr + ".mp4"
 
-        let script = "mkdir -p ~/Videos; and exec wf-recorder -f " + savePath
+        // Queries focused Hyprland display and targets it via -o
+        let script = "mkdir -p ~/Videos; set -l mon (hyprctl monitors -j | jq -r '.[] | select(.focused).name'); exec wf-recorder -o $mon -f \"" + savePath + "\""
 
         Quickshell.execDetached(["fish", "-c", script])
     }
