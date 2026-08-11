@@ -71,6 +71,13 @@ QtObject {
     property string embeddedStreamUrl: ""
     property string activeChannelName: ""
     property string activeStreamTitle: ""
+    property string activeStreamThumbnail: ""
+    
+    // TRACK PREFETCHING ENGINE
+    property string prefetchStreamUrl: ""
+    property string prefetchThumbnail: ""
+    property int prefetchIndex: -1
+
     property var currentPlaylist: []
     property int activePlaylistIndex: 0
     property bool isLoadingStream: false
@@ -87,6 +94,22 @@ QtObject {
         onMediaStatusChanged: {
             if (mediaStatus === MediaPlayer.EndOfMedia && root.embeddedStreamUrl !== "" && !root.isLoadingStream) {
                 root.nextTrack()
+            }
+        }
+    }
+
+    // Process to pull ahead in the playlist silently
+    property Process prefetchExtractor: Process {
+        id: prefetchedProc
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let lines = this.text ? this.text.trim().split("\n") : []
+                if (lines.length > 0 && lines[lines.length - 1].startsWith("http")) {
+                    let thumb = lines.length >= 2 ? lines[lines.length - 2] : ""
+                    root.prefetchThumbnail = (thumb && thumb.startsWith("http")) ? thumb : ""
+                    root.prefetchStreamUrl = lines[lines.length - 1]
+                }
             }
         }
     }
@@ -134,14 +157,23 @@ QtObject {
                     return
                 }
                 
-                if (lines.length >= 2 && lines[lines.length - 1].startsWith("http")) {
-                    root.activeStreamTitle = lines[0]
+                if (lines.length > 0 && lines[lines.length - 1].startsWith("http")) {
+                    if (lines.length >= 3 && !lines[0].startsWith("http") && lines[0] !== "NA") {
+                        root.activeStreamTitle = lines[0]
+                    }
+                    let thumb = lines.length >= 2 ? lines[lines.length - 2] : ""
+                    root.activeStreamThumbnail = (thumb && thumb.startsWith("http")) ? thumb : ""
                     root.embeddedStreamUrl = lines[lines.length - 1]
-                    root.addSavedUrl(root.activeChannelName, root.activeStreamTitle)
+                    
+                    if (root.activeStreamTitle !== "" && root.activeChannelName !== "") {
+                        root.addSavedUrl(root.activeChannelName, root.activeStreamTitle)
+                    }
                     root.inlinePlayer.play()
-                } else if (lines[0].startsWith("http")) {
-                    root.embeddedStreamUrl = lines[0]
-                    root.inlinePlayer.play()
+
+                    // Trigger silent prefetch for next track buffer
+                    if (root.currentPlaylist.length > 0 && root.activePlaylistIndex < root.currentPlaylist.length - 1) {
+                        root.prefetchTrack(root.activePlaylistIndex + 1)
+                    }
                 } else {
                     console.log("yt-dlp format extraction failed:\n" + this.text)
                 }
@@ -150,17 +182,50 @@ QtObject {
         }
     }
 
+    function prefetchTrack(index) {
+        if (index < 0 || index >= currentPlaylist.length) return
+        prefetchIndex = index
+        prefetchStreamUrl = ""
+        prefetchThumbnail = ""
+        
+        let track = currentPlaylist[index]
+        // Prioritize M4A over WebM to prevent FFmpeg demuxer I/O failures
+        let cmd = 'set -l out (yt-dlp --print "%(thumbnail)s\n%(url)s" --cookies ~/cookies.txt --extractor-args "youtube:player_client=android,web,android_music,web_music,mweb,default" -f "bestaudio[ext=m4a]/ba[ext=m4a]/ba/b" "https://music.youtube.com/watch?v=' + track.id + '" 2>/dev/null); ' +
+                  'if test -n "$out"; echo "$out[1]"; echo "$out[-1]"; end'
+                  
+        let envPrefix = "set -x AV_LOG_FORCE_NOCOLOR 1; set -x FFREPORT quiet; set -x QT_LOGGING_RULES '*.debug=false;qt.multimedia*=false'; "
+        prefetchExtractor.command = ["fish", "-c", envPrefix + cmd]
+        prefetchExtractor.running = true
+    }
+
     function resolveTrack(index) {
         if (index < 0 || index >= currentPlaylist.length) {
             isLoadingStream = false
             return
         }
-        activePlaylistIndex = index
-        let track = currentPlaylist[index]
         
-        // Extract the audio URL targeting the specific isolated video ID natively
-        let cmd = 'set -l out (yt-dlp --print "%(url)s" --cookies ~/cookies.txt --extractor-args "youtube:player_client=android,web,android_music,web_music,mweb,default" -f "ba/b/best" "https://music.youtube.com/watch?v=' + track.id + '" 2>/dev/null); ' +
-                  'if test -n "$out"; echo "$out[-1]"; end'
+        // Zero-Delay Instantiation
+        if (index === prefetchIndex && prefetchStreamUrl !== "") {
+            activePlaylistIndex = index
+            activeStreamThumbnail = prefetchThumbnail
+            embeddedStreamUrl = prefetchStreamUrl
+            inlinePlayer.play()
+            isLoadingStream = false
+            
+            if (index < currentPlaylist.length - 1) {
+                prefetchTrack(index + 1)
+            }
+            return
+        }
+
+        activePlaylistIndex = index
+        isLoadingStream = true
+        inlinePlayer.stop()
+        if (prefetchExtractor.running) prefetchExtractor.running = false
+        
+        let track = currentPlaylist[index]
+        let cmd = 'set -l out (yt-dlp --print "%(thumbnail)s\n%(url)s" --cookies ~/cookies.txt --extractor-args "youtube:player_client=android,web,android_music,web_music,mweb,default" -f "bestaudio[ext=m4a]/ba[ext=m4a]/ba/b" "https://music.youtube.com/watch?v=' + track.id + '" 2>/dev/null); ' +
+                  'if test -n "$out"; echo "$out[1]"; echo "$out[-1]"; end'
         
         let envPrefix = "set -x AV_LOG_FORCE_NOCOLOR 1; set -x FFREPORT quiet; set -x QT_LOGGING_RULES '*.debug=false;qt.multimedia*=false'; "
         streamExtractor.command = ["fish", "-c", envPrefix + cmd]
@@ -169,16 +234,12 @@ QtObject {
 
     function nextTrack() {
         if (currentPlaylist.length > 0 && activePlaylistIndex < currentPlaylist.length - 1) {
-            isLoadingStream = true
-            inlinePlayer.stop()
             resolveTrack(activePlaylistIndex + 1)
         }
     }
 
     function prevTrack() {
         if (currentPlaylist.length > 0 && activePlaylistIndex > 0) {
-            isLoadingStream = true
-            inlinePlayer.stop()
             resolveTrack(activePlaylistIndex - 1)
         }
     }
@@ -202,6 +263,7 @@ QtObject {
 
         activeChannelName = cleanUrl
         activeStreamTitle = ""
+        activeStreamThumbnail = ""
         isLoadingStream = true
         inlinePlayer.stop()
         embeddedStreamUrl = ""
@@ -209,15 +271,14 @@ QtObject {
         let envPrefix = "set -x AV_LOG_FORCE_NOCOLOR 1; set -x FFREPORT quiet; set -x QT_LOGGING_RULES '*.debug=false;qt.multimedia*=false'; "
 
         if (cleanUrl.includes("twitch.tv")) {
-            let cmd = 'set -l out (yt-dlp --print "%(title)s\n%(url)s" -f "best/bestvideo+bestaudio" "' + cleanUrl + '" 2>/dev/null); ' +
-                      'if test -n "$out"; echo "$out[1]"; echo "$out[-1]"; end'
+            let cmd = 'set -l out (yt-dlp --print "%(title)s\n%(thumbnail)s\n%(url)s" -f "best/bestvideo+bestaudio" "' + cleanUrl + '" 2>/dev/null); ' +
+                      'if test -n "$out"; echo "$out[1]"; echo "$out[2]"; echo "$out[-1]"; end'
             streamExtractor.command = ["fish", "-c", envPrefix + cmd]
             streamExtractor.running = true
         } else {
             if (currentPlaylist.length > 0 && !resetIndex) {
                 resolveTrack(activePlaylistIndex)
             } else {
-                // Fetch flat playlist structure to populate the UI and cache IDs for rapid skipping
                 let cmd = 'yt-dlp --print "%(playlist_title,title)s|||%(id)s|||%(title)s" --flat-playlist "' + cleanUrl + '" 2>/dev/null'
                 playlistFetcher.command = ["fish", "-c", envPrefix + cmd]
                 playlistFetcher.running = true
@@ -231,10 +292,15 @@ QtObject {
         embeddedStreamUrl = ""
         activeChannelName = ""
         activeStreamTitle = ""
+        activeStreamThumbnail = ""
         currentPlaylist = []
+        prefetchStreamUrl = ""
+        prefetchThumbnail = ""
+        prefetchIndex = -1
         isLoadingStream = false
         if (streamExtractor.running) streamExtractor.running = false
         if (playlistFetcher.running) playlistFetcher.running = false
+        if (prefetchExtractor.running) prefetchExtractor.running = false
     }
 
     // --- INITIALIZATION GUARD ---
