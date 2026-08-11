@@ -165,7 +165,9 @@ Flickable {
 
         Item {
             id: previewContainer
-            Layout.fillWidth: true
+            // Scale preview to a balanced width that fits without overflowing
+            Layout.preferredWidth: Math.min(mainColumn.width - 24, 360)
+            Layout.alignment: Qt.AlignHCenter
 
             readonly property real nativeRatio: {
                 if (camLoader.item && camLoader.item.sourceWidth > 0 && camLoader.item.sourceHeight > 0) {
@@ -177,9 +179,10 @@ Flickable {
             readonly property bool showPanel: typeof Config.mirrorShowPanel !== "undefined" ? Config.mirrorShowPanel : true
             readonly property real containerPadding: showPanel ? (Config.cardMargin + (Config.showBorders ? Config.borderThickness : 0)) : 0
 
+            implicitWidth: Layout.preferredWidth
             implicitHeight: Config.mirrorKeepAspect 
-                ? width 
-                : Math.round(((width - (containerPadding * 2)) * nativeRatio) + (containerPadding * 2))
+                ? implicitWidth 
+                : Math.round(((implicitWidth - (containerPadding * 2)) * nativeRatio) + (containerPadding * 2))
 
             Rectangle {
                 id: previewFrame
