@@ -1,5 +1,6 @@
 pragma Singleton
 import QtQuick
+import QtMultimedia
 import Quickshell
 import Quickshell.Io
 import "settings"
@@ -13,6 +14,135 @@ QtObject {
     property bool mirrorShowPanel: true
     property var mirrorVideoOutput: null
     property bool mirrorPreviewActive: false
+
+    // --- MEDIA PLAYER URL STORAGE ---
+    property string spotifyUrl: ""
+    property string youtubeUrl: ""
+    property string ytMusicUrl: ""
+    property string twitchUrl: ""
+
+    onSpotifyUrlChanged: { if (isLoaded) saveSettings() }
+    onYoutubeUrlChanged: { if (isLoaded) saveSettings() }
+    onYtMusicUrlChanged: { if (isLoaded) saveSettings() }
+    onTwitchUrlChanged: { if (isLoaded) saveSettings() }
+
+    // --- MEDIA PLAYER WIDGET CONFIGURATION ---
+    property bool showPlayer: false
+    property bool playerShowPanel: true
+    property bool playerKeepAspect: true
+    property string selectedPlayerName: ""
+    property real playerX: -1
+    property real playerY: -1
+
+    onShowPlayerChanged: { if (isLoaded) saveSettings() }
+    onPlayerShowPanelChanged: { if (isLoaded) saveSettings() }
+    onPlayerKeepAspectChanged: { if (isLoaded) saveSettings() }
+
+    onSelectedPlayerNameChanged: {
+        if (isLoaded) {
+            checkAndLoadActiveStream()
+            saveSettings()
+        }
+    }
+
+    // --- BACKGROUND MEDIA PLAYER ENGINE ---
+    property string embeddedStreamUrl: ""
+    property string activeChannelName: ""
+    property bool isLoadingStream: false
+
+    readonly property bool isConnecting: isLoadingStream || (embeddedStreamUrl !== "" && inlinePlayer.playbackState !== MediaPlayer.PlayingState)
+
+    // Global background player and audio output
+    property MediaPlayer inlinePlayer: MediaPlayer {
+        id: globalPlayer
+        source: root.embeddedStreamUrl
+        audioOutput: AudioOutput {}
+        loops: 1
+    }
+
+    // Background process for stream resolution
+    property Process streamExtractor: Process {
+        id: extractor
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let extracted = this.text ? this.text.trim() : ""
+                if (extracted.length > 0) {
+                    root.embeddedStreamUrl = extracted.split("\n")[0]
+                    root.inlinePlayer.play()
+                } else {
+                    console.log("yt-dlp failed to resolve URL for " + root.activeChannelName)
+                }
+                root.isLoadingStream = false
+            }
+        }
+    }
+
+    // Global stream loader
+    function loadStream(urlKey, channelName) {
+        if (!urlKey || typeof root[urlKey] === "undefined") return
+        let targetUrl = root[urlKey].trim()
+        
+        if (targetUrl === "") {
+            stopStream()
+            return
+        }
+
+        if (!targetUrl.startsWith("http://") && !targetUrl.startsWith("https://")) {
+            targetUrl = "https://" + targetUrl
+        }
+
+        activeChannelName = channelName
+        isLoadingStream = true
+        inlinePlayer.stop()
+        embeddedStreamUrl = ""
+        
+        let cmd = ""
+        if (targetUrl.includes("twitch.tv")) {
+            cmd = 'yt-dlp -g -f "best/bestvideo+bestaudio" "' + targetUrl + '"'
+        } else {
+            if (targetUrl.includes("music.youtube.com")) {
+                targetUrl = targetUrl.replace("music.youtube.com", "www.youtube.com")
+            }
+            cmd = 'yt-dlp --extractor-args "youtube:player_client=mweb,default" --playlist-items 1 -g -f "ba/b/best" "' + targetUrl + '"'
+        }
+        
+        // Mute FFmpeg and QtMultimedia stdout/stderr logging
+        let envPrefix = "set -x AV_LOG_FORCE_NOCOLOR 1; set -x FFREPORT quiet; set -x QT_LOGGING_RULES '*.debug=false;qt.multimedia*=false'; "
+        
+        streamExtractor.command = ["fish", "-c", envPrefix + cmd]
+        streamExtractor.running = false
+        streamExtractor.running = true
+    }
+
+    // Global stream terminator
+    function stopStream() {
+        inlinePlayer.stop()
+        embeddedStreamUrl = ""
+        activeChannelName = ""
+        isLoadingStream = false
+        if (streamExtractor.running) streamExtractor.running = false
+    }
+
+    function getUrlKeyForSelected() {
+        switch (selectedPlayerName) {
+            case "Spotify": return "spotifyUrl"
+            case "YouTube": return "youtubeUrl"
+            case "YouTube Music": return "ytMusicUrl"
+            case "Twitch": return "twitchUrl"
+            default: return ""
+        }
+    }
+
+    function checkAndLoadActiveStream() {
+        if (!isLoaded) return
+        let urlKey = getUrlKeyForSelected()
+        if (urlKey !== "" && root[urlKey] !== "") {
+            loadStream(urlKey, selectedPlayerName)
+        } else if (selectedPlayerName !== "") {
+            stopStream()
+        }
+    }
 
     // --- INITIALIZATION GUARD ---
     property bool isLoaded: false
@@ -66,6 +196,7 @@ QtObject {
         "power": "electrical_services",
         "recorder": "videocam",
         "mirror": "photo_camera",
+        "player": "graphic_eq",
         "screenshot": "crop",
         "notifications": "inbox",
         "wallpaper": "wall_art",
@@ -127,7 +258,7 @@ QtObject {
     onRightCardCollapsedChanged: { if (isLoaded) saveSettings() }
 
     // --- DYNAMIC MODULE ORDERING ---
-    property var leftCardOrder: ["power", "recorder", "mirror", "screenshot", "notifications", "wallpaper", "settings", "launcher"]
+    property var leftCardOrder: ["power", "recorder", "mirror", "player", "screenshot", "notifications", "wallpaper", "settings", "launcher"]
     property var rightCardOrder: ["audio", "sys", "batt", "cc", "network", "clipboard", "clock"]
 
     function moveModule(cardKey, iconId, direction) {
@@ -251,7 +382,6 @@ QtObject {
             onStreamFinished: {
                 let path = this.text ? this.text.trim() : ""
                 if (path.length > 0) {
-                    // Inline Comment: Updating activeWallpaperPath fires onActiveWallpaperPathChanged to run Iris
                     root.activeWallpaperPath = path
                 }
             }
@@ -332,7 +462,6 @@ QtObject {
     property bool enableXray: true
     property bool enableIris: false
 
-    // Process to run Iris, redirect stderr, and parse JSON colors reliably
     property Process irisRunner: Process {
         id: runner
         running: false
@@ -1000,6 +1129,10 @@ QtObject {
 
             var data = {
                 "lastSettingsSection": root.lastSettingsSection,
+                "spotifyUrl": root.spotifyUrl,
+                "youtubeUrl": root.youtubeUrl,
+                "ytMusicUrl": root.ytMusicUrl,
+                "twitchUrl": root.twitchUrl,
                 "monitorConfigs": root.monitorConfigs,
                 "selectedWallpaperMonitors": root.selectedWallpaperMonitors,
                 "wallpaperTransitionType": root.wallpaperTransitionType,
@@ -1039,6 +1172,12 @@ QtObject {
 
                 "mirrorMirrored": root.mirrorMirrored,
                 "mirrorKeepAspect": root.mirrorKeepAspect,
+
+                "playerShowPanel": root.playerShowPanel,
+                "playerKeepAspect": root.playerKeepAspect,
+                "selectedPlayerName": root.selectedPlayerName,
+                "playerX": root.playerX,
+                "playerY": root.playerY,
 
                 "leftCardCollapsed": root.leftCardCollapsed,
                 "rightCardCollapsed": root.rightCardCollapsed,
@@ -1084,7 +1223,8 @@ QtObject {
                         var parsed = JSON.parse(text)
 
                         let props = [
-                            "lastSettingsSection", "monitorConfigs", "selectedWallpaperMonitors", "wallpaperTransitionType", "activeWallpaperPath", "slideshowActive", "slideshowMinutes", "showOsk", "oskLayout",
+                            "lastSettingsSection", "spotifyUrl", "youtubeUrl", "ytMusicUrl", "twitchUrl",
+                            "monitorConfigs", "selectedWallpaperMonitors", "wallpaperTransitionType", "activeWallpaperPath", "slideshowActive", "slideshowMinutes", "showOsk", "oskLayout",
                             "showMascot", "mascotPath", "mascotPhrases", "fetchOnlineQuotes", "quoteSource",
                             "barFrameStyle", "barPosition", "showScreenFrame", "sysFont", "fontScaleIndex", "locationQuery",
                             "enabledBarScreens", "useCustomColors", "customBgBase", "customBgPanel",
@@ -1094,7 +1234,8 @@ QtObject {
                             "clockShowBackground", "clockPositions", "clockScales", "enabledClockScreens",
                             "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides",
                             "playWindowSounds", "playNotificationSounds", "windowSoundPath", "notificationSoundPath",
-                            "mirrorMirrored", "mirrorKeepAspect"
+                            "mirrorMirrored", "mirrorKeepAspect",
+                            "playerShowPanel", "playerKeepAspect", "selectedPlayerName", "playerX", "playerY"
                         ]
 
                         props.forEach(p => {
@@ -1130,6 +1271,9 @@ QtObject {
                 root.syncHyprlandBorders()
                 root.syncScreenFrame()
                 
+                // Automatically resume stream on startup if a source was selected
+                root.checkAndLoadActiveStream()
+
                 if (root.weather) {
                     root.weather.fetchWeather(true)
                 }
