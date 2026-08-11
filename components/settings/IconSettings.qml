@@ -173,8 +173,9 @@ ColumnLayout {
 
                         Repeater {
                             model: [
+                                { id: "player", label: "Media Player" },
                                 { id: "overview", label: "Overview" },
-                                { id: "apps_view", label: "Apps View" },
+                                { id: "apps", label: "Apps View" },
                                 { id: "magic", label: "Magic" },
                                 { id: "magic_active", label: "Magic (Active)" },
                                 { id: "music", label: "Music" },
