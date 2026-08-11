@@ -3,7 +3,6 @@ import QtQuick.Effects
 import QtQuick.Layouts
 import QtQuick.Controls
 import QtQuick.Shapes
-import QtMultimedia
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -534,9 +533,9 @@ PanelWindow {
                     PathLine { x: root.isLeftFlush ? (root.halfB + root.radius) : (root.pLeft + root.radius); y: root.barBottomY + root.currentHeight }
                     PathArc { x: root.isLeftFlush ? root.halfB : root.pLeft; y: root.barBottomY + root.currentHeight - root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
                     PathLine { x: root.isLeftFlush ? root.halfB : root.pLeft; y: root.isLeftFlush ? (root.halfB + root.barRadius) : (root.barBottomY + root.wingH) }
-                    PathCubic { x: root.isLeftFlush ? root.halfB : (root.pLeft - root.wingW); y: root.isLeftFlush ? (root.halfB + root.barRadius) : root.barBottomY; control1X: root.isLeftFlush ? root.halfB : root.pLeft; control1Y: root.isLeftFlush ? (root.halfB + root.barRadius) : (root.barBottomY + (root.wingH * 0.5)); control2X: root.isLeftFlush ? root.halfB : (root.pLeft - (root.wingW * 0.5)); control2Y: root.isLeftFlush ? root.barBottomY : root.barBottomY }
+                    PathCubic { x: root.isLeftFlush ? root.halfB : (root.pLeft - root.wingW); y: root.isLeftFlush ? (root.halfB + root.barRadius) : root.barBottomY; control1X: root.isLeftFlush ? root.halfB : root.pLeft; control1Y: root.isLeftFlush ? (root.halfB + root.barRadius) : (root.barBottomY + (root.wingH * 0.5)); control2X: root.isLeftFlush ? root.halfB : (root.pLeft - (root.wingW * 0.5)); control2Y: root.isLeftFlush ? (root.halfB + root.barRadius) : root.barBottomY }
                     PathLine { x: root.isLeftFlush ? root.halfB : (root.halfB + root.barRadius); y: root.isLeftFlush ? (root.halfB + root.barRadius) : root.barBottomY }
-                    PathArc { x: root.halfB; y: root.isLeftFlush ? 0 : root.barRadius; radiusX: root.isLeftFlush ? 0 : root.barRadius; radiusY: root.isLeftFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
+                    PathArc { x: root.halfB; y: root.isLeftFlush ? (root.halfB + root.barRadius) : (root.barBottomY - root.barRadius); radiusX: root.isLeftFlush ? 0 : root.barRadius; radiusY: root.isLeftFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
                     PathLine { x: root.halfB; y: root.halfB + root.barRadius }
                     PathArc { x: root.halfB + root.barRadius; y: root.halfB; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
                 }
