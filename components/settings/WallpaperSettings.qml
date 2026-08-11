@@ -85,12 +85,84 @@ Flickable {
         width: parent.width
         spacing: 16
 
-        Text {
-            text: "WALLPAPER SETTINGS"
-            color: Config.textMuted
-            font.family: Config.sysFont
-            font.pixelSize: Config.size(Config.fontCaption)
-            font.bold: true
+        // --- HEADER SECTION WITH RANDOMIZER CONTROLS ---
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 12
+
+            Text {
+                text: "WALLPAPER SETTINGS"
+                color: Config.textMuted
+                font.family: Config.sysFont
+                font.pixelSize: Config.size(Config.fontCaption)
+                font.bold: true
+            }
+
+            // Spacer
+            Item { Layout.fillWidth: true }
+
+            // Slideshow ASCII Checkbox and Controls
+            RowLayout {
+                spacing: 8
+                visible: folderModel.count > 0
+
+                RowLayout {
+                    spacing: 4
+                    Text {
+                        text: Config.slideshowActive ? "[x]" : "[ ]"
+                        color: Config.slideshowActive ? Config.accent : Config.textMuted
+                        font.family: "monospace"
+                        font.pixelSize: Config.size(Config.fontBody)
+                        font.bold: true
+                        
+                        TapHandler {
+                            onTapped: Config.slideshowActive = !Config.slideshowActive
+                        }
+                    }
+                    Text {
+                        text: "Random"
+                        color: Config.slideshowActive ? Config.textMain : Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        font.bold: true
+                    }
+                }
+
+                RowLayout {
+                    spacing: 4
+                    opacity: Config.slideshowActive ? 1.0 : 0.4
+                    
+                    Text {
+                        text: "[-]"
+                        color: Config.textMuted
+                        font.family: "monospace"
+                        font.pixelSize: Config.size(Config.fontBody)
+                        font.bold: true
+                        TapHandler {
+                            onTapped: if (Config.slideshowMinutes > 1) Config.slideshowMinutes--
+                        }
+                    }
+                    Text {
+                        text: Config.slideshowMinutes + "m"
+                        color: Config.textMain
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        font.bold: true
+                        Layout.preferredWidth: 24
+                        horizontalAlignment: Text.AlignHCenter
+                    }
+                    Text {
+                        text: "[+]"
+                        color: Config.textMuted
+                        font.family: "monospace"
+                        font.pixelSize: Config.size(Config.fontBody)
+                        font.bold: true
+                        TapHandler {
+                            onTapped: Config.slideshowMinutes++
+                        }
+                    }
+                }
+            }
         }
 
         // --- SECTION 1: TARGET OUTPUTS ---
@@ -121,7 +193,7 @@ Flickable {
 
                         readonly property bool isSelected: Config.selectedWallpaperMonitors && Config.selectedWallpaperMonitors.includes(modelData.name)
                         color: isSelected ? Qt.rgba(255, 255, 255, 0.12) : (monHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : Qt.rgba(255, 255, 255, 0.03))
-                        border.width: isSelected ? 1 : 0
+                        border.width: isSelected ? 2 : 0
                         border.color: Config.accent
 
                         RowLayout {
@@ -183,7 +255,7 @@ Flickable {
                         radius: Config.cornerRadius / 2
                         readonly property bool isSelected: Config.wallpaperTransitionType === modelData
                         color: isSelected ? Qt.rgba(255, 255, 255, 0.12) : (transHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : Qt.rgba(255, 255, 255, 0.03))
-                        border.width: isSelected ? 1 : 0
+                        border.width: isSelected ? 2 : 0
                         border.color: Config.accent
 
                         Text {
