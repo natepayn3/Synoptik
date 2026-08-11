@@ -98,6 +98,11 @@ QtObject {
         }
     }
 
+    // Cache management process to wipe temp files on close
+    property Process cacheCleaner: Process {
+        command: ["fish", "-c", "rm -rf /tmp/synoptik_media 2>/dev/null"]
+    }
+
     // Process to pull ahead in the playlist silently
     property Process prefetchExtractor: Process {
         id: prefetchedProc
@@ -105,7 +110,7 @@ QtObject {
         stdout: StdioCollector {
             onStreamFinished: {
                 let lines = this.text ? this.text.trim().split("\n") : []
-                if (lines.length > 0 && lines[lines.length - 1].startsWith("http")) {
+                if (lines.length > 0 && (lines[lines.length - 1].startsWith("http") || lines[lines.length - 1].startsWith("file://"))) {
                     let thumb = lines.length >= 2 ? lines[lines.length - 2] : ""
                     root.prefetchThumbnail = (thumb && thumb.startsWith("http")) ? thumb : ""
                     root.prefetchStreamUrl = lines[lines.length - 1]
@@ -157,13 +162,14 @@ QtObject {
                     return
                 }
                 
-                if (lines.length > 0 && lines[lines.length - 1].startsWith("http")) {
+                let targetUrl = lines[lines.length - 1]
+                if (targetUrl.startsWith("http") || targetUrl.startsWith("file://")) {
                     if (lines.length >= 3 && !lines[0].startsWith("http") && lines[0] !== "NA") {
                         root.activeStreamTitle = lines[0]
                     }
                     let thumb = lines.length >= 2 ? lines[lines.length - 2] : ""
                     root.activeStreamThumbnail = (thumb && thumb.startsWith("http")) ? thumb : ""
-                    root.embeddedStreamUrl = lines[lines.length - 1]
+                    root.embeddedStreamUrl = targetUrl
                     
                     if (root.activeStreamTitle !== "" && root.activeChannelName !== "") {
                         root.addSavedUrl(root.activeChannelName, root.activeStreamTitle)
@@ -189,9 +195,14 @@ QtObject {
         prefetchThumbnail = ""
         
         let track = currentPlaylist[index]
-        // Prioritize M4A over WebM to prevent FFmpeg demuxer I/O failures
-        let cmd = 'set -l out (yt-dlp --print "%(thumbnail)s\n%(url)s" --cookies ~/cookies.txt --extractor-args "youtube:player_client=android,web,android_music,web_music,mweb,default" -f "bestaudio[ext=m4a]/ba[ext=m4a]/ba/b" "https://music.youtube.com/watch?v=' + track.id + '" 2>/dev/null); ' +
-                  'if test -n "$out"; echo "$out[1]"; echo "$out[-1]"; end'
+        let cmd = 'mkdir -p /tmp/synoptik_media; ' +
+                  'set -l out (yt-dlp --no-simulate --print "%(thumbnail)s\n%(ext)s" --cookies ~/cookies.txt --extractor-args "youtube:player_client=android,web,android_music,web_music,mweb,default" -f "bestaudio[ext=m4a]/ba" -o "/tmp/synoptik_media/%(id)s.%(ext)s" "https://music.youtube.com/watch?v=' + track.id + '" 2>/dev/null); ' +
+                  'if test -n "$out"; ' +
+                  '  set -l fp "/tmp/synoptik_media/' + track.id + '.$out[-1]"; ' +
+                  '  if test -f "$fp"; ' +
+                  '    echo "$out[1]"; echo "file://$fp"; ' +
+                  '  end; ' +
+                  'end'
                   
         let envPrefix = "set -x AV_LOG_FORCE_NOCOLOR 1; set -x FFREPORT quiet; set -x QT_LOGGING_RULES '*.debug=false;qt.multimedia*=false'; "
         prefetchExtractor.command = ["fish", "-c", envPrefix + cmd]
@@ -204,7 +215,7 @@ QtObject {
             return
         }
         
-        // Zero-Delay Instantiation
+        // Zero-Delay Instantiation via Local Cache
         if (index === prefetchIndex && prefetchStreamUrl !== "") {
             activePlaylistIndex = index
             activeStreamThumbnail = prefetchThumbnail
@@ -224,8 +235,14 @@ QtObject {
         if (prefetchExtractor.running) prefetchExtractor.running = false
         
         let track = currentPlaylist[index]
-        let cmd = 'set -l out (yt-dlp --print "%(thumbnail)s\n%(url)s" --cookies ~/cookies.txt --extractor-args "youtube:player_client=android,web,android_music,web_music,mweb,default" -f "bestaudio[ext=m4a]/ba[ext=m4a]/ba/b" "https://music.youtube.com/watch?v=' + track.id + '" 2>/dev/null); ' +
-                  'if test -n "$out"; echo "$out[1]"; echo "$out[-1]"; end'
+        let cmd = 'mkdir -p /tmp/synoptik_media; ' +
+                  'set -l out (yt-dlp --no-simulate --print "%(thumbnail)s\n%(ext)s" --cookies ~/cookies.txt --extractor-args "youtube:player_client=android,web,android_music,web_music,mweb,default" -f "bestaudio[ext=m4a]/ba" -o "/tmp/synoptik_media/%(id)s.%(ext)s" "https://music.youtube.com/watch?v=' + track.id + '" 2>/dev/null); ' +
+                  'if test -n "$out"; ' +
+                  '  set -l fp "/tmp/synoptik_media/' + track.id + '.$out[-1]"; ' +
+                  '  if test -f "$fp"; ' +
+                  '    echo "$out[1]"; echo "file://$fp"; ' +
+                  '  end; ' +
+                  'end'
         
         let envPrefix = "set -x AV_LOG_FORCE_NOCOLOR 1; set -x FFREPORT quiet; set -x QT_LOGGING_RULES '*.debug=false;qt.multimedia*=false'; "
         streamExtractor.command = ["fish", "-c", envPrefix + cmd]
@@ -301,6 +318,9 @@ QtObject {
         if (streamExtractor.running) streamExtractor.running = false
         if (playlistFetcher.running) playlistFetcher.running = false
         if (prefetchExtractor.running) prefetchExtractor.running = false
+        
+        cacheCleaner.running = false
+        cacheCleaner.running = true
     }
 
     // --- INITIALIZATION GUARD ---
@@ -1434,7 +1454,10 @@ QtObject {
             }
         }
         
-        Component.onCompleted: loader.running = true
+        Component.onCompleted: {
+            loader.running = true
+            cacheCleaner.running = true
+        }
     }
 
     // Typography Engine
