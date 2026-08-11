@@ -125,7 +125,9 @@ set PACMAN_PKGS \
     coreutils \
     util-linux \
     power-profiles-daemon \
-    libcanberra
+    libcanberra \
+    qt6-webview \
+    yt-dlp
 
 say "Installing pacman packages..."
 sudo pacman -S --needed --noconfirm $PACMAN_PKGS
