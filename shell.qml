@@ -8,6 +8,7 @@ import Quickshell.Widgets
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import Quickshell.Io
+import QtMultimedia
 import Quickshell.Services.Notifications as Notifs
 import "components"
 import "components/bars"
@@ -375,6 +376,20 @@ ShellRoot {
         }
     }
 
+    IpcHandler {
+        target: "player"
+        function toggle(): void {
+            if (!shellRoot.isFocusedBarEnabled) return;
+            if (!Config.showPlayer) {
+                Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
+                Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false;
+                Config.showBattery = false; Config.showWorkspacePreview = false; Config.showControlCenter = false;
+                Config.showClipboard = false; Config.showScreenRecorder = false;
+            }
+            Config.showPlayer = !Config.showPlayer
+        }
+    }
+
     // --- CLOCK & DATE FORMATTING ---
     property string timeStr: Qt.formatTime(new Date(), "h:mm ap")
     property string shortDateStr: Qt.formatDate(new Date(), "MMM d")
@@ -446,6 +461,7 @@ ShellRoot {
                         case "screenRecorder": return screenRecorderComp;
                         case "controlCenter": return controlCenterComp;
                         case "settings": return settingsComp;
+                        case "player": return playerComp;
                         default: return null;
                     }
                 }
@@ -467,12 +483,26 @@ ShellRoot {
     Component { id: screenRecorderComp; ScreenRecorder {} }
     Component { id: controlCenterComp; ControlCenter {} }
     Component { id: settingsComp; Settings {} }
+    Component { id: playerComp; MediaPlayer {} }
 
     VolumeOSD { id: volumeOsd }
     NotificationOSD { id: notificationOsd }
     Mascot { id: mascotWidget }
     OSK { id: oskWidget }
     Mirror { id: mirrorWidget }
+
+    VideoOutput {
+        id: persistentVideoSink
+        visible: false
+        Component.onCompleted: {
+            Config.inlinePlayer.videoOutput = persistentVideoSink
+        }
+    }
+
+    MediaPlayer { 
+        id: globalMediaPlayerWidget
+        visible: Config.showPlayer
+    }
 
     Variants {
         model: Quickshell.screens
