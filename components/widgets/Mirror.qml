@@ -40,10 +40,8 @@ PanelWindow {
         let picturesDir = StandardPaths.writableLocation(StandardPaths.PicturesLocation).toString().replace(/^file:\/\//, "")
         let targetPath = `${picturesDir}/mirror_snap_${timestamp}.png`
 
-        // Trigger visual feedback flash
         flashAnimation.restart()
 
-        // Grabbing from parent wrapper forces child transforms (xScale) to render into the FBO
         videoWrapper.grabToImage(function(result) {
             if (result.saveToFile(targetPath)) {
                 console.log("Snapshot saved to:", targetPath)
@@ -83,7 +81,6 @@ PanelWindow {
         id: mirrorContainer
 
         width: 320
-
         x: Config.cardMargin
         y: Config.cardMargin
 
@@ -92,9 +89,12 @@ PanelWindow {
         readonly property bool showPanel: typeof Config.mirrorShowPanel !== "undefined" ? Config.mirrorShowPanel : true
         readonly property real containerPadding: showPanel ? (Config.cardMargin + (Config.showBorders ? Config.borderThickness : 0)) : 0
 
-        readonly property real nativeRatio: (videoOutput.sourceRect.width > 0 && videoOutput.sourceRect.height > 0)
-            ? (videoOutput.sourceRect.height / videoOutput.sourceRect.width)
-            : 0.75
+        readonly property real nativeRatio: {
+            if (camLoader.item && camLoader.item.sourceWidth > 0 && camLoader.item.sourceHeight > 0) {
+                return camLoader.item.sourceHeight / camLoader.item.sourceWidth
+            }
+            return 0.75
+        }
 
         height: Config.mirrorKeepAspect 
             ? width 
@@ -111,27 +111,96 @@ PanelWindow {
 
             property real padding: mirrorContainer.containerPadding
 
-            // Wrapper item ensures child scale transform is baked into grabToImage
             Item {
                 id: videoWrapper
                 anchors.fill: parent
                 anchors.margins: container.padding
                 clip: true
 
-                VideoOutput {
-                    id: videoOutput
+                Loader {
+                    id: camLoader
                     anchors.fill: parent
-                    fillMode: Config.mirrorKeepAspect ? VideoOutput.PreserveAspectCrop : VideoOutput.PreserveAspectFit
-                    visible: true
+                    active: false
+                    sourceComponent: Component {
+                        Item {
+                            anchors.fill: parent
+                            property alias sourceWidth: localOutput.sourceRect.width
+                            property alias sourceHeight: localOutput.sourceRect.height
 
-                    transform: Scale {
-                        origin.x: videoOutput.width / 2
-                        xScale: Config.mirrorMirrored ? 1 : -1
+                            VideoOutput {
+                                id: localOutput
+                                anchors.fill: parent
+                                fillMode: Config.mirrorKeepAspect ? VideoOutput.PreserveAspectCrop : VideoOutput.PreserveAspectFit
+                                visible: true
+
+                                transform: Scale {
+                                    origin.x: localOutput.width / 2
+                                    xScale: Config.mirrorMirrored ? 1 : -1
+                                }
+                            }
+
+                            CaptureSession {
+                                camera: Camera {
+                                    cameraDevice: mediaDevices.defaultVideoInput
+
+                                    function applyRawFormat() {
+                                        if (!cameraDevice) return
+
+                                        let formats = cameraDevice.videoFormats
+                                        let bestFormat = undefined
+                                        let bestScore = -1
+
+                                        for (let i = 0; i < formats.length; ++i) {
+                                            let f = formats[i]
+                                            if (f.pixelFormat === 0 || f.pixelFormat === 29) continue
+
+                                            let fpsTarget = Math.min(f.maxFrameRate, 30)
+                                            let width = f.resolution.width
+                                            let widthScore = width <= 1280 ? width : (1280 - (width - 1280)) 
+                                            let score = (fpsTarget * 10000) + widthScore
+
+                                            if (score > bestScore) {
+                                                bestScore = score
+                                                bestFormat = f
+                                            }
+                                        }
+
+                                        if (bestFormat) {
+                                            cameraFormat = bestFormat
+                                        }
+                                        active = true
+                                    }
+                                    Component.onCompleted: applyRawFormat()
+                                }
+                                videoOutput: localOutput
+                            }
+                        }
                     }
                 }
+
+                Timer {
+                    id: attachTimer
+                    interval: 500
+                    repeat: false
+                    onTriggered: camLoader.active = true
+                }
+
+                function evaluateCamera() {
+                    let shouldRun = Config.showMirror && mediaDevices.defaultVideoInput !== null
+                    if (shouldRun) {
+                        if (!camLoader.active && !attachTimer.running) attachTimer.restart()
+                    } else {
+                        attachTimer.stop()
+                        camLoader.active = false
+                    }
+                }
+
+                Connections { target: Config; function onShowMirrorChanged() { videoWrapper.evaluateCamera() } }
+                Connections { target: mediaDevices; function onDefaultVideoInputChanged() { videoWrapper.evaluateCamera() } }
+                
+                Component.onCompleted: evaluateCamera()
             }
 
-            // Camera shutter flash feedback layer
             Rectangle {
                 id: flashOverlay
                 anchors.fill: videoWrapper
@@ -147,61 +216,6 @@ PanelWindow {
                     to: 0.0
                     duration: 200
                     easing.type: Easing.OutQuad
-                }
-            }
-
-            CaptureSession {
-                id: captureSession
-                camera: Camera {
-                    id: camera
-                    active: Config.showMirror && mediaDevices.defaultVideoInput !== null
-                    cameraDevice: mediaDevices.defaultVideoInput
-
-                    function applyRawFormat() {
-                        if (!cameraDevice) return
-
-                        let formats = cameraDevice.videoFormats
-                        let bestFormat = undefined
-                        let bestScore = -1
-
-                        for (let i = 0; i < formats.length; ++i) {
-                            let f = formats[i]
-                            
-                            if (f.pixelFormat === 0 || f.pixelFormat === 29) continue
-
-                            let fpsTarget = Math.min(f.maxFrameRate, 30)
-                            let width = f.resolution.width
-                            let widthScore = width <= 1280 ? width : (1280 - (width - 1280)) 
-                            let score = (fpsTarget * 10000) + widthScore
-
-                            if (score > bestScore) {
-                                bestScore = score
-                                bestFormat = f
-                            }
-                        }
-
-                        if (bestFormat) {
-                            camera.cameraFormat = bestFormat
-                        }
-                        
-                        if (active) {
-                            camera.stop()
-                            camera.start()
-                        }
-                    }
-
-                    onCameraDeviceChanged: applyRawFormat()
-                    Component.onCompleted: applyRawFormat()
-                }
-                videoOutput: videoOutput
-            }
-
-            Connections {
-                target: mediaDevices
-                function onDefaultVideoInputChanged() {
-                    if (Config.showMirror && camera) {
-                        camera.start()
-                    }
                 }
             }
 
@@ -235,7 +249,6 @@ PanelWindow {
                 onDoubleClicked: Config.showMirror = false
             }
 
-            // Top-Right Close Button
             Rectangle {
                 anchors.top: parent.top
                 anchors.right: parent.right
@@ -266,7 +279,6 @@ PanelWindow {
                 HoverHandler { id: closeHover; cursorShape: Qt.PointingHandCursor }
             }
 
-            // Bottom-Right Snapshot Button
             Rectangle {
                 anchors.bottom: parent.bottom
                 anchors.right: parent.right
