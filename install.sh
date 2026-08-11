@@ -127,6 +127,7 @@ set PACMAN_PKGS \
     power-profiles-daemon \
     libcanberra \
     qt6-webview \
+    qt6-imageformats \
     yt-dlp
 
 say "Installing pacman packages..."
