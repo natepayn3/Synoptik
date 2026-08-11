@@ -646,7 +646,7 @@ Item {
                                             radius: Config.cornerRadius / 2
                                             color: reloadBtnHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : "transparent"
                                             border.color: Config.textMuted
-                                            border.width: 1
+                                            border.width: 2
 
                                             Behavior on color { ColorAnimation { duration: 100 } }
 
@@ -676,7 +676,7 @@ Item {
                                             radius: Config.cornerRadius / 2
                                             color: updateBtnHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : "transparent"
                                             border.color: Config.accent
-                                            border.width: 1
+                                            border.width: 2
 
                                             Behavior on color { ColorAnimation { duration: 100 } }
 
