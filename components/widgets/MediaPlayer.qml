@@ -10,12 +10,10 @@ Item {
     implicitWidth: 420
     implicitHeight: mainColumn.implicitHeight + (Config.cardMargin * 2)
 
-    // Hand video frame output to drawer view when visible
     Component.onCompleted: {
         Config.inlinePlayer.videoOutput = inlineVideo
     }
 
-    // Reassign video frame output to background sink when closing to keep stream decoder warm
     Component.onDestruction: {
         if (typeof persistentVideoSink !== "undefined") {
             Config.inlinePlayer.videoOutput = persistentVideoSink
@@ -60,112 +58,6 @@ Item {
             }
         }
 
-        // SOURCE SELECTOR DROPDOWN BAR
-        Rectangle {
-            id: sourceDropdownBar
-            Layout.fillWidth: true
-            implicitHeight: 36
-            radius: Config.cornerRadius / 2
-            color: Qt.rgba(0, 0, 0, 0.3)
-            border.width: 1
-            border.color: dropHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-
-            property bool expanded: false
-
-            RowLayout {
-                anchors.fill: parent
-                anchors.leftMargin: 10; anchors.rightMargin: 10
-                spacing: 8
-
-                Text {
-                    text: "live_tv"
-                    color: Config.accent
-                    font.family: "Material Symbols Outlined"
-                    font.pixelSize: 16
-                }
-
-                Text {
-                    text: Config.selectedPlayerName !== "" ? Config.selectedPlayerName : "Select Stream Target..."
-                    color: Config.textMain
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontCaption)
-                    font.bold: true
-                    Layout.fillWidth: true
-                    elide: Text.ElideRight
-                }
-
-                Text {
-                    text: sourceDropdownBar.expanded ? "expand_less" : "expand_more"
-                    color: Config.textMuted
-                    font.family: "Material Symbols Outlined"
-                    font.pixelSize: 18
-                }
-            }
-
-            TapHandler { onTapped: sourceDropdownBar.expanded = !sourceDropdownBar.expanded }
-            HoverHandler { id: dropHover; cursorShape: Qt.PointingHandCursor }
-        }
-
-        // DROPDOWN MENU LIST
-        ColumnLayout {
-            visible: sourceDropdownBar.expanded
-            Layout.fillWidth: true
-            spacing: 4
-
-            Repeater {
-                model: [
-                    { name: "Standby / Off", id: "", urlKey: "" },
-                    { name: "Spotify", id: "Spotify", urlKey: "spotifyUrl" },
-                    { name: "YouTube", id: "YouTube", urlKey: "youtubeUrl" },
-                    { name: "YouTube Music", id: "YouTube Music", urlKey: "ytMusicUrl" },
-                    { name: "Twitch", id: "Twitch", urlKey: "twitchUrl" }
-                ]
-
-                delegate: Rectangle {
-                    required property var modelData
-                    Layout.fillWidth: true
-                    implicitHeight: 32
-                    radius: Config.cornerRadius / 2
-                    color: (Config.selectedPlayerName === modelData.id) ? Qt.rgba(255, 255, 255, 0.15) : (itemHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
-
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 10; anchors.rightMargin: 10
-
-                        Text {
-                            text: modelData.name
-                            color: (Config.selectedPlayerName === modelData.id) ? Config.accent : Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            font.bold: Config.selectedPlayerName === modelData.id
-                            Layout.fillWidth: true
-                            elide: Text.ElideRight
-                        }
-
-                        Rectangle {
-                            implicitWidth: 6; implicitHeight: 6; radius: 3
-                            color: (modelData.urlKey !== "" && Config[modelData.urlKey] !== "") ? Config.accent : Qt.rgba(255, 255, 255, 0.2)
-                            visible: modelData.urlKey !== ""
-                        }
-                    }
-
-                    TapHandler {
-                        onTapped: {
-                            Config.selectedPlayerName = modelData.id
-                            sourceDropdownBar.expanded = false
-
-                            if (modelData.urlKey !== "") {
-                                Config.loadStream(modelData.urlKey, modelData.name)
-                            } else {
-                                Config.stopStream()
-                            }
-                        }
-                    }
-                    HoverHandler { id: itemHover; cursorShape: Qt.PointingHandCursor }
-                }
-            }
-        }
-
         // INLINE URL SPECIFIER BAR
         Rectangle {
             Layout.fillWidth: true
@@ -174,7 +66,6 @@ Item {
             color: Qt.rgba(0, 0, 0, 0.25)
             border.width: inlineUrlInput.activeFocus ? 1 : 0
             border.color: Config.accent
-            visible: Config.selectedPlayerName !== ""
             clip: true
 
             RowLayout {
@@ -198,16 +89,12 @@ Item {
                     font.pixelSize: Config.size(Config.fontCaption)
                     selectByMouse: true
                     clip: true
-
-                    text: {
-                        let key = Config.getUrlKeyForSelected()
-                        return (key !== "" && typeof Config[key] !== "undefined") ? Config[key] : ""
-                    }
+                    text: Config.activeChannelName
 
                     Text {
                         anchors.fill: parent
                         verticalAlignment: Text.AlignVCenter
-                        text: "Paste " + Config.selectedPlayerName + " URL..."
+                        text: "Paste Stream URL..."
                         color: Config.textMuted
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontCaption)
@@ -216,10 +103,8 @@ Item {
                     }
 
                     onEditingFinished: {
-                        let key = Config.getUrlKeyForSelected()
-                        if (key !== "") {
-                            Config[key] = inlineUrlInput.text.trim()
-                            Config.loadStream(key, Config.selectedPlayerName)
+                        if (inlineUrlInput.text.trim() !== "") {
+                            Config.loadDirectStream(inlineUrlInput.text)
                         }
                     }
 
@@ -240,14 +125,128 @@ Item {
 
                     TapHandler {
                         onTapped: {
-                            let key = Config.getUrlKeyForSelected()
-                            if (key !== "") {
-                                Config[key] = inlineUrlInput.text.trim()
-                                Config.loadStream(key, Config.selectedPlayerName)
+                            if (inlineUrlInput.text.trim() !== "") {
+                                Config.loadDirectStream(inlineUrlInput.text)
                             }
                         }
                     }
                     HoverHandler { id: refreshBtnHover; cursorShape: Qt.PointingHandCursor }
+                }
+            }
+        }
+
+        // SOURCE SELECTOR DROPDOWN BAR
+        Rectangle {
+            id: sourceDropdownBar
+            Layout.fillWidth: true
+            implicitHeight: 36
+            radius: Config.cornerRadius / 2
+            color: Qt.rgba(0, 0, 0, 0.3)
+            border.width: 1
+            border.color: dropHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+            visible: Config.savedUrls && Config.savedUrls.length > 0
+
+            property bool expanded: false
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 10; anchors.rightMargin: 10
+                spacing: 8
+
+                Text {
+                    text: "history"
+                    color: Config.accent
+                    font.family: "Material Symbols Outlined"
+                    font.pixelSize: 16
+                }
+
+                Text {
+                    text: {
+                        if (Config.activeStreamTitle !== "") return Config.activeStreamTitle
+                        if (Config.activeChannelName !== "") return Config.activeChannelName
+                        return "Saved Streams (" + (Config.savedUrls ? Config.savedUrls.length : 0) + ")"
+                    }
+                    color: Config.textMain
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontCaption)
+                    font.bold: true
+                    Layout.fillWidth: true
+                    elide: Text.ElideRight
+                }
+
+                Text {
+                    text: sourceDropdownBar.expanded ? "expand_less" : "expand_more"
+                    color: Config.textMuted
+                    font.family: "Material Symbols Outlined"
+                    font.pixelSize: 18
+                }
+            }
+
+            TapHandler { onTapped: sourceDropdownBar.expanded = !sourceDropdownBar.expanded }
+            HoverHandler { id: dropHover; cursorShape: Qt.PointingHandCursor }
+        }
+
+        // DROPDOWN MENU LIST
+        ColumnLayout {
+            visible: sourceDropdownBar.expanded && Config.savedUrls && Config.savedUrls.length > 0
+            Layout.fillWidth: true
+            spacing: 4
+
+            Repeater {
+                model: Config.savedUrls
+
+                delegate: Rectangle {
+                    required property var modelData
+                    required property int index
+                    
+                    property string itemUrl: typeof modelData === 'string' ? modelData : modelData.url
+                    property string itemTitle: typeof modelData === 'string' ? modelData : modelData.title
+                    
+                    Layout.fillWidth: true
+                    implicitHeight: 32
+                    radius: Config.cornerRadius / 2
+                    color: (Config.activeChannelName === itemUrl) ? Qt.rgba(255, 255, 255, 0.15) : (itemHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 10; anchors.rightMargin: 6
+
+                        Text {
+                            text: itemTitle
+                            color: (Config.activeChannelName === itemUrl) ? Config.accent : Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            font.bold: Config.activeChannelName === itemUrl
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+
+                            TapHandler {
+                                onTapped: {
+                                    sourceDropdownBar.expanded = false
+                                    Config.loadDirectStream(itemUrl)
+                                }
+                            }
+                            HoverHandler { id: itemHover; cursorShape: Qt.PointingHandCursor }
+                        }
+
+                        Rectangle {
+                            implicitWidth: 24; implicitHeight: 24; radius: 12
+                            color: deleteBtnHover.hovered ? Qt.rgba(239, 68, 68, 0.3) : "transparent"
+                            
+                            Text {
+                                anchors.centerIn: parent
+                                text: "close"
+                                color: deleteBtnHover.hovered ? "#ef4444" : Config.textMuted
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 14
+                            }
+
+                            TapHandler {
+                                onTapped: Config.removeSavedUrl(index)
+                            }
+                            HoverHandler { id: deleteBtnHover; cursorShape: Qt.PointingHandCursor }
+                        }
+                    }
                 }
             }
         }
@@ -259,6 +258,15 @@ Item {
             radius: Config.cornerRadius / 2
             color: Qt.rgba(0, 0, 0, 0.35)
             clip: true
+
+            // ALBUM ART BACKGROUND
+            Image {
+                anchors.fill: parent
+                source: Config.activeStreamThumbnail
+                fillMode: Image.PreserveAspectCrop
+                visible: !inlineVideo.visible && Config.activeStreamThumbnail !== ""
+                opacity: 0.35 // Dimmed to keep playback controls legible
+            }
 
             VideoOutput {
                 id: inlineVideo
@@ -280,6 +288,7 @@ Item {
                     color: Config.accent
                     font.family: "Material Symbols Outlined"
                     font.pixelSize: 42
+                    visible: Config.activeStreamThumbnail === "" || Config.isConnecting
                 }
 
                 Text {
@@ -288,15 +297,20 @@ Item {
                     elide: Text.ElideRight
                     text: {
                         if (Config.isConnecting) return (Config.isLoadingStream ? "Resolving Stream via yt-dlp..." : "Buffering Stream...")
-                        if (Config.inlinePlayer.playbackState === MediaPlayer.PlayingState && !Config.inlinePlayer.hasVideo) return "Playing Audio Stream..."
-                        let key = Config.getUrlKeyForSelected()
-                        if (Config.selectedPlayerName !== "" && (!Config[key] || Config[key] === "")) return "No Stream URL Configured"
-                        if (Config.selectedPlayerName !== "") return "Stream Disconnected / Off"
-                        return "Select a Stream Source"
+                        if (Config.inlinePlayer.playbackState === MediaPlayer.PlayingState && !Config.inlinePlayer.hasVideo) {
+                            if (Config.currentPlaylist && Config.currentPlaylist.length > 0) {
+                                let track = Config.currentPlaylist[Config.activePlaylistIndex]
+                                return (Config.activePlaylistIndex + 1) + "/" + Config.currentPlaylist.length + " • " + track.title
+                            }
+                            return Config.activeStreamTitle !== "" ? Config.activeStreamTitle : "Playing Audio Stream..."
+                        }
+                        if (Config.activeChannelName !== "") return "Stream Disconnected / Off"
+                        return "Enter or Select a Stream URL"
                     }
-                    color: Config.textMuted
+                    color: Config.activeStreamThumbnail !== "" ? "#ffffff" : Config.textMuted
                     font.family: Config.sysFont
                     font.pixelSize: Config.size(Config.fontCaption)
+                    font.bold: Config.activeStreamThumbnail !== ""
                 }
             }
 
@@ -305,13 +319,88 @@ Item {
                 anchors.bottom: parent.bottom
                 anchors.left: parent.left; anchors.right: parent.right
                 anchors.margins: 12
-                spacing: 4
+                spacing: 8
                 visible: Config.inlinePlayer.playbackState !== MediaPlayer.StoppedState || Config.isConnecting
 
-                // PLAYBACK CONTROLS (PLAY/PAUSE & STOP)
+                // TRACK PROGRESS BAR
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    visible: Config.inlinePlayer.duration > 0 && !Config.isConnecting
+
+                    function formatTime(ms) {
+                        if (ms <= 0) return "0:00"
+                        let totalSeconds = Math.floor(ms / 1000)
+                        let minutes = Math.floor(totalSeconds / 60)
+                        let seconds = totalSeconds % 60
+                        return minutes + ":" + (seconds < 10 ? "0" : "") + seconds
+                    }
+
+                    Text {
+                        text: parent.formatTime(Config.inlinePlayer.position)
+                        color: Config.textMain
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: 6
+                        radius: 3
+                        color: Qt.rgba(255, 255, 255, 0.2)
+
+                        Rectangle {
+                            width: Config.inlinePlayer.duration > 0 ? (Config.inlinePlayer.position / Config.inlinePlayer.duration) * parent.width : 0
+                            height: parent.height
+                            radius: 3
+                            color: Config.accent
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            
+                            onPositionChanged: (mouse) => {
+                                if (pressed && Config.inlinePlayer.seekable) {
+                                    let ratio = Math.max(0, Math.min(1, mouse.x / width))
+                                    Config.inlinePlayer.position = ratio * Config.inlinePlayer.duration
+                                }
+                            }
+                            onClicked: (mouse) => {
+                                if (Config.inlinePlayer.seekable) {
+                                    let ratio = Math.max(0, Math.min(1, mouse.x / width))
+                                    Config.inlinePlayer.position = ratio * Config.inlinePlayer.duration
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: parent.formatTime(Config.inlinePlayer.duration)
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                    }
+                }
+
+                // PLAYBACK CONTROLS
                 RowLayout {
                     Layout.alignment: Qt.AlignHCenter
-                    spacing: 24
+                    spacing: 20
+
+                    // Previous Track Button
+                    Text {
+                        text: "skip_previous"
+                        color: Config.accent
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 32
+                        opacity: (Config.embeddedStreamUrl !== "" && Config.currentPlaylist.length > 0 && Config.activePlaylistIndex > 0) ? 1.0 : 0.4
+
+                        TapHandler {
+                            onTapped: Config.prevTrack()
+                        }
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    }
 
                     // Play / Pause Button
                     Text {
@@ -330,6 +419,20 @@ Item {
                                     Config.inlinePlayer.play()
                                 }
                             }
+                        }
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    }
+
+                    // Next Track Button
+                    Text {
+                        text: "skip_next"
+                        color: Config.accent
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 32
+                        opacity: (Config.embeddedStreamUrl !== "" && Config.currentPlaylist.length > 0 && Config.activePlaylistIndex < Config.currentPlaylist.length - 1) ? 1.0 : 0.4
+
+                        TapHandler {
+                            onTapped: Config.nextTrack()
                         }
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
                     }
