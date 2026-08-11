@@ -248,6 +248,7 @@ PanelWindow {
             else if (Config.showClipboard) nextView = "clipboard"
             else if (Config.showScreenRecorder) nextView = "screenRecorder"
             else if (Config.showControlCenter) nextView = "controlCenter"
+            else if (Config.showPlayer) nextView = "player"
             else if (typeof Config.showTaskOverflow !== "undefined" && Config.showTaskOverflow) nextView = "taskOverflow"
             else if (typeof Config.showOSD !== "undefined" && Config.showOSD) nextView = "osd"
             else if (typeof Config.showNotificationOsd !== "undefined" && Config.showNotificationOsd) nextView = "notifOsd"
@@ -293,6 +294,7 @@ PanelWindow {
             if (except !== "screenRecorder") Config.showScreenRecorder = false
             if (except !== "controlCenter") Config.showControlCenter = false
             if (except !== "settings") Config.showSettings = false
+            if (except !== "player") Config.showPlayer = false
             if (except !== "taskOverflow" && typeof Config.showTaskOverflow !== "undefined") Config.showTaskOverflow = false
         }
     }
@@ -333,6 +335,14 @@ PanelWindow {
             if (Config.showSettings) {
                 closeOthers("settings")
                 let btn = leftCard ? leftCard.getButton("settings") : (rightCard ? rightCard.getButton("settings") : null)
+                if (btn) setPopoutPos(btn)
+            }
+            updateActiveView()
+        }
+        function onShowPlayerChanged() {
+            if (Config.showPlayer) {
+                closeOthers("player")
+                let btn = centerGroupContainer ? centerGroupContainer.getButton("player") : null
                 if (btn) setPopoutPos(btn)
             }
             updateActiveView()
@@ -535,7 +545,7 @@ PanelWindow {
                     PathLine { x: root.isLeftFlush ? root.halfB : root.pLeft; y: root.isLeftFlush ? (root.halfB + root.barRadius) : (root.barBottomY + root.wingH) }
                     PathCubic { x: root.isLeftFlush ? root.halfB : (root.pLeft - root.wingW); y: root.isLeftFlush ? (root.halfB + root.barRadius) : root.barBottomY; control1X: root.isLeftFlush ? root.halfB : root.pLeft; control1Y: root.isLeftFlush ? (root.halfB + root.barRadius) : (root.barBottomY + (root.wingH * 0.5)); control2X: root.isLeftFlush ? root.halfB : (root.pLeft - (root.wingW * 0.5)); control2Y: root.isLeftFlush ? (root.halfB + root.barRadius) : root.barBottomY }
                     PathLine { x: root.isLeftFlush ? root.halfB : (root.halfB + root.barRadius); y: root.isLeftFlush ? (root.halfB + root.barRadius) : root.barBottomY }
-                    PathArc { x: root.halfB; y: root.isLeftFlush ? (root.halfB + root.barRadius) : (root.barBottomY - root.barRadius); radiusX: root.isLeftFlush ? 0 : root.barRadius; radiusY: root.isLeftFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
+                    PathArc { x: root.halfB; y: root.isLeftFlush ? 0 : (root.barBottomY - root.barRadius); radiusX: root.isLeftFlush ? 0 : root.barRadius; radiusY: root.isLeftFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
                     PathLine { x: root.halfB; y: root.halfB + root.barRadius }
                     PathArc { x: root.halfB + root.barRadius; y: root.halfB; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
                 }
