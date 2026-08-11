@@ -11,8 +11,6 @@ Flickable {
     clip: true
     boundsBehavior: Flickable.StopAtBounds
 
-    onVisibleChanged: previewCamera.updateState()
-
     ColumnLayout {
         id: mainColumn
         width: parent.width
@@ -169,9 +167,12 @@ Flickable {
             id: previewContainer
             Layout.fillWidth: true
 
-            readonly property real nativeRatio: (previewOutput.sourceRect.width > 0 && previewOutput.sourceRect.height > 0)
-                ? (previewOutput.sourceRect.height / previewOutput.sourceRect.width)
-                : 0.75
+            readonly property real nativeRatio: {
+                if (camLoader.item && camLoader.item.sourceWidth > 0 && camLoader.item.sourceHeight > 0) {
+                    return camLoader.item.sourceHeight / camLoader.item.sourceWidth
+                }
+                return 0.75
+            }
 
             readonly property bool showPanel: typeof Config.mirrorShowPanel !== "undefined" ? Config.mirrorShowPanel : true
             readonly property real containerPadding: showPanel ? (Config.cardMargin + (Config.showBorders ? Config.borderThickness : 0)) : 0
@@ -190,92 +191,93 @@ Flickable {
                 border.color: (typeof shellRoot !== "undefined" && shellRoot.currentBorderColor) ? shellRoot.currentBorderColor : Config.accent
 
                 Item {
+                    id: previewWrapper
                     anchors.fill: parent
                     anchors.margins: previewContainer.containerPadding
                     clip: true
 
-                    VideoOutput {
-                        id: previewOutput
+                    Loader {
+                        id: camLoader
                         anchors.fill: parent
-                        fillMode: Config.mirrorKeepAspect ? VideoOutput.PreserveAspectCrop : VideoOutput.PreserveAspectFit
-
-                        transform: Scale {
-                            origin.x: previewOutput.width / 2
-                            xScale: Config.mirrorMirrored ? 1 : -1
-                        }
-                    }
-                }
-
-                CaptureSession {
-                    id: previewSession
-                    camera: Camera {
-                        id: previewCamera
                         active: false
-                        cameraDevice: mediaDevices.defaultVideoInput
+                        sourceComponent: Component {
+                            Item {
+                                anchors.fill: parent
+                                property alias sourceWidth: localOutput.sourceRect.width
+                                property alias sourceHeight: localOutput.sourceRect.height
 
-                        function updateState() {
-                            if (root.visible && !Config.showMirror && mediaDevices.defaultVideoInput !== null) {
-                                previewStartTimer.restart()
-                            } else {
-                                previewStartTimer.stop()
-                                previewCamera.active = false
-                            }
-                        }
+                                VideoOutput {
+                                    id: localOutput
+                                    anchors.fill: parent
+                                    fillMode: Config.mirrorKeepAspect ? VideoOutput.PreserveAspectCrop : VideoOutput.PreserveAspectFit
 
-                        function applyRawFormat() {
-                            if (!cameraDevice) return
+                                    transform: Scale {
+                                        origin.x: localOutput.width / 2
+                                        xScale: Config.mirrorMirrored ? 1 : -1
+                                    }
+                                }
 
-                            let formats = cameraDevice.videoFormats
-                            let bestFormat = undefined
-                            let bestScore = -1
+                                CaptureSession {
+                                    camera: Camera {
+                                        cameraDevice: mediaDevices.defaultVideoInput
 
-                            for (let i = 0; i < formats.length; ++i) {
-                                let f = formats[i]
-                                if (f.pixelFormat === 0 || f.pixelFormat === 29) continue
+                                        function applyRawFormat() {
+                                            if (!cameraDevice) return
 
-                                let fpsTarget = Math.min(f.maxFrameRate, 30)
-                                let width = f.resolution.width
-                                let widthScore = width <= 1280 ? width : (1280 - (width - 1280)) 
-                                let score = (fpsTarget * 10000) + widthScore
+                                            let formats = cameraDevice.videoFormats
+                                            let bestFormat = undefined
+                                            let bestScore = -1
 
-                                if (score > bestScore) {
-                                    bestScore = score
-                                    bestFormat = f
+                                            for (let i = 0; i < formats.length; ++i) {
+                                                let f = formats[i]
+                                                if (f.pixelFormat === 0 || f.pixelFormat === 29) continue
+
+                                                let fpsTarget = Math.min(f.maxFrameRate, 30)
+                                                let width = f.resolution.width
+                                                let widthScore = width <= 1280 ? width : (1280 - (width - 1280)) 
+                                                let score = (fpsTarget * 10000) + widthScore
+
+                                                if (score > bestScore) {
+                                                    bestScore = score
+                                                    bestFormat = f
+                                                }
+                                            }
+
+                                            if (bestFormat) {
+                                                cameraFormat = bestFormat
+                                            }
+                                            active = true
+                                        }
+                                        Component.onCompleted: applyRawFormat()
+                                    }
+                                    videoOutput: localOutput
                                 }
                             }
-
-                            if (bestFormat) {
-                                previewCamera.cameraFormat = bestFormat
-                            }
-                            
-                            if (active) {
-                                previewCamera.stop()
-                                previewCamera.start()
-                            }
-                        }
-
-                        onCameraDeviceChanged: applyRawFormat()
-                        Component.onCompleted: applyRawFormat()
-                    }
-                    videoOutput: previewOutput
-                }
-
-                Timer {
-                    id: previewStartTimer
-                    interval: 150
-                    repeat: false
-                    onTriggered: {
-                        if (root.visible && !Config.showMirror && mediaDevices.defaultVideoInput !== null) {
-                            previewCamera.active = true
                         }
                     }
-                }
 
-                Connections {
-                    target: Config
-                    function onShowMirrorChanged() {
-                        previewCamera.updateState()
+                    Timer {
+                        id: attachTimer
+                        interval: 500
+                        repeat: false
+                        onTriggered: camLoader.active = true
                     }
+
+                    function evaluateCamera() {
+                        let shouldRun = root.visible && !Config.showMirror && mediaDevices.defaultVideoInput !== null
+                        if (shouldRun) {
+                            if (!camLoader.active && !attachTimer.running) attachTimer.restart()
+                        } else {
+                            attachTimer.stop()
+                            camLoader.active = false
+                        }
+                    }
+
+                    Connections { target: Config; function onShowMirrorChanged() { previewWrapper.evaluateCamera() } }
+                    Connections { target: root; function onVisibleChanged() { previewWrapper.evaluateCamera() } }
+                    Connections { target: mediaDevices; function onDefaultVideoInputChanged() { previewWrapper.evaluateCamera() } }
+                    
+                    Component.onCompleted: evaluateCamera()
                 }
 
                 // Overlay when desktop mirror widget is actively open
