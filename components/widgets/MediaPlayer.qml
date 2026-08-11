@@ -7,8 +7,12 @@ import ".."
 Item {
     id: playerRoot
 
-    implicitWidth: 420
+    implicitWidth: Config.playerExpanded ? 840 : 420
     implicitHeight: mainColumn.implicitHeight + (Config.cardMargin * 2)
+
+    Behavior on implicitWidth {
+        NumberAnimation { duration: 200; easing.type: Easing.InOutQuad }
+    }
 
     Component.onCompleted: {
         Config.inlinePlayer.videoOutput = inlineVideo
@@ -41,6 +45,47 @@ Item {
                 elide: Text.ElideRight
             }
 
+            // SIZE TOGGLE BUTTON (2X CANVAS)
+            Rectangle {
+                implicitWidth: 26; implicitHeight: 26; radius: 13
+                color: expandBtnHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                Text {
+                    anchors.centerIn: parent
+                    text: Config.playerExpanded ? "fit_screen" : "aspect_ratio"
+                    color: Config.playerExpanded ? Config.accent : Config.textMuted
+                    font.family: "Material Symbols Outlined"
+                    font.pixelSize: 16
+                }
+
+                TapHandler { onTapped: Config.playerExpanded = !Config.playerExpanded }
+                HoverHandler { id: expandBtnHover; cursorShape: Qt.PointingHandCursor }
+            }
+
+            // PIN PANEL BUTTON
+            Rectangle {
+                implicitWidth: 26; implicitHeight: 26; radius: 13
+                color: pinBtnHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "push_pin"
+                    color: Config.playerPinned ? Config.accent : Config.textMuted
+                    font.family: "Material Symbols Outlined"
+                    font.pixelSize: 16
+                    // Rotate slightly when pinned
+                    rotation: Config.playerPinned ? 45 : 0
+
+                    Behavior on rotation {
+                        NumberAnimation { duration: 150 }
+                    }
+                }
+
+                TapHandler { onTapped: Config.playerPinned = !Config.playerPinned }
+                HoverHandler { id: pinBtnHover; cursorShape: Qt.PointingHandCursor }
+            }
+
+            // CLOSE BUTTON
             Rectangle {
                 implicitWidth: 26; implicitHeight: 26; radius: 13
                 color: closeBtnHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
@@ -254,10 +299,14 @@ Item {
         // MEDIA DISPLAY CANVAS
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: 220
+            implicitHeight: Config.playerExpanded ? 440 : 220
             radius: Config.cornerRadius / 2
             color: Qt.rgba(0, 0, 0, 0.35)
             clip: true
+
+            Behavior on implicitHeight {
+                NumberAnimation { duration: 200; easing.type: Easing.InOutQuad }
+            }
 
             // ALBUM ART BACKGROUND
             Image {
@@ -265,7 +314,7 @@ Item {
                 source: Config.activeStreamThumbnail
                 fillMode: Image.PreserveAspectCrop
                 visible: !inlineVideo.visible && Config.activeStreamThumbnail !== ""
-                opacity: 0.35 // Dimmed to keep playback controls legible
+                opacity: 0.35
             }
 
             VideoOutput {
@@ -388,7 +437,6 @@ Item {
                     Layout.alignment: Qt.AlignHCenter
                     spacing: 20
 
-                    // Previous Track Button
                     Text {
                         text: "skip_previous"
                         color: Config.accent
@@ -396,13 +444,10 @@ Item {
                         font.pixelSize: 32
                         opacity: (Config.embeddedStreamUrl !== "" && Config.currentPlaylist.length > 0 && Config.activePlaylistIndex > 0) ? 1.0 : 0.4
 
-                        TapHandler {
-                            onTapped: Config.prevTrack()
-                        }
+                        TapHandler { onTapped: Config.prevTrack() }
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
                     }
 
-                    // Play / Pause Button
                     Text {
                         text: Config.inlinePlayer.playbackState === MediaPlayer.PlayingState ? "pause_circle" : "play_circle"
                         color: Config.accent
@@ -423,7 +468,6 @@ Item {
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
                     }
 
-                    // Next Track Button
                     Text {
                         text: "skip_next"
                         color: Config.accent
@@ -431,13 +475,10 @@ Item {
                         font.pixelSize: 32
                         opacity: (Config.embeddedStreamUrl !== "" && Config.currentPlaylist.length > 0 && Config.activePlaylistIndex < Config.currentPlaylist.length - 1) ? 1.0 : 0.4
 
-                        TapHandler {
-                            onTapped: Config.nextTrack()
-                        }
+                        TapHandler { onTapped: Config.nextTrack() }
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
                     }
 
-                    // Stop Button
                     Text {
                         text: "stop_circle"
                         color: "#ef4444"
@@ -445,9 +486,7 @@ Item {
                         font.pixelSize: 32
                         opacity: (Config.embeddedStreamUrl !== "" || Config.isLoadingStream) ? 1.0 : 0.4
 
-                        TapHandler {
-                            onTapped: Config.stopStream()
-                        }
+                        TapHandler { onTapped: Config.stopStream() }
                         HoverHandler { cursorShape: Qt.PointingHandCursor }
                     }
                 }
