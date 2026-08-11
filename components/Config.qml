@@ -16,21 +16,50 @@ QtObject {
     property bool mirrorPreviewActive: false
 
     // --- MEDIA PLAYER URL STORAGE ---
-    property string spotifyUrl: ""
-    property string youtubeUrl: ""
-    property string ytMusicUrl: ""
-    property string twitchUrl: ""
+    property var savedUrls: []
+    
+    onSavedUrlsChanged: { if (isLoaded) saveSettings() }
 
-    onSpotifyUrlChanged: { if (isLoaded) saveSettings() }
-    onYoutubeUrlChanged: { if (isLoaded) saveSettings() }
-    onYtMusicUrlChanged: { if (isLoaded) saveSettings() }
-    onTwitchUrlChanged: { if (isLoaded) saveSettings() }
+    function addSavedUrl(url, title) {
+        if (!url || url.trim() === "") return
+        let cleanUrl = url.trim()
+        
+        if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
+            cleanUrl = "https://" + cleanUrl
+        }
+        
+        let list = savedUrls ? savedUrls.slice() : []
+        let existingIdx = list.findIndex(item => (typeof item === 'string' ? item : item.url) === cleanUrl)
+        let displayTitle = title || cleanUrl
+
+        if (existingIdx !== -1) {
+            let existingItem = list[existingIdx]
+            if (!title && typeof existingItem === 'object' && existingItem.title) {
+                displayTitle = existingItem.title
+            }
+            list.splice(existingIdx, 1)
+        }
+        
+        list.unshift({ url: cleanUrl, title: displayTitle })
+        savedUrls = list
+    }
+
+    function removeSavedUrl(index) {
+        if (!savedUrls || index < 0 || index >= savedUrls.length) return
+        let list = savedUrls.slice()
+        let removedItem = list.splice(index, 1)[0]
+        let removedUrl = typeof removedItem === 'string' ? removedItem : removedItem.url
+        savedUrls = list
+        
+        if (embeddedStreamUrl !== "" && activeChannelName === removedUrl) {
+            stopStream()
+        }
+    }
 
     // --- MEDIA PLAYER WIDGET CONFIGURATION ---
     property bool showPlayer: false
     property bool playerShowPanel: true
     property bool playerKeepAspect: true
-    property string selectedPlayerName: ""
     property real playerX: -1
     property real playerY: -1
 
@@ -38,16 +67,12 @@ QtObject {
     onPlayerShowPanelChanged: { if (isLoaded) saveSettings() }
     onPlayerKeepAspectChanged: { if (isLoaded) saveSettings() }
 
-    onSelectedPlayerNameChanged: {
-        if (isLoaded) {
-            checkAndLoadActiveStream()
-            saveSettings()
-        }
-    }
-
     // --- BACKGROUND MEDIA PLAYER ENGINE ---
     property string embeddedStreamUrl: ""
     property string activeChannelName: ""
+    property string activeStreamTitle: ""
+    property var currentPlaylist: []
+    property int activePlaylistIndex: 0
     property bool isLoadingStream: false
 
     readonly property bool isConnecting: isLoadingStream || (embeddedStreamUrl !== "" && inlinePlayer.playbackState !== MediaPlayer.PlayingState)
@@ -58,61 +83,146 @@ QtObject {
         source: root.embeddedStreamUrl
         audioOutput: AudioOutput {}
         loops: 1
+
+        onMediaStatusChanged: {
+            if (mediaStatus === MediaPlayer.EndOfMedia && root.embeddedStreamUrl !== "" && !root.isLoadingStream) {
+                root.nextTrack()
+            }
+        }
     }
 
-    // Background process for stream resolution
+    // Secondary process to fetch the entire flat playlist metadata at once
+    property Process playlistFetcher: Process {
+        id: plFetcher
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let lines = this.text ? this.text.trim().split("\n") : []
+                let items = []
+                let plTitle = ""
+                
+                for (let i = 0; i < lines.length; i++) {
+                    let parts = lines[i].split("|||")
+                    if (parts.length === 3) {
+                        if (plTitle === "") plTitle = parts[0]
+                        items.push({ id: parts[1], title: parts[2] })
+                    }
+                }
+                
+                if (items.length > 0) {
+                    root.currentPlaylist = items
+                    root.activeStreamTitle = plTitle
+                    root.addSavedUrl(root.activeChannelName, plTitle)
+                    root.resolveTrack(root.activePlaylistIndex)
+                } else {
+                    console.log("yt-dlp flat-playlist extraction failed:\n" + this.text)
+                    root.isLoadingStream = false
+                }
+            }
+        }
+    }
+
+    // Background process for single-track stream resolution
     property Process streamExtractor: Process {
         id: extractor
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
-                let extracted = this.text ? this.text.trim() : ""
-                if (extracted.length > 0) {
-                    root.embeddedStreamUrl = extracted.split("\n")[0]
+                let lines = this.text ? this.text.trim().split("\n") : []
+                if (lines.length === 0 || lines[0] === "") {
+                    root.isLoadingStream = false
+                    return
+                }
+                
+                if (lines.length >= 2 && lines[lines.length - 1].startsWith("http")) {
+                    root.activeStreamTitle = lines[0]
+                    root.embeddedStreamUrl = lines[lines.length - 1]
+                    root.addSavedUrl(root.activeChannelName, root.activeStreamTitle)
+                    root.inlinePlayer.play()
+                } else if (lines[0].startsWith("http")) {
+                    root.embeddedStreamUrl = lines[0]
                     root.inlinePlayer.play()
                 } else {
-                    console.log("yt-dlp failed to resolve URL for " + root.activeChannelName)
+                    console.log("yt-dlp format extraction failed:\n" + this.text)
                 }
                 root.isLoadingStream = false
             }
         }
     }
 
-    // Global stream loader
-    function loadStream(urlKey, channelName) {
-        if (!urlKey || typeof root[urlKey] === "undefined") return
-        let targetUrl = root[urlKey].trim()
+    function resolveTrack(index) {
+        if (index < 0 || index >= currentPlaylist.length) {
+            isLoadingStream = false
+            return
+        }
+        activePlaylistIndex = index
+        let track = currentPlaylist[index]
         
-        if (targetUrl === "") {
+        // Extract the audio URL targeting the specific isolated video ID natively
+        let cmd = 'set -l out (yt-dlp --print "%(url)s" --cookies ~/cookies.txt --extractor-args "youtube:player_client=android,web,android_music,web_music,mweb,default" -f "ba/b/best" "https://music.youtube.com/watch?v=' + track.id + '" 2>/dev/null); ' +
+                  'if test -n "$out"; echo "$out[-1]"; end'
+        
+        let envPrefix = "set -x AV_LOG_FORCE_NOCOLOR 1; set -x FFREPORT quiet; set -x QT_LOGGING_RULES '*.debug=false;qt.multimedia*=false'; "
+        streamExtractor.command = ["fish", "-c", envPrefix + cmd]
+        streamExtractor.running = true
+    }
+
+    function nextTrack() {
+        if (currentPlaylist.length > 0 && activePlaylistIndex < currentPlaylist.length - 1) {
+            isLoadingStream = true
+            inlinePlayer.stop()
+            resolveTrack(activePlaylistIndex + 1)
+        }
+    }
+
+    function prevTrack() {
+        if (currentPlaylist.length > 0 && activePlaylistIndex > 0) {
+            isLoadingStream = true
+            inlinePlayer.stop()
+            resolveTrack(activePlaylistIndex - 1)
+        }
+    }
+
+    // Global stream loader
+    function loadDirectStream(targetUrl, resetIndex = true) {
+        if (!targetUrl || targetUrl.trim() === "") {
             stopStream()
             return
         }
 
-        if (!targetUrl.startsWith("http://") && !targetUrl.startsWith("https://")) {
-            targetUrl = "https://" + targetUrl
+        let cleanUrl = targetUrl.trim()
+        if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
+            cleanUrl = "https://" + cleanUrl
         }
 
-        activeChannelName = channelName
+        if (resetIndex) {
+            activePlaylistIndex = 0
+            currentPlaylist = []
+        }
+
+        activeChannelName = cleanUrl
+        activeStreamTitle = ""
         isLoadingStream = true
         inlinePlayer.stop()
         embeddedStreamUrl = ""
         
-        let cmd = ""
-        if (targetUrl.includes("twitch.tv")) {
-            cmd = 'yt-dlp -g -f "best/bestvideo+bestaudio" "' + targetUrl + '"'
-        } else {
-            if (targetUrl.includes("music.youtube.com")) {
-                targetUrl = targetUrl.replace("music.youtube.com", "www.youtube.com")
-            }
-            cmd = 'yt-dlp --extractor-args "youtube:player_client=mweb,default" --playlist-items 1 -g -f "ba/b/best" "' + targetUrl + '"'
-        }
-        
-        // Mute FFmpeg and QtMultimedia stdout/stderr logging
         let envPrefix = "set -x AV_LOG_FORCE_NOCOLOR 1; set -x FFREPORT quiet; set -x QT_LOGGING_RULES '*.debug=false;qt.multimedia*=false'; "
-        
-        streamExtractor.command = ["fish", "-c", envPrefix + cmd]
-        streamExtractor.running = false
-        streamExtractor.running = true
+
+        if (cleanUrl.includes("twitch.tv")) {
+            let cmd = 'set -l out (yt-dlp --print "%(title)s\n%(url)s" -f "best/bestvideo+bestaudio" "' + cleanUrl + '" 2>/dev/null); ' +
+                      'if test -n "$out"; echo "$out[1]"; echo "$out[-1]"; end'
+            streamExtractor.command = ["fish", "-c", envPrefix + cmd]
+            streamExtractor.running = true
+        } else {
+            if (currentPlaylist.length > 0 && !resetIndex) {
+                resolveTrack(activePlaylistIndex)
+            } else {
+                // Fetch flat playlist structure to populate the UI and cache IDs for rapid skipping
+                let cmd = 'yt-dlp --print "%(playlist_title,title)s|||%(id)s|||%(title)s" --flat-playlist "' + cleanUrl + '" 2>/dev/null'
+                playlistFetcher.command = ["fish", "-c", envPrefix + cmd]
+                playlistFetcher.running = true
+            }
+        }
     }
 
     // Global stream terminator
@@ -120,28 +230,11 @@ QtObject {
         inlinePlayer.stop()
         embeddedStreamUrl = ""
         activeChannelName = ""
+        activeStreamTitle = ""
+        currentPlaylist = []
         isLoadingStream = false
         if (streamExtractor.running) streamExtractor.running = false
-    }
-
-    function getUrlKeyForSelected() {
-        switch (selectedPlayerName) {
-            case "Spotify": return "spotifyUrl"
-            case "YouTube": return "youtubeUrl"
-            case "YouTube Music": return "ytMusicUrl"
-            case "Twitch": return "twitchUrl"
-            default: return ""
-        }
-    }
-
-    function checkAndLoadActiveStream() {
-        if (!isLoaded) return
-        let urlKey = getUrlKeyForSelected()
-        if (urlKey !== "" && root[urlKey] !== "") {
-            loadStream(urlKey, selectedPlayerName)
-        } else if (selectedPlayerName !== "") {
-            stopStream()
-        }
+        if (playlistFetcher.running) playlistFetcher.running = false
     }
 
     // --- INITIALIZATION GUARD ---
@@ -1129,10 +1222,7 @@ QtObject {
 
             var data = {
                 "lastSettingsSection": root.lastSettingsSection,
-                "spotifyUrl": root.spotifyUrl,
-                "youtubeUrl": root.youtubeUrl,
-                "ytMusicUrl": root.ytMusicUrl,
-                "twitchUrl": root.twitchUrl,
+                "savedUrls": root.savedUrls,
                 "monitorConfigs": root.monitorConfigs,
                 "selectedWallpaperMonitors": root.selectedWallpaperMonitors,
                 "wallpaperTransitionType": root.wallpaperTransitionType,
@@ -1175,7 +1265,6 @@ QtObject {
 
                 "playerShowPanel": root.playerShowPanel,
                 "playerKeepAspect": root.playerKeepAspect,
-                "selectedPlayerName": root.selectedPlayerName,
                 "playerX": root.playerX,
                 "playerY": root.playerY,
 
@@ -1223,7 +1312,7 @@ QtObject {
                         var parsed = JSON.parse(text)
 
                         let props = [
-                            "lastSettingsSection", "spotifyUrl", "youtubeUrl", "ytMusicUrl", "twitchUrl",
+                            "lastSettingsSection", "savedUrls",
                             "monitorConfigs", "selectedWallpaperMonitors", "wallpaperTransitionType", "activeWallpaperPath", "slideshowActive", "slideshowMinutes", "showOsk", "oskLayout",
                             "showMascot", "mascotPath", "mascotPhrases", "fetchOnlineQuotes", "quoteSource",
                             "barFrameStyle", "barPosition", "showScreenFrame", "sysFont", "fontScaleIndex", "locationQuery",
@@ -1235,7 +1324,7 @@ QtObject {
                             "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides",
                             "playWindowSounds", "playNotificationSounds", "windowSoundPath", "notificationSoundPath",
                             "mirrorMirrored", "mirrorKeepAspect",
-                            "playerShowPanel", "playerKeepAspect", "selectedPlayerName", "playerX", "playerY"
+                            "playerShowPanel", "playerKeepAspect", "playerX", "playerY"
                         ]
 
                         props.forEach(p => {
@@ -1271,8 +1360,7 @@ QtObject {
                 root.syncHyprlandBorders()
                 root.syncScreenFrame()
                 
-                // Automatically resume stream on startup if a source was selected
-                root.checkAndLoadActiveStream()
+                root.stopStream()
 
                 if (root.weather) {
                     root.weather.fetchWeather(true)
