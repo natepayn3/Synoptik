@@ -126,6 +126,7 @@ set PACMAN_PKGS \
     util-linux \
     power-profiles-daemon \
     libcanberra \
+    qt6-webview \
     yt-dlp
 
 say "Installing pacman packages..."
