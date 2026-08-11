@@ -76,12 +76,12 @@ Rectangle {
                 Layout.alignment: Qt.AlignVCenter
             }
 
-            // Media Player Icon (placed before Taskbar / view_apps)
+            // Media Player Icon (matches taskbar viewAppsBtn geometry and styling)
             Rectangle {
-                implicitWidth: 24
-                implicitHeight: 24
-                radius: width / 2
-                color: Config.showPlayer ? Config.accent : (playerHoverH.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent")
+                implicitWidth: 28
+                implicitHeight: 28
+                radius: 8
+                color: (Config.showPlayer || playerHoverH.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
                 Layout.alignment: Qt.AlignVCenter
 
                 Behavior on color { ColorAnimation { duration: 150 } }
@@ -89,9 +89,10 @@ Rectangle {
                 Text {
                     anchors.centerIn: parent
                     text: Config.getIcon("player")
-                    color: Config.showPlayer ? Config.bgBase : Config.textMain
+                    color: Config.showPlayer ? Config.accent : Config.textMain
                     font.family: "Material Symbols Outlined"
-                    font.pixelSize: 16
+                    font.weight: Font.Bold
+                    font.pixelSize: 18
                 }
 
                 TapHandler {
@@ -125,12 +126,12 @@ Rectangle {
                 Layout.alignment: Qt.AlignHCenter
             }
 
-            // Media Player Icon (placed before Taskbar / view_apps)
+            // Media Player Icon (matches taskbar viewAppsBtn geometry and styling)
             Rectangle {
-                implicitWidth: 24
-                implicitHeight: 24
-                radius: width / 2
-                color: Config.showPlayer ? Config.accent : (playerHoverV.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent")
+                implicitWidth: 28
+                implicitHeight: 28
+                radius: 8
+                color: (Config.showPlayer || playerHoverV.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
                 Layout.alignment: Qt.AlignHCenter
 
                 Behavior on color { ColorAnimation { duration: 150 } }
@@ -138,9 +139,10 @@ Rectangle {
                 Text {
                     anchors.centerIn: parent
                     text: Config.getIcon("player")
-                    color: Config.showPlayer ? Config.bgBase : Config.textMain
+                    color: Config.showPlayer ? Config.accent : Config.textMain
                     font.family: "Material Symbols Outlined"
-                    font.pixelSize: 16
+                    font.weight: Font.Bold
+                    font.pixelSize: 18
                 }
 
                 TapHandler {
