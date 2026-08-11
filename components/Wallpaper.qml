@@ -195,15 +195,6 @@ Item {
                             }
                         }
                     }
-
-                    Text {
-                        text: "Hold CTRL for this screen only"
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                        font.bold: true
-                        visible: folderModel.count > 0
-                    }
                 }
 
                 // ==========================================
