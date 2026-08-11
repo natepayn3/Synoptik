@@ -12,7 +12,7 @@ Item {
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
     // Dynamic panel dimensions based on wallpaper count
-    readonly property int minPanelWidth: 480
+    readonly property int minPanelWidth: 620
     readonly property int maxPanelWidth: 800
     
     // Height available for delegate cards
@@ -60,10 +60,12 @@ Item {
         function triggerBackendRun(filePath, activeOnly) {
             if (!filePath || filePath === "") return;
 
-            // Inline Comment: Assigning activeWallpaperPath notifies Config.qml to trigger applyIrisColors()
-            Config.activeWallpaperPath = filePath;
+            let cleanFilePath = filePath.replace(/^file:\/\//, "");
 
-            let ext = filePath.split('.').pop().toLowerCase();
+            // Inline Comment: Assigning activeWallpaperPath notifies Config.qml to trigger applyIrisColors()
+            Config.activeWallpaperPath = cleanFilePath;
+
+            let ext = cleanFilePath.split('.').pop().toLowerCase();
             let waylandDisplay = Quickshell.env("WAYLAND_DISPLAY") || "wayland-1";
             let sockPath = "/run/user/" + Quickshell.env("UID") + "/" + waylandDisplay + "-awww-daemon.sock";
             let transition = Config.wallpaperTransitionType || "fade";
@@ -73,23 +75,23 @@ Item {
             
             if (activeOnly) {
                 if (ext === "mp4" || ext === "webm") {
-                    script += "awww clear -o \"$TARGET_MON\" 2>/dev/null; pkill -f \"mpvpaper.*$TARGET_MON\"; mpvpaper -vs -o 'loop no-audio' \"$TARGET_MON\" '" + filePath + "' >/dev/null 2>&1 & disown; ";
+                    script += "awww clear -o \"$TARGET_MON\" 2>/dev/null; pkill -f \"mpvpaper.*$TARGET_MON\"; mpvpaper -vs -o 'loop no-audio' \"$TARGET_MON\" '" + cleanFilePath + "' >/dev/null 2>&1 & disown; ";
                 } else {
                     script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; ";
-                    script += "awww img -o \"$TARGET_MON\" '" + filePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; ";
+                    script += "awww img -o \"$TARGET_MON\" '" + cleanFilePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; ";
                 }
             } else {
                 if (ext === "mp4" || ext === "webm") {
-                    script += "awww kill 2>/dev/null; killall -9 -q awww-daemon; rm -f " + sockPath + "; mpvpaper -vs -o 'loop no-audio' '*' '" + filePath + "' >/dev/null 2>&1 & disown; ";
+                    script += "awww kill 2>/dev/null; killall -9 -q awww-daemon; rm -f " + sockPath + "; mpvpaper -vs -o 'loop no-audio' '*' '" + cleanFilePath + "' >/dev/null 2>&1 & disown; ";
                 } else {
                     script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; ";
-                    script += "awww img '" + filePath + "' --transition-type " + transition + " --transition-step 64 --transition-duration 2; ";
+                    script += "awww img '" + cleanFilePath + "' --transition-type " + transition + " --transition-step 64 --transition-duration 2; ";
                 }
             }
 
             // Inline Comment: Execute CLI iris command directly in fish subshell
             if (Config.enableIris) {
-                script += "iris '" + filePath + "'; ";
+                script += "iris '" + cleanFilePath + "'; ";
             }
             
             command = ["fish", "-c", script];
@@ -118,7 +120,7 @@ Item {
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 8
+                    spacing: 12
 
                     Text {
                         text: "WALLPAPERS"
@@ -126,7 +128,72 @@ Item {
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontTitle)
                         font.bold: true
-                        Layout.fillWidth: true
+                    }
+
+                    // Spacer
+                    Item { Layout.fillWidth: true }
+
+                    // Slideshow ASCII Checkbox and Controls
+                    RowLayout {
+                        spacing: 8
+                        visible: folderModel.count > 0
+
+                        RowLayout {
+                            spacing: 4
+                            Text {
+                                text: Config.slideshowActive ? "[x]" : "[ ]"
+                                color: Config.slideshowActive ? Config.accent : Config.textMuted
+                                font.family: "monospace"
+                                font.pixelSize: Config.size(Config.fontBody)
+                                font.bold: true
+                                
+                                TapHandler {
+                                    onTapped: Config.slideshowActive = !Config.slideshowActive
+                                }
+                            }
+                            Text {
+                                text: "Random"
+                                color: Config.slideshowActive ? Config.textMain : Config.textMuted
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontMicro)
+                                font.bold: true
+                            }
+                        }
+
+                        RowLayout {
+                            spacing: 4
+                            opacity: Config.slideshowActive ? 1.0 : 0.4
+                            
+                            Text {
+                                text: "[-]"
+                                color: Config.textMuted
+                                font.family: "monospace"
+                                font.pixelSize: Config.size(Config.fontBody)
+                                font.bold: true
+                                TapHandler {
+                                    onTapped: if (Config.slideshowMinutes > 1) Config.slideshowMinutes--
+                                }
+                            }
+                            Text {
+                                text: Config.slideshowMinutes + "m"
+                                color: Config.textMain
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontMicro)
+                                font.bold: true
+                                Layout.preferredWidth: 24
+                                horizontalAlignment: Text.AlignHCenter
+                            }
+                            Text {
+                                text: "[+]"
+                                color: Config.textMuted
+                                font.family: "monospace"
+                                font.pixelSize: Config.size(Config.fontBody)
+                                font.bold: true
+                                TapHandler {
+                                    onTapped: Config.slideshowMinutes++
+                                }
+                            }
+                        }
                     }
 
                     Text {

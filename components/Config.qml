@@ -236,6 +236,51 @@ QtObject {
     property string wallpaperTransitionType: "wipe"
     property string activeWallpaperPath: ""
 
+    // --- BACKGROUND SLIDESHOW TIMER & RUNNER ---
+    property bool slideshowActive: false
+    property int slideshowMinutes: 5
+
+    onSlideshowActiveChanged: { if (isLoaded) saveSettings() }
+    onSlideshowMinutesChanged: { if (isLoaded) saveSettings() }
+
+    property Process slideshowRunner: Process {
+        id: bgSlideshowProc
+        running: false
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let path = this.text ? this.text.trim() : ""
+                if (path.length > 0) {
+                    // Inline Comment: Updating activeWallpaperPath fires onActiveWallpaperPathChanged to run Iris
+                    root.activeWallpaperPath = path
+                }
+            }
+        }
+    }
+
+    property Timer bgSlideshowTimer: Timer {
+        id: bgTimer
+        interval: Math.max(1, root.slideshowMinutes) * 60000
+        running: root.isLoaded && root.slideshowActive
+        repeat: true
+        onTriggered: root.triggerRandomWallpaperBackground()
+    }
+
+    function triggerRandomWallpaperBackground() {
+        let transition = root.wallpaperTransitionType || "fade"
+
+        let cmd = "set W (find ~/Pictures/Wallpapers -type f \\( -name '*.jpg' -o -name '*.png' -o -name '*.jpeg' -o -name '*.webp' \\) 2>/dev/null | shuf -n 1); " +
+                  "if test -n \"$W\"; " +
+                  "killall -q mpvpaper; " +
+                  "if not pgrep -x 'awww-daemon' > /dev/null; rm -f /run/user/" + Quickshell.env("UID") + "/*-awww-daemon.sock; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; " +
+                  "awww img \"$W\" --transition-type " + transition + " --transition-step 64 --transition-duration 2; " +
+                  "echo \"$W\"; end"
+
+        bgSlideshowProc.command = ["fish", "-c", cmd]
+        bgSlideshowProc.running = false
+        bgSlideshowProc.running = true
+    }
+
     function toggleWallpaperMonitor(screenName) {
         let current = selectedWallpaperMonitors ? selectedWallpaperMonitors.slice() : []
         let idx = current.indexOf(screenName)
@@ -959,6 +1004,8 @@ QtObject {
                 "selectedWallpaperMonitors": root.selectedWallpaperMonitors,
                 "wallpaperTransitionType": root.wallpaperTransitionType,
                 "activeWallpaperPath": root.activeWallpaperPath,
+                "slideshowActive": root.slideshowActive,
+                "slideshowMinutes": root.slideshowMinutes,
                 "showOsk": root.showOsk,
                 "oskLayout": root.oskLayout,
                 "showMascot": root.showMascot,
@@ -1037,7 +1084,7 @@ QtObject {
                         var parsed = JSON.parse(text)
 
                         let props = [
-                            "lastSettingsSection", "monitorConfigs", "selectedWallpaperMonitors", "wallpaperTransitionType", "activeWallpaperPath", "showOsk", "oskLayout",
+                            "lastSettingsSection", "monitorConfigs", "selectedWallpaperMonitors", "wallpaperTransitionType", "activeWallpaperPath", "slideshowActive", "slideshowMinutes", "showOsk", "oskLayout",
                             "showMascot", "mascotPath", "mascotPhrases", "fetchOnlineQuotes", "quoteSource",
                             "barFrameStyle", "barPosition", "showScreenFrame", "sysFont", "fontScaleIndex", "locationQuery",
                             "enabledBarScreens", "useCustomColors", "customBgBase", "customBgPanel",
