@@ -192,7 +192,7 @@ PanelWindow {
 
     HyprlandFocusGrab {
         id: focusGrab
-        active: root.isOpen && root.activeView !== "osd" && root.activeView !== "notifOsd" && (!screen || screen.name === (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""))
+        active: root.isOpen && root.activeView !== "osd" && root.activeView !== "notifOsd" && !(root.activeView === "player" && Config.playerPinned) && (!screen || screen.name === (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""))
         windows: [root]
         onCleared: {
             root.closeOthers("none")
@@ -229,12 +229,67 @@ PanelWindow {
 
     property string activeView: "none"
 
+    // Unified popout re-anchoring engine for ALL views
+    onActiveViewChanged: {
+        if (activeView === "none" || activeView === "workspacePreview") return
+
+        // 1. Edge OSDs: Snap coordinates directly to screen boundaries
+        if (activeView === "osd") {
+            root.isCentered = false
+            if (root.isHorizontal) root.popoutXOffset = mainContainer.width
+            else root.popoutYOffset = mainContainer.height
+            return
+        }
+
+        if (activeView === "notifOsd") {
+            root.isCentered = false
+            root.popoutXOffset = 0
+            root.popoutYOffset = 0
+            return
+        }
+
+        // 2. Bar Panel Modules: Map view IDs to button handles
+        let btn = null
+
+        switch (activeView) {
+            // Left Card Modules
+            case "settings":       btn = leftCard ? leftCard.getButton("settings") : null; break
+            case "appLauncher":    btn = leftCard ? leftCard.getButton("launcher") : null; break
+            case "power":          btn = leftCard ? leftCard.getButton("power") : null; break
+            case "wallpaper":      btn = leftCard ? leftCard.getButton("wallpaper") : null; break
+            case "notifications":  btn = leftCard ? leftCard.getButton("notifications") : null; break
+            case "screenRecorder": btn = leftCard ? leftCard.getButton("recorder") : null; break
+
+            // Center Group Modules
+            case "player":         btn = centerGroupContainer ? centerGroupContainer.getButton("player") : null; break
+            case "taskOverflow":   btn = centerGroupContainer ? centerGroupContainer.getButton("apps") : null; break
+
+            // Right Card Modules
+            case "calendar":       btn = rightCard ? rightCard.getButton("clock") : null; break
+            case "audio":          btn = rightCard ? rightCard.getButton("audio") : null; break
+            case "network":        btn = rightCard ? rightCard.getButton("network") : null; break
+            case "systemMonitor":  btn = rightCard ? rightCard.getButton("sys") : null; break
+            case "battery":        btn = rightCard ? rightCard.getButton("batt") : null; break
+            case "clipboard":      btn = rightCard ? rightCard.getButton("clipboard") : null; break
+            case "controlCenter":  btn = rightCard ? rightCard.getButton("cc") : null; break
+        }
+
+        // Snap popout offset to the active button position
+        if (btn) setPopoutPos(btn)
+    }
+
+
     function updateActiveView() {
         let nextView = "none"
         let isFocused = !screen || screen.name === (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : "")
 
         if (isFocused) {
-            if (Config.showSettings) nextView = "settings"
+            // High Priority OSD Takeover (Preserves underlying panel state)
+            if (typeof Config.showOSD !== "undefined" && Config.showOSD) nextView = "osd"
+            else if (typeof Config.showNotificationOsd !== "undefined" && Config.showNotificationOsd) nextView = "notifOsd"
+
+            // Standard Module Panels
+            else if (Config.showSettings) nextView = "settings"
             else if (Config.showWorkspacePreview) nextView = "workspacePreview"
             else if (Config.showPower) nextView = "power"
             else if (Config.showWallpaper) nextView = "wallpaper"
@@ -250,8 +305,6 @@ PanelWindow {
             else if (Config.showControlCenter) nextView = "controlCenter"
             else if (Config.showPlayer) nextView = "player"
             else if (typeof Config.showTaskOverflow !== "undefined" && Config.showTaskOverflow) nextView = "taskOverflow"
-            else if (typeof Config.showOSD !== "undefined" && Config.showOSD) nextView = "osd"
-            else if (typeof Config.showNotificationOsd !== "undefined" && Config.showNotificationOsd) nextView = "notifOsd"
         }
 
         if (nextView === "none") {
@@ -294,7 +347,7 @@ PanelWindow {
             if (except !== "screenRecorder") Config.showScreenRecorder = false
             if (except !== "controlCenter") Config.showControlCenter = false
             if (except !== "settings") Config.showSettings = false
-            if (except !== "player") Config.showPlayer = false
+            if (except !== "player" && !Config.playerPinned) Config.showPlayer = false
             if (except !== "taskOverflow" && typeof Config.showTaskOverflow !== "undefined") Config.showTaskOverflow = false
         }
     }
@@ -302,24 +355,15 @@ PanelWindow {
     Connections {
         target: Config
         ignoreUnknownSignals: true
+
         function onShowOSDChanged() {
-            if (Config.showOSD && activeView === "none") {
-                closeOthers("osd")
-                root.isCentered = false
-                if (root.isHorizontal) root.popoutXOffset = mainContainer.width
-                else root.popoutYOffset = mainContainer.height
-            }
             updateActiveView()
         }
+
         function onShowNotificationOsdChanged() {
-            if (Config.showNotificationOsd && activeView === "none") {
-                closeOthers("notifOsd")
-                root.isCentered = false
-                root.popoutXOffset = 0
-                root.popoutYOffset = 0
-            }
             updateActiveView()
         }
+        
         function onShowWorkspacePreviewChanged() {
             if (Config.showWorkspacePreview) {
                 closeOthers("workspacePreview")

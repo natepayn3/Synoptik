@@ -60,12 +60,16 @@ QtObject {
     property bool showPlayer: false
     property bool playerShowPanel: true
     property bool playerKeepAspect: true
+    property bool playerExpanded: false
+    property bool playerPinned: false
     property real playerX: -1
     property real playerY: -1
 
     onShowPlayerChanged: { if (isLoaded) saveSettings() }
     onPlayerShowPanelChanged: { if (isLoaded) saveSettings() }
     onPlayerKeepAspectChanged: { if (isLoaded) saveSettings() }
+    onPlayerExpandedChanged: { if (isLoaded) saveSettings() }
+    onPlayerPinnedChanged: { if (isLoaded) saveSettings() }
 
     // --- BACKGROUND MEDIA PLAYER ENGINE ---
     property string embeddedStreamUrl: ""
@@ -375,7 +379,7 @@ QtObject {
         "power": "electrical_services",
         "recorder": "videocam",
         "mirror": "photo_camera",
-        "player": "graphic_eq",
+        "player": "play_circle",
         "screenshot": "crop",
         "notifications": "inbox",
         "wallpaper": "wall_art",
@@ -437,7 +441,7 @@ QtObject {
     onRightCardCollapsedChanged: { if (isLoaded) saveSettings() }
 
     // --- DYNAMIC MODULE ORDERING ---
-    property var leftCardOrder: ["power", "recorder", "mirror", "player", "screenshot", "notifications", "wallpaper", "settings", "launcher"]
+    property var leftCardOrder: ["power", "recorder", "mirror", "screenshot", "notifications", "wallpaper", "settings", "launcher"]
     property var rightCardOrder: ["audio", "sys", "batt", "cc", "network", "clipboard", "clock"]
 
     function moveModule(cardKey, iconId, direction) {
@@ -1409,7 +1413,7 @@ QtObject {
                             "clockShowBackground", "clockPositions", "clockScales", "enabledClockScreens",
                             "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides",
                             "playWindowSounds", "playNotificationSounds", "windowSoundPath", "notificationSoundPath",
-                            "mirrorMirrored", "mirrorKeepAspect",
+                            "mirrorMirrored", "mirrorKeepAspect", "playerExpanded", "playerPinned",
                             "playerShowPanel", "playerKeepAspect", "playerX", "playerY"
                         ]
 
