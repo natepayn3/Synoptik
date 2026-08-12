@@ -235,8 +235,9 @@ PanelWindow {
             else if (Config.showSystemMonitor) nextView = "systemMonitor"
             else if (Config.showBattery) nextView = "battery"
             else if (Config.showClipboard) nextView = "clipboard"
-            else if (Config.showScreenRecorder) nextView = "screenRecorder"
+            else if (Config.showMirror && !Config.mirrorPinned) nextView = "mirror"
             else if (Config.showControlCenter) nextView = "controlCenter"
+            else if (Config.showMirror && Config.mirrorPinned) nextView = "mirror"
         }
 
         if (nextView === "none") {
@@ -272,6 +273,7 @@ PanelWindow {
         if (except !== "battery") Config.showBattery = false
         if (except !== "clipboard") Config.showClipboard = false
         if (except !== "screenRecorder") Config.showScreenRecorder = false
+        if (except !== "mirror" && !Config.mirrorPinned) Config.showMirror = false
         if (except !== "controlCenter") Config.showControlCenter = false
     }
 
@@ -318,6 +320,7 @@ PanelWindow {
         function onShowBatteryChanged() { if (Config.showBattery) { closeOthers("battery"); setPopoutPos(rightCard ? rightCard.getButton("batt") : null); } updateActiveView() }
         function onShowClipboardChanged() { if (Config.showClipboard) { closeOthers("clipboard"); setPopoutPos(rightCard ? rightCard.getButton("clipboard") : null); } updateActiveView() }
         function onShowScreenRecorderChanged() { if (Config.showScreenRecorder) { closeOthers("screenRecorder"); setPopoutPos(leftCard ? leftCard.getButton("recorder") : null); } updateActiveView() }
+        function onShowMirrorChanged() { if (Config.showMirror) { closeOthers("mirror"); setPopoutPos(leftCard ? leftCard.getButton("mirror") : null); } updateActiveView() }
         function onShowControlCenterChanged() { if (Config.showControlCenter) { closeOthers("controlCenter"); setPopoutPos(rightCard ? rightCard.getButton("cc") : null); } updateActiveView() }
     }
 
