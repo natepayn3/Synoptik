@@ -1,38 +1,23 @@
 import QtQuick
-import QtQuick.Shapes
+import QtQuick.Layouts
+import QtQuick.Controls
 import QtMultimedia
 import Qt.labs.platform
 import Quickshell
-import Quickshell.Wayland
 import ".."
 
-PanelWindow {
-    id: mirrorWindow
+Item {
+    id: mirrorRoot
 
-    visible: Config.showMirror
+    implicitWidth: Config.mirrorExpanded ? 640 : 320
+    implicitHeight: mainColumn.implicitHeight + (Config.cardMargin * 2)
 
-    property real savedX: (typeof Config !== "undefined" && typeof Config.mirrorX !== "undefined") ? Config.mirrorX : -1
-    property real savedY: (typeof Config !== "undefined" && typeof Config.mirrorY !== "undefined") ? Config.mirrorY : -1
-
-    function savePosition() {
-        savedX = mirrorContainer.x
-        savedY = mirrorContainer.y
-        if (typeof Config !== "undefined") {
-            Config.mirrorX = mirrorContainer.x
-            Config.mirrorY = mirrorContainer.y
-        }
+    Behavior on implicitWidth {
+        NumberAnimation { duration: 200; easing.type: Easing.InOutQuad }
     }
 
-    function restorePosition() {
-        if (width <= 0 || height <= 0) return
-
-        if (savedX >= 0 && savedY >= 0) {
-            mirrorContainer.x = Math.max(0, Math.min(savedX, width - mirrorContainer.width))
-            mirrorContainer.y = Math.max(0, Math.min(savedY, height - mirrorContainer.height))
-        } else {
-            mirrorContainer.x = Config.cardMargin
-            mirrorContainer.y = Config.cardMargin
-        }
+    MediaDevices {
+        id: mediaDevices
     }
 
     function takeSnapshot() {
@@ -51,70 +36,182 @@ PanelWindow {
         })
     }
 
-    onVisibleChanged: if (visible) restorePosition()
-    onWidthChanged: if (visible) restorePosition()
-    onHeightChanged: if (visible) restorePosition()
+    ColumnLayout {
+        id: mainColumn
+        anchors.fill: parent
+        anchors.margins: Config.cardMargin
+        spacing: 12
 
-    anchors {
-        top: true
-        bottom: true
-        left: true
-        right: true
-    }
+        // HEADER
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
 
-    WlrLayershell.layer: WlrLayer.Overlay
-    WlrLayershell.namespace: "synoptik-shell-mirror"
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-
-    color: "transparent"
-    exclusiveZone: 0
-
-    mask: Region {
-        item: dragArea.drag.active ? null : container
-    }
-
-    MediaDevices {
-        id: mediaDevices
-    }
-
-    Item {
-        id: mirrorContainer
-
-        width: 320
-        x: Config.cardMargin
-        y: Config.cardMargin
-
-        Component.onCompleted: mirrorWindow.restorePosition()
-
-        readonly property bool showPanel: typeof Config.mirrorShowPanel !== "undefined" ? Config.mirrorShowPanel : true
-        readonly property real containerPadding: showPanel ? (Config.cardMargin + (Config.showBorders ? Config.borderThickness : 0)) : 0
-
-        readonly property real nativeRatio: {
-            if (camLoader.item && camLoader.item.sourceWidth > 0 && camLoader.item.sourceHeight > 0) {
-                return camLoader.item.sourceHeight / camLoader.item.sourceWidth
+            Text {
+                text: "MIRROR"
+                color: Config.textMain
+                font.family: Config.sysFont
+                font.pixelSize: Config.size(Config.fontSubhead)
+                font.bold: true
+                Layout.fillWidth: true
+                elide: Text.ElideRight
             }
-            return 0.75
+
+            // DYNAMIC ORIENTATION ANCHOR ARROWS
+            GridLayout {
+                id: anchorControls
+                columns: isHorizontal ? 2 : 1
+                rows: isHorizontal ? 1 : 2
+                columnSpacing: 4
+                rowSpacing: 4
+                Layout.alignment: Qt.AlignVCenter
+
+                readonly property bool isHorizontal: {
+                    if (typeof Config.isHorizontal !== "undefined") return !!Config.isHorizontal;
+                    if (typeof Config.barPosition !== "undefined") return Config.barPosition === "top" || Config.barPosition === "bottom";
+                    if (typeof Config.isBarHorizontal !== "undefined") return !!Config.isBarHorizontal;
+                    if (typeof Config.orientation !== "undefined") return Config.orientation === Qt.Horizontal || Config.orientation === "horizontal";
+                    return Config.barPosition !== "left" && Config.barPosition !== "right";
+                }
+
+                function cycleAnchor(direction) {
+                    if (typeof Config.cycleMirrorAnchor === "function") {
+                        Config.cycleMirrorAnchor(direction);
+                    }
+                }
+
+                // LEFT / UP ARROW
+                Rectangle {
+                    implicitWidth: 20; implicitHeight: 20; radius: 10
+                    color: prevHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: anchorControls.isHorizontal ? "keyboard_arrow_left" : "keyboard_arrow_up"
+                        color: (Config.mirrorAnchorPos === "top")
+                            ? Config.accent 
+                            : (prevHover.hovered ? Config.textMain : Config.textMuted)
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 20
+                    }
+
+                    TapHandler { onTapped: anchorControls.cycleAnchor(anchorControls.isHorizontal ? "left" : "up") }
+                    HoverHandler { id: prevHover; cursorShape: Qt.PointingHandCursor }
+                }
+
+                // RIGHT / DOWN ARROW
+                Rectangle {
+                    implicitWidth: 20; implicitHeight: 20; radius: 10
+                    color: nextHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: anchorControls.isHorizontal ? "keyboard_arrow_right" : "keyboard_arrow_down"
+                        color: (Config.mirrorAnchorPos === "bottom")
+                            ? Config.accent 
+                            : (nextHover.hovered ? Config.textMain : Config.textMuted)
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 20
+                    }
+
+                    TapHandler { onTapped: anchorControls.cycleAnchor(anchorControls.isHorizontal ? "right" : "down") }
+                    HoverHandler { id: nextHover; cursorShape: Qt.PointingHandCursor }
+                }
+            }
+
+            // ASPECT / CROP TOGGLE BUTTON
+            Rectangle {
+                implicitWidth: 26; implicitHeight: 26; radius: 13
+                color: cropBtnHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                Text {
+                    anchors.centerIn: parent
+                    text: Config.mirrorKeepAspect ? "crop" : "crop_free"
+                    color: Config.mirrorKeepAspect ? Config.accent : Config.textMuted
+                    font.family: "Material Symbols Outlined"
+                    font.pixelSize: 16
+                }
+
+                TapHandler { onTapped: Config.mirrorKeepAspect = !Config.mirrorKeepAspect }
+                HoverHandler { id: cropBtnHover; cursorShape: Qt.PointingHandCursor }
+            }
+
+            // CANVAS EXPAND BUTTON (2X SIZE TOGGLE)
+            Rectangle {
+                implicitWidth: 26; implicitHeight: 26; radius: 13
+                color: expandBtnHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                Text {
+                    anchors.centerIn: parent
+                    text: Config.mirrorExpanded ? "fit_screen" : "aspect_ratio"
+                    color: Config.mirrorExpanded ? Config.accent : Config.textMuted
+                    font.family: "Material Symbols Outlined"
+                    font.pixelSize: 16
+                }
+
+                TapHandler { onTapped: Config.mirrorExpanded = !Config.mirrorExpanded }
+                HoverHandler { id: expandBtnHover; cursorShape: Qt.PointingHandCursor }
+            }
+
+            // PIN PANEL BUTTON
+            Rectangle {
+                implicitWidth: 26; implicitHeight: 26; radius: 13
+                color: pinBtnHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "push_pin"
+                    color: Config.mirrorPinned ? Config.accent : Config.textMuted
+                    font.family: "Material Symbols Outlined"
+                    font.pixelSize: 16
+                    rotation: Config.mirrorPinned ? 45 : 0
+
+                    Behavior on rotation {
+                        NumberAnimation { duration: 150 }
+                    }
+                }
+
+                TapHandler { onTapped: Config.mirrorPinned = !Config.mirrorPinned }
+                HoverHandler { id: pinBtnHover; cursorShape: Qt.PointingHandCursor }
+            }
+
+            // CLOSE BUTTON
+            Rectangle {
+                implicitWidth: 26; implicitHeight: 26; radius: 13
+                color: closeBtnHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "close"
+                    color: Config.textMuted
+                    font.family: "Material Symbols Outlined"
+                    font.pixelSize: 16
+                }
+
+                TapHandler { onTapped: Config.showMirror = false }
+                HoverHandler { id: closeBtnHover; cursorShape: Qt.PointingHandCursor }
+            }
         }
 
-        height: Config.mirrorKeepAspect 
-            ? width 
-            : Math.round(((width - (containerPadding * 2)) * nativeRatio) + (containerPadding * 2))
-
+        // CAMERA DISPLAY CANVAS
         Rectangle {
-            id: container
-            anchors.fill: parent
-
-            radius: mirrorContainer.showPanel ? Config.surfaceRadius : 0
-            color: mirrorContainer.showPanel ? Config.bgPanel : "transparent"
-            border.width: (mirrorContainer.showPanel && Config.showBorders) ? Config.borderThickness : 0
+            id: cameraCanvas
+            Layout.fillWidth: true
+            implicitHeight: Config.mirrorExpanded ? 440 : 220
+            radius: Config.cornerRadius / 2
+            color: Qt.rgba(0, 0, 0, 0.35)
+            border.width: Config.showBorders ? Config.borderThickness : 0
             border.color: (typeof shellRoot !== "undefined" && shellRoot.currentBorderColor) ? shellRoot.currentBorderColor : Config.accent
+            clip: true
 
-            property real padding: mirrorContainer.containerPadding
+            Behavior on implicitHeight {
+                NumberAnimation { duration: 200; easing.type: Easing.InOutQuad }
+            }
 
             Item {
                 id: videoWrapper
                 anchors.fill: parent
-                anchors.margins: container.padding
+                anchors.margins: Config.showBorders ? Config.borderThickness : 0
                 clip: true
 
                 Loader {
@@ -197,17 +294,18 @@ PanelWindow {
 
                 Connections { target: Config; function onShowMirrorChanged() { videoWrapper.evaluateCamera() } }
                 Connections { target: mediaDevices; function onDefaultVideoInputChanged() { videoWrapper.evaluateCamera() } }
-                
+
                 Component.onCompleted: evaluateCamera()
             }
 
+            // SNAPSHOT FLASH OVERLAY
             Rectangle {
                 id: flashOverlay
                 anchors.fill: videoWrapper
                 color: "#ffffff"
                 opacity: 0.0
                 z: 99
-                radius: mirrorContainer.showPanel ? Config.surfaceRadius : 0
+                radius: Config.cornerRadius / 2
 
                 NumberAnimation on opacity {
                     id: flashAnimation
@@ -219,94 +317,53 @@ PanelWindow {
                 }
             }
 
-            MouseArea {
-                id: dragArea
-                anchors.fill: parent
-                drag.target: mirrorContainer
-                drag.axis: Drag.XAndYAxis
-                cursorShape: Qt.SizeAllCursor
-
-                drag.minimumX: 0
-                drag.maximumX: Math.max(0, mirrorWindow.width - mirrorContainer.width)
-                drag.minimumY: 0
-                drag.maximumY: Math.max(0, mirrorWindow.height - mirrorContainer.height)
-
-                onReleased: mirrorWindow.savePosition()
-
-                onWheel: (wheel) => {
-                    let step = wheel.angleDelta.y > 0 ? 32 : -32
-                    let newWidth = Math.max(160, Math.min(800, mirrorContainer.width + step))
-
-                    mirrorContainer.width = newWidth
-                    mirrorWindow.savePosition()
-                }
-
-                onClicked: (mouse) => {
-                    if (mouse.button === Qt.RightButton) {
-                        Config.showMirror = false
-                    }
-                }
-                onDoubleClicked: Config.showMirror = false
-            }
-
-            Rectangle {
-                anchors.top: parent.top
-                anchors.right: parent.right
-                
-                anchors.topMargin: mirrorContainer.showPanel ? (container.padding + 6) : 6
-                anchors.rightMargin: mirrorContainer.showPanel ? (container.padding + 6) : 6
-                
-                width: 24
-                height: 24
-                radius: width / 2
-                color: closeHover.hovered ? "#f38ba8" : Qt.rgba(0, 0, 0, 0.4)
-                opacity: closeHover.hovered ? 1.0 : 0.6
-                z: 101
-
-                Behavior on color { ColorAnimation { duration: 150 } }
-
-                Text {
-                    anchors.centerIn: parent
-                    text: "close"
-                    color: "#ffffff"
-                    font.family: "Material Symbols Outlined"
-                    font.pixelSize: 14
-                }
-
-                TapHandler {
-                    onTapped: Config.showMirror = false
-                }
-                HoverHandler { id: closeHover; cursorShape: Qt.PointingHandCursor }
-            }
-
-            Rectangle {
+            // CANVAS OVERLAY CONTROLS
+            RowLayout {
                 anchors.bottom: parent.bottom
                 anchors.right: parent.right
-                
-                anchors.bottomMargin: mirrorContainer.showPanel ? (container.padding + 6) : 6
-                anchors.rightMargin: mirrorContainer.showPanel ? (container.padding + 6) : 6
-                
-                width: 24
-                height: 24
-                radius: width / 2
-                color: snapHover.hovered ? Config.accent : Qt.rgba(0, 0, 0, 0.4)
-                opacity: snapHover.hovered ? 1.0 : 0.6
-                z: 101
+                anchors.margins: 10
+                spacing: 8
+                z: 100
 
-                Behavior on color { ColorAnimation { duration: 150 } }
+                // FLIP HORIZONTAL TOGGLE
+                Rectangle {
+                    implicitWidth: 32; implicitHeight: 32; radius: 16
+                    color: flipHover.hovered ? Config.accent : Qt.rgba(0, 0, 0, 0.4)
+                    opacity: flipHover.hovered ? 1.0 : 0.7
 
-                Text {
-                    anchors.centerIn: parent
-                    text: "photo_camera"
-                    color: "#ffffff"
-                    font.family: "Material Symbols Outlined"
-                    font.pixelSize: 14
+                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "flip_camera_android"
+                        color: "#ffffff"
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 18
+                    }
+
+                    TapHandler { onTapped: Config.mirrorMirrored = !Config.mirrorMirrored }
+                    HoverHandler { id: flipHover; cursorShape: Qt.PointingHandCursor }
                 }
 
-                TapHandler {
-                    onTapped: mirrorWindow.takeSnapshot()
+                // SNAPSHOT BUTTON
+                Rectangle {
+                    implicitWidth: 32; implicitHeight: 32; radius: 16
+                    color: snapHover.hovered ? Config.accent : Qt.rgba(0, 0, 0, 0.4)
+                    opacity: snapHover.hovered ? 1.0 : 0.7
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "photo_camera"
+                        color: "#ffffff"
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 18
+                    }
+
+                    TapHandler { onTapped: mirrorRoot.takeSnapshot() }
+                    HoverHandler { id: snapHover; cursorShape: Qt.PointingHandCursor }
                 }
-                HoverHandler { id: snapHover; cursorShape: Qt.PointingHandCursor }
             }
         }
     }
