@@ -257,7 +257,7 @@ ShellRoot {
                 Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false;
                 Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false;
                 Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
-                Config.showClipboard = false;
+                Config.showClipboard = false; Config.showMirror = false;
             }
             Config.showPower = !Config.showPower
         }
@@ -271,7 +271,7 @@ ShellRoot {
                 Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
                 Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false;
                 Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
-                Config.showClipboard = false;
+                Config.showClipboard = false; Config.showMirror = false;
             }
             Config.showAppLauncher = !Config.showAppLauncher
         }
@@ -285,7 +285,7 @@ ShellRoot {
                 Config.showPower = false; Config.showSettings = false; Config.showAppLauncher = false;
                 Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false;
                 Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
-                Config.showClipboard = false;
+                Config.showClipboard = false; Config.showMirror = false;
             }
             Config.showWallpaper = !Config.showWallpaper
         }
@@ -299,7 +299,7 @@ ShellRoot {
                 Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
                 Config.showAppLauncher = false; Config.showCalendar = false; Config.showBattery = false;
                 Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
-                Config.showClipboard = false;
+                Config.showClipboard = false; Config.showMirror = false;
             }
             Config.showNotifications = !Config.showNotifications
         }
@@ -313,7 +313,7 @@ ShellRoot {
                 Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
                 Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false;
                 Config.showBattery = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
-                Config.showClipboard = false;
+                Config.showClipboard = false; Config.showMirror = false;
             }
             Config.showWorkspacePreview = !Config.showWorkspacePreview
         }
@@ -327,7 +327,7 @@ ShellRoot {
                 Config.showPower = false; Config.showWallpaper = false; Config.showAppLauncher = false;
                 Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false;
                 Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
-                Config.showClipboard = false;
+                Config.showClipboard = false; Config.showMirror = false;
             }
             Config.showSettings = !Config.showSettings
         }
@@ -348,7 +348,7 @@ ShellRoot {
                 Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
                 Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false;
                 Config.showBattery = false; Config.showWorkspacePreview = false; Config.showControlCenter = false;
-                Config.showScreenRecorder = false;
+                Config.showScreenRecorder = false; Config.showMirror = false;
             }
             Config.showClipboard = !Config.showClipboard
         }
@@ -362,7 +362,7 @@ ShellRoot {
                 Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
                 Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false;
                 Config.showBattery = false; Config.showWorkspacePreview = false; Config.showControlCenter = false;
-                Config.showClipboard = false;
+                Config.showClipboard = false; Config.showMirror = false;
             }
             Config.showScreenRecorder = !Config.showScreenRecorder
         }
@@ -372,6 +372,12 @@ ShellRoot {
         target: "mirror"
         function toggle(): void {
             if (!shellRoot.isFocusedBarEnabled) return;
+            if (!Config.showMirror) {
+                Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
+                Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false;
+                Config.showBattery = false; Config.showWorkspacePreview = false; Config.showControlCenter = false;
+                Config.showClipboard = false; Config.showScreenRecorder = false; Config.showPlayer = false;
+            }
             Config.showMirror = !Config.showMirror
         }
     }
@@ -384,7 +390,7 @@ ShellRoot {
                 Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
                 Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false;
                 Config.showBattery = false; Config.showWorkspacePreview = false; Config.showControlCenter = false;
-                Config.showClipboard = false; Config.showScreenRecorder = false;
+                Config.showClipboard = false; Config.showScreenRecorder = false; Config.showMirror = false;
             }
             Config.showPlayer = !Config.showPlayer
         }
@@ -462,6 +468,7 @@ ShellRoot {
                         case "controlCenter": return controlCenterComp;
                         case "settings": return settingsComp;
                         case "player": return playerComp;
+                        case "mirror": return mirrorComp;
                         default: return null;
                     }
                 }
@@ -484,12 +491,12 @@ ShellRoot {
     Component { id: controlCenterComp; ControlCenter {} }
     Component { id: settingsComp; Settings {} }
     Component { id: playerComp; MediaPlayer {} }
+    Component { id: mirrorComp; Mirror {} }
 
     VolumeOSD { id: volumeOsd }
     NotificationOSD { id: notificationOsd }
     Mascot { id: mascotWidget }
     OSK { id: oskWidget }
-    Mirror { id: mirrorWidget }
 
     VideoOutput {
         id: persistentVideoSink
