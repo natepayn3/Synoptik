@@ -49,11 +49,6 @@ Item {
     }
 
     Process {
-        id: thumbGenerator
-        running: false
-    }
-
-    Process {
         id: wallpaperBackend
         running: false
 
@@ -70,26 +65,29 @@ Item {
             let sockPath = "/run/user/" + Quickshell.env("UID") + "/" + waylandDisplay + "-awww-daemon.sock";
             let transition = Config.wallpaperTransitionType || "fade";
             
-            let script = "killall -q mpvpaper; ";
+            // Inline Comment: Added panscan=1.0 and video-unscaled=no to force mpv to crop/fill ultrawide displays
+            let script = "killall -q mpvpaper 2>/dev/null; ";
             script += "set TARGET_MON (hyprctl monitors -j | jq -r '.[] | select(.focused) | .name'); ";
             
             if (activeOnly) {
                 if (ext === "mp4" || ext === "webm") {
-                    script += "awww clear -o \"$TARGET_MON\" 2>/dev/null; pkill -f \"mpvpaper.*$TARGET_MON\"; mpvpaper -vs -o 'loop no-audio' \"$TARGET_MON\" '" + cleanFilePath + "' >/dev/null 2>&1 & disown; ";
+                    script += "awww clear -o \"$TARGET_MON\" 2>/dev/null; ";
+                    script += "pkill -f 'mpvpaper' 2>/dev/null; ";
+                    script += "nohup mpvpaper -vs -o 'loop-file=inf no-audio panscan=1.0 video-unscaled=no' \"$TARGET_MON\" '" + cleanFilePath + "' >/dev/null 2>&1 & disown; ";
                 } else {
                     script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; ";
                     script += "awww img -o \"$TARGET_MON\" '" + cleanFilePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; ";
                 }
             } else {
                 if (ext === "mp4" || ext === "webm") {
-                    script += "awww kill 2>/dev/null; killall -9 -q awww-daemon; rm -f " + sockPath + "; mpvpaper -vs -o 'loop no-audio' '*' '" + cleanFilePath + "' >/dev/null 2>&1 & disown; ";
+                    script += "awww kill 2>/dev/null; killall -9 -q awww-daemon 2>/dev/null; rm -f " + sockPath + "; ";
+                    script += "nohup mpvpaper -vs -o 'loop-file=inf no-audio panscan=1.0 video-unscaled=no' '*' '" + cleanFilePath + "' >/dev/null 2>&1 & disown; ";
                 } else {
                     script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; ";
                     script += "awww img '" + cleanFilePath + "' --transition-type " + transition + " --transition-step 64 --transition-duration 2; ";
                 }
             }
 
-            // Inline Comment: Execute CLI iris command directly in fish subshell
             if (Config.enableIris) {
                 script += "iris '" + cleanFilePath + "'; ";
             }
@@ -295,11 +293,17 @@ Item {
                             readonly property string thumbPath: isVideo ? (Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + thumbName) : ""
                             readonly property string thumbUrl: isVideo ? ("file://" + thumbPath) : ""
 
+                            // Inline Comment: Per-delegate Process prevents shared state collisions during ffmpeg thumbnail runs
+                            Process {
+                                id: delegateThumbGenerator
+                                running: false
+                            }
+
                             Component.onCompleted: {
                                 if (isVideo) {
                                     let cmd = "if not test -f '" + thumbPath + "'; ffmpeg -y -ss 00:00:00 -i '" + filePath + "' -frames:v 1 -vf 'scale=600:-1' '" + thumbPath + "' >/dev/null 2>&1; end";
-                                    thumbGenerator.command = ["fish", "-c", cmd];
-                                    thumbGenerator.running = true;
+                                    delegateThumbGenerator.command = ["fish", "-c", cmd];
+                                    delegateThumbGenerator.running = true;
                                 }
                             }
 
