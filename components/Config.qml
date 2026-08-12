@@ -233,7 +233,6 @@ QtObject {
             prefetchExtractor.command = ["fish", "-c", envPrefix + cmd]
         } else {
             let trackTarget = "https://www.youtube.com/watch?v=" + vidId
-            // ADDED: --extractor-args and updated format specifier for clean HLS streams
             let cmd = 'set -l out (yt-dlp --print "%(title)s\n%(thumbnail)s\n%(url)s" --cookies "' + root.cookiePath + '" --extractor-args "youtube:player_client=android,web" -f "bv*+ba/b" "' + trackTarget + '" 2>/dev/null); ' +
                       'if test -n "$out"; ' +
                       '  echo "$out[1]"; echo "$out[2]"; echo "$out[-1]"; ' +
@@ -292,7 +291,6 @@ QtObject {
             streamExtractor.command = ["fish", "-c", envPrefix + cmd]
         } else {
             let trackTarget = "https://www.youtube.com/watch?v=" + vidId
-            // ADDED: --extractor-args and updated format specifier for clean HLS streams
             let cmd = 'set -l out (yt-dlp --print "%(title)s\n%(thumbnail)s\n%(url)s" --cookies "' + root.cookiePath + '" --extractor-args "youtube:player_client=android,web" -f "bv*+ba/b" "' + trackTarget + '" 2>/dev/null); ' +
                       'if test -n "$out"; ' +
                       '  echo "$out[1]"; echo "$out[2]"; echo "$out[-1]"; ' +
@@ -353,7 +351,6 @@ QtObject {
             resolveTrack(0)
 
         } else {
-            // ADDED: --extractor-args for YouTube playlist/flat resolution
             let cmd = 'yt-dlp --print "%(playlist_title,title)s|||%(id)s|||%(title)s" --extractor-args "youtube:player_client=android,web" --flat-playlist "' + cleanUrl + '" 2>/dev/null'
             playlistFetcher.command = ["fish", "-c", envPrefix + cmd]
             playlistFetcher.running = true
@@ -732,9 +729,10 @@ QtObject {
                             if (jsonStr.includes('"bg"') || jsonStr.includes('"surface"') || jsonStr.includes('"accent"')) {
                                 let parsed = JSON.parse(jsonStr)
 
-                                let baseCol = parsed.bg || "#13141c"
-                                let panelCol = parsed.surface || "#1a1b26"
-                                let accentCol = parsed.accent || "#ff4da6"
+                                // Inline Comment: Neutral slate/monochrome fallbacks replacing bright pink
+                                let baseCol = parsed.bg || "#12131a"
+                                let panelCol = parsed.surface || "#1e202b"
+                                let accentCol = parsed.accent || "#94a3b8"
 
                                 root.customBgBase = baseCol
                                 root.customBgPanel = panelCol
@@ -774,20 +772,30 @@ QtObject {
     function applyIrisColors(filePath) {
         if (!enableIris) return
 
-        let path = filePath || root.activeWallpaperPath
+        let rawPath = filePath || root.activeWallpaperPath
 
-        if (!path && root.wallpapers && root.wallpapers.length > 0) {
-            path = root.wallpapers[0]
+        if (!rawPath && root.wallpapers && root.wallpapers.length > 0) {
+            rawPath = root.wallpapers[0]
         }
 
-        if (!path) {
-            let cmd = "set W (find ~/Pictures/Wallpapers -type f \\( -name '*.jpg' -o -name '*.png' -o -name '*.webp' \\) 2>/dev/null | head -n 1); if test -n \"$W\"; iris --json-only \"$W\" 2>/dev/null; end"
-            runner.command = ["fish", "-c", cmd]
-        } else {
-            let cmd = "iris --json-only '" + path + "' 2>/dev/null"
-            runner.command = ["fish", "-c", cmd]
+        if (!rawPath || rawPath === "") return
+
+        let cleanPath = rawPath.replace(/^file:\/\//, "")
+        let ext = cleanPath.split('.').pop().toLowerCase()
+        let targetPath = cleanPath
+
+        // Inline Comment: Convert video path to its cached thumbnail PNG path before calling iris
+        if (ext === "mp4" || ext === "webm") {
+            let fileName = cleanPath.split('/').pop()
+            let thumbName = fileName.replace(/[^a-zA-Z0-9]/g, "_") + ".png"
+            targetPath = Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + thumbName
         }
 
+        // Inline Comment: Guarantee thumbnail exists via ffmpeg before feeding path to iris
+        let cmd = "if not test -f '" + targetPath + "'; ffmpeg -y -ss 00:00:00 -i '" + cleanPath + "' -vframes 1 -vf 'scale=600:-1' '" + targetPath + "' >/dev/null 2>&1; end; "
+        cmd += "if test -f '" + targetPath + "'; iris --json-only '" + targetPath + "' 2>/dev/null; end"
+
+        runner.command = ["fish", "-c", cmd]
         runner.running = false
         runner.running = true
     }
@@ -1002,9 +1010,9 @@ QtObject {
 
     // Custom Colors
     property bool useCustomColors: false
-    property string customBgBase: "#13141c"
-    property string customBgPanel: "#1a1b26"
-    property string customAccent: "#ff4da6"
+    property string customBgBase: "#12131a"
+    property string customBgPanel: "#1e202b"
+    property string customAccent: "#94a3b8"
 
     property color borderStart: accent
     property color borderEnd: Qt.lighter(accent, 1.5)
@@ -1554,9 +1562,9 @@ QtObject {
     readonly property var fontDisplay: [58, 82, 106]
 
     // Themes
-    property color bgBase: "#13141c"
-    property color bgPanel: "#1a1b26"
-    property color accent: "#ff4da6"
+    property color bgBase: "#12131a"
+    property color bgPanel: "#1e202b"
+    property color accent: "#94a3b8"
     property color textMain: "#ffffff"
     property color textMuted: "#94a3b8"
 
@@ -1635,7 +1643,7 @@ QtObject {
 
         var baseColor = useCustomColors ? customBgBase : (themes[index] || themes[0]).bgBase
         var panelColor = useCustomColors ? customBgPanel : (themes[index] || themes[0]).bgPanel
-        var accentColor = useCustomColors ? customAccent : (themes[index] || themes[0]).bgPanel ? (themes[index] || themes[0]).accent : "#ff4da6"
+        var accentColor = useCustomColors ? customAccent : (themes[index] || themes[0]).bgPanel ? (themes[index] || themes[0]).accent : "#94a3b8"
 
         bgBase = Qt.rgba(Qt.color(baseColor).r, Qt.color(baseColor).g, Qt.color(baseColor).b, shellOpacity)
         bgPanel = Qt.rgba(Qt.color(panelColor).r, Qt.color(panelColor).g, Qt.color(panelColor).b, shellOpacity)
