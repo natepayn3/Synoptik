@@ -1,2 +1,0 @@
-Test file to verify automated Git commits and pushes via GitHub Personal Access Token.
-Created at: 2026-08-12
