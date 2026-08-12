@@ -214,88 +214,28 @@ Item {
                 anchors.margins: Config.showBorders ? Config.borderThickness : 0
                 clip: true
 
-                Loader {
-                    id: camLoader
+                VideoOutput {
+                    id: localOutput
                     anchors.fill: parent
-                    active: false
-                    sourceComponent: Component {
-                        Item {
-                            anchors.fill: parent
-                            property alias sourceWidth: localOutput.sourceRect.width
-                            property alias sourceHeight: localOutput.sourceRect.height
+                    fillMode: Config.mirrorKeepAspect ? VideoOutput.PreserveAspectCrop : VideoOutput.PreserveAspectFit
+                    visible: true
 
-                            VideoOutput {
-                                id: localOutput
-                                anchors.fill: parent
-                                fillMode: Config.mirrorKeepAspect ? VideoOutput.PreserveAspectCrop : VideoOutput.PreserveAspectFit
-                                visible: true
+                    transform: Scale {
+                        origin.x: localOutput.width / 2
+                        xScale: Config.mirrorMirrored ? 1 : -1
+                    }
 
-                                transform: Scale {
-                                    origin.x: localOutput.width / 2
-                                    xScale: Config.mirrorMirrored ? 1 : -1
-                                }
-                            }
-
-                            CaptureSession {
-                                camera: Camera {
-                                    cameraDevice: mediaDevices.defaultVideoInput
-
-                                    function applyRawFormat() {
-                                        if (!cameraDevice) return
-
-                                        let formats = cameraDevice.videoFormats
-                                        let bestFormat = undefined
-                                        let bestScore = -1
-
-                                        for (let i = 0; i < formats.length; ++i) {
-                                            let f = formats[i]
-                                            if (f.pixelFormat === 0 || f.pixelFormat === 29) continue
-
-                                            let fpsTarget = Math.min(f.maxFrameRate, 30)
-                                            let width = f.resolution.width
-                                            let widthScore = width <= 1280 ? width : (1280 - (width - 1280)) 
-                                            let score = (fpsTarget * 10000) + widthScore
-
-                                            if (score > bestScore) {
-                                                bestScore = score
-                                                bestFormat = f
-                                            }
-                                        }
-
-                                        if (bestFormat) {
-                                            cameraFormat = bestFormat
-                                        }
-                                        active = true
-                                    }
-                                    Component.onCompleted: applyRawFormat()
-                                }
-                                videoOutput: localOutput
-                            }
+                    Component.onCompleted: {
+                        if (Config.mirrorCaptureSession) {
+                            Config.mirrorCaptureSession.videoOutput = localOutput
+                        }
+                    }
+                    Component.onDestruction: {
+                        if (Config.mirrorCaptureSession && Config.mirrorCaptureSession.videoOutput === localOutput) {
+                            Config.mirrorCaptureSession.videoOutput = null
                         }
                     }
                 }
-
-                Timer {
-                    id: attachTimer
-                    interval: 500
-                    repeat: false
-                    onTriggered: camLoader.active = true
-                }
-
-                function evaluateCamera() {
-                    let shouldRun = Config.showMirror && mediaDevices.defaultVideoInput !== null
-                    if (shouldRun) {
-                        if (!camLoader.active && !attachTimer.running) attachTimer.restart()
-                    } else {
-                        attachTimer.stop()
-                        camLoader.active = false
-                    }
-                }
-
-                Connections { target: Config; function onShowMirrorChanged() { videoWrapper.evaluateCamera() } }
-                Connections { target: mediaDevices; function onDefaultVideoInputChanged() { videoWrapper.evaluateCamera() } }
-
-                Component.onCompleted: evaluateCamera()
             }
 
             // SNAPSHOT FLASH OVERLAY
