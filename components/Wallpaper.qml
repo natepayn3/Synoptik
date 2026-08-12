@@ -14,20 +14,22 @@ Item {
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
     // Dynamic screen boundaries
-    readonly property real screenWidth: root.screen ? root.screen.width : 1920
-    readonly property real screenHeight: root.screen ? root.screen.height : 1080
+    readonly property real screenWidth: Screen.width
+    readonly property real screenHeight: Screen.height
 
     readonly property int minPanelWidth: 620
-    readonly property int maxPanelWidth: Math.max(minPanelWidth, Math.round(screenWidth - (cardMargin * 4)))
+    // Inline Comment: Limit max width to 75% of screen width to prevent edge flush bugs
+    readonly property int maxPanelWidth: Math.max(minPanelWidth, Math.round(screenWidth * 0.75))
 
     readonly property int minPanelHeight: 320
-    readonly property int maxPanelHeight: Math.max(minPanelHeight, Math.round(screenHeight - (cardMargin * 4)))
+    // Inline Comment: Limit max height to 75% of screen height to keep popout gracefully floating
+    readonly property int maxPanelHeight: Math.max(minPanelHeight, Math.round(screenHeight * 0.75))
     
     // Available card geometry
     readonly property int calcCardHeight: implicitHeight - (cardMargin * 4) - 40
     readonly property int activeCardWidth: Math.round(calcCardHeight * (16 / 9))
     
-    // Dynamic Content Width Calculation (Bumped vertical width to 460px to prevent header clipping)
+    // Dynamic Content Width Calculation
     readonly property int calculatedContentWidth: {
         if (isVerticalLayout) return 460;
         let count = folderModel.count;
@@ -37,7 +39,7 @@ Item {
         return Math.min(maxPanelWidth, Math.max(minPanelWidth, totalNeeded));
     }
 
-    // Dynamic Content Height Calculation (Scales active card aspect ratio relative to 460px container)
+    // Dynamic Content Height Calculation (Clamped to 75% max screen height)
     readonly property int calculatedContentHeight: {
         if (isVerticalLayout) {
             let count = folderModel.count;
@@ -73,7 +75,7 @@ Item {
 
         property string pendingIrisPath: ""
 
-        // Inline Comment: Defer applyIrisColors until the subshell completely finishes running iris
+        // Inline Comment: Defer applyIrisColors until subshell completely finishes running iris
         onExited: (exitCode, exitStatus) => {
             if (exitCode === 0 && Config.enableIris && pendingIrisPath !== "") {
                 Config.applyIrisColors(pendingIrisPath);
@@ -266,7 +268,6 @@ Item {
                         property real scrollSpeed: 1.2
                         onWheel: (event) => {
                             let delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x;
-                            // Inline Comment: Route scroll flick along appropriate axis depending on layout
                             if (root.isVerticalLayout) {
                                 accordionList.flick(0, delta * 12 * scrollSpeed);
                             } else {
@@ -278,7 +279,6 @@ Item {
                     ListView {
                         id: accordionList
                         anchors.fill: parent
-                        // Inline Comment: Switch ListView orientation based on bar position
                         orientation: root.isVerticalLayout ? ListView.Vertical : ListView.Horizontal
                         spacing: 8
                         boundsBehavior: Flickable.StopAtBounds
@@ -286,9 +286,9 @@ Item {
                         focus: true
 
                         Component.onCompleted: forceActiveFocus()
-                            onVisibleChanged: {
-                                if (visible) forceActiveFocus()
-                            }
+                        onVisibleChanged: {
+                            if (visible) forceActiveFocus()
+                        }
 
                         model: FolderListModel {
                             id: folderModel
@@ -302,11 +302,6 @@ Item {
                                 positionViewAtIndex(currentIndex, ListView.Contain);
                             }
                         }
-
-                        Keys.onLeftPressed: if (!root.isVerticalLayout) decrementCurrentIndex()
-                        Keys.onRightPressed: if (!root.isVerticalLayout) incrementCurrentIndex()
-                        Keys.onUpPressed: if (root.isVerticalLayout) decrementCurrentIndex()
-                        Keys.onDownPressed: if (root.isVerticalLayout) incrementCurrentIndex()
 
                         Keys.onPressed: (event) => {
                             let isPrev = event.key === Qt.Key_A || (root.isVerticalLayout && event.key === Qt.Key_W);
@@ -326,7 +321,6 @@ Item {
                                 }
                                 event.accepted = true;
 
-                                // Inline Comment: Defer focus restoration to the next event loop tick after Hyprland surface updates settle
                                 Qt.callLater(() => {
                                     accordionList.forceActiveFocus();
                                 });
@@ -341,7 +335,6 @@ Item {
                             readonly property bool isAnyHovered: accordionContainer.hoveredIndex !== -1
                             readonly property string itemFilePath: filePath
                             
-                            // Inline Comment: Calculate width/height accordions dynamically per layout direction
                             width: root.isVerticalLayout
                                 ? accordionList.width - 6
                                 : ((isHovered || (isSelected && !isAnyHovered)) ? Math.round(height * (16 / 9)) : (isAnyHovered ? 60 : 80))
@@ -369,7 +362,6 @@ Item {
                             readonly property string thumbPath: isVideo ? (Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + thumbName) : ""
                             readonly property string thumbUrl: isVideo ? ("file://" + thumbPath) : ""
 
-                            // Inline Comment: Force Image source reload on exit to eliminate initial thumbnail load race conditions
                             Process {
                                 id: delegateThumbGenerator
                                 running: false
