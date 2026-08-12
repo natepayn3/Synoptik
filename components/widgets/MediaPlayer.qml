@@ -36,13 +36,57 @@ Item {
             spacing: 8
 
             Text {
-                text: "EMBEDDED MEDIA PLAYER"
+                text: "MEDIA PLAYER"
                 color: Config.textMain
                 font.family: Config.sysFont
                 font.pixelSize: Config.size(Config.fontSubhead)
                 font.bold: true
                 Layout.fillWidth: true
                 elide: Text.ElideRight
+            }
+
+            // STACKED VERTICAL ANCHOR ARROWS
+            ColumnLayout {
+                spacing: 4
+                Layout.alignment: Qt.AlignVCenter
+
+                // UP ARROW
+                Rectangle {
+                    implicitWidth: 20; implicitHeight: 20; radius: 10
+                    color: upHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "keyboard_arrow_up"
+                        color: (Config.playerAnchorPos === "top") 
+                            ? Config.accent 
+                            : (upHover.hovered ? Config.textMain : Config.textMuted)
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 20
+                    }
+
+                    TapHandler { onTapped: Config.cyclePlayerAnchor("up") }
+                    HoverHandler { id: upHover; cursorShape: Qt.PointingHandCursor }
+                }
+
+                // DOWN ARROW
+                Rectangle {
+                    implicitWidth: 20; implicitHeight: 20; radius: 10
+                    color: downHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "keyboard_arrow_down"
+                        color: (Config.playerAnchorPos === "bottom") 
+                            ? Config.accent 
+                            : (downHover.hovered ? Config.textMain : Config.textMuted)
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 20
+                    }
+
+                    TapHandler { onTapped: Config.cyclePlayerAnchor("down") }
+                    HoverHandler { id: downHover; cursorShape: Qt.PointingHandCursor }
+                }
             }
 
             // SIZE TOGGLE BUTTON (2X CANVAS)
@@ -73,7 +117,6 @@ Item {
                     color: Config.playerPinned ? Config.accent : Config.textMuted
                     font.family: "Material Symbols Outlined"
                     font.pixelSize: 16
-                    // Rotate slightly when pinned
                     rotation: Config.playerPinned ? 45 : 0
 
                     Behavior on rotation {
