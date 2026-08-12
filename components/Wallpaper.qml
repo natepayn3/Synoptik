@@ -65,7 +65,7 @@ Item {
             let sockPath = "/run/user/" + Quickshell.env("UID") + "/" + waylandDisplay + "-awww-daemon.sock";
             let transition = Config.wallpaperTransitionType || "fade";
             
-            // Inline Comment: Added panscan=1.0 and video-unscaled=no to force mpv to crop/fill ultrawide displays
+            // Inline Comment: Fish script with double-quoted vars and mpv options to force ultrawide aspect cropping
             let script = "killall -q mpvpaper 2>/dev/null; ";
             script += "set TARGET_MON (hyprctl monitors -j | jq -r '.[] | select(.focused) | .name'); ";
             
@@ -88,6 +88,7 @@ Item {
                 }
             }
 
+            // Inline Comment: Execute CLI iris command directly in fish subshell
             if (Config.enableIris) {
                 script += "iris '" + cleanFilePath + "'; ";
             }
@@ -293,10 +294,18 @@ Item {
                             readonly property string thumbPath: isVideo ? (Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + thumbName) : ""
                             readonly property string thumbUrl: isVideo ? ("file://" + thumbPath) : ""
 
-                            // Inline Comment: Per-delegate Process prevents shared state collisions during ffmpeg thumbnail runs
+                            // Inline Comment: Force Image source reload on exit to eliminate initial thumbnail load race conditions
                             Process {
                                 id: delegateThumbGenerator
                                 running: false
+
+                                onExited: (exitCode, exitStatus) => {
+                                    if (exitCode === 0 && isVideo) {
+                                        let path = delegateItem.thumbUrl;
+                                        thumbImage.source = "";
+                                        thumbImage.source = path;
+                                    }
+                                }
                             }
 
                             Component.onCompleted: {
@@ -322,6 +331,7 @@ Item {
                                     color: "transparent"
 
                                     Image {
+                                        id: thumbImage
                                         anchors.fill: parent
                                         source: isVideo ? delegateItem.thumbUrl : fileUrl
                                         fillMode: Image.PreserveAspectCrop
