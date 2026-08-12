@@ -298,7 +298,7 @@ Scope {
     Process {
         id: keySniffer
         command: ["stdbuf", "-oL", "sudo", "showmethekey-cli"]
-        running: Config.showOsk && oskScope.visible
+        running: !!(Config.showOsk)
         
         stdout: SplitParser {
             onRead: (line) => {
