@@ -9,18 +9,27 @@ import Quickshell.Widgets
 Item {
     id: root
 
+    // Inline Comment: Detect vertical panel orientation based on bar placement
+    readonly property bool isVerticalLayout: Config.barPosition === "left" || Config.barPosition === "right"
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
-    // Dynamic panel dimensions based on wallpaper count
+    // Dynamic screen boundaries
+    readonly property real screenWidth: root.screen ? root.screen.width : 1920
+    readonly property real screenHeight: root.screen ? root.screen.height : 1080
+
     readonly property int minPanelWidth: 620
-    readonly property int maxPanelWidth: 800
+    readonly property int maxPanelWidth: Math.max(minPanelWidth, Math.round(screenWidth - (cardMargin * 4)))
+
+    readonly property int minPanelHeight: 320
+    readonly property int maxPanelHeight: Math.max(minPanelHeight, Math.round(screenHeight - (cardMargin * 4)))
     
-    // Height available for delegate cards
+    // Available card geometry
     readonly property int calcCardHeight: implicitHeight - (cardMargin * 4) - 40
     readonly property int activeCardWidth: Math.round(calcCardHeight * (16 / 9))
     
-    // Dynamic Content Width Calculation
+    // Dynamic Content Width Calculation (Bumped vertical width to 460px to prevent header clipping)
     readonly property int calculatedContentWidth: {
+        if (isVerticalLayout) return 460;
         let count = folderModel.count;
         if (count === 0) return minPanelWidth;
         let unexpandedWidth = (count - 1) * (80 + 8);
@@ -28,8 +37,18 @@ Item {
         return Math.min(maxPanelWidth, Math.max(minPanelWidth, totalNeeded));
     }
 
-    // Dynamic Height Calculation: 150px when empty, 320px when populated
-    readonly property int calculatedContentHeight: folderModel.count === 0 ? 150 : 320
+    // Dynamic Content Height Calculation (Scales active card aspect ratio relative to 460px container)
+    readonly property int calculatedContentHeight: {
+        if (isVerticalLayout) {
+            let count = folderModel.count;
+            if (count === 0) return 150;
+            let unexpandedHeight = (count - 1) * (70 + 8);
+            let activeCardHeight = Math.round((460 - cardMargin * 4) * (9 / 16));
+            let totalNeeded = unexpandedHeight + activeCardHeight + (cardMargin * 4) + 40;
+            return Math.min(maxPanelHeight, Math.max(minPanelHeight, totalNeeded));
+        }
+        return folderModel.count === 0 ? 150 : 320;
+    }
 
     implicitWidth: calculatedContentWidth
     implicitHeight: calculatedContentHeight
@@ -51,6 +70,16 @@ Item {
     Process {
         id: wallpaperBackend
         running: false
+
+        property string pendingIrisPath: ""
+
+        // Inline Comment: Defer applyIrisColors until the subshell completely finishes running iris
+        onExited: (exitCode, exitStatus) => {
+            if (exitCode === 0 && Config.enableIris && pendingIrisPath !== "") {
+                Config.applyIrisColors(pendingIrisPath);
+                pendingIrisPath = "";
+            }
+        }
 
         function triggerBackendRun(filePath, activeOnly) {
             if (!filePath || filePath === "") return;
@@ -88,9 +117,20 @@ Item {
                 }
             }
 
-            // Inline Comment: Execute CLI iris command directly in fish subshell
+            // Inline Comment: Generate frame on-the-fly if missing, then run iris in json-only mode
             if (Config.enableIris) {
-                script += "iris '" + cleanFilePath + "'; ";
+                if (ext === "mp4" || ext === "webm") {
+                    let fileName = cleanFilePath.split('/').pop();
+                    let thumbName = fileName.replace(/[^a-zA-Z0-9]/g, "_") + ".png";
+                    let thumbPath = Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + thumbName;
+                    
+                    pendingIrisPath = thumbPath;
+                    script += "if not test -f '" + thumbPath + "'; ffmpeg -y -ss 00:00:00 -i '" + cleanFilePath + "' -vframes 1 -vf 'scale=600:-1' '" + thumbPath + "' >/dev/null 2>&1; end; ";
+                    script += "if test -f '" + thumbPath + "'; iris --json-only '" + thumbPath + "' 2>/dev/null; end; ";
+                } else {
+                    pendingIrisPath = cleanFilePath;
+                    script += "iris --json-only '" + cleanFilePath + "' 2>/dev/null; ";
+                }
             }
             
             command = ["fish", "-c", script];
@@ -197,7 +237,7 @@ Item {
                 }
 
                 // ==========================================
-                // ACCORDION CAROUSEL VIEW
+                // DUAL-ORIENTATION ACCORDION CAROUSEL VIEW
                 // ==========================================
                 Rectangle {
                     id: accordionContainer
@@ -226,18 +266,29 @@ Item {
                         property real scrollSpeed: 1.2
                         onWheel: (event) => {
                             let delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x;
-                            accordionList.flick(delta * 12 * scrollSpeed, 0);
+                            // Inline Comment: Route scroll flick along appropriate axis depending on layout
+                            if (root.isVerticalLayout) {
+                                accordionList.flick(0, delta * 12 * scrollSpeed);
+                            } else {
+                                accordionList.flick(delta * 12 * scrollSpeed, 0);
+                            }
                         }
                     }
 
                     ListView {
                         id: accordionList
                         anchors.fill: parent
-                        orientation: ListView.Horizontal
+                        // Inline Comment: Switch ListView orientation based on bar position
+                        orientation: root.isVerticalLayout ? ListView.Vertical : ListView.Horizontal
                         spacing: 8
                         boundsBehavior: Flickable.StopAtBounds
                         clip: true
                         focus: true
+
+                        Component.onCompleted: forceActiveFocus()
+                            onVisibleChanged: {
+                                if (visible) forceActiveFocus()
+                            }
 
                         model: FolderListModel {
                             id: folderModel
@@ -252,19 +303,33 @@ Item {
                             }
                         }
 
-                        Keys.onLeftPressed: decrementCurrentIndex()
-                        Keys.onRightPressed: incrementCurrentIndex()
+                        Keys.onLeftPressed: if (!root.isVerticalLayout) decrementCurrentIndex()
+                        Keys.onRightPressed: if (!root.isVerticalLayout) incrementCurrentIndex()
+                        Keys.onUpPressed: if (root.isVerticalLayout) decrementCurrentIndex()
+                        Keys.onDownPressed: if (root.isVerticalLayout) incrementCurrentIndex()
+
                         Keys.onPressed: (event) => {
-                            if (event.key === Qt.Key_A) {
+                            let isPrev = event.key === Qt.Key_A || (root.isVerticalLayout && event.key === Qt.Key_W);
+                            let isNext = event.key === Qt.Key_D || (root.isVerticalLayout && event.key === Qt.Key_S);
+
+                            if (isPrev) {
                                 decrementCurrentIndex();
-                            } else if (event.key === Qt.Key_D) {
+                                event.accepted = true;
+                            } else if (isNext) {
                                 incrementCurrentIndex();
+                                event.accepted = true;
                             } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
                                 if (currentIndex >= 0 && folderModel.count > currentIndex) {
                                     let activeOnly = (event.modifiers & Qt.ControlModifier) !== 0;
                                     let targetPath = folderModel.get(currentIndex, "filePath");
                                     wallpaperBackend.triggerBackendRun(targetPath, activeOnly);
                                 }
+                                event.accepted = true;
+
+                                // Inline Comment: Defer focus restoration to the next event loop tick after Hyprland surface updates settle
+                                Qt.callLater(() => {
+                                    accordionList.forceActiveFocus();
+                                });
                             }
                         }
 
@@ -276,12 +341,22 @@ Item {
                             readonly property bool isAnyHovered: accordionContainer.hoveredIndex !== -1
                             readonly property string itemFilePath: filePath
                             
-                            height: accordionList.height - 6
-                            width: (isHovered || (isSelected && !isAnyHovered)) ? Math.round(height * (16 / 9)) : (isAnyHovered ? 60 : 80)
+                            // Inline Comment: Calculate width/height accordions dynamically per layout direction
+                            width: root.isVerticalLayout
+                                ? accordionList.width - 6
+                                : ((isHovered || (isSelected && !isAnyHovered)) ? Math.round(height * (16 / 9)) : (isAnyHovered ? 60 : 80))
+
+                            height: root.isVerticalLayout
+                                ? ((isHovered || (isSelected && !isAnyHovered)) ? Math.round(width * (9 / 16)) : (isAnyHovered ? 50 : 70))
+                                : accordionList.height - 6
 
                             z: (isHovered || isSelected) ? 100 : (100 - index)
 
                             Behavior on width {
+                                NumberAnimation { duration: 400; easing.type: Easing.OutCubic }
+                            }
+
+                            Behavior on height {
                                 NumberAnimation { duration: 400; easing.type: Easing.OutCubic }
                             }
 
