@@ -24,29 +24,13 @@ PanelWindow {
     property real popoutYOffset: actualScreenHeight / 2.0
     property bool isCentered: false
 
-    property var activeViewStack: []
-
-    function pushView(viewName) {
-        let list = activeViewStack.slice()
-        let idx = list.indexOf(viewName)
-        if (idx !== -1) list.splice(idx, 1)
-        list.push(viewName)
-        activeViewStack = list
-    }
-
-    function popView(viewName) {
-        let list = activeViewStack.slice()
-        let idx = list.indexOf(viewName)
-        if (idx !== -1) list.splice(idx, 1)
-        activeViewStack = list
-    }
-
     function updatePlayerPopoutPos() {
         if (root.activeView !== "player") return
 
-        let screenCenter = isHorizontal 
-            ? (inX + (inW / 2.0)) 
-            : (inY + (inH / 2.0))
+        let btn = centerGroupContainer ? centerGroupContainer.getButton("player") : null
+        let centerPos = btn 
+            ? (isHorizontal ? btn.mapToItem(mainContainer, btn.width / 2, 0).x : btn.mapToItem(mainContainer, 0, btn.height / 2).y) 
+            : (isHorizontal ? mainContainer.width / 2.0 : mainContainer.height / 2.0)
 
         if (Config.playerAnchorPos === "top") {
             if (isHorizontal) root.popoutXOffset = inX + (rawChildWidth / 2.0) + 12
@@ -55,39 +39,9 @@ PanelWindow {
             if (isHorizontal) root.popoutXOffset = (inX + inW) - (rawChildWidth / 2.0) - 12
             else root.popoutYOffset = (inY + inH) - (rawChildHeight / 2.0) - 12
         } else {
-            if (isHorizontal) root.popoutXOffset = screenCenter
-            else root.popoutYOffset = screenCenter
+            if (isHorizontal) root.popoutXOffset = centerPos
+            else root.popoutYOffset = centerPos
         }
-    }
-
-    function updateMirrorPopoutPos() {
-        if (root.activeView !== "mirror") return
-
-        let screenCenter = isHorizontal 
-            ? (inX + (inW / 2.0)) 
-            : (inY + (inH / 2.0))
-
-        if (Config.mirrorAnchorPos === "top") {
-            if (isHorizontal) root.popoutXOffset = inX + (rawChildWidth / 2.0) + 12
-            else root.popoutYOffset = inY + (rawChildHeight / 2.0) + 12
-        } else if (Config.mirrorAnchorPos === "bottom") {
-            if (isHorizontal) root.popoutXOffset = (inX + inW) - (rawChildWidth / 2.0) - 12
-            else root.popoutYOffset = (inY + inH) - (rawChildHeight / 2.0) - 12
-        } else {
-            if (isHorizontal) root.popoutXOffset = screenCenter
-            else root.popoutYOffset = screenCenter
-        }
-    }
-
-    // Inline Comment: Recalculate popup positions whenever geometry settles for active view
-    onRawChildWidthChanged: {
-        if (activeView === "player") updatePlayerPopoutPos()
-        else if (activeView === "mirror") updateMirrorPopoutPos()
-    }
-
-    onRawChildHeightChanged: {
-        if (activeView === "player") updatePlayerPopoutPos()
-        else if (activeView === "mirror") updateMirrorPopoutPos()
     }
 
     readonly property real shadowPadding: 16
@@ -258,7 +212,7 @@ PanelWindow {
 
     HyprlandFocusGrab {
         id: focusGrab
-        active: root.isOpen && root.activeView !== "osd" && root.activeView !== "notifOsd" && !(root.activeView === "player" && Config.playerPinned) && !(root.activeView === "mirror" && Config.mirrorPinned) && (!screen || screen.name === (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""))
+        active: root.isOpen && root.activeView !== "osd" && root.activeView !== "notifOsd" && !(root.activeView === "player" && Config.playerPinned) && (!screen || screen.name === (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""))
         windows: [root]
         onCleared: {
             root.closeOthers("none")
@@ -299,6 +253,7 @@ PanelWindow {
     onActiveViewChanged: {
         if (activeView === "none" || activeView === "workspacePreview") return
 
+        // 1. Edge OSDs: Snap coordinates directly to screen boundaries
         if (activeView === "osd") {
             root.isCentered = false
             if (root.isHorizontal) root.popoutXOffset = mainContainer.width
@@ -313,20 +268,23 @@ PanelWindow {
             return
         }
 
+        // 2. Bar Panel Modules: Map view IDs to button handles
         let btn = null
 
         switch (activeView) {
+            // Left Card Modules
             case "settings":       btn = leftCard ? leftCard.getButton("settings") : null; break
             case "appLauncher":    btn = leftCard ? leftCard.getButton("launcher") : null; break
             case "power":          btn = leftCard ? leftCard.getButton("power") : null; break
             case "wallpaper":      btn = leftCard ? leftCard.getButton("wallpaper") : null; break
             case "notifications":  btn = leftCard ? leftCard.getButton("notifications") : null; break
             case "screenRecorder": btn = leftCard ? leftCard.getButton("recorder") : null; break
-            case "mirror":         btn = leftCard ? leftCard.getButton("mirror") : null; break
-            case "player":         btn = leftCard ? leftCard.getButton("player") : null; break
 
+            // Center Group Modules
+            case "player":         btn = centerGroupContainer ? centerGroupContainer.getButton("player") : null; break
             case "taskOverflow":   btn = centerGroupContainer ? centerGroupContainer.getButton("apps") : null; break
 
+            // Right Card Modules
             case "calendar":       btn = rightCard ? rightCard.getButton("clock") : null; break
             case "audio":          btn = rightCard ? rightCard.getButton("audio") : null; break
             case "network":        btn = rightCard ? rightCard.getButton("network") : null; break
@@ -336,10 +294,9 @@ PanelWindow {
             case "controlCenter":  btn = rightCard ? rightCard.getButton("cc") : null; break
         }
 
+        // Snap popout offset to the active button position or anchor mode
         if (activeView === "player") {
             updatePlayerPopoutPos()
-        } else if (activeView === "mirror") {
-            updateMirrorPopoutPos()
         } else if (btn) {
             setPopoutPos(btn)
         }
@@ -350,25 +307,35 @@ PanelWindow {
         let isFocused = !screen || screen.name === (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : "")
 
         if (isFocused) {
-            if (typeof Config.showOSD !== "undefined" && Config.showOSD) {
-                nextView = "osd"
-            } else if (typeof Config.showNotificationOsd !== "undefined" && Config.showNotificationOsd) {
-                nextView = "notifOsd"
-            } else if (activeViewStack.length > 0) {
-                nextView = activeViewStack[activeViewStack.length - 1]
-            }
+            // High Priority OSD Takeover (Preserves underlying panel state)
+            if (typeof Config.showOSD !== "undefined" && Config.showOSD) nextView = "osd"
+            else if (typeof Config.showNotificationOsd !== "undefined" && Config.showNotificationOsd) nextView = "notifOsd"
+
+            // Standard Module Panels
+            else if (Config.showSettings) nextView = "settings"
+            else if (Config.showWorkspacePreview) nextView = "workspacePreview"
+            else if (Config.showPower) nextView = "power"
+            else if (Config.showWallpaper) nextView = "wallpaper"
+            else if (Config.showAppLauncher) nextView = "appLauncher"
+            else if (Config.showCalendar) nextView = "calendar"
+            else if (Config.showNotifications) nextView = "notifications"
+            else if (Config.showAudio) nextView = "audio"
+            else if (Config.showNetwork) nextView = "network"
+            else if (Config.showSystemMonitor) nextView = "systemMonitor"
+            else if (Config.showBattery) nextView = "battery"
+            else if (Config.showClipboard) nextView = "clipboard"
+            else if (Config.showScreenRecorder) nextView = "screenRecorder"
+            else if (Config.showControlCenter) nextView = "controlCenter"
+            else if (Config.showPlayer) nextView = "player"
+            else if (typeof Config.showTaskOverflow !== "undefined" && Config.showTaskOverflow) nextView = "taskOverflow"
         }
 
         if (nextView === "none") {
             root.isOpen = false
             activeView = "none"
         } else {
-            let viewChanged = (activeView !== nextView)
             activeView = nextView
             root.isOpen = true
-            if (!viewChanged) {
-                root.activeViewChanged()
-            }
         }
     }
 
@@ -404,7 +371,6 @@ PanelWindow {
             if (except !== "controlCenter") Config.showControlCenter = false
             if (except !== "settings") Config.showSettings = false
             if (except !== "player" && !Config.playerPinned) Config.showPlayer = false
-            if (except !== "mirror" && !Config.mirrorPinned) Config.showMirror = false
             if (except !== "taskOverflow" && typeof Config.showTaskOverflow !== "undefined") Config.showTaskOverflow = false
         }
     }
@@ -427,215 +393,51 @@ PanelWindow {
                 root.isCentered = true
                 root.popoutXOffset = mainContainer.width / 2.0
                 root.popoutYOffset = mainContainer.height / 2.0
-                pushView("workspacePreview")
-            } else {
-                popView("workspacePreview")
-                if (activeView === "workspacePreview") root.isCentered = false
+            } else if (activeView === "workspacePreview") {
+                root.isCentered = false
             }
             updateActiveView()
         }
-
         function onShowSettingsChanged() {
             if (Config.showSettings) {
                 closeOthers("settings")
                 let btn = leftCard ? leftCard.getButton("settings") : (rightCard ? rightCard.getButton("settings") : null)
                 if (btn) setPopoutPos(btn)
-                pushView("settings")
-            } else {
-                popView("settings")
             }
             updateActiveView()
         }
-
         function onShowPlayerChanged() {
             if (Config.showPlayer) {
                 closeOthers("player")
-                let btn = leftCard ? leftCard.getButton("player") : null
-                if (btn) setPopoutPos(btn)
-                pushView("player")
-            } else {
-                popView("player")
+                updatePlayerPopoutPos()
             }
             updateActiveView()
         }
-
         function onPlayerAnchorPosChanged() {
             if (activeView === "player") {
                 updatePlayerPopoutPos()
             }
         }
-
-        function onShowMirrorChanged() {
-            if (Config.showMirror) {
-                closeOthers("mirror")
-                pushView("mirror")
-            } else {
-                popView("mirror")
-            }
-            updateActiveView()
-        }
-
-        function onMirrorAnchorPosChanged() {
-            if (activeView === "mirror") {
-                updateMirrorPopoutPos()
-            }
-        }
-
         function onShowTaskOverflowChanged() {
             if (Config.showTaskOverflow) {
                 closeOthers("taskOverflow")
                 let btn = centerGroupContainer ? centerGroupContainer.getButton("apps") : null
                 if (btn) setPopoutPos(btn)
-                pushView("taskOverflow")
-            } else {
-                popView("taskOverflow")
             }
             updateActiveView()
         }
-
-        function onShowAppLauncherChanged() {
-            if (Config.showAppLauncher) {
-                closeOthers("appLauncher")
-                let btn = leftCard ? leftCard.getButton("launcher") : null
-                if (btn) setPopoutPos(btn)
-                pushView("appLauncher")
-            } else {
-                popView("appLauncher")
-            }
-            updateActiveView()
-        }
-
-        function onShowPowerChanged() {
-            if (Config.showPower) {
-                closeOthers("power")
-                let btn = leftCard ? leftCard.getButton("power") : null
-                if (btn) setPopoutPos(btn)
-                pushView("power")
-            } else {
-                popView("power")
-            }
-            updateActiveView()
-        }
-
-        function onShowWallpaperChanged() {
-            if (Config.showWallpaper) {
-                closeOthers("wallpaper")
-                let btn = leftCard ? leftCard.getButton("wallpaper") : null
-                if (btn) setPopoutPos(btn)
-                pushView("wallpaper")
-            } else {
-                popView("wallpaper")
-            }
-            updateActiveView()
-        }
-
-        function onShowCalendarChanged() {
-            if (Config.showCalendar) {
-                closeOthers("calendar")
-                let btn = rightCard ? rightCard.getButton("clock") : null
-                if (btn) setPopoutPos(btn)
-                pushView("calendar")
-            } else {
-                popView("calendar")
-            }
-            updateActiveView()
-        }
-
-        function onShowNotificationsChanged() {
-            if (Config.showNotifications) {
-                closeOthers("notifications")
-                let btn = leftCard ? leftCard.getButton("notifications") : null
-                if (btn) setPopoutPos(btn)
-                pushView("notifications")
-            } else {
-                popView("notifications")
-            }
-            updateActiveView()
-        }
-
-        function onShowAudioChanged() {
-            if (Config.showAudio) {
-                closeOthers("audio")
-                let btn = rightCard ? rightCard.getButton("audio") : null
-                if (btn) setPopoutPos(btn)
-                pushView("audio")
-            } else {
-                popView("audio")
-            }
-            updateActiveView()
-        }
-
-        function onShowNetworkChanged() {
-            if (Config.showNetwork) {
-                closeOthers("network")
-                let btn = rightCard ? rightCard.getButton("network") : null
-                if (btn) setPopoutPos(btn)
-                pushView("network")
-            } else {
-                popView("network")
-            }
-            updateActiveView()
-        }
-
-        function onShowSystemMonitorChanged() {
-            if (Config.showSystemMonitor) {
-                closeOthers("systemMonitor")
-                let btn = rightCard ? rightCard.getButton("sys") : null
-                if (btn) setPopoutPos(btn)
-                pushView("systemMonitor")
-            } else {
-                popView("systemMonitor")
-            }
-            updateActiveView()
-        }
-
-        function onShowBatteryChanged() {
-            if (Config.showBattery) {
-                closeOthers("battery")
-                let btn = rightCard ? rightCard.getButton("batt") : null
-                if (btn) setPopoutPos(btn)
-                pushView("battery")
-            } else {
-                popView("battery")
-            }
-            updateActiveView()
-        }
-
-        function onShowClipboardChanged() {
-            if (Config.showClipboard) {
-                closeOthers("clipboard")
-                let btn = rightCard ? rightCard.getButton("clipboard") : null
-                if (btn) setPopoutPos(btn)
-                pushView("clipboard")
-            } else {
-                popView("clipboard")
-            }
-            updateActiveView()
-        }
-
-        function onShowScreenRecorderChanged() {
-            if (Config.showScreenRecorder) {
-                closeOthers("screenRecorder")
-                let btn = leftCard ? leftCard.getButton("recorder") : null
-                if (btn) setPopoutPos(btn)
-                pushView("screenRecorder")
-            } else {
-                popView("screenRecorder")
-            }
-            updateActiveView()
-        }
-
-        function onShowControlCenterChanged() {
-            if (Config.showControlCenter) {
-                closeOthers("controlCenter")
-                let btn = rightCard ? rightCard.getButton("cc") : null
-                if (btn) setPopoutPos(btn)
-                pushView("controlCenter")
-            } else {
-                popView("controlCenter")
-            }
-            updateActiveView()
-        }
+        function onShowAppLauncherChanged() { if (Config.showAppLauncher) { closeOthers("appLauncher"); let btn = leftCard ? leftCard.getButton("launcher") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowPowerChanged() { if (Config.showPower) { closeOthers("power"); let btn = leftCard ? leftCard.getButton("power") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowWallpaperChanged() { if (Config.showWallpaper) { closeOthers("wallpaper"); let btn = leftCard ? leftCard.getButton("wallpaper") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowCalendarChanged() { if (Config.showCalendar) { closeOthers("calendar"); let btn = rightCard ? rightCard.getButton("clock") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowNotificationsChanged() { if (Config.showNotifications) { closeOthers("notifications"); let btn = leftCard ? leftCard.getButton("notifications") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowAudioChanged() { if (Config.showAudio) { closeOthers("audio"); let btn = rightCard ? rightCard.getButton("audio") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowNetworkChanged() { if (Config.showNetwork) { closeOthers("network"); let btn = rightCard ? rightCard.getButton("network") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowSystemMonitorChanged() { if (Config.showSystemMonitor) { closeOthers("systemMonitor"); let btn = rightCard ? rightCard.getButton("sys") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowBatteryChanged() { if (Config.showBattery) { closeOthers("battery"); let btn = rightCard ? rightCard.getButton("batt") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowClipboardChanged() { if (Config.showClipboard) { closeOthers("clipboard"); let btn = rightCard ? rightCard.getButton("clipboard") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowScreenRecorderChanged() { if (Config.showScreenRecorder) { closeOthers("screenRecorder"); let btn = leftCard ? leftCard.getButton("recorder") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowControlCenterChanged() { if (Config.showControlCenter) { closeOthers("controlCenter"); let btn = rightCard ? rightCard.getButton("cc") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
     }
 
     Item {
@@ -814,7 +616,7 @@ PanelWindow {
                     PathLine { x: root.isLeftFlush ? root.halfB : root.pLeft; y: root.isLeftFlush ? (root.halfB + root.barRadius) : (root.barBottomY + root.wingH) }
                     PathCubic { x: root.isLeftFlush ? root.halfB : (root.pLeft - root.wingW); y: root.isLeftFlush ? (root.halfB + root.barRadius) : root.barBottomY; control1X: root.isLeftFlush ? root.halfB : root.pLeft; control1Y: root.isLeftFlush ? (root.halfB + root.barRadius) : (root.barBottomY + (root.wingH * 0.5)); control2X: root.isLeftFlush ? root.halfB : (root.pLeft - (root.wingW * 0.5)); control2Y: root.isLeftFlush ? (root.halfB + root.barRadius) : root.barBottomY }
                     PathLine { x: root.isLeftFlush ? root.halfB : (root.halfB + root.barRadius); y: root.isLeftFlush ? (root.halfB + root.barRadius) : root.barBottomY }
-                    PathArc { x: root.halfB; y: root.isLeftFlush ? 0 : (root.barBottomY - root.barRadius); radiusX: root.isLeftFlush ? 0 : root.barRadius; radiusY: root.isLeftFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
+                    PathArc { x: root.halfB; y: root.isLeftFlush ? (root.halfB + root.barRadius) : (root.barBottomY - root.barRadius); radiusX: root.isLeftFlush ? 0 : root.barRadius; radiusY: root.isLeftFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
                     PathLine { x: root.halfB; y: root.halfB + root.barRadius }
                     PathArc { x: root.halfB + root.barRadius; y: root.halfB; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
                 }
@@ -1155,7 +957,7 @@ PanelWindow {
                     anchors.fill: parent; visible: root.isLeftFlush
                     ShapePath {
                         fillColor: "transparent"; strokeWidth: root.borderWidth; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
-                        startX: root.inX + root.inW - root.inRadi; startY: root.inY + root.halfB
+                        startX: root.inX + root.inRadi; startY: root.inY + root.halfB
                         PathArc { x: root.inX + root.inW - root.halfB; y: root.inY + root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                         PathLine { x: root.inX + root.inW - root.halfB; y: root.inY + root.inH - root.inRadi }
                         PathArc { x: root.inX + root.inW - root.inRadi; y: root.inY + root.inH - root.halfB; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
@@ -1184,7 +986,7 @@ PanelWindow {
                         PathArc { x: root.inX + root.inW - root.halfB; y: root.inY + root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                         
                         PathLine { x: root.inX + root.inW - root.halfB; y: root.pLeft - root.wingW } 
-                        PathCubic { x: root.inX + root.inW - root.halfB - root.wingW; y: root.pLeft; control1X: root.inX + root.inW - root.halfB; control1Y: root.pLeft - root.wingW * 0.5; control2X: root.inX + root.inW - root.wingW * 0.5; control2Y: root.pLeft }
+                        PathCubic { x: root.inX + root.inW - root.halfB - root.wingW; y: root.pLeft; control1X: root.inX + root.inW - root.halfB; control1Y: root.pLeft - root.wingW * 0.5; control2X: root.inX + root.inW - root.halfB - root.wingW * 0.5; control2Y: root.pLeft }
                         
                         PathLine { x: root.rightBarPopL + root.radius; y: root.pLeft } 
                         PathArc { x: root.rightBarPopL; y: root.pLeft + root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Counterclockwise } 
