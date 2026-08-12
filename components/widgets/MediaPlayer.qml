@@ -63,17 +63,10 @@ Item {
                     return Config.barPosition !== "left" && Config.barPosition !== "right";
                 }
 
+                // Inline Comment: Single pass-through call matching Mirror.qml
                 function cycleAnchor(direction) {
-                    if (typeof Config.cyclePlayerAnchor !== "function") return;
-
-                    Config.cyclePlayerAnchor(direction);
-
-                    if (direction === "left") {
-                        Config.cyclePlayerAnchor("prev");
-                        Config.cyclePlayerAnchor("up");
-                    } else if (direction === "right") {
-                        Config.cyclePlayerAnchor("next");
-                        Config.cyclePlayerAnchor("down");
+                    if (typeof Config.cyclePlayerAnchor === "function") {
+                        Config.cyclePlayerAnchor(direction);
                     }
                 }
 
@@ -85,9 +78,7 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         text: anchorControls.isHorizontal ? "keyboard_arrow_left" : "keyboard_arrow_up"
-                        color: (anchorControls.isHorizontal 
-                            ? (Config.playerAnchorPos === "left" || Config.playerAnchorPos === "start" || Config.playerAnchorPos === "top") 
-                            : (Config.playerAnchorPos === "top"))
+                        color: (Config.playerAnchorPos === "top")
                             ? Config.accent 
                             : (prevHover.hovered ? Config.textMain : Config.textMuted)
                         font.family: "Material Symbols Outlined"
@@ -106,9 +97,7 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         text: anchorControls.isHorizontal ? "keyboard_arrow_right" : "keyboard_arrow_down"
-                        color: (anchorControls.isHorizontal 
-                            ? (Config.playerAnchorPos === "right" || Config.playerAnchorPos === "end" || Config.playerAnchorPos === "bottom") 
-                            : (Config.playerAnchorPos === "bottom"))
+                        color: (Config.playerAnchorPos === "bottom")
                             ? Config.accent 
                             : (nextHover.hovered ? Config.textMain : Config.textMuted)
                         font.family: "Material Symbols Outlined"
