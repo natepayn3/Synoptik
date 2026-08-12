@@ -531,9 +531,11 @@ QtObject {
         if (direction === "up" || direction === "left" || direction === "prev") {
             if (mirrorAnchorPos === "bottom") mirrorAnchorPos = "center"
             else if (mirrorAnchorPos === "center") mirrorAnchorPos = "top"
+            else mirrorAnchorPos = "bottom"
         } else if (direction === "down" || direction === "right" || direction === "next") {
             if (mirrorAnchorPos === "top") mirrorAnchorPos = "center"
             else if (mirrorAnchorPos === "center") mirrorAnchorPos = "bottom"
+            else mirrorAnchorPos = "top"
         }
     }
 

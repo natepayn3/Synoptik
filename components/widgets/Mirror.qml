@@ -8,6 +8,12 @@ import ".."
 
 Item {
     id: mirrorRoot
+    focus: true
+
+    Keys.onLeftPressed: (event) => { anchorControls.cycleAnchor(anchorControls.isHorizontal ? "left" : "up"); event.accepted = true }
+    Keys.onUpPressed: (event) => { anchorControls.cycleAnchor(anchorControls.isHorizontal ? "left" : "up"); event.accepted = true }
+    Keys.onRightPressed: (event) => { anchorControls.cycleAnchor(anchorControls.isHorizontal ? "right" : "down"); event.accepted = true }
+    Keys.onDownPressed: (event) => { anchorControls.cycleAnchor(anchorControls.isHorizontal ? "right" : "down"); event.accepted = true }
 
     implicitWidth: Config.mirrorExpanded ? 640 : 320
     implicitHeight: mainColumn.implicitHeight + (Config.cardMargin * 2)

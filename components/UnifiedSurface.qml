@@ -44,6 +44,25 @@ PanelWindow {
         }
     }
 
+    function updateMirrorPopoutPos() {
+        if (root.activeView !== "mirror") return
+
+        let screenCenter = isHorizontal 
+            ? (inX + (inW / 2.0)) 
+            : (inY + (inH / 2.0))
+
+        if (Config.mirrorAnchorPos === "top") {
+            if (isHorizontal) root.popoutXOffset = inX + (rawChildWidth / 2.0) + 12
+            else root.popoutYOffset = inY + (rawChildHeight / 2.0) + 12
+        } else if (Config.mirrorAnchorPos === "bottom") {
+            if (isHorizontal) root.popoutXOffset = (inX + inW) - (rawChildWidth / 2.0) - 12
+            else root.popoutYOffset = (inY + inH) - (rawChildHeight / 2.0) - 12
+        } else {
+            if (isHorizontal) root.popoutXOffset = screenCenter
+            else root.popoutYOffset = screenCenter
+        }
+    }
+
     readonly property real shadowPadding: 16
 
     readonly property string barPosition: Config.barPosition || "top"
@@ -298,6 +317,8 @@ PanelWindow {
         // Snap popout offset to the active button position or anchor mode
         if (activeView === "player") {
             updatePlayerPopoutPos()
+        } else if (activeView === "mirror") {
+            updateMirrorPopoutPos()
         } else if (btn) {
             setPopoutPos(btn)
         }
@@ -444,7 +465,18 @@ PanelWindow {
         function onShowBatteryChanged() { if (Config.showBattery) { closeOthers("battery"); let btn = rightCard ? rightCard.getButton("batt") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowClipboardChanged() { if (Config.showClipboard) { closeOthers("clipboard"); let btn = rightCard ? rightCard.getButton("clipboard") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowScreenRecorderChanged() { if (Config.showScreenRecorder) { closeOthers("screenRecorder"); let btn = leftCard ? leftCard.getButton("recorder") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
-        function onShowMirrorChanged() { if (Config.showMirror) { closeOthers("mirror"); let btn = leftCard ? leftCard.getButton("mirror") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowMirrorChanged() {
+            if (Config.showMirror) {
+                closeOthers("mirror")
+                updateMirrorPopoutPos()
+            }
+            updateActiveView()
+        }
+        function onMirrorAnchorPosChanged() {
+            if (activeView === "mirror") {
+                updateMirrorPopoutPos()
+            }
+        }
         function onShowControlCenterChanged() { if (Config.showControlCenter) { closeOthers("controlCenter"); let btn = rightCard ? rightCard.getButton("cc") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
     }
 
