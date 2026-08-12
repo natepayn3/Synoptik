@@ -97,6 +97,8 @@ QtObject {
 
     readonly property bool isConnecting: isLoadingStream || (embeddedStreamUrl !== "" && inlinePlayer.playbackState !== MediaPlayer.PlayingState)
 
+    readonly property string cookiePath: Quickshell.configDir + "/cookies.txt"
+
     // Global background player and audio output
     property MediaPlayer inlinePlayer: MediaPlayer {
         id: globalPlayer
@@ -221,7 +223,7 @@ QtObject {
         if (isMusicTrack) {
             let trackTarget = "https://music.youtube.com/watch?v=" + vidId
             let cmd = 'mkdir -p /tmp/synoptik_media; ' +
-                      'set -l out (yt-dlp --no-simulate --print "%(title)s\n%(thumbnail)s\n%(ext)s" --cookies ~/cookies.txt --extractor-args "youtube:player_client=android_music,web_music,mweb,default" -f "bestaudio[ext=m4a]/ba" -o "/tmp/synoptik_media/%(id)s.%(ext)s" "' + trackTarget + '" 2>/dev/null); ' +
+                      'set -l out (yt-dlp --no-simulate --print "%(title)s\n%(thumbnail)s\n%(ext)s" --cookies "' + root.cookiePath + '" --extractor-args "youtube:player_client=android_music,web_music,mweb,default" -f "bestaudio[ext=m4a]/ba" -o "/tmp/synoptik_media/%(id)s.%(ext)s" "' + trackTarget + '" 2>/dev/null); ' +
                       'if test -n "$out"; ' +
                       '  set -l fp "/tmp/synoptik_media/' + vidId + '.$out[-1]"; ' +
                       '  if test -f "$fp"; ' +
@@ -231,7 +233,7 @@ QtObject {
             prefetchExtractor.command = ["fish", "-c", envPrefix + cmd]
         } else {
             let trackTarget = "https://www.youtube.com/watch?v=" + vidId
-            let cmd = 'set -l out (yt-dlp --print "%(title)s\n%(thumbnail)s\n%(url)s" --cookies ~/cookies.txt -f "b/best" "' + trackTarget + '" 2>/dev/null); ' +
+            let cmd = 'set -l out (yt-dlp --print "%(title)s\n%(thumbnail)s\n%(url)s" --cookies "' + root.cookiePath + '" -f "b/best" "' + trackTarget + '" 2>/dev/null); ' +
                       'if test -n "$out"; ' +
                       '  echo "$out[1]"; echo "$out[2]"; echo "$out[-1]"; ' +
                       'end'
@@ -279,7 +281,7 @@ QtObject {
         if (isMusicTrack) {
             let trackTarget = "https://music.youtube.com/watch?v=" + vidId
             let cmd = 'mkdir -p /tmp/synoptik_media; ' +
-                      'set -l out (yt-dlp --no-simulate --print "%(title)s\n%(thumbnail)s\n%(ext)s" --cookies ~/cookies.txt --extractor-args "youtube:player_client=android_music,web_music,mweb,default" -f "bestaudio[ext=m4a]/ba" -o "/tmp/synoptik_media/%(id)s.%(ext)s" "' + trackTarget + '" 2>/dev/null); ' +
+                      'set -l out (yt-dlp --no-simulate --print "%(title)s\n%(thumbnail)s\n%(ext)s" --cookies "' + root.cookiePath + '" --extractor-args "youtube:player_client=android_music,web_music,mweb,default" -f "bestaudio[ext=m4a]/ba" -o "/tmp/synoptik_media/%(id)s.%(ext)s" "' + trackTarget + '" 2>/dev/null); ' +
                       'if test -n "$out"; ' +
                       '  set -l fp "/tmp/synoptik_media/' + vidId + '.$out[-1]"; ' +
                       '  if test -f "$fp"; ' +
@@ -289,7 +291,7 @@ QtObject {
             streamExtractor.command = ["fish", "-c", envPrefix + cmd]
         } else {
             let trackTarget = "https://www.youtube.com/watch?v=" + vidId
-            let cmd = 'set -l out (yt-dlp --print "%(title)s\n%(thumbnail)s\n%(url)s" --cookies ~/cookies.txt -f "b/best" "' + trackTarget + '" 2>/dev/null); ' +
+            let cmd = 'set -l out (yt-dlp --print "%(title)s\n%(thumbnail)s\n%(url)s" --cookies "' + root.cookiePath + '" -f "b/best" "' + trackTarget + '" 2>/dev/null); ' +
                       'if test -n "$out"; ' +
                       '  echo "$out[1]"; echo "$out[2]"; echo "$out[-1]"; ' +
                       'end'
