@@ -46,47 +46,77 @@ Item {
                 elide: Text.ElideRight
             }
 
-            // STACKED VERTICAL ANCHOR ARROWS
-            ColumnLayout {
-                spacing: 4
+            // DYNAMIC ORIENTATION ANCHOR ARROWS
+            GridLayout {
+                id: anchorControls
+                columns: isHorizontal ? 2 : 1
+                rows: isHorizontal ? 1 : 2
+                columnSpacing: 4
+                rowSpacing: 4
                 Layout.alignment: Qt.AlignVCenter
 
-                // UP ARROW
-                Rectangle {
-                    implicitWidth: 20; implicitHeight: 20; radius: 10
-                    color: upHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "keyboard_arrow_up"
-                        color: (Config.playerAnchorPos === "top") 
-                            ? Config.accent 
-                            : (upHover.hovered ? Config.textMain : Config.textMuted)
-                        font.family: "Material Symbols Outlined"
-                        font.pixelSize: 20
-                    }
-
-                    TapHandler { onTapped: Config.cyclePlayerAnchor("up") }
-                    HoverHandler { id: upHover; cursorShape: Qt.PointingHandCursor }
+                readonly property bool isHorizontal: {
+                    if (typeof Config.isHorizontal !== "undefined") return !!Config.isHorizontal;
+                    if (typeof Config.barPosition !== "undefined") return Config.barPosition === "top" || Config.barPosition === "bottom";
+                    if (typeof Config.isBarHorizontal !== "undefined") return !!Config.isBarHorizontal;
+                    if (typeof Config.orientation !== "undefined") return Config.orientation === Qt.Horizontal || Config.orientation === "horizontal";
+                    return Config.barPosition !== "left" && Config.barPosition !== "right";
                 }
 
-                // DOWN ARROW
+                function cycleAnchor(direction) {
+                    if (typeof Config.cyclePlayerAnchor !== "function") return;
+
+                    Config.cyclePlayerAnchor(direction);
+
+                    if (direction === "left") {
+                        Config.cyclePlayerAnchor("prev");
+                        Config.cyclePlayerAnchor("up");
+                    } else if (direction === "right") {
+                        Config.cyclePlayerAnchor("next");
+                        Config.cyclePlayerAnchor("down");
+                    }
+                }
+
+                // LEFT / UP ARROW
                 Rectangle {
                     implicitWidth: 20; implicitHeight: 20; radius: 10
-                    color: downHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                    color: prevHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
                     Text {
                         anchors.centerIn: parent
-                        text: "keyboard_arrow_down"
-                        color: (Config.playerAnchorPos === "bottom") 
+                        text: anchorControls.isHorizontal ? "keyboard_arrow_left" : "keyboard_arrow_up"
+                        color: (anchorControls.isHorizontal 
+                            ? (Config.playerAnchorPos === "left" || Config.playerAnchorPos === "start" || Config.playerAnchorPos === "top") 
+                            : (Config.playerAnchorPos === "top"))
                             ? Config.accent 
-                            : (downHover.hovered ? Config.textMain : Config.textMuted)
+                            : (prevHover.hovered ? Config.textMain : Config.textMuted)
                         font.family: "Material Symbols Outlined"
                         font.pixelSize: 20
                     }
 
-                    TapHandler { onTapped: Config.cyclePlayerAnchor("down") }
-                    HoverHandler { id: downHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: anchorControls.cycleAnchor(anchorControls.isHorizontal ? "left" : "up") }
+                    HoverHandler { id: prevHover; cursorShape: Qt.PointingHandCursor }
+                }
+
+                // RIGHT / DOWN ARROW
+                Rectangle {
+                    implicitWidth: 20; implicitHeight: 20; radius: 10
+                    color: nextHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: anchorControls.isHorizontal ? "keyboard_arrow_right" : "keyboard_arrow_down"
+                        color: (anchorControls.isHorizontal 
+                            ? (Config.playerAnchorPos === "right" || Config.playerAnchorPos === "end" || Config.playerAnchorPos === "bottom") 
+                            : (Config.playerAnchorPos === "bottom"))
+                            ? Config.accent 
+                            : (nextHover.hovered ? Config.textMain : Config.textMuted)
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 20
+                    }
+
+                    TapHandler { onTapped: anchorControls.cycleAnchor(anchorControls.isHorizontal ? "right" : "down") }
+                    HoverHandler { id: nextHover; cursorShape: Qt.PointingHandCursor }
                 }
             }
 
@@ -235,7 +265,6 @@ Item {
             border.color: dropHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
             visible: Config.savedUrls && Config.savedUrls.length > 0
             
-            // Elevate the bar above subsequent canvas elements to float the child overlay cleanly
             z: 100
 
             property bool expanded: false
@@ -285,14 +314,10 @@ Item {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 
-                // Deterministic height calculation avoids QML layout engine collapsing the container
                 height: Math.min((Config.savedUrls.length * 36) + 4, 184)
                 
                 radius: Config.cornerRadius / 2
-                
-                // Matches your theme and transparency settings
                 color: Config.bgPanel 
-                
                 border.width: 1
                 border.color: Config.accent
                 clip: true
@@ -349,12 +374,12 @@ Item {
 
                                     Rectangle {
                                         implicitWidth: 24; implicitHeight: 24; radius: 12
-                                        color: deleteBtnHover.hovered ? Qt.rgba(239, 68, 68, 0.3) : "transparent"
+                                        color: deleteBtnHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
                                         
                                         Text {
                                             anchors.centerIn: parent
                                             text: "close"
-                                            color: deleteBtnHover.hovered ? "#ef4444" : Config.textMuted
+                                            color: deleteBtnHover.hovered ? Config.accent : Config.textMuted
                                             font.family: "Material Symbols Outlined"
                                             font.pixelSize: 14
                                         }
@@ -374,17 +399,22 @@ Item {
 
         // MEDIA DISPLAY CANVAS
         Rectangle {
+            id: mediaCanvas
             Layout.fillWidth: true
             implicitHeight: Config.playerExpanded ? 440 : 220
             radius: Config.cornerRadius / 2
             color: Qt.rgba(0, 0, 0, 0.35)
             clip: true
             
-            // Re-order index underneath the dropdown elements
             z: 1
 
             Behavior on implicitHeight {
                 NumberAnimation { duration: 200; easing.type: Easing.InOutQuad }
+            }
+
+            // HOVER DETECTOR FOR CANVAS OVERLAYS
+            HoverHandler {
+                id: canvasHover
             }
 
             // ALBUM ART BACKGROUND
@@ -399,7 +429,6 @@ Item {
             VideoOutput {
                 id: inlineVideo
                 anchors.fill: parent
-                // PreserveAspectFit ensures the entire video remains visible without cropping
                 fillMode: Config.playerKeepAspect ? VideoOutput.PreserveAspectFit : VideoOutput.Stretch
                 visible: Config.inlinePlayer.playbackState === MediaPlayer.PlayingState && Config.inlinePlayer.hasVideo
             }
@@ -443,13 +472,120 @@ Item {
                 }
             }
 
-            // CONTROLS OVERLAY
+            // VERTICAL RIGHT-SIDE VOLUME OVERLAY
+            ColumnLayout {
+                id: volumeOverlay
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                anchors.margins: 12
+                spacing: 8
+                z: 10
+                visible: (Config.inlinePlayer.playbackState !== MediaPlayer.StoppedState || Config.isConnecting) && canvasHover.hovered
+
+                property var audio: Config.inlinePlayer.audioOutput
+
+                // VOLUME PERCENTAGE READOUT (TOP)
+                Text {
+                    text: volumeOverlay.audio ? Math.round((volumeOverlay.audio.muted ? 0 : volumeOverlay.audio.volume) * 100) + "%" : "100%"
+                    color: Config.textMuted
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontMicro)
+                    Layout.alignment: Qt.AlignHCenter
+                }
+
+                // VERTICAL VOLUME SLIDER TRACK CONTAINER (MIDDLE)
+                Item {
+                    Layout.fillHeight: true
+                    implicitWidth: 20
+                    Layout.alignment: Qt.AlignHCenter
+
+                    Rectangle {
+                        id: volumeTrack
+                        anchors.centerIn: parent
+                        width: 6
+                        height: parent.height
+                        radius: 3
+                        color: Qt.rgba(0, 0, 0, 0.4)
+
+                        // ACTIVE VOLUME FILL BAR
+                        Rectangle {
+                            id: volumeFill
+                            anchors.bottom: parent.bottom
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            height: (volumeOverlay.audio && !volumeOverlay.audio.muted) ? volumeOverlay.audio.volume * parent.height : 0
+                            radius: 3
+                            color: Config.accent
+                        }
+
+                        // THICK HORIZONTAL LINE SLIDER KNOB
+                        Rectangle {
+                            id: volumeKnob
+                            width: 16
+                            height: 8
+                            radius: height / 2
+                            color: "#ffffff"
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            y: Math.max(0, Math.min(volumeTrack.height - height, (volumeTrack.height - volumeFill.height) - (height / 2)))
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+
+                        function updateVolume(mouseY) {
+                            if (volumeOverlay.audio) {
+                                let trackH = volumeTrack.height
+                                let clampedY = Math.max(0, Math.min(trackH, mouseY))
+                                let vol = Math.max(0, Math.min(1, (trackH - clampedY) / trackH))
+                                volumeOverlay.audio.volume = vol
+                                if (vol > 0) volumeOverlay.audio.muted = false
+                            }
+                        }
+
+                        onPressed: (mouse) => updateVolume(mouse.y)
+                        onPositionChanged: (mouse) => { if (pressed) updateVolume(mouse.y) }
+                    }
+                }
+
+                // INTERACTIVE MUTE ICON (BOTTOM)
+                Rectangle {
+                    implicitWidth: 28; implicitHeight: 28; radius: 14
+                    color: muteHover.hovered ? Qt.rgba(0, 0, 0, 0.6) : Qt.rgba(0, 0, 0, 0.35)
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: {
+                            if (!volumeOverlay.audio || volumeOverlay.audio.muted || volumeOverlay.audio.volume === 0) return "volume_off"
+                            if (volumeOverlay.audio.volume < 0.5) return "volume_down"
+                            return "volume_up"
+                        }
+                        color: Config.accent
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 18
+                    }
+
+                    TapHandler {
+                        onTapped: {
+                            if (volumeOverlay.audio) {
+                                volumeOverlay.audio.muted = !volumeOverlay.audio.muted
+                            }
+                        }
+                    }
+                    HoverHandler { id: muteHover; cursorShape: Qt.PointingHandCursor }
+                }
+            }
+
+            // BOTTOM CONTROLS OVERLAY
             ColumnLayout {
                 anchors.bottom: parent.bottom
                 anchors.left: parent.left; anchors.right: parent.right
-                anchors.margins: 12
+                anchors.rightMargin: 48 
+                anchors.leftMargin: 12; anchors.bottomMargin: 12
                 spacing: 8
-                visible: Config.inlinePlayer.playbackState !== MediaPlayer.StoppedState || Config.isConnecting
+                visible: (Config.inlinePlayer.playbackState !== MediaPlayer.StoppedState || Config.isConnecting) && canvasHover.hovered
 
                 // TRACK PROGRESS BAR
                 RowLayout {
@@ -473,16 +609,30 @@ Item {
                     }
 
                     Rectangle {
+                        id: progressTrack
                         Layout.fillWidth: true
                         implicitHeight: 6
                         radius: 3
                         color: Qt.rgba(255, 255, 255, 0.2)
 
                         Rectangle {
+                            id: progressFill
                             width: Config.inlinePlayer.duration > 0 ? (Config.inlinePlayer.position / Config.inlinePlayer.duration) * parent.width : 0
                             height: parent.height
                             radius: 3
                             color: Config.accent
+                        }
+
+                        // THICK VERTICAL LINE SLIDER KNOB
+                        Rectangle {
+                            id: progressKnob
+                            width: 8
+                            height: 16
+                            radius: height / 2
+                            color: "#ffffff"
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: Math.max(0, Math.min(progressTrack.width - width, progressFill.width - (width / 2)))
+                            visible: Config.inlinePlayer.duration > 0
                         }
 
                         MouseArea {
@@ -561,7 +711,7 @@ Item {
 
                     Text {
                         text: "stop_circle"
-                        color: "#ef4444"
+                        color: Config.accent
                         font.family: "Material Symbols Outlined"
                         font.pixelSize: 32
                         opacity: (Config.embeddedStreamUrl !== "" || Config.isLoadingStream) ? 1.0 : 0.4
