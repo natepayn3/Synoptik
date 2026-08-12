@@ -194,7 +194,7 @@ QtObject {
                     }
                     root.inlinePlayer.play()
 
-                    // Trigger silent prefetch for next track buffer
+                    // Trigger silent prefetch for next track
                     if (root.currentPlaylist.length > 0 && root.activePlaylistIndex < root.currentPlaylist.length - 1) {
                         root.prefetchTrack(root.activePlaylistIndex + 1)
                     }
@@ -213,17 +213,39 @@ QtObject {
         prefetchThumbnail = ""
         
         let track = currentPlaylist[index]
-        let cmd = 'mkdir -p /tmp/synoptik_media; ' +
-                  'set -l out (yt-dlp --no-simulate --print "%(thumbnail)s\n%(ext)s" --cookies ~/cookies.txt --extractor-args "youtube:player_client=android,web,android_music,web_music,mweb,default" -f "bestaudio[ext=m4a]/ba" -o "/tmp/synoptik_media/%(id)s.%(ext)s" "https://music.youtube.com/watch?v=' + track.id + '" 2>/dev/null); ' +
-                  'if test -n "$out"; ' +
-                  '  set -l fp "/tmp/synoptik_media/' + track.id + '.$out[-1]"; ' +
-                  '  if test -f "$fp"; ' +
-                  '    echo "$out[1]"; echo "file://$fp"; ' +
-                  '  end; ' +
-                  'end'
-                  
+
+        // Extract raw 11-char ID
+        let vidId = track.id
+        if (vidId.startsWith("http")) {
+            let match = vidId.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)
+            if (match && match[1]) vidId = match[1]
+        }
+
+        let isMusicTrack = track.isMusic || activeChannelName.includes("music.youtube.com")
         let envPrefix = "set -x AV_LOG_FORCE_NOCOLOR 1; set -x FFREPORT quiet; set -x QT_LOGGING_RULES '*.debug=false;qt.multimedia*=false'; "
-        prefetchExtractor.command = ["fish", "-c", envPrefix + cmd]
+
+        if (isMusicTrack) {
+            // [MUSIC]: Download payload locally for gapless caching and stability
+            let trackTarget = "https://music.youtube.com/watch?v=" + vidId
+            let cmd = 'mkdir -p /tmp/synoptik_media; ' +
+                      'set -l out (yt-dlp --no-simulate --print "%(thumbnail)s\n%(ext)s" --cookies ~/cookies.txt --extractor-args "youtube:player_client=android_music,web_music,mweb,default" -f "bestaudio[ext=m4a]/ba" -o "/tmp/synoptik_media/%(id)s.%(ext)s" "' + trackTarget + '" 2>/dev/null); ' +
+                      'if test -n "$out"; ' +
+                      '  set -l fp "/tmp/synoptik_media/' + vidId + '.$out[-1]"; ' +
+                      '  if test -f "$fp"; ' +
+                      '    echo "$out[1]"; echo "file://$fp"; ' +
+                      '  end; ' +
+                      'end'
+            prefetchExtractor.command = ["fish", "-c", envPrefix + cmd]
+        } else {
+            // [VIDEO]: Extract standard HTTP URL for direct network rendering
+            let trackTarget = "https://www.youtube.com/watch?v=" + vidId
+            let cmd = 'set -l out (yt-dlp --print "%(thumbnail)s\n%(url)s" --cookies ~/cookies.txt -f "b/best" "' + trackTarget + '" 2>/dev/null); ' +
+                      'if test -n "$out"; ' +
+                      '  echo "$out[1]"; echo "$out[-1]"; ' +
+                      'end'
+            prefetchExtractor.command = ["fish", "-c", envPrefix + cmd]
+        }
+        
         prefetchExtractor.running = true
     }
 
@@ -233,6 +255,14 @@ QtObject {
             return
         }
         
+        let track = currentPlaylist[index]
+
+        let vidId = track.id
+        if (vidId.startsWith("http")) {
+            let match = vidId.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)
+            if (match && match[1]) vidId = match[1]
+        }
+
         if (index === prefetchIndex && prefetchStreamUrl !== "") {
             activePlaylistIndex = index
             activeStreamThumbnail = prefetchThumbnail
@@ -250,19 +280,32 @@ QtObject {
         isLoadingStream = true
         inlinePlayer.stop()
         if (prefetchExtractor.running) prefetchExtractor.running = false
-        
-        let track = currentPlaylist[index]
-        let cmd = 'mkdir -p /tmp/synoptik_media; ' +
-                  'set -l out (yt-dlp --no-simulate --print "%(thumbnail)s\n%(ext)s" --cookies ~/cookies.txt --extractor-args "youtube:player_client=android,web,android_music,web_music,mweb,default" -f "bestaudio[ext=m4a]/ba" -o "/tmp/synoptik_media/%(id)s.%(ext)s" "https://music.youtube.com/watch?v=' + track.id + '" 2>/dev/null); ' +
-                  'if test -n "$out"; ' +
-                  '  set -l fp "/tmp/synoptik_media/' + track.id + '.$out[-1]"; ' +
-                  '  if test -f "$fp"; ' +
-                  '    echo "$out[1]"; echo "file://$fp"; ' +
-                  '  end; ' +
-                  'end'
-        
+
+        let isMusicTrack = track.isMusic || activeChannelName.includes("music.youtube.com")
         let envPrefix = "set -x AV_LOG_FORCE_NOCOLOR 1; set -x FFREPORT quiet; set -x QT_LOGGING_RULES '*.debug=false;qt.multimedia*=false'; "
-        streamExtractor.command = ["fish", "-c", envPrefix + cmd]
+
+        if (isMusicTrack) {
+            // [MUSIC]: Download payload locally for gapless caching and stability
+            let trackTarget = "https://music.youtube.com/watch?v=" + vidId
+            let cmd = 'mkdir -p /tmp/synoptik_media; ' +
+                      'set -l out (yt-dlp --no-simulate --print "%(thumbnail)s\n%(ext)s" --cookies ~/cookies.txt --extractor-args "youtube:player_client=android_music,web_music,mweb,default" -f "bestaudio[ext=m4a]/ba" -o "/tmp/synoptik_media/%(id)s.%(ext)s" "' + trackTarget + '" 2>/dev/null); ' +
+                      'if test -n "$out"; ' +
+                      '  set -l fp "/tmp/synoptik_media/' + vidId + '.$out[-1]"; ' +
+                      '  if test -f "$fp"; ' +
+                      '    echo "$out[1]"; echo "file://$fp"; ' +
+                      '  end; ' +
+                      'end'
+            streamExtractor.command = ["fish", "-c", envPrefix + cmd]
+        } else {
+            // [VIDEO]: Extract standard HTTP URL for direct network rendering
+            let trackTarget = "https://www.youtube.com/watch?v=" + vidId
+            let cmd = 'set -l out (yt-dlp --print "%(thumbnail)s\n%(url)s" --cookies ~/cookies.txt -f "b/best" "' + trackTarget + '" 2>/dev/null); ' +
+                      'if test -n "$out"; ' +
+                      '  echo "$out[1]"; echo "$out[-1]"; ' +
+                      'end'
+            streamExtractor.command = ["fish", "-c", envPrefix + cmd]
+        }
+        
         streamExtractor.running = true
     }
 
@@ -308,14 +351,17 @@ QtObject {
                       'if test -n "$out"; echo "$out[1]"; echo "$out[2]"; echo "$out[-1]"; end'
             streamExtractor.command = ["fish", "-c", envPrefix + cmd]
             streamExtractor.running = true
+
+        } else if (cleanUrl.match(/(?:watch\?v=|youtu\.be\/|shorts\/)([a-zA-Z0-9_-]{11})/) && !cleanUrl.includes("list=")) {
+            let match = cleanUrl.match(/(?:watch\?v=|youtu\.be\/|shorts\/)([a-zA-Z0-9_-]{11})/)
+            let vidId = (match && match[1]) ? match[1] : cleanUrl
+            currentPlaylist = [{ id: vidId, title: cleanUrl, isMusic: cleanUrl.includes("music.youtube.com") }]
+            resolveTrack(0)
+
         } else {
-            if (currentPlaylist.length > 0 && !resetIndex) {
-                resolveTrack(activePlaylistIndex)
-            } else {
-                let cmd = 'yt-dlp --print "%(playlist_title,title)s|||%(id)s|||%(title)s" --flat-playlist "' + cleanUrl + '" 2>/dev/null'
-                playlistFetcher.command = ["fish", "-c", envPrefix + cmd]
-                playlistFetcher.running = true
-            }
+            let cmd = 'yt-dlp --print "%(playlist_title,title)s|||%(id)s|||%(title)s" --flat-playlist "' + cleanUrl + '" 2>/dev/null'
+            playlistFetcher.command = ["fish", "-c", envPrefix + cmd]
+            playlistFetcher.running = true
         }
     }
 
