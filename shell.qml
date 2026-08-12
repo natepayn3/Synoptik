@@ -50,11 +50,14 @@ ShellRoot {
         running: Config.showBorders
     }
 
-    // Dynamic Palette Interpolation
+    // Dynamic Palette Interpolation (Cached Color Instances)
+    readonly property color bStartColor: Qt.color(Config.borderStart)
+    readonly property color bEndColor: Qt.color(Config.borderEnd)
+
     readonly property color currentBorderColor: {
         if (!Config.showBorders) return "transparent"
-        let c1 = Qt.color(Config.borderStart)
-        let c2 = Qt.color(Config.borderEnd)
+        let c1 = bStartColor
+        let c2 = bEndColor
         let progress = (Math.sin(shellRoot.animOffset * Math.PI * 2) + 1.0) / 2.0
         
         return Qt.rgba(
@@ -120,7 +123,7 @@ ShellRoot {
     // Wi-Fi Status Query
     Process {
         id: wifiStateProc
-        command: ["fish", "-c", "nmcli radio wifi"]
+        command: ["nmcli", "radio", "wifi"]
         running: true
         stdout: StdioCollector {
             onStreamFinished: {
@@ -140,7 +143,7 @@ ShellRoot {
     Process {
         id: wifiActiveProc
         running: false
-        command: ["fish", "-c", "nmcli -t -f ACTIVE,SSID dev wifi"]
+        command: ["nmcli", "-t", "-f", "ACTIVE,SSID", "dev", "wifi"]
         stdout: StdioCollector {
             onStreamFinished: {
                 let text = this.text.trim()
@@ -187,7 +190,7 @@ ShellRoot {
     // Bluetooth Status Query
     Process {
         id: btStateProc
-        command: ["fish", "-c", "bluetoothctl show | grep -q 'Powered: yes' && echo 'ON' || echo 'OFF'"]
+        command: ["sh", "-c", "bluetoothctl show | grep -q 'Powered: yes' && echo 'ON' || echo 'OFF'"]
         running: true
         stdout: StdioCollector {
             onStreamFinished: {
@@ -209,16 +212,15 @@ ShellRoot {
         }
     }
 
-    // Global Status Poller Timer
+    // Global Status Poller Timer (5-second interval, audio is event-driven)
     Timer {
-        interval: 1000
+        interval: 5000
         running: true
         repeat: true
         triggeredOnStart: true
         onTriggered: {
             recordStatusProc.running = false; recordStatusProc.running = true
             wifiStateProc.running = false; wifiStateProc.running = true
-            audioStateProc.running = false; audioStateProc.running = true
             btStateProc.running = false; btStateProc.running = true
             vpnStateProc.running = false; vpnStateProc.running = true
             if (shellRoot.hasBattery) {
