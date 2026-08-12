@@ -18,6 +18,7 @@ Item {
 
     // Inline Comment: Initialize activeSection to match saved Config state
     property int activeSection: Config.lastSettingsSection
+    property bool isMaximized: false
     property bool visualsExpanded: false
     property bool connectivityExpanded: false
     property bool widgetsExpanded: false
@@ -86,7 +87,7 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         Config.showSettings = false
-                        mascotSettingsView.showBrowser = false
+                        if (mascotSettingsLoader.item) mascotSettingsLoader.item.showBrowser = false
                     }
                 }
                 HoverHandler { id: closeHover }
@@ -169,7 +170,6 @@ Item {
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: {
                                             settingsRoot.activeSection = modelData.id
-                                            mascotSettingsView.showBrowser = false
                                         }
                                     }
                                     HoverHandler { id: navHover }
@@ -225,7 +225,6 @@ Item {
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: {
                                             settingsRoot.activeSection = modelData.id
-                                            mascotSettingsView.showBrowser = false
                                         }
                                     }
                                     HoverHandler { id: navConnHover }
@@ -281,7 +280,6 @@ Item {
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: {
                                             settingsRoot.activeSection = modelData.id
-                                            mascotSettingsView.showBrowser = false
                                         }
                                     }
                                     HoverHandler { id: navWidgetsHover }
@@ -321,7 +319,6 @@ Item {
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: {
                                     settingsRoot.activeSection = 11
-                                    mascotSettingsView.showBrowser = false
                                 }
                             }
                             HoverHandler { id: shellNavHover }
@@ -428,7 +425,7 @@ Item {
                         }
                     }
 
-                    Loader { anchors.fill: parent; active: settingsRoot.activeSection === 8; visible: active; sourceComponent: MascotSettings {} }
+                    Loader { id: mascotSettingsLoader; anchors.fill: parent; active: settingsRoot.activeSection === 8; visible: active; sourceComponent: MascotSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 9; visible: active; sourceComponent: ClockSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 10; visible: active; sourceComponent: OskSettings {} }
 
