@@ -97,7 +97,7 @@ QtObject {
 
     readonly property bool isConnecting: isLoadingStream || (embeddedStreamUrl !== "" && inlinePlayer.playbackState !== MediaPlayer.PlayingState)
 
-    readonly property string cookiePath: Quickshell.configDir + "/cookies.txt"
+    readonly property string cookiePath: Quickshell.shellDir + "/cookies.txt"
 
     // Global background player and audio output
     property MediaPlayer inlinePlayer: MediaPlayer {
