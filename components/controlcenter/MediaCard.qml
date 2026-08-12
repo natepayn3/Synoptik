@@ -53,7 +53,7 @@ Rectangle {
                     to: 2 * Math.PI
                     duration: 20000
                     loops: Animation.Infinite
-                    running: root.mediaStatus === "Playing"
+                    running: root.visible && root.mediaStatus === "Playing"
                 }
 
                 onRotationAngleChanged: requestPaint()

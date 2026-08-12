@@ -347,7 +347,7 @@ Item {
 
     Timer {
         interval: 2000
-        running: cardRoot.hasHardware && cardRoot.isPowered && (cardHover.hovered || cardRoot.connectedDeviceName !== "")
+        running: cardRoot.visible && cardRoot.hasHardware && cardRoot.isPowered && (cardHover.hovered || cardRoot.connectedDeviceName !== "")
         repeat: true
         triggeredOnStart: true
         onTriggered: {

@@ -77,7 +77,7 @@ Rectangle {
     // Periodic status poller to detect manual pkill / terminal actions
     Timer {
         interval: 2000
-        running: root.hasHypridle
+        running: root.visible && root.hasHypridle
         repeat: true
         onTriggered: {
             if (!execProc.running && !checkStatusProc.running) {
