@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls
 import QtMultimedia
 import Quickshell
 import ".."
@@ -233,6 +234,9 @@ Item {
             border.width: 1
             border.color: dropHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
             visible: Config.savedUrls && Config.savedUrls.length > 0
+            
+            // Elevate the bar above subsequent canvas elements to float the child overlay cleanly
+            z: 100
 
             property bool expanded: false
 
@@ -272,67 +276,96 @@ Item {
 
             TapHandler { onTapped: sourceDropdownBar.expanded = !sourceDropdownBar.expanded }
             HoverHandler { id: dropHover; cursorShape: Qt.PointingHandCursor }
-        }
 
-        // DROPDOWN MENU LIST
-        ColumnLayout {
-            visible: sourceDropdownBar.expanded && Config.savedUrls && Config.savedUrls.length > 0
-            Layout.fillWidth: true
-            spacing: 4
+            // DROPDOWN MENU OVERLAY
+            Rectangle {
+                visible: sourceDropdownBar.expanded && Config.savedUrls && Config.savedUrls.length > 0
+                anchors.top: sourceDropdownBar.bottom
+                anchors.topMargin: 4
+                anchors.left: parent.left
+                anchors.right: parent.right
+                
+                // Deterministic height calculation avoids QML layout engine collapsing the container
+                height: Math.min((Config.savedUrls.length * 36) + 4, 184)
+                
+                radius: Config.cornerRadius / 2
+                
+                // Matches your theme and transparency settings
+                color: Config.bgPanel 
+                
+                border.width: 1
+                border.color: Config.accent
+                clip: true
 
-            Repeater {
-                model: Config.savedUrls
+                ScrollView {
+                    id: dropScroll
+                    anchors.fill: parent
+                    contentHeight: scrollContent.implicitHeight
+                    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                    ScrollBar.vertical.policy: ScrollBar.AsNeeded
 
-                delegate: Rectangle {
-                    required property var modelData
-                    required property int index
-                    
-                    property string itemUrl: typeof modelData === 'string' ? modelData : modelData.url
-                    property string itemTitle: typeof modelData === 'string' ? modelData : modelData.title
-                    
-                    Layout.fillWidth: true
-                    implicitHeight: 32
-                    radius: Config.cornerRadius / 2
-                    color: (Config.activeChannelName === itemUrl) ? Qt.rgba(255, 255, 255, 0.15) : (itemHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
+                    Column {
+                        id: scrollContent
+                        width: dropScroll.availableWidth 
+                        spacing: 4
+                        padding: 4
 
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 10; anchors.rightMargin: 6
+                        Repeater {
+                            model: Config.savedUrls
 
-                        Text {
-                            text: itemTitle
-                            color: (Config.activeChannelName === itemUrl) ? Config.accent : Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            font.bold: Config.activeChannelName === itemUrl
-                            Layout.fillWidth: true
-                            elide: Text.ElideRight
+                            delegate: Rectangle {
+                                required property var modelData
+                                required property int index
+                                
+                                property string itemUrl: typeof modelData === 'string' ? modelData : modelData.url
+                                property string itemTitle: typeof modelData === 'string' ? modelData : modelData.title
+                                
+                                width: scrollContent.width - 8
+                                implicitHeight: 32
+                                radius: Config.cornerRadius / 2
+                                color: (Config.activeChannelName === itemUrl) ? Qt.rgba(255, 255, 255, 0.15) : (itemHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : "transparent")
 
-                            TapHandler {
-                                onTapped: {
-                                    sourceDropdownBar.expanded = false
-                                    Config.loadDirectStream(itemUrl)
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 10; anchors.rightMargin: 6
+
+                                    Text {
+                                        text: itemTitle
+                                        color: (Config.activeChannelName === itemUrl) ? Config.accent : Config.textMain
+                                        font.family: Config.sysFont
+                                        font.pixelSize: Config.size(Config.fontCaption)
+                                        font.bold: Config.activeChannelName === itemUrl
+                                        Layout.fillWidth: true
+                                        elide: Text.ElideRight
+
+                                        TapHandler {
+                                            onTapped: {
+                                                sourceDropdownBar.expanded = false
+                                                Config.loadDirectStream(itemUrl)
+                                            }
+                                        }
+                                        HoverHandler { id: itemHover; cursorShape: Qt.PointingHandCursor }
+                                    }
+
+                                    Rectangle {
+                                        implicitWidth: 24; implicitHeight: 24; radius: 12
+                                        color: deleteBtnHover.hovered ? Qt.rgba(239, 68, 68, 0.3) : "transparent"
+                                        
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: "close"
+                                            color: deleteBtnHover.hovered ? "#ef4444" : Config.textMuted
+                                            font.family: "Material Symbols Outlined"
+                                            font.pixelSize: 14
+                                        }
+
+                                        TapHandler {
+                                            onTapped: Config.removeSavedUrl(index)
+                                        }
+                                        HoverHandler { id: deleteBtnHover; cursorShape: Qt.PointingHandCursor }
+                                    }
                                 }
                             }
-                            HoverHandler { id: itemHover; cursorShape: Qt.PointingHandCursor }
-                        }
-
-                        Rectangle {
-                            implicitWidth: 24; implicitHeight: 24; radius: 12
-                            color: deleteBtnHover.hovered ? Qt.rgba(239, 68, 68, 0.3) : "transparent"
-                            
-                            Text {
-                                anchors.centerIn: parent
-                                text: "close"
-                                color: deleteBtnHover.hovered ? "#ef4444" : Config.textMuted
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 14
-                            }
-
-                            TapHandler {
-                                onTapped: Config.removeSavedUrl(index)
-                            }
-                            HoverHandler { id: deleteBtnHover; cursorShape: Qt.PointingHandCursor }
                         }
                     }
                 }
@@ -346,6 +379,9 @@ Item {
             radius: Config.cornerRadius / 2
             color: Qt.rgba(0, 0, 0, 0.35)
             clip: true
+            
+            // Re-order index underneath the dropdown elements
+            z: 1
 
             Behavior on implicitHeight {
                 NumberAnimation { duration: 200; easing.type: Easing.InOutQuad }
@@ -363,7 +399,8 @@ Item {
             VideoOutput {
                 id: inlineVideo
                 anchors.fill: parent
-                fillMode: Config.playerKeepAspect ? VideoOutput.PreserveAspectCrop : VideoOutput.Stretch
+                // PreserveAspectFit ensures the entire video remains visible without cropping
+                fillMode: Config.playerKeepAspect ? VideoOutput.PreserveAspectFit : VideoOutput.Stretch
                 visible: Config.inlinePlayer.playbackState === MediaPlayer.PlayingState && Config.inlinePlayer.hasVideo
             }
 
