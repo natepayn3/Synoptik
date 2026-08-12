@@ -406,8 +406,10 @@ Item {
                                         fillMode: Image.PreserveAspectCrop
                                         sourceSize.width: 320
                                         sourceSize.height: 180
-                                        asynchronous: false
+                                        asynchronous: true
                                         cache: true
+                                        opacity: status === Image.Ready ? 1.0 : 0.0
+                                        Behavior on opacity { NumberAnimation { duration: 150 } }
                                     }
 
                                     Rectangle {
