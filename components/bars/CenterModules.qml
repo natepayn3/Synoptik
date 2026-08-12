@@ -76,31 +76,6 @@ Rectangle {
                 Layout.alignment: Qt.AlignVCenter
             }
 
-            // Media Player Icon (matches taskbar viewAppsBtn geometry and styling)
-            Rectangle {
-                implicitWidth: 28
-                implicitHeight: 28
-                radius: 8
-                color: (Config.showPlayer || playerHoverH.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-                Layout.alignment: Qt.AlignVCenter
-
-                Behavior on color { ColorAnimation { duration: 150 } }
-
-                Text {
-                    anchors.centerIn: parent
-                    text: Config.getIcon("player")
-                    color: Config.showPlayer ? Config.accent : Config.textMain
-                    font.family: "Material Symbols Outlined"
-                    font.weight: Font.Bold
-                    font.pixelSize: 18
-                }
-
-                TapHandler {
-                    onTapped: Config.showPlayer = !Config.showPlayer
-                }
-                HoverHandler { id: playerHoverH; cursorShape: Qt.PointingHandCursor }
-            }
-
             // Inline Comment: Direct instantiation guarantees instant rendering without 350ms blank state
             Taskbar {
                 id: taskbarHoriz
@@ -124,31 +99,6 @@ Rectangle {
             WorkspaceIndicators {
                 isVertical: true
                 Layout.alignment: Qt.AlignHCenter
-            }
-
-            // Media Player Icon (matches taskbar viewAppsBtn geometry and styling)
-            Rectangle {
-                implicitWidth: 28
-                implicitHeight: 28
-                radius: 8
-                color: (Config.showPlayer || playerHoverV.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-                Layout.alignment: Qt.AlignHCenter
-
-                Behavior on color { ColorAnimation { duration: 150 } }
-
-                Text {
-                    anchors.centerIn: parent
-                    text: Config.getIcon("player")
-                    color: Config.showPlayer ? Config.accent : Config.textMain
-                    font.family: "Material Symbols Outlined"
-                    font.weight: Font.Bold
-                    font.pixelSize: 18
-                }
-
-                TapHandler {
-                    onTapped: Config.showPlayer = !Config.showPlayer
-                }
-                HoverHandler { id: playerHoverV; cursorShape: Qt.PointingHandCursor }
             }
 
             // Inline Comment: Direct instantiation guarantees instant rendering without 350ms blank state

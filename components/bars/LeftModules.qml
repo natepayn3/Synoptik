@@ -67,7 +67,7 @@ Rectangle {
 
         Repeater {
             id: repeater
-            model: Config.leftCardOrder || ["power", "recorder", "mirror", "screenshot", "notifications", "wallpaper", "settings", "launcher"]
+            model: Config.leftCardOrder || ["power", "recorder", "mirror", "screenshot", "notifications", "player", "wallpaper", "settings", "launcher"]
 
             delegate: Loader {
                 readonly property string itemKey: modelData
@@ -82,6 +82,7 @@ Rectangle {
                         case "mirror": return mirrorComp
                         case "screenshot": return screenshotComp
                         case "notifications": return notifComp
+                        case "player": return playerComp
                         case "wallpaper": return wallpaperComp
                         case "settings": return settingsComp
                         case "launcher": return launcherComp
@@ -172,6 +173,38 @@ Rectangle {
             TapHandler { onTapped: { popoutRequested(btnRecorder); Config.showScreenRecorder = !Config.showScreenRecorder; } }
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("recorder") }
             HoverHandler { id: recordHover; cursorShape: Qt.PointingHandCursor }
+        }
+    }
+
+    Component {
+        id: playerComp
+        Rectangle {
+            id: btnPlayer
+            implicitWidth: 32
+            implicitHeight: 32
+            radius: 10
+            color: (Config.showPlayer || playerHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+            Behavior on color { ColorAnimation { duration: 150 } }
+
+            Text {
+                anchors.centerIn: parent
+                text: Config.getIcon("player")
+                color: Config.showPlayer ? Config.accent : Config.textMain
+                font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+            }
+
+            Rectangle {
+                anchors.top: parent.top; anchors.right: parent.right
+                anchors.topMargin: 2; anchors.rightMargin: 2
+                width: 5; height: 5; radius: 2.5
+                color: Config.accent
+                visible: !Config.leftCardCollapsed && Config.isPinned("player")
+            }
+
+            TapHandler { onTapped: { popoutRequested(btnPlayer); Config.showPlayer = !Config.showPlayer; } }
+            TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("player") }
+            HoverHandler { id: playerHover; cursorShape: Qt.PointingHandCursor }
         }
     }
 
