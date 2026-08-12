@@ -24,6 +24,30 @@ PanelWindow {
     property real popoutYOffset: actualScreenHeight / 2.0
     property bool isCentered: false
 
+    property Timer mirrorReopenTimer: Timer {
+        id: mirrorReopenTimer
+        interval: 120
+        repeat: false
+        onTriggered: {
+            if (Config.showMirror) {
+                updateMirrorPopoutPos()
+                root.isOpen = true
+            }
+        }
+    }
+
+    property Timer playerReopenTimer: Timer {
+        id: playerReopenTimer
+        interval: 120
+        repeat: false
+        onTriggered: {
+            if (Config.showPlayer) {
+                updatePlayerPopoutPos()
+                root.isOpen = true
+            }
+        }
+    }
+
     function updatePlayerPopoutPos() {
         if (root.activeView !== "player") return
 
@@ -443,7 +467,8 @@ PanelWindow {
         }
         function onPlayerAnchorPosChanged() {
             if (activeView === "player") {
-                updatePlayerPopoutPos()
+                root.isOpen = false
+                playerReopenTimer.restart()
             }
         }
         function onShowTaskOverflowChanged() {
@@ -474,7 +499,8 @@ PanelWindow {
         }
         function onMirrorAnchorPosChanged() {
             if (activeView === "mirror") {
-                updateMirrorPopoutPos()
+                root.isOpen = false
+                mirrorReopenTimer.restart()
             }
         }
         function onShowControlCenterChanged() { if (Config.showControlCenter) { closeOthers("controlCenter"); let btn = rightCard ? rightCard.getButton("cc") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
