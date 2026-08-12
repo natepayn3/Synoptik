@@ -149,12 +149,61 @@ QtObject {
         }
     }
 
+    property bool mirrorLoading: false
+    property string mirrorError: ""
+
+    property Timer mirrorActivateTimer: Timer {
+        id: mirrorActivateTimer
+        interval: 500
+        repeat: false
+        onTriggered: {
+            if (root.showMirror) {
+                if (globalMirrorCamera.cameraDevice) {
+                    globalMirrorCamera.applyRawFormat()
+                    mirrorReadyTimer.restart()
+                } else {
+                    root.mirrorLoading = false
+                    root.mirrorError = "No camera device found"
+                }
+            }
+        }
+    }
+
+    property Timer mirrorReadyTimer: Timer {
+        id: mirrorReadyTimer
+        interval: 500
+        repeat: false
+        onTriggered: {
+            if (root.showMirror && globalMirrorCamera.active) {
+                root.mirrorLoading = false
+            }
+        }
+    }
+
+    property Timer mirrorDeactivateTimer: Timer {
+        id: mirrorDeactivateTimer
+        interval: 500
+        repeat: false
+        onTriggered: {
+            if (!root.showMirror) {
+                globalMirrorCamera.active = false
+            }
+        }
+    }
+
     property Connections mirrorShowConnection: Connections {
         target: root
         function onShowMirrorChanged() {
-            if (globalMirrorCamera.cameraDevice) {
-                globalMirrorCamera.active = root.showMirror
-                if (root.showMirror) globalMirrorCamera.applyRawFormat()
+            if (root.showMirror) {
+                mirrorDeactivateTimer.stop()
+                root.mirrorLoading = true
+                root.mirrorError = ""
+                mirrorActivateTimer.restart()
+            } else {
+                mirrorActivateTimer.stop()
+                mirrorReadyTimer.stop()
+                root.mirrorLoading = false
+                mirrorDeactivateTimer.restart()
             }
         }
     }

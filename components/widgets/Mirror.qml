@@ -238,6 +238,58 @@ Item {
                 }
             }
 
+            // LOADING / ERROR OVERLAY
+            Rectangle {
+                id: loadingOverlay
+                anchors.fill: videoWrapper
+                color: Qt.rgba(15 / 255, 15 / 255, 18 / 255, 0.92)
+                z: 90
+                radius: Config.cornerRadius / 2
+                visible: opacity > 0
+                opacity: (Config.mirrorLoading || Config.mirrorError !== "") ? 1.0 : 0.0
+
+                Behavior on opacity {
+                    NumberAnimation { duration: 300; easing.type: Easing.InOutQuad }
+                }
+
+                ColumnLayout {
+                    anchors.centerIn: parent
+                    spacing: 10
+
+                    Item {
+                        Layout.alignment: Qt.AlignHCenter
+                        implicitWidth: 40
+                        implicitHeight: 40
+
+                        Text {
+                            id: spinnerIcon
+                            anchors.centerIn: parent
+                            text: Config.mirrorError !== "" ? "videocam_off" : "progress_activity"
+                            color: Config.mirrorError !== "" ? "#ff5555" : Config.accent
+                            font.family: "Material Symbols Outlined"
+                            font.pixelSize: 32
+
+                            RotationAnimation on rotation {
+                                from: 0
+                                to: 360
+                                duration: 1100
+                                loops: Animation.Infinite
+                                running: Config.mirrorLoading && Config.mirrorError === ""
+                            }
+                        }
+                    }
+
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: Config.mirrorError !== "" ? Config.mirrorError : "Loading..."
+                        color: Config.mirrorError !== "" ? "#ff8888" : Config.textMain
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontBody)
+                        font.bold: true
+                    }
+                }
+            }
+
             // SNAPSHOT FLASH OVERLAY
             Rectangle {
                 id: flashOverlay
