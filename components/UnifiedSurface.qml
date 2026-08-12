@@ -164,6 +164,16 @@ PanelWindow {
     property real lastOpenWidth: rawChildWidth
     property real lastOpenHeight: rawChildHeight
 
+    onRawChildWidthChanged: {
+        if (activeView === "mirror") updateMirrorPopoutPos()
+        if (activeView === "player") updatePlayerPopoutPos()
+    }
+
+    onRawChildHeightChanged: {
+        if (activeView === "mirror") updateMirrorPopoutPos()
+        if (activeView === "player") updatePlayerPopoutPos()
+    }
+
     function playOpenSound() {
         if (!Config.playWindowSounds || root.activeView === "notifOsd" || root.activeView === "osd") return
         let soundFile = Quickshell.shellDir.toString().replace(/^file:\/\//, "") + "/assets/" + (Config.windowSoundPath || "sound1.wav")
@@ -493,9 +503,11 @@ PanelWindow {
         function onShowMirrorChanged() {
             if (Config.showMirror) {
                 closeOthers("mirror")
-                updateMirrorPopoutPos()
             }
             updateActiveView()
+            if (Config.showMirror) {
+                updateMirrorPopoutPos()
+            }
         }
         function onMirrorAnchorPosChanged() {
             if (activeView === "mirror") {
