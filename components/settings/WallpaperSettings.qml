@@ -44,7 +44,10 @@ Flickable {
                 for (let i = 0; i < targets.length; i++) {
                     let mon = targets[i];
                     if (ext === "mp4" || ext === "webm") {
-                        script += "awww clear -o \"" + mon + "\" 2>/dev/null; pkill -f \"mpvpaper.*" + mon + "\"; mpvpaper -vs -o 'loop no-audio' \"" + mon + "\" '" + filePath + "' >/dev/null 2>&1 & disown; ";
+                        // Inline Comment: Pass panscan=1.0 and video-unscaled=no to fill/crop ultrawide displays
+                        script += "awww clear -o \"" + mon + "\" 2>/dev/null; ";
+                        script += "pkill -f 'mpvpaper' 2>/dev/null; ";
+                        script += "nohup mpvpaper -vs -o 'loop-file=inf no-audio panscan=1.0 video-unscaled=no' \"" + mon + "\" '" + filePath + "' >/dev/null 2>&1 & disown; ";
                     } else {
                         script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; ";
                         script += "awww img -o \"" + mon + "\" '" + filePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; ";
@@ -52,7 +55,8 @@ Flickable {
                 }
             } else {
                 if (ext === "mp4" || ext === "webm") {
-                    script += "awww kill 2>/dev/null; killall -9 -q awww-daemon; rm -f " + sockPath + "; mpvpaper -vs -o 'loop no-audio' '*' '" + filePath + "' >/dev/null 2>&1 & disown; ";
+                    script += "awww kill 2>/dev/null; killall -9 -q awww-daemon 2>/dev/null; rm -f " + sockPath + "; ";
+                    script += "nohup mpvpaper -vs -o 'loop-file=inf no-audio panscan=1.0 video-unscaled=no' '*' '" + filePath + "' >/dev/null 2>&1 & disown; ";
                 } else {
                     script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; ";
                     script += "awww img '" + filePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; ";
@@ -73,11 +77,6 @@ Flickable {
                 Config.applyIrisColors(filePath);
             }
         }
-    }
-
-    Process {
-        id: thumbGenerator
-        running: false
     }
 
     ColumnLayout {
@@ -320,11 +319,17 @@ Flickable {
                     readonly property string thumbPath: isVideo ? (Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + thumbName) : ""
                     readonly property string thumbUrl: isVideo ? ("file://" + thumbPath) : ""
 
+                    // Inline Comment: Per-delegate process prevents race condition collisions during thumbnail generation
+                    Process {
+                        id: delegateThumbGenerator
+                        running: false
+                    }
+
                     Component.onCompleted: {
                         if (isVideo) {
                             let cmd = "if not test -f '" + thumbPath + "'; ffmpeg -y -ss 00:00:00 -i '" + filePath + "' -frames:v 1 -vf 'scale=300:-1' '" + thumbPath + "' >/dev/null 2>&1; end";
-                            thumbGenerator.command = ["fish", "-c", cmd];
-                            thumbGenerator.running = true;
+                            delegateThumbGenerator.command = ["fish", "-c", cmd];
+                            delegateThumbGenerator.running = true;
                         }
                     }
 
