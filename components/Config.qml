@@ -65,11 +65,25 @@ QtObject {
     property real playerX: -1
     property real playerY: -1
 
+    // Vertical anchor position state for panel repositioning
+    property string playerAnchorPos: "center" // "top", "center", "bottom"
+
+    function cyclePlayerAnchor(direction) {
+        if (direction === "up") {
+            if (playerAnchorPos === "bottom") playerAnchorPos = "center"
+            else if (playerAnchorPos === "center") playerAnchorPos = "top"
+        } else if (direction === "down") {
+            if (playerAnchorPos === "top") playerAnchorPos = "center"
+            else if (playerAnchorPos === "center") playerAnchorPos = "bottom"
+        }
+    }
+
     onShowPlayerChanged: { if (isLoaded) saveSettings() }
     onPlayerShowPanelChanged: { if (isLoaded) saveSettings() }
     onPlayerKeepAspectChanged: { if (isLoaded) saveSettings() }
     onPlayerExpandedChanged: { if (isLoaded) saveSettings() }
     onPlayerPinnedChanged: { if (isLoaded) saveSettings() }
+    onPlayerAnchorPosChanged: { if (isLoaded) saveSettings() }
 
     // --- BACKGROUND MEDIA PLAYER ENGINE ---
     property string embeddedStreamUrl: ""
@@ -219,7 +233,6 @@ QtObject {
             return
         }
         
-        // Zero-Delay Instantiation via Local Cache
         if (index === prefetchIndex && prefetchStreamUrl !== "") {
             activePlaylistIndex = index
             activeStreamThumbnail = prefetchThumbnail
@@ -265,7 +278,6 @@ QtObject {
         }
     }
 
-    // Global stream loader
     function loadDirectStream(targetUrl, resetIndex = true) {
         if (!targetUrl || targetUrl.trim() === "") {
             stopStream()
@@ -307,7 +319,6 @@ QtObject {
         }
     }
 
-    // Global stream terminator
     function stopStream() {
         inlinePlayer.stop()
         embeddedStreamUrl = ""
@@ -1357,6 +1368,7 @@ QtObject {
                 "playerKeepAspect": root.playerKeepAspect,
                 "playerX": root.playerX,
                 "playerY": root.playerY,
+                "playerAnchorPos": root.playerAnchorPos,
 
                 "leftCardCollapsed": root.leftCardCollapsed,
                 "rightCardCollapsed": root.rightCardCollapsed,
@@ -1414,7 +1426,7 @@ QtObject {
                             "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides",
                             "playWindowSounds", "playNotificationSounds", "windowSoundPath", "notificationSoundPath",
                             "mirrorMirrored", "mirrorKeepAspect", "playerExpanded", "playerPinned",
-                            "playerShowPanel", "playerKeepAspect", "playerX", "playerY"
+                            "playerShowPanel", "playerKeepAspect", "playerX", "playerY", "playerAnchorPos"
                         ]
 
                         props.forEach(p => {

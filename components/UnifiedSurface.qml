@@ -24,6 +24,26 @@ PanelWindow {
     property real popoutYOffset: actualScreenHeight / 2.0
     property bool isCentered: false
 
+    function updatePlayerPopoutPos() {
+        if (root.activeView !== "player") return
+
+        let btn = centerGroupContainer ? centerGroupContainer.getButton("player") : null
+        let centerPos = btn 
+            ? (isHorizontal ? btn.mapToItem(mainContainer, btn.width / 2, 0).x : btn.mapToItem(mainContainer, 0, btn.height / 2).y) 
+            : (isHorizontal ? mainContainer.width / 2.0 : mainContainer.height / 2.0)
+
+        if (Config.playerAnchorPos === "top") {
+            if (isHorizontal) root.popoutXOffset = inX + (rawChildWidth / 2.0) + 12
+            else root.popoutYOffset = inY + (rawChildHeight / 2.0) + 12
+        } else if (Config.playerAnchorPos === "bottom") {
+            if (isHorizontal) root.popoutXOffset = (inX + inW) - (rawChildWidth / 2.0) - 12
+            else root.popoutYOffset = (inY + inH) - (rawChildHeight / 2.0) - 12
+        } else {
+            if (isHorizontal) root.popoutXOffset = centerPos
+            else root.popoutYOffset = centerPos
+        }
+    }
+
     readonly property real shadowPadding: 16
 
     readonly property string barPosition: Config.barPosition || "top"
@@ -274,10 +294,13 @@ PanelWindow {
             case "controlCenter":  btn = rightCard ? rightCard.getButton("cc") : null; break
         }
 
-        // Snap popout offset to the active button position
-        if (btn) setPopoutPos(btn)
+        // Snap popout offset to the active button position or anchor mode
+        if (activeView === "player") {
+            updatePlayerPopoutPos()
+        } else if (btn) {
+            setPopoutPos(btn)
+        }
     }
-
 
     function updateActiveView() {
         let nextView = "none"
@@ -386,10 +409,14 @@ PanelWindow {
         function onShowPlayerChanged() {
             if (Config.showPlayer) {
                 closeOthers("player")
-                let btn = centerGroupContainer ? centerGroupContainer.getButton("player") : null
-                if (btn) setPopoutPos(btn)
+                updatePlayerPopoutPos()
             }
             updateActiveView()
+        }
+        function onPlayerAnchorPosChanged() {
+            if (activeView === "player") {
+                updatePlayerPopoutPos()
+            }
         }
         function onShowTaskOverflowChanged() {
             if (Config.showTaskOverflow) {
