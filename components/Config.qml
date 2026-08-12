@@ -60,14 +60,15 @@ QtObject {
     property real playerX: -1
     property real playerY: -1
 
-    // Vertical anchor position state for panel repositioning
-    property string playerAnchorPos: "center" // "top", "center", "bottom"
+    // Inline Comment: Default position set to top/left ("top", "center", "bottom")
+    property string playerAnchorPos: "top"
 
+    // Inline Comment: Clean 3-state cycle handler matching cycleMirrorAnchor
     function cyclePlayerAnchor(direction) {
-        if (direction === "up") {
+        if (direction === "up" || direction === "left" || direction === "prev") {
             if (playerAnchorPos === "bottom") playerAnchorPos = "center"
             else if (playerAnchorPos === "center") playerAnchorPos = "top"
-        } else if (direction === "down") {
+        } else if (direction === "down" || direction === "right" || direction === "next") {
             if (playerAnchorPos === "top") playerAnchorPos = "center"
             else if (playerAnchorPos === "center") playerAnchorPos = "bottom"
         }
@@ -510,7 +511,7 @@ QtObject {
     onRightCardCollapsedChanged: { if (isLoaded) saveSettings() }
 
     // --- DYNAMIC MODULE ORDERING ---
-    property var leftCardOrder: ["power", "recorder", "mirror", "screenshot", "notifications", "wallpaper", "settings", "launcher"]
+    property var leftCardOrder: ["power", "recorder", "mirror", "screenshot", "notifications", "player", "wallpaper", "settings", "launcher"]
     property var rightCardOrder: ["audio", "sys", "batt", "cc", "network", "clipboard", "clock"]
 
     function moveModule(cardKey, iconId, direction) {
@@ -1453,6 +1454,7 @@ QtObject {
                 "playerY": root.playerY,
                 "playerAnchorPos": root.playerAnchorPos,
 
+                "leftCardOrder": root.leftCardOrder,
                 "leftCardCollapsed": root.leftCardCollapsed,
                 "rightCardCollapsed": root.rightCardCollapsed,
                 "pinnedIcons": root.pinnedIcons,
@@ -1475,7 +1477,8 @@ QtObject {
                 "enabledClockScreens": root.enabledClockScreens
             }
 
-            var jsonStr = JSON.stringify(data)
+            // Formats with 2-space indentation
+            var jsonStr = JSON.stringify(data, null, 2)
             saver.command = ["fish", "-c", "printf '%s' '" + jsonStr.replace(/'/g, "'\\''") + "' > " + settingsPath]
             saver.running = true
         }
@@ -1506,7 +1509,7 @@ QtObject {
                             "enableXray", "enableIris", "surfaceRadius", "borderThickness", "cardMargin", "showDesktopClock", "clockStyle", "clockScale", 
                             "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", 
                             "clockShowBackground", "clockPositions", "clockScales", "enabledClockScreens",
-                            "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides",
+                            "leftCardOrder", "rightCardOrder", "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides",
                             "playWindowSounds", "playNotificationSounds", "windowSoundPath", "notificationSoundPath",
                             "showMirror", "mirrorShowPanel", "mirrorMirrored", "mirrorKeepAspect", "mirrorExpanded", "mirrorPinned", "mirrorAnchorPos",
                             "playerExpanded", "playerPinned",
