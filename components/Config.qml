@@ -10,11 +10,6 @@ QtObject {
 
     property bool showTaskOverflow: false
 
-    property bool showMirror: false
-    property bool mirrorShowPanel: true
-    property var mirrorVideoOutput: null
-    property bool mirrorPreviewActive: false
-
     // --- MEDIA PLAYER URL STORAGE ---
     property var savedUrls: []
     
@@ -418,11 +413,31 @@ QtObject {
     onNotificationSoundPathChanged: { if (isLoaded) saveSettings() }
 
     // --- MIRROR WIDGET CONFIGURATION ---
+    property bool showMirror: false
+    property bool mirrorShowPanel: true
     property bool mirrorMirrored: true
     property bool mirrorKeepAspect: true
+    property bool mirrorExpanded: false
+    property bool mirrorPinned: false
+    property string mirrorAnchorPos: "center" // "top", "center", "bottom"
 
+    function cycleMirrorAnchor(direction) {
+        if (direction === "up" || direction === "left" || direction === "prev") {
+            if (mirrorAnchorPos === "bottom") mirrorAnchorPos = "center"
+            else if (mirrorAnchorPos === "center") mirrorAnchorPos = "top"
+        } else if (direction === "down" || direction === "right" || direction === "next") {
+            if (mirrorAnchorPos === "top") mirrorAnchorPos = "center"
+            else if (mirrorAnchorPos === "center") mirrorAnchorPos = "bottom"
+        }
+    }
+
+    onShowMirrorChanged: { if (isLoaded) saveSettings() }
+    onMirrorShowPanelChanged: { if (isLoaded) saveSettings() }
     onMirrorMirroredChanged: { if (isLoaded) saveSettings() }
     onMirrorKeepAspectChanged: { if (isLoaded) saveSettings() }
+    onMirrorExpandedChanged: { if (isLoaded) saveSettings() }
+    onMirrorPinnedChanged: { if (isLoaded) saveSettings() }
+    onMirrorAnchorPosChanged: { if (isLoaded) saveSettings() }
 
     // --- ICON MAP & OVERRIDES ---
     property var iconOverrides: ({})
@@ -1402,8 +1417,13 @@ QtObject {
                 "windowSoundPath": root.windowSoundPath,
                 "notificationSoundPath": root.notificationSoundPath,
 
+                "showMirror": root.showMirror,
+                "mirrorShowPanel": root.mirrorShowPanel,
                 "mirrorMirrored": root.mirrorMirrored,
                 "mirrorKeepAspect": root.mirrorKeepAspect,
+                "mirrorExpanded": root.mirrorExpanded,
+                "mirrorPinned": root.mirrorPinned,
+                "mirrorAnchorPos": root.mirrorAnchorPos,
 
                 "playerShowPanel": root.playerShowPanel,
                 "playerKeepAspect": root.playerKeepAspect,
@@ -1466,7 +1486,8 @@ QtObject {
                             "clockShowBackground", "clockPositions", "clockScales", "enabledClockScreens",
                             "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides",
                             "playWindowSounds", "playNotificationSounds", "windowSoundPath", "notificationSoundPath",
-                            "mirrorMirrored", "mirrorKeepAspect", "playerExpanded", "playerPinned",
+                            "showMirror", "mirrorShowPanel", "mirrorMirrored", "mirrorKeepAspect", "mirrorExpanded", "mirrorPinned", "mirrorAnchorPos",
+                            "playerExpanded", "playerPinned",
                             "playerShowPanel", "playerKeepAspect", "playerX", "playerY", "playerAnchorPos"
                         ]
 

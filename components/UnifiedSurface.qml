@@ -44,6 +44,25 @@ PanelWindow {
         }
     }
 
+    function updateMirrorPopoutPos() {
+        if (root.activeView !== "mirror") return
+
+        let screenCenter = isHorizontal 
+            ? (inX + (inW / 2.0)) 
+            : (inY + (inH / 2.0))
+
+        if (Config.mirrorAnchorPos === "top") {
+            if (isHorizontal) root.popoutXOffset = inX + (rawChildWidth / 2.0) + 12
+            else root.popoutYOffset = inY + (rawChildHeight / 2.0) + 12
+        } else if (Config.mirrorAnchorPos === "bottom") {
+            if (isHorizontal) root.popoutXOffset = (inX + inW) - (rawChildWidth / 2.0) - 12
+            else root.popoutYOffset = (inY + inH) - (rawChildHeight / 2.0) - 12
+        } else {
+            if (isHorizontal) root.popoutXOffset = screenCenter
+            else root.popoutYOffset = screenCenter
+        }
+    }
+
     readonly property real shadowPadding: 16
 
     readonly property string barPosition: Config.barPosition || "top"
@@ -212,7 +231,7 @@ PanelWindow {
 
     HyprlandFocusGrab {
         id: focusGrab
-        active: root.isOpen && root.activeView !== "osd" && root.activeView !== "notifOsd" && !(root.activeView === "player" && Config.playerPinned) && (!screen || screen.name === (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""))
+        active: root.isOpen && root.activeView !== "osd" && root.activeView !== "notifOsd" && !(root.activeView === "player" && Config.playerPinned) && !(root.activeView === "mirror" && Config.mirrorPinned) && (!screen || screen.name === (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""))
         windows: [root]
         onCleared: {
             root.closeOthers("none")
@@ -279,6 +298,7 @@ PanelWindow {
             case "wallpaper":      btn = leftCard ? leftCard.getButton("wallpaper") : null; break
             case "notifications":  btn = leftCard ? leftCard.getButton("notifications") : null; break
             case "screenRecorder": btn = leftCard ? leftCard.getButton("recorder") : null; break
+            case "mirror":         btn = leftCard ? leftCard.getButton("mirror") : null; break
 
             // Center Group Modules
             case "player":         btn = centerGroupContainer ? centerGroupContainer.getButton("player") : null; break
@@ -297,6 +317,8 @@ PanelWindow {
         // Snap popout offset to the active button position or anchor mode
         if (activeView === "player") {
             updatePlayerPopoutPos()
+        } else if (activeView === "mirror") {
+            updateMirrorPopoutPos()
         } else if (btn) {
             setPopoutPos(btn)
         }
@@ -327,6 +349,7 @@ PanelWindow {
             else if (Config.showScreenRecorder) nextView = "screenRecorder"
             else if (Config.showControlCenter) nextView = "controlCenter"
             else if (Config.showPlayer) nextView = "player"
+            else if (Config.showMirror) nextView = "mirror"
             else if (typeof Config.showTaskOverflow !== "undefined" && Config.showTaskOverflow) nextView = "taskOverflow"
         }
 
@@ -371,6 +394,7 @@ PanelWindow {
             if (except !== "controlCenter") Config.showControlCenter = false
             if (except !== "settings") Config.showSettings = false
             if (except !== "player" && !Config.playerPinned) Config.showPlayer = false
+            if (except !== "mirror" && !Config.mirrorPinned) Config.showMirror = false
             if (except !== "taskOverflow" && typeof Config.showTaskOverflow !== "undefined") Config.showTaskOverflow = false
         }
     }
@@ -416,6 +440,18 @@ PanelWindow {
         function onPlayerAnchorPosChanged() {
             if (activeView === "player") {
                 updatePlayerPopoutPos()
+            }
+        }
+        function onShowMirrorChanged() {
+            if (Config.showMirror) {
+                closeOthers("mirror")
+                updateMirrorPopoutPos()
+            }
+            updateActiveView()
+        }
+        function onMirrorAnchorPosChanged() {
+            if (activeView === "mirror") {
+                updateMirrorPopoutPos()
             }
         }
         function onShowTaskOverflowChanged() {
@@ -616,7 +652,7 @@ PanelWindow {
                     PathLine { x: root.isLeftFlush ? root.halfB : root.pLeft; y: root.isLeftFlush ? (root.halfB + root.barRadius) : (root.barBottomY + root.wingH) }
                     PathCubic { x: root.isLeftFlush ? root.halfB : (root.pLeft - root.wingW); y: root.isLeftFlush ? (root.halfB + root.barRadius) : root.barBottomY; control1X: root.isLeftFlush ? root.halfB : root.pLeft; control1Y: root.isLeftFlush ? (root.halfB + root.barRadius) : (root.barBottomY + (root.wingH * 0.5)); control2X: root.isLeftFlush ? root.halfB : (root.pLeft - (root.wingW * 0.5)); control2Y: root.isLeftFlush ? (root.halfB + root.barRadius) : root.barBottomY }
                     PathLine { x: root.isLeftFlush ? root.halfB : (root.halfB + root.barRadius); y: root.isLeftFlush ? (root.halfB + root.barRadius) : root.barBottomY }
-                    PathArc { x: root.halfB; y: root.isLeftFlush ? 0 : (root.barBottomY - root.barRadius); radiusX: root.isLeftFlush ? 0 : root.barRadius; radiusY: root.isLeftFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
+                    PathArc { x: root.halfB; y: root.isLeftFlush ? (root.halfB + root.barRadius) : (root.barBottomY - root.barRadius); radiusX: root.isLeftFlush ? 0 : root.barRadius; radiusY: root.isLeftFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
                     PathLine { x: root.halfB; y: root.halfB + root.barRadius }
                     PathArc { x: root.halfB + root.barRadius; y: root.halfB; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
                 }
