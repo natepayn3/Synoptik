@@ -233,7 +233,8 @@ QtObject {
             prefetchExtractor.command = ["fish", "-c", envPrefix + cmd]
         } else {
             let trackTarget = "https://www.youtube.com/watch?v=" + vidId
-            let cmd = 'set -l out (yt-dlp --print "%(title)s\n%(thumbnail)s\n%(url)s" --cookies "' + root.cookiePath + '" -f "b/best" "' + trackTarget + '" 2>/dev/null); ' +
+            // ADDED: --extractor-args and updated format specifier for clean HLS streams
+            let cmd = 'set -l out (yt-dlp --print "%(title)s\n%(thumbnail)s\n%(url)s" --cookies "' + root.cookiePath + '" --extractor-args "youtube:player_client=android,web" -f "bv*+ba/b" "' + trackTarget + '" 2>/dev/null); ' +
                       'if test -n "$out"; ' +
                       '  echo "$out[1]"; echo "$out[2]"; echo "$out[-1]"; ' +
                       'end'
@@ -291,7 +292,8 @@ QtObject {
             streamExtractor.command = ["fish", "-c", envPrefix + cmd]
         } else {
             let trackTarget = "https://www.youtube.com/watch?v=" + vidId
-            let cmd = 'set -l out (yt-dlp --print "%(title)s\n%(thumbnail)s\n%(url)s" --cookies "' + root.cookiePath + '" -f "b/best" "' + trackTarget + '" 2>/dev/null); ' +
+            // ADDED: --extractor-args and updated format specifier for clean HLS streams
+            let cmd = 'set -l out (yt-dlp --print "%(title)s\n%(thumbnail)s\n%(url)s" --cookies "' + root.cookiePath + '" --extractor-args "youtube:player_client=android,web" -f "bv*+ba/b" "' + trackTarget + '" 2>/dev/null); ' +
                       'if test -n "$out"; ' +
                       '  echo "$out[1]"; echo "$out[2]"; echo "$out[-1]"; ' +
                       'end'
@@ -351,7 +353,8 @@ QtObject {
             resolveTrack(0)
 
         } else {
-            let cmd = 'yt-dlp --print "%(playlist_title,title)s|||%(id)s|||%(title)s" --flat-playlist "' + cleanUrl + '" 2>/dev/null'
+            // ADDED: --extractor-args for YouTube playlist/flat resolution
+            let cmd = 'yt-dlp --print "%(playlist_title,title)s|||%(id)s|||%(title)s" --extractor-args "youtube:player_client=android,web" --flat-playlist "' + cleanUrl + '" 2>/dev/null'
             playlistFetcher.command = ["fish", "-c", envPrefix + cmd]
             playlistFetcher.running = true
         }
