@@ -114,6 +114,60 @@ QtObject {
         }
     }
 
+    property MediaDevices mirrorMediaDevices: MediaDevices {}
+
+    property CaptureSession mirrorCaptureSession: CaptureSession {
+        id: globalMirrorCaptureSession
+        camera: Camera {
+            id: globalMirrorCamera
+            cameraDevice: root.mirrorMediaDevices.defaultVideoInput
+
+            function applyRawFormat() {
+                if (!cameraDevice) return
+                let formats = cameraDevice.videoFormats
+                if (!formats || formats.length === 0) {
+                    active = root.showMirror
+                    return
+                }
+                let bestFormat = undefined
+                let bestScore = -1
+                for (let i = 0; i < formats.length; ++i) {
+                    let f = formats[i]
+                    if (f.pixelFormat === 0 || f.pixelFormat === 29) continue
+                    let fpsTarget = Math.min(f.maxFrameRate, 30)
+                    let width = f.resolution.width
+                    let widthScore = width <= 1280 ? width : (1280 - (width - 1280)) 
+                    let score = (fpsTarget * 10000) + widthScore
+                    if (score > bestScore) {
+                        bestScore = score
+                        bestFormat = f
+                    }
+                }
+                if (bestFormat) cameraFormat = bestFormat
+                active = root.showMirror
+            }
+        }
+    }
+
+    property Connections mirrorShowConnection: Connections {
+        target: root
+        function onShowMirrorChanged() {
+            if (globalMirrorCamera.cameraDevice) {
+                globalMirrorCamera.active = root.showMirror
+                if (root.showMirror) globalMirrorCamera.applyRawFormat()
+            }
+        }
+    }
+
+    property Connections mirrorDeviceConnection: Connections {
+        target: root.mirrorMediaDevices
+        function onDefaultVideoInputChanged() {
+            if (root.showMirror && globalMirrorCamera.cameraDevice) {
+                globalMirrorCamera.applyRawFormat()
+            }
+        }
+    }
+
     // Cache management process to wipe temp files on close
     property Process cacheCleaner: Process {
         command: ["fish", "-c", "rm -rf /tmp/synoptik_media 2>/dev/null"]

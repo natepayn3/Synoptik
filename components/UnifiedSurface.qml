@@ -212,7 +212,7 @@ PanelWindow {
 
     HyprlandFocusGrab {
         id: focusGrab
-        active: root.isOpen && root.activeView !== "osd" && root.activeView !== "notifOsd" && !(root.activeView === "player" && Config.playerPinned) && (!screen || screen.name === (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""))
+        active: root.isOpen && root.activeView !== "osd" && root.activeView !== "notifOsd" && !(root.activeView === "player" && Config.playerPinned) && !(root.activeView === "mirror" && Config.mirrorPinned) && (!screen || screen.name === (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""))
         windows: [root]
         onCleared: {
             root.closeOthers("none")
@@ -279,6 +279,7 @@ PanelWindow {
             case "wallpaper":      btn = leftCard ? leftCard.getButton("wallpaper") : null; break
             case "notifications":  btn = leftCard ? leftCard.getButton("notifications") : null; break
             case "screenRecorder": btn = leftCard ? leftCard.getButton("recorder") : null; break
+            case "mirror":         btn = leftCard ? leftCard.getButton("mirror") : null; break
 
             // Center Group Modules
             case "player":         btn = centerGroupContainer ? centerGroupContainer.getButton("player") : null; break
@@ -311,7 +312,7 @@ PanelWindow {
             if (typeof Config.showOSD !== "undefined" && Config.showOSD) nextView = "osd"
             else if (typeof Config.showNotificationOsd !== "undefined" && Config.showNotificationOsd) nextView = "notifOsd"
 
-            // Standard Module Panels
+            // Standard Module Panels (Unpinned active modules take priority)
             else if (Config.showSettings) nextView = "settings"
             else if (Config.showWorkspacePreview) nextView = "workspacePreview"
             else if (Config.showPower) nextView = "power"
@@ -326,8 +327,13 @@ PanelWindow {
             else if (Config.showClipboard) nextView = "clipboard"
             else if (Config.showScreenRecorder) nextView = "screenRecorder"
             else if (Config.showControlCenter) nextView = "controlCenter"
-            else if (Config.showPlayer) nextView = "player"
+            else if (Config.showMirror && !Config.mirrorPinned) nextView = "mirror"
+            else if (Config.showPlayer && !Config.playerPinned) nextView = "player"
             else if (typeof Config.showTaskOverflow !== "undefined" && Config.showTaskOverflow) nextView = "taskOverflow"
+
+            // Pinned Fallback Panels (Active when no temporary unpinned panel is open)
+            else if (Config.showMirror && Config.mirrorPinned) nextView = "mirror"
+            else if (Config.showPlayer && Config.playerPinned) nextView = "player"
         }
 
         if (nextView === "none") {
@@ -368,6 +374,7 @@ PanelWindow {
             if (except !== "battery") Config.showBattery = false
             if (except !== "clipboard") Config.showClipboard = false
             if (except !== "screenRecorder") Config.showScreenRecorder = false
+            if (except !== "mirror" && !Config.mirrorPinned) Config.showMirror = false
             if (except !== "controlCenter") Config.showControlCenter = false
             if (except !== "settings") Config.showSettings = false
             if (except !== "player" && !Config.playerPinned) Config.showPlayer = false
@@ -437,6 +444,7 @@ PanelWindow {
         function onShowBatteryChanged() { if (Config.showBattery) { closeOthers("battery"); let btn = rightCard ? rightCard.getButton("batt") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowClipboardChanged() { if (Config.showClipboard) { closeOthers("clipboard"); let btn = rightCard ? rightCard.getButton("clipboard") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowScreenRecorderChanged() { if (Config.showScreenRecorder) { closeOthers("screenRecorder"); let btn = leftCard ? leftCard.getButton("recorder") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowMirrorChanged() { if (Config.showMirror) { closeOthers("mirror"); let btn = leftCard ? leftCard.getButton("mirror") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowControlCenterChanged() { if (Config.showControlCenter) { closeOthers("controlCenter"); let btn = rightCard ? rightCard.getButton("cc") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
     }
 
