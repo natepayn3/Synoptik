@@ -651,12 +651,21 @@ QtObject {
     function triggerRandomWallpaperBackground() {
         let transition = root.wallpaperTransitionType || "fade"
 
-        let cmd = "set W (find ~/Pictures/Wallpapers -type f \\( -name '*.jpg' -o -name '*.png' -o -name '*.jpeg' -o -name '*.webp' \\) 2>/dev/null | shuf -n 1); " +
+        // Inline Comment: Added mp4 and webm extensions + Fish branching logic for mpvpaper vs awww
+        let cmd = "set W (find ~/Pictures/Wallpapers -type f \\( -name '*.jpg' -o -name '*.png' -o -name '*.jpeg' -o -name '*.webp' -o -name '*.mp4' -o -name '*.webm' \\) 2>/dev/null | shuf -n 1); " +
                   "if test -n \"$W\"; " +
-                  "killall -q mpvpaper; " +
-                  "if not pgrep -x 'awww-daemon' > /dev/null; rm -f /run/user/" + Quickshell.env("UID") + "/*-awww-daemon.sock; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; " +
-                  "awww img \"$W\" --transition-type " + transition + " --transition-step 64 --transition-duration 2; " +
-                  "echo \"$W\"; end"
+                  "  set EXT (string lower (string split -r -m1 . \"$W\")[2]); " +
+                  "  if test \"$EXT\" = \"mp4\" -o \"$EXT\" = \"webm\"; " +
+                  "    awww kill 2>/dev/null; killall -9 -q awww-daemon 2>/dev/null; " +
+                  "    pkill -f 'mpvpaper' 2>/dev/null; " +
+                  "    nohup mpvpaper -vs -o 'loop-file=inf no-audio panscan=1.0 video-unscaled=no' '*' \"$W\" >/dev/null 2>&1 & disown; " +
+                  "  else; " +
+                  "    killall -q mpvpaper 2>/dev/null; " +
+                  "    if not pgrep -x 'awww-daemon' > /dev/null; rm -f /run/user/" + Quickshell.env("UID") + "/*-awww-daemon.sock; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; " +
+                  "    awww img \"$W\" --transition-type " + transition + " --transition-step 64 --transition-duration 2; " +
+                  "  end; " +
+                  "  echo \"$W\"; " +
+                  "end"
 
         bgSlideshowProc.command = ["fish", "-c", cmd]
         bgSlideshowProc.running = false
