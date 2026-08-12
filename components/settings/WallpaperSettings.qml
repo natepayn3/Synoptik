@@ -26,56 +26,73 @@ Flickable {
         id: wallpaperBackend
         running: false
 
+        property string pendingIrisPath: ""
+
+        // Inline Comment: Defer applyIrisColors until fish script finishes generating palette
+        onExited: (exitCode, exitStatus) => {
+            if (exitCode === 0 && Config.enableIris && pendingIrisPath !== "") {
+                Config.applyIrisColors(pendingIrisPath);
+                pendingIrisPath = "";
+            }
+        }
+
         function applyWallpaper(filePath) {
             if (!filePath || filePath === "") return;
 
-            root.currentWallpaperPath = filePath;
-            Config.activeWallpaperPath = filePath;
+            let cleanFilePath = filePath.replace(/^file:\/\//, "");
+            root.currentWallpaperPath = cleanFilePath;
+            Config.activeWallpaperPath = cleanFilePath;
 
-            let ext = filePath.split('.').pop().toLowerCase();
+            let ext = cleanFilePath.split('.').pop().toLowerCase();
             let waylandDisplay = Quickshell.env("WAYLAND_DISPLAY") || "wayland-1";
             let sockPath = "/run/user/" + Quickshell.env("UID") + "/" + waylandDisplay + "-awww-daemon.sock";
             let targets = Config.selectedWallpaperMonitors || [];
             let transition = Config.wallpaperTransitionType || "fade";
 
-            let script = "";
+            let script = "killall -q mpvpaper 2>/dev/null; ";
 
             if (targets.length > 0) {
                 for (let i = 0; i < targets.length; i++) {
                     let mon = targets[i];
                     if (ext === "mp4" || ext === "webm") {
-                        // Inline Comment: Pass panscan=1.0 and video-unscaled=no to fill/crop ultrawide displays
+                        // Inline Comment: Pass panscan=1.0 and video-unscaled=no for ultrawide video cropping
                         script += "awww clear -o \"" + mon + "\" 2>/dev/null; ";
                         script += "pkill -f 'mpvpaper' 2>/dev/null; ";
-                        script += "nohup mpvpaper -vs -o 'loop-file=inf no-audio panscan=1.0 video-unscaled=no' \"" + mon + "\" '" + filePath + "' >/dev/null 2>&1 & disown; ";
+                        script += "nohup mpvpaper -vs -o 'loop-file=inf no-audio panscan=1.0 video-unscaled=no' \"" + mon + "\" '" + cleanFilePath + "' >/dev/null 2>&1 & disown; ";
                     } else {
                         script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; ";
-                        script += "awww img -o \"" + mon + "\" '" + filePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; ";
+                        script += "awww img -o \"" + mon + "\" '" + cleanFilePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; ";
                     }
                 }
             } else {
                 if (ext === "mp4" || ext === "webm") {
                     script += "awww kill 2>/dev/null; killall -9 -q awww-daemon 2>/dev/null; rm -f " + sockPath + "; ";
-                    script += "nohup mpvpaper -vs -o 'loop-file=inf no-audio panscan=1.0 video-unscaled=no' '*' '" + filePath + "' >/dev/null 2>&1 & disown; ";
+                    script += "nohup mpvpaper -vs -o 'loop-file=inf no-audio panscan=1.0 video-unscaled=no' '*' '" + cleanFilePath + "' >/dev/null 2>&1 & disown; ";
                 } else {
                     script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; ";
-                    script += "awww img '" + filePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; ";
+                    script += "awww img '" + cleanFilePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; ";
                 }
             }
 
-            // Inline Comment: Execute CLI iris command directly in fish subshell
+            // Inline Comment: Ensure keyframe image exists for iris palette extraction
             if (Config.enableIris) {
-                script += "iris '" + filePath + "'; ";
+                if (ext === "mp4" || ext === "webm") {
+                    let fileName = cleanFilePath.split('/').pop();
+                    let thumbName = fileName.replace(/[^a-zA-Z0-9]/g, "_") + ".png";
+                    let thumbPath = Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + thumbName;
+                    
+                    pendingIrisPath = thumbPath;
+                    script += "test -f '" + thumbPath + "'; or ffmpeg -y -ss 00:00:00 -i '" + cleanFilePath + "' -vframes 1 -vf 'scale=600:-1' '" + thumbPath + "' >/dev/null 2>&1; ";
+                    script += "iris '" + thumbPath + "'; ";
+                } else {
+                    pendingIrisPath = cleanFilePath;
+                    script += "iris '" + cleanFilePath + "'; ";
+                }
             }
 
             command = ["fish", "-c", script];
             running = false;
             running = true;
-
-            // Inline Comment: Direct QML JSON color extraction trigger bypassing subshell exit handlers
-            if (Config.enableIris) {
-                Config.applyIrisColors(filePath);
-            }
         }
     }
 
@@ -306,10 +323,12 @@ Flickable {
                 }
 
                 delegate: Item {
+                    id: delegateItem
                     width: gridView.cellWidth
                     height: gridView.cellHeight
 
-                    readonly property bool isCurrent: root.currentWallpaperPath === filePath
+                    readonly property string cleanPath: filePath.replace(/^file:\/\//, "")
+                    readonly property bool isCurrent: root.currentWallpaperPath === cleanPath || root.currentWallpaperPath === filePath
                     readonly property bool isVideo: {
                         let ext = fileSuffix.toLowerCase();
                         return ext === "mp4" || ext === "webm";
@@ -319,10 +338,18 @@ Flickable {
                     readonly property string thumbPath: isVideo ? (Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + thumbName) : ""
                     readonly property string thumbUrl: isVideo ? ("file://" + thumbPath) : ""
 
-                    // Inline Comment: Per-delegate process prevents race condition collisions during thumbnail generation
+                    // Inline Comment: Handle thumbnail reload on process exit to avoid initial load warnings
                     Process {
                         id: delegateThumbGenerator
                         running: false
+
+                        onExited: (exitCode, exitStatus) => {
+                            if (exitCode === 0 && isVideo) {
+                                let path = delegateItem.thumbUrl;
+                                thumbImage.source = "";
+                                thumbImage.source = path;
+                            }
+                        }
                     }
 
                     Component.onCompleted: {
@@ -343,8 +370,9 @@ Flickable {
                             color: Qt.rgba(255, 255, 255, 0.05)
 
                             Image {
+                                id: thumbImage
                                 anchors.fill: parent
-                                source: isVideo ? thumbUrl : fileUrl
+                                source: isVideo ? delegateItem.thumbUrl : fileUrl
                                 fillMode: Image.PreserveAspectCrop
                                 asynchronous: true
                                 cache: true
