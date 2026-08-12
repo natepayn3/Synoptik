@@ -209,11 +209,6 @@ Item {
                                 ctx.lineWidth = strokeLineWidth
                                 ctx.lineCap = "round"
                                 ctx.lineJoin = "round"
-                                
-                                if (!osdRoot.isMuted) {
-                                    ctx.shadowColor = Config.accent
-                                    ctx.shadowBlur = 8
-                                }
 
                                 ctx.stroke()
                                 ctx.restore()
