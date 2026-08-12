@@ -179,7 +179,7 @@ ColumnLayout {
     }
 
     Timer { 
-        interval: 3000; running: root.hasAdapter; repeat: true; triggeredOnStart: true; 
+        interval: 3000; running: root.visible && root.hasAdapter; repeat: true; triggeredOnStart: true; 
         onTriggered: fetchBtStatusProc.running = true 
     }
 

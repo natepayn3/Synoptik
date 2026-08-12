@@ -314,6 +314,8 @@ Flickable {
 
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
+                cacheBuffer: 2000
+                reuseItems: true
 
                 model: FolderListModel {
                     id: folderModel
@@ -374,8 +376,12 @@ Flickable {
                                 anchors.fill: parent
                                 source: isVideo ? delegateItem.thumbUrl : fileUrl
                                 fillMode: Image.PreserveAspectCrop
+                                sourceSize.width: 320
+                                sourceSize.height: 180
                                 asynchronous: true
                                 cache: true
+                                opacity: status === Image.Ready ? 1.0 : 0.0
+                                Behavior on opacity { NumberAnimation { duration: 150 } }
                             }
                         }
 

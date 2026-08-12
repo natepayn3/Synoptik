@@ -257,7 +257,7 @@ ColumnLayout {
     }
 
     Timer {
-        interval: 4000; running: root.hasAdapter; repeat: true; triggeredOnStart: true
+        interval: 4000; running: root.visible && root.hasAdapter; repeat: true; triggeredOnStart: true
         onTriggered: {
             if (!root.hasActiveInputFocus()) {
                 fetchWifiStatusProc.running = true
