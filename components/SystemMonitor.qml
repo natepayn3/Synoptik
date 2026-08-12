@@ -85,11 +85,13 @@ Item {
         onTextChanged: {
             let parts = text().split('\n')[0].split(/\s+/).filter(Boolean);
             if (parts.length >= 5) {
-                let user = parseInt(parts[1])||0, nice = parseInt(parts[2])||0, sys = parseInt(parts[3])||0, idle = parseInt(parts[4])||0, io = parseInt(parts[5])||0, irq = parseInt(parts[6])||0, soft = parseInt(parts[7])||0;
-                let total = user + nice + sys + idle + io + irq + soft;
-                let totalDelta = total - sysRoot.lastCpuTotal, idleDelta = idle - sysRoot.lastCpuIdle;
-                if (totalDelta > 0) sysRoot.sysCpu = (totalDelta - idleDelta) / totalDelta;
-                sysRoot.lastCpuTotal = total; sysRoot.lastCpuIdle = idle;
+                let user = parseInt(parts[1])||0, nice = parseInt(parts[2])||0, sys = parseInt(parts[3])||0, idle = parseInt(parts[4])||0, io = parseInt(parts[5])||0, irq = parseInt(parts[6])||0, soft = parseInt(parts[7])||0, steal = parseInt(parts[8])||0;
+                let total = user + nice + sys + idle + io + irq + soft + steal;
+                let idleTotal = idle + io;
+                let totalDelta = total - sysRoot.lastCpuTotal;
+                let idleDelta = idleTotal - sysRoot.lastCpuIdle;
+                if (totalDelta > 0) sysRoot.sysCpu = Math.max(0.0, Math.min(1.0, (totalDelta - idleDelta) / totalDelta));
+                sysRoot.lastCpuTotal = total; sysRoot.lastCpuIdle = idleTotal;
             }
         }
     }
@@ -109,15 +111,37 @@ Item {
             // 2. Disk Usage (%)
             "df / | awk 'NR==2 {print $5}' | sed 's/%//'; " +
             // 3. CPU Temp (°C)
-            "set -l raw_ct (cat /sys/class/thermal/thermal_zone*/temp 2>/dev/null | head -n1); " +
-            "test -n \"$raw_ct\"; and math -s0 \"$raw_ct / 1000\"; or echo 0; " +
+            "set -l cpu_t ''; " +
+            "for h in /sys/class/hwmon/hwmon*; " +
+                "if test -f \"$h/name\"; " +
+                    "set -l n (cat \"$h/name\" 2>/dev/null); " +
+                    "if string match -qi '*coretemp*' \"$n\"; or string match -qi '*k10temp*' \"$n\"; or string match -qi '*zenpower*' \"$n\"; or string match -qi '*cpu*' \"$n\"; " +
+                        "if test -f \"$h/temp1_input\"; set cpu_t (cat \"$h/temp1_input\" 2>/dev/null); break; end; " +
+                    "end; " +
+                "end; " +
+            "end; " +
+            "if test -z \"$cpu_t\"; " +
+                "for z in /sys/class/thermal/thermal_zone*; " +
+                    "if test -f \"$z/type\"; and string match -qi '*pkg*' (cat \"$z/type\" 2>/dev/null); set cpu_t (cat \"$z/temp\" 2>/dev/null); break; end; " +
+                "end; " +
+            "end; " +
+            "if test -z \"$cpu_t\"; set cpu_t (cat /sys/class/thermal/thermal_zone*/temp 2>/dev/null | head -n1); end; " +
+            "test -n \"$cpu_t\"; and math -s0 \"$cpu_t / 1000\"; or echo 0; " +
             // 4. GPU Temp (°C)
             "if command -q nvidia-smi; " +
                 "set -l gtemp (nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits 2>/dev/null | head -n1 | string trim); " +
                 "echo (test -n \"$gtemp\"; and echo $gtemp; or echo 0); " +
             "else; " +
-                "set -l raw_gt (cat /sys/class/hwmon/hwmon*/temp1_input 2>/dev/null | head -n1); " +
-                "test -n \"$raw_gt\"; and math -s0 \"$raw_gt / 1000\"; or echo 0; " +
+                "set -l gtemp ''; " +
+                "for h in /sys/class/hwmon/hwmon*; " +
+                    "if test -f \"$h/name\"; " +
+                        "set -l n (cat \"$h/name\" 2>/dev/null); " +
+                        "if string match -qi '*amdgpu*' \"$n\"; or string match -qi '*i915*' \"$n\"; or string match -qi '*xe*' \"$n\"; or string match -qi '*nouveau*' \"$n\"; " +
+                            "if test -f \"$h/temp1_input\"; set gtemp (cat \"$h/temp1_input\" 2>/dev/null); break; end; " +
+                        "end; " +
+                    "end; " +
+                "end; " +
+                "test -n \"$gtemp\"; and math -s0 \"$gtemp / 1000\"; or echo 0; " +
             "end; " +
             // 5. RAM Temp (°C)
             "set -l rtemp (cat /sys/class/hwmon/hwmon*/name 2>/dev/null | grep -i -n 'spd5118\\|dram' | cut -d: -f1 | head -n1); " +
