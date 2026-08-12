@@ -262,7 +262,6 @@ Item {
                                     { id: 9, name: "Clock", icon: "schedule" },
                                     { id: 10, name: "Keyboard", icon: "keyboard" },
                                     { id: 13, name: "Sounds", icon: "volume_up" },
-                                    { id: 14, name: "Mirror", icon: "photo_camera" }
                                 ]
 
                                 delegate: Rectangle {
@@ -718,11 +717,6 @@ Item {
                     SystemSounds {
                         anchors.fill: parent
                         visible: settingsRoot.activeSection === 13
-                    }
-
-                    MirrorSettings {
-                        anchors.fill: parent
-                        visible: settingsRoot.activeSection === 14
                     }
                 }
             }
