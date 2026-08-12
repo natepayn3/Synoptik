@@ -102,28 +102,21 @@ Item {
         id: cacheProc
         running: false
         command: [
-            "fish", "-c", 
+            "sh", "-c", 
             "mkdir -p /tmp/cliphist; " +
-            "cliphist list | while read -l line; " +
-                "set -l id (string split -m 1 \\t -- \"$line\")[1]; " +
-                "set -l img_path \"/tmp/cliphist/$id.png\"; " +
-                "if test -f \"$img_path\"; " +
+            "cliphist list | while read -r id line; do " +
+                "img_path=\"/tmp/cliphist/$id.png\"; " +
+                "if [ -f \"$img_path\" ]; then " +
                     "echo \"$id\"; " +
-                "else; " +
-                    "if string match -q -r 'binary data|image|^\\[\\[' -- \"$line\"; " +
-                        "set -l tmp \"/tmp/cliphist/raw_$id\"; " +
-                        "printf '%s\\n' \"$line\" | cliphist decode > \"$tmp\" 2>/dev/null; " +
-                        "if test -s \"$tmp\"; magick \"$tmp\" PNG:\"$img_path\" 2>/dev/null; and echo \"$id\"; end; " +
-                        "rm -f \"$tmp\"; " +
-                    "else if string match -q -r 'data:image' -- \"$line\"; " +
-                        "set -l b64 (echo \"$line\" | string replace -r '.*data:image/[^;]+;base64,' ''); " +
-                        "set -l tmp \"/tmp/cliphist/raw_$id\"; " +
-                        "echo \"$b64\" | base64 -d > \"$tmp\" 2>/dev/null; " +
-                        "if test -s \"$tmp\"; magick \"$tmp\" PNG:\"$img_path\" 2>/dev/null; and echo \"$id\"; end; " +
-                        "rm -f \"$tmp\"; " +
-                    "end; " +
-                "end; " +
-            "end"
+                "else " +
+                    "case \"$line\" in " +
+                        "*\\[\\[*|*image*|*binary*) " +
+                            "printf '%s\\t%s\\n' \"$id\" \"$line\" | cliphist decode > \"$img_path\" 2>/dev/null; " +
+                            "[ -s \"$img_path\" ] && echo \"$id\"; " +
+                            ";; " +
+                    "esac; " +
+                "fi; " +
+            "done"
         ]
 
         stdout: StdioCollector {
@@ -293,7 +286,7 @@ Item {
                                 source: (delegateRoot.isImage && delegateRoot.imagePath !== "") ? delegateRoot.imagePath : ""
                                 fillMode: Image.PreserveAspectFit
                                 sourceSize.height: 110
-                                cache: false
+                                cache: true
                                 asynchronous: true
                             }
 

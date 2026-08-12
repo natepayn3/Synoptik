@@ -120,6 +120,7 @@ for folder in ["/usr/share/applications", os.path.expanduser("~/.local/share/app
             "path": path
         })
 
+apps.sort(key=lambda x: x['name'].lower())
 print(json.dumps(apps))
         `]
         running: true
@@ -163,8 +164,6 @@ print(json.dumps(apps))
             } 
         }
 
-        pins.sort((a,b) => a.name.localeCompare(b.name));
-        others.sort((a,b) => a.name.localeCompare(b.name)); 
         appLauncherModule.filteredApps = pins.concat(others);
         
         appListView.currentIndex = 0;
@@ -185,8 +184,9 @@ print(json.dumps(apps))
         
         spacing: appLauncherModule.cardMargin
 
-        // Pure Opacity Fade Animation Logic
+        // Pure Opacity Fade Animation Logic & Visibility Guard
         opacity: Config.showAppLauncher ? 1.0 : 0.0
+        visible: Config.showAppLauncher || opacity > 0.0
         Behavior on opacity {
             NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
         }
@@ -261,7 +261,7 @@ print(json.dumps(apps))
                                 selectByMouse: true
                                 focus: true
                                 Timer {
-                                    running: true
+                                    running: Config.showAppLauncher
                                     interval: 50
                                     onTriggered: searchInput.forceActiveFocus()
                                 }

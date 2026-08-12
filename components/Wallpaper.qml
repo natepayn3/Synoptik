@@ -279,6 +279,8 @@ Item {
                     ListView {
                         id: accordionList
                         anchors.fill: parent
+                        cacheBuffer: 2000
+                        reuseItems: true
                         orientation: root.isVerticalLayout ? ListView.Vertical : ListView.Horizontal
                         spacing: 8
                         boundsBehavior: Flickable.StopAtBounds
@@ -377,8 +379,8 @@ Item {
 
                             Component.onCompleted: {
                                 if (isVideo) {
-                                    let cmd = "if not test -f '" + thumbPath + "'; ffmpeg -y -ss 00:00:00 -i '" + filePath + "' -frames:v 1 -vf 'scale=600:-1' '" + thumbPath + "' >/dev/null 2>&1; end";
-                                    delegateThumbGenerator.command = ["fish", "-c", cmd];
+                                    let cmd = "test -f '" + thumbPath + "' || ffmpeg -y -ss 00:00:00 -i '" + filePath + "' -frames:v 1 -vf 'scale=600:-1' '" + thumbPath + "' >/dev/null 2>&1";
+                                    delegateThumbGenerator.command = ["sh", "-c", cmd];
                                     delegateThumbGenerator.running = true;
                                 }
                             }
@@ -402,7 +404,9 @@ Item {
                                         anchors.fill: parent
                                         source: isVideo ? delegateItem.thumbUrl : fileUrl
                                         fillMode: Image.PreserveAspectCrop
-                                        asynchronous: true
+                                        sourceSize.width: 320
+                                        sourceSize.height: 180
+                                        asynchronous: false
                                         cache: true
                                     }
 

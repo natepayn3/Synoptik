@@ -20,7 +20,7 @@ Item {
     // Periodically check pgrep to update local recording state
     Timer {
         interval: 1000
-        running: true
+        running: root.visible || root.isRecording
         repeat: true
         triggeredOnStart: true
         onTriggered: checkProc.running = true

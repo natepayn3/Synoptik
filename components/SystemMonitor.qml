@@ -226,11 +226,6 @@ Item {
         property bool clickable: true
         property bool selected: sysRoot.activeCategory === ringRow.label
 
-        layer.enabled: true
-        layer.smooth: true
-        layer.samples: 4
-        layer.textureSize: Qt.size(width * Screen.devicePixelRatio, height * Screen.devicePixelRatio)
-
         Shape {
             anchors.fill: parent
 

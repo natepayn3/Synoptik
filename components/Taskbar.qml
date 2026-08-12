@@ -11,9 +11,9 @@ Item {
     signal popoutRequested(var item)
     property alias viewAppsBtn: btnViewApps
 
-    // Inline Comment: Lenient monitor match to ensure dot indicator reflects active windows
-    readonly property var activeClients: Hyprland.toplevels.values.filter(c => !activeScreenName || !c.monitor || c.monitor.name === activeScreenName)
-    readonly property int totalCount: activeClients.length
+    // Use boolean check to avoid unnecessary array allocations
+    readonly property bool hasActiveClients: Hyprland.toplevels.values.some(c => !activeScreenName || !c.monitor || c.monitor.name === activeScreenName)
+    readonly property int totalCount: hasActiveClients ? 1 : 0
 
     // Explicit static footprint avoids parent layout feedback loops
     implicitWidth: 28
