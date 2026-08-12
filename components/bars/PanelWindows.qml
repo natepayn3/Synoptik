@@ -307,18 +307,18 @@ PanelWindow {
             }
             updateActiveView()
         }
-        function onShowAppLauncherChanged() { if (Config.showAppLauncher) { closeOthers("appLauncher"); setPopoutPos(leftCard.btnLauncher); } updateActiveView() }
-        function onShowPowerChanged() { if (Config.showPower) { closeOthers("power"); setPopoutPos(leftCard.btnPower); } updateActiveView() }
-        function onShowWallpaperChanged() { if (Config.showWallpaper) { closeOthers("wallpaper"); setPopoutPos(leftCard.btnWallpaper); } updateActiveView() }
-        function onShowCalendarChanged() { if (Config.showCalendar) { closeOthers("calendar"); setPopoutPos(rightCard.btnClock); } updateActiveView() }
-        function onShowNotificationsChanged() { if (Config.showNotifications) { closeOthers("notifications"); setPopoutPos(leftCard.btnNotifications); } updateActiveView() }
-        function onShowAudioChanged() { if (Config.showAudio) { closeOthers("audio"); setPopoutPos(rightCard.btnAudio); } updateActiveView() }
-        function onShowNetworkChanged() { if (Config.showNetwork) { closeOthers("network"); setPopoutPos(rightCard.btnNetwork); } updateActiveView() }
-        function onShowSystemMonitorChanged() { if (Config.showSystemMonitor) { closeOthers("systemMonitor"); setPopoutPos(rightCard.btnSys); } updateActiveView() }
-        function onShowBatteryChanged() { if (Config.showBattery) { closeOthers("battery"); setPopoutPos(rightCard.btnBatt); } updateActiveView() }
-        function onShowClipboardChanged() { if (Config.showClipboard) { closeOthers("clipboard"); setPopoutPos(rightCard.btnClipboard); } updateActiveView() }
-        function onShowScreenRecorderChanged() { if (Config.showScreenRecorder) { closeOthers("screenRecorder"); setPopoutPos(leftCard.btnRecorder); } updateActiveView() }
-        function onShowControlCenterChanged() { if (Config.showControlCenter) { closeOthers("controlCenter"); setPopoutPos(rightCard.btnCC); } updateActiveView() }
+        function onShowAppLauncherChanged() { if (Config.showAppLauncher) { closeOthers("appLauncher"); setPopoutPos(leftCard ? leftCard.getButton("launcher") : null); } updateActiveView() }
+        function onShowPowerChanged() { if (Config.showPower) { closeOthers("power"); setPopoutPos(leftCard ? leftCard.getButton("power") : null); } updateActiveView() }
+        function onShowWallpaperChanged() { if (Config.showWallpaper) { closeOthers("wallpaper"); setPopoutPos(leftCard ? leftCard.getButton("wallpaper") : null); } updateActiveView() }
+        function onShowCalendarChanged() { if (Config.showCalendar) { closeOthers("calendar"); setPopoutPos(rightCard ? rightCard.getButton("clock") : null); } updateActiveView() }
+        function onShowNotificationsChanged() { if (Config.showNotifications) { closeOthers("notifications"); setPopoutPos(leftCard ? leftCard.getButton("notifications") : null); } updateActiveView() }
+        function onShowAudioChanged() { if (Config.showAudio) { closeOthers("audio"); setPopoutPos(rightCard ? rightCard.getButton("audio") : null); } updateActiveView() }
+        function onShowNetworkChanged() { if (Config.showNetwork) { closeOthers("network"); setPopoutPos(rightCard ? rightCard.getButton("network") : null); } updateActiveView() }
+        function onShowSystemMonitorChanged() { if (Config.showSystemMonitor) { closeOthers("systemMonitor"); setPopoutPos(rightCard ? rightCard.getButton("sys") : null); } updateActiveView() }
+        function onShowBatteryChanged() { if (Config.showBattery) { closeOthers("battery"); setPopoutPos(rightCard ? rightCard.getButton("batt") : null); } updateActiveView() }
+        function onShowClipboardChanged() { if (Config.showClipboard) { closeOthers("clipboard"); setPopoutPos(rightCard ? rightCard.getButton("clipboard") : null); } updateActiveView() }
+        function onShowScreenRecorderChanged() { if (Config.showScreenRecorder) { closeOthers("screenRecorder"); setPopoutPos(leftCard ? leftCard.getButton("recorder") : null); } updateActiveView() }
+        function onShowControlCenterChanged() { if (Config.showControlCenter) { closeOthers("controlCenter"); setPopoutPos(rightCard ? rightCard.getButton("cc") : null); } updateActiveView() }
     }
 
     Item {
