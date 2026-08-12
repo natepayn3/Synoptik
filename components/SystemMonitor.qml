@@ -250,13 +250,23 @@ Item {
         property bool clickable: true
         property bool selected: sysRoot.activeCategory === ringRow.label
 
+        property real animValue: value
+        Behavior on animValue {
+            NumberAnimation { duration: 500; easing.type: Easing.OutCubic }
+        }
+
+        property real animStrokeWidth: ringRow.clickable && ringRow.selected ? 5.5 : 4.5
+        Behavior on animStrokeWidth {
+            NumberAnimation { duration: 150; easing.type: Easing.OutQuad }
+        }
+
         Shape {
             anchors.fill: parent
 
             ShapePath {
                 fillColor: "transparent"
                 strokeColor: ringRow.clickable && ringRow.selected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(255, 255, 255, 0.08)
-                strokeWidth: ringRow.clickable && ringRow.selected ? 5.5 : 4.5
+                strokeWidth: ringRow.animStrokeWidth
                 PathAngleArc { 
                     centerX: 42; centerY: 42; radiusX: 37; radiusY: 37
                     startAngle: -90; sweepAngle: 360
@@ -266,11 +276,11 @@ Item {
             ShapePath {
                 fillColor: "transparent"
                 strokeColor: Config.accent
-                strokeWidth: ringRow.clickable && ringRow.selected ? 5.5 : 4.5
+                strokeWidth: ringRow.animStrokeWidth
                 capStyle: ShapePath.RoundCap
                 PathAngleArc { 
                     centerX: 42; centerY: 42; radiusX: 37; radiusY: 37
-                    startAngle: -90; sweepAngle: Math.max(0.1, ringRow.value * 360)
+                    startAngle: -90; sweepAngle: Math.max(0.1, ringRow.animValue * 360)
                 }
             }
         }
