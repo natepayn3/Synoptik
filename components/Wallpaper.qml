@@ -334,15 +334,15 @@ Item {
                             
                             readonly property bool isSelected: ListView.isCurrentItem
                             readonly property bool isHovered: hoverHandler.hovered || accordionContainer.hoveredIndex === index
-                            readonly property bool isAnyHovered: accordionContainer.hoveredIndex !== -1
+                            readonly property bool isExpanded: isHovered || isSelected
                             readonly property string itemFilePath: filePath
                             
                             width: root.isVerticalLayout
                                 ? accordionList.width - 6
-                                : ((isHovered || (isSelected && !isAnyHovered)) ? Math.round(height * (16 / 9)) : (isAnyHovered ? 60 : 80))
+                                : (isExpanded ? Math.round(height * (16 / 9)) : 80)
 
                             height: root.isVerticalLayout
-                                ? ((isHovered || (isSelected && !isAnyHovered)) ? Math.round(width * (9 / 16)) : (isAnyHovered ? 50 : 70))
+                                ? (isExpanded ? Math.round(width * (9 / 16)) : 70)
                                 : accordionList.height - 6
 
                             z: (isHovered || isSelected) ? 100 : (100 - index)
