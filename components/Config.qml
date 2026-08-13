@@ -766,6 +766,11 @@ QtObject {
         bgSlideshowProc.running = true
     }
 
+    property Process wallpaperApplyRunner: Process {
+        id: wpApplyProc
+        running: false
+    }
+
     function applyWallpaperBackend(filePath, activeOnly) {
         if (!filePath) return;
 
@@ -777,12 +782,13 @@ QtObject {
         let sockPath = "/run/user/" + Quickshell.env("UID") + "/" + waylandDisplay + "-awww-daemon.sock"
         let transition = root.wallpaperTransitionType || "fade"
 
-        let script = "pkill -f 'mpvpaper' 2>/dev/null; "
+        let script = "killall -q mpvpaper 2>/dev/null; "
 
         if (activeOnly) {
             script += "set TARGET_MON (hyprctl monitors -j | jq -r '.[] | select(.focused) | .name'); "
             if (ext === "mp4" || ext === "webm") {
-                script += "if pgrep -x 'awww-daemon' > /dev/null; awww clear -o \"$TARGET_MON\" 2>/dev/null; end; "
+                script += "awww clear -o \"$TARGET_MON\" 2>/dev/null; "
+                script += "pkill -f 'mpvpaper' 2>/dev/null; "
                 script += "nohup mpvpaper -vs -o 'input-terminal=no loop-file=inf no-audio panscan=1.0 video-unscaled=no' \"$TARGET_MON\" '" + cleanFilePath + "' < /dev/null >/dev/null 2>&1 & disown; "
             } else {
                 script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; "
@@ -790,29 +796,17 @@ QtObject {
             }
         } else {
             if (ext === "mp4" || ext === "webm") {
-                script += "if pgrep -x 'awww-daemon' > /dev/null; awww clear 2>/dev/null; end; "
-                script += "for MON in (hyprctl monitors -j | jq -r '.[].name'); "
-                script += "nohup mpvpaper -vs -o 'input-terminal=no loop-file=inf no-audio panscan=1.0 video-unscaled=no' \"$MON\" '" + cleanFilePath + "' < /dev/null >/dev/null 2>&1 & disown; "
-                script += "end; "
+                script += "awww kill 2>/dev/null; killall -9 -q awww-daemon 2>/dev/null; rm -f " + sockPath + "; "
+                script += "nohup mpvpaper -vs -o 'input-terminal=no loop-file=inf no-audio panscan=1.0 video-unscaled=no' '*' '" + cleanFilePath + "' < /dev/null >/dev/null 2>&1 & disown; "
             } else {
                 script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; "
-                script += "awww img '" + cleanFilePath + "' --transition-type " + transition + " --transition-step 64 --transition-duration 2; "
+                script += "awww img '" + cleanFilePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; "
             }
         }
 
-        if (root.enableIris) {
-            if (ext === "mp4" || ext === "webm") {
-                let fileName = cleanFilePath.split('/').pop();
-                let thumbName = fileName.replace(/[^a-zA-Z0-9]/g, "_") + ".png";
-                let thumbPath = Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + thumbName;
-                script += "if not test -f '" + thumbPath + "'; ffmpeg -y -ss 00:00:00 -i '" + cleanFilePath + "' -vframes 1 -vf 'scale=600:-1' '" + thumbPath + "' >/dev/null 2>&1; end; ";
-                script += "if test -f '" + thumbPath + "'; iris --json-only '" + thumbPath + "' 2>/dev/null; end; ";
-            } else {
-                script += "iris --json-only '" + cleanFilePath + "' 2>/dev/null; ";
-            }
-        }
-
-        Quickshell.execDetached(["fish", "-c", script])
+        wpApplyProc.command = ["fish", "-c", script]
+        wpApplyProc.running = false
+        wpApplyProc.running = true
     }
 
     function toggleWallpaperMonitor(screenName) {
