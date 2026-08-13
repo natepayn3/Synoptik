@@ -126,31 +126,6 @@ ColumnLayout {
                 }
             }
 
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
-                enabled: Config.playWindowSounds
-                visible: Config.playWindowSounds
-
-                Text {
-                    text: "Volume: " + Math.round((Config.windowSoundVolume || 0.25) * 100) + "%"
-                    color: Config.textMuted
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontCaption)
-                    Layout.preferredWidth: 90
-                }
-
-                Slider {
-                    Layout.fillWidth: true
-                    from: 0.05
-                    to: 1.0
-                    stepSize: 0.05
-                    value: Config.windowSoundVolume || 0.25
-                    onMoved: {
-                        Config.windowSoundVolume = value
-                    }
-                }
-            }
 
             GridLayout {
                 columns: 3
