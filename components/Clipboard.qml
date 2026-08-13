@@ -304,6 +304,7 @@ Item {
                     radius: Config.cornerRadius / 2
                     border.width: searchInput.activeFocus ? 1 : 0
                     border.color: Config.accent
+                    visible: clipModel.count > 0
 
                     RowLayout {
                         anchors.fill: parent
