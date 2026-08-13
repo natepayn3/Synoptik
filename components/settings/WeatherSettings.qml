@@ -67,23 +67,59 @@ QtObject {
                         weatherRoot.temp = current.temp_F + "°F";
                         weatherRoot.feelsLike = current.FeelsLikeF + "°F";
                         
-                        let code = current.weatherCode.toString();
+                        let code = current.weatherCode ? current.weatherCode.toString() : "";
+                        let rawDesc = (current.weatherDesc && current.weatherDesc[0]) ? current.weatherDesc[0].value : "";
+
                         let descMap = { 
+                            "113": "Clear Sky", "116": "Partly Cloudy", "119": "Cloudy", "122": "Overcast",
+                            "143": "Mist", "176": "Patchy Rain", "179": "Patchy Snow", "182": "Patchy Sleet",
+                            "200": "Thunderstorms", "248": "Foggy", "260": "Freezing Fog", "263": "Light Drizzle",
+                            "266": "Drizzle", "293": "Patchy Light Rain", "296": "Light Rain", "299": "Moderate Rain",
+                            "302": "Moderate Rain", "305": "Heavy Rain", "308": "Heavy Rain", "353": "Light Showers",
+                            "356": "Moderate / Heavy Rain", "359": "Torrential Rain", "386": "Rain with Thunder",
+                            "389": "Heavy Rain & Thunder", "395": "Heavy Snow & Thunder",
+                            // Fallback WMO codes
                             "0": "Clear Sky", "1": "Mainly Clear", "2": "Partly Cloudy", "3": "Overcast", 
                             "45": "Foggy", "48": "Rime Fog", "51": "Light Drizzle", "53": "Moderate Drizzle", 
                             "55": "Dense Drizzle", "61": "Slight Rain", "63": "Moderate Rain", "65": "Heavy Rain", 
                             "71": "Light Snow", "73": "Moderate Snow", "75": "Heavy Snow", "80": "Light Showers", 
                             "85": "Light Snow Showers", "95": "Thunderstorm" 
                         };
+
                         let iconMap = { 
+                            // WWO codes (wttr.in)
+                            "113": "wb_sunny", "116": "partly_cloudy_day", "119": "cloud", "122": "cloud", 
+                            "143": "foggy", "176": "rainy", "179": "ac_unit", "182": "ac_unit", "185": "ac_unit", 
+                            "200": "thunderstorm", "227": "ac_unit", "230": "ac_unit", "248": "foggy", "260": "foggy", 
+                            "263": "rainy", "266": "rainy", "281": "ac_unit", "284": "ac_unit", "293": "rainy", 
+                            "296": "rainy", "299": "rainy", "302": "rainy", "305": "rainy", "308": "rainy", 
+                            "311": "ac_unit", "314": "ac_unit", "317": "ac_unit", "320": "ac_unit", "323": "ac_unit", 
+                            "326": "ac_unit", "329": "ac_unit", "332": "ac_unit", "335": "ac_unit", "338": "ac_unit", 
+                            "350": "ac_unit", "353": "rainy", "356": "rainy", "359": "rainy", "362": "ac_unit", 
+                            "365": "ac_unit", "368": "ac_unit", "371": "ac_unit", "374": "ac_unit", "377": "ac_unit", 
+                            "386": "thunderstorm", "389": "thunderstorm", "392": "thunderstorm", "395": "thunderstorm", 
+                            // WMO codes
                             "0": "wb_sunny", "1": "partly_cloudy_day", "2": "partly_cloudy_day", "3": "cloud", 
                             "45": "foggy", "48": "foggy", "51": "rainy", "53": "rainy", "55": "rainy", 
                             "61": "rainy", "63": "rainy", "65": "rainy", "71": "ac_unit", "73": "ac_unit", 
                             "75": "ac_unit", "80": "rainy", "85": "ac_unit", "95": "thunderstorm" 
                         };
                         
-                        weatherRoot.desc = descMap[code] || (current.weatherDesc && current.weatherDesc[0] ? current.weatherDesc[0].value : "Clear");
-                        weatherRoot.glyph = iconMap[code] || "cloud";
+                        weatherRoot.desc = rawDesc !== "" ? rawDesc : (descMap[code] || "Clear");
+
+                        // Determine glyph: try exact code mapping first, then keyword fallback
+                        let targetGlyph = iconMap[code];
+                        if (!targetGlyph) {
+                            let lower = weatherRoot.desc.toLowerCase();
+                            if (lower.includes("thunder")) targetGlyph = "thunderstorm";
+                            else if (lower.includes("rain") || lower.includes("drizzle") || lower.includes("shower")) targetGlyph = "rainy";
+                            else if (lower.includes("snow") || lower.includes("sleet") || lower.includes("blizzard") || lower.includes("ice")) targetGlyph = "ac_unit";
+                            else if (lower.includes("fog") || lower.includes("mist") || lower.includes("haze")) targetGlyph = "foggy";
+                            else if (lower.includes("sunny") || lower.includes("clear")) targetGlyph = "wb_sunny";
+                            else if (lower.includes("cloud")) targetGlyph = "partly_cloudy_day";
+                            else targetGlyph = "cloud";
+                        }
+                        weatherRoot.glyph = targetGlyph;
                         weatherRoot.lastFetchTime = Date.now();
                     }
                 } catch(e) {

@@ -72,7 +72,7 @@ Item {
                     font.pixelSize: 150
                     font.bold: true
                     color: Config.accent
-                    opacity: 0.07
+                    opacity: 0.12
                     rotation: 15
                 }
             }

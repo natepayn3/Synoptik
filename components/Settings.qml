@@ -33,7 +33,7 @@ Item {
             font.family: "Material Symbols Outlined"
             font.pixelSize: 350
             color: Config.accent
-            opacity: 0.07
+            opacity: 0.12
             rotation: 15
         }
     }

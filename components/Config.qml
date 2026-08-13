@@ -121,29 +121,39 @@ QtObject {
         camera: Camera {
             id: globalMirrorCamera
             cameraDevice: root.mirrorMediaDevices.defaultVideoInput
+            active: root.showMirror && !!cameraDevice
+
+            onActiveChanged: {
+                if (active) {
+                    root.mirrorLoading = false
+                    root.mirrorError = ""
+                }
+            }
 
             function applyRawFormat() {
-                if (!cameraDevice) return
-                let formats = cameraDevice.videoFormats
-                if (!formats || formats.length === 0) {
-                    active = root.showMirror
+                if (!cameraDevice) {
+                    root.mirrorLoading = false
+                    root.mirrorError = "No camera device found"
+                    active = false
                     return
                 }
-                let bestFormat = undefined
-                let bestScore = -1
-                for (let i = 0; i < formats.length; ++i) {
-                    let f = formats[i]
-                    if (f.pixelFormat === 0 || f.pixelFormat === 29) continue
-                    let fpsTarget = Math.min(f.maxFrameRate, 30)
-                    let width = f.resolution.width
-                    let widthScore = width <= 1280 ? width : (1280 - (width - 1280)) 
-                    let score = (fpsTarget * 10000) + widthScore
-                    if (score > bestScore) {
-                        bestScore = score
-                        bestFormat = f
+                let formats = cameraDevice.videoFormats
+                if (formats && formats.length > 0) {
+                    let bestFormat = undefined
+                    let bestScore = -1
+                    for (let i = 0; i < formats.length; ++i) {
+                        let f = formats[i]
+                        let fpsTarget = Math.min(f.maxFrameRate, 30)
+                        let width = f.resolution.width
+                        let widthScore = width <= 1280 ? width : (1280 - (width - 1280)) 
+                        let score = (fpsTarget * 10000) + widthScore
+                        if (score > bestScore) {
+                            bestScore = score
+                            bestFormat = f
+                        }
                     }
+                    if (bestFormat) cameraFormat = bestFormat
                 }
-                if (bestFormat) cameraFormat = bestFormat
                 active = root.showMirror
             }
         }
@@ -154,7 +164,7 @@ QtObject {
 
     property Timer mirrorActivateTimer: Timer {
         id: mirrorActivateTimer
-        interval: 500
+        interval: 300
         repeat: false
         onTriggered: {
             if (root.showMirror) {
@@ -174,15 +184,18 @@ QtObject {
         interval: 500
         repeat: false
         onTriggered: {
-            if (root.showMirror && globalMirrorCamera.active) {
+            if (root.showMirror) {
                 root.mirrorLoading = false
+                if (!globalMirrorCamera.active) {
+                    root.mirrorError = globalMirrorCamera.cameraDevice ? "Camera failed to start" : "No camera device found"
+                }
             }
         }
     }
 
     property Timer mirrorDeactivateTimer: Timer {
         id: mirrorDeactivateTimer
-        interval: 500
+        interval: 300
         repeat: false
         onTriggered: {
             if (!root.showMirror) {
@@ -198,7 +211,12 @@ QtObject {
                 mirrorDeactivateTimer.stop()
                 root.mirrorLoading = true
                 root.mirrorError = ""
-                mirrorActivateTimer.restart()
+                if (!root.mirrorMediaDevices.defaultVideoInput) {
+                    root.mirrorLoading = false
+                    root.mirrorError = "No camera device found"
+                } else {
+                    mirrorActivateTimer.restart()
+                }
             } else {
                 mirrorActivateTimer.stop()
                 mirrorReadyTimer.stop()
@@ -211,8 +229,14 @@ QtObject {
     property Connections mirrorDeviceConnection: Connections {
         target: root.mirrorMediaDevices
         function onDefaultVideoInputChanged() {
-            if (root.showMirror && globalMirrorCamera.cameraDevice) {
-                globalMirrorCamera.applyRawFormat()
+            if (root.showMirror) {
+                if (root.mirrorMediaDevices.defaultVideoInput) {
+                    root.mirrorError = ""
+                    globalMirrorCamera.applyRawFormat()
+                } else {
+                    root.mirrorLoading = false
+                    root.mirrorError = "No camera device found"
+                }
             }
         }
     }

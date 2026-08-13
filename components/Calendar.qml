@@ -167,7 +167,7 @@ Item {
                         font.family: "Material Symbols Outlined"
                         font.pixelSize: 150
                         color: Config.accent
-                        opacity: 0.18
+                        opacity: 0.12
                         rotation: 15
                     }
                 }
@@ -259,26 +259,23 @@ Item {
                         }
                     }
 
-                    // WEATHER TYPOGRAPHY (ALIGNED RIGHT, NO DUPLICATE GLYPH)
+                    // WEATHER TYPOGRAPHY (ELIDED & BOUNDED TO PREVENT OVERFLOW)
                     RowLayout {
-                        spacing: 8
+                        spacing: 6
                         Layout.fillWidth: true
-                        Layout.alignment: Qt.AlignRight
-
-                        Item { Layout.fillWidth: true }
 
                         Text {
                             text: Config.weather.temp
                             color: Config.textMain
                             font.family: Config.sysFont
-                            font.pixelSize: 20
+                            font.pixelSize: 18
                             font.bold: true
                         }
 
                         Rectangle {
-                            implicitWidth: 5
-                            implicitHeight: 5
-                            radius: 2.5
+                            implicitWidth: 4
+                            implicitHeight: 4
+                            radius: 2
                             color: Config.accent
                             Layout.alignment: Qt.AlignVCenter
                         }
@@ -287,8 +284,10 @@ Item {
                             text: Config.weather.desc !== "" ? Config.weather.desc : "Current Weather"
                             color: Config.textMuted
                             font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
+                            font.pixelSize: Config.size(Config.fontCaption)
                             font.bold: true
+                            elide: Text.ElideRight
+                            Layout.fillWidth: true
                         }
                     }
                 }
@@ -484,7 +483,7 @@ Item {
                     font.family: "Material Symbols Outlined"
                     font.pixelSize: 150
                     color: Config.accent
-                    opacity: 0.07
+                    opacity: 0.12
                     rotation: 15
                 }
             }
