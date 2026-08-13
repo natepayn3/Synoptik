@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import Qt5Compat.GraphicalEffects
 import Quickshell
 import ".."
 
@@ -119,15 +120,40 @@ Rectangle {
             implicitWidth: 32
             implicitHeight: 32
             radius: 10
-            color: (Config.showPower || powerHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+            color: Config.showPower ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
             Behavior on color { ColorAnimation { duration: 150 } }
 
-            Text {
+            Item {
                 anchors.centerIn: parent
-                text: Config.getIcon("power")
-                color: Config.showPower ? Config.accent : Config.textMain
-                font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                implicitWidth: powerIconText.implicitWidth
+                implicitHeight: powerIconText.implicitHeight
+                scale: powerHover.hovered ? 1.25 : 1.0
+
+                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                Glow {
+                    anchors.fill: powerIconText
+                    source: powerIconText
+                    radius: powerHover.hovered ? 8 : 0
+                    samples: 16
+                    color: Config.accent
+                    spread: 0.2
+                    transparentBorder: true
+                    visible: powerHover.hovered
+
+                    Behavior on radius { NumberAnimation { duration: 180 } }
+                }
+
+                Text {
+                    id: powerIconText
+                    anchors.centerIn: parent
+                    text: Config.getIcon("power")
+                    color: (Config.showPower || powerHover.hovered) ? Config.accent : Config.textMain
+                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
             }
 
             Rectangle {
@@ -151,15 +177,40 @@ Rectangle {
             implicitWidth: 32
             implicitHeight: 32
             radius: 10
-            color: (Config.showScreenRecorder || recordHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+            color: Config.showScreenRecorder ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
             Behavior on color { ColorAnimation { duration: 150 } }
 
-            Text {
+            Item {
                 anchors.centerIn: parent
-                text: (typeof shellRoot !== "undefined" && shellRoot.isRecording) ? "radio_button_checked" : Config.getIcon("recorder")
-                color: (typeof shellRoot !== "undefined" && shellRoot.isRecording) ? "#ef4444" : (Config.showScreenRecorder ? Config.accent : Config.textMain)
-                font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                implicitWidth: recordIconText.implicitWidth
+                implicitHeight: recordIconText.implicitHeight
+                scale: recordHover.hovered ? 1.25 : 1.0
+
+                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                Glow {
+                    anchors.fill: recordIconText
+                    source: recordIconText
+                    radius: recordHover.hovered ? 8 : 0
+                    samples: 16
+                    color: Config.accent
+                    spread: 0.2
+                    transparentBorder: true
+                    visible: recordHover.hovered
+
+                    Behavior on radius { NumberAnimation { duration: 180 } }
+                }
+
+                Text {
+                    id: recordIconText
+                    anchors.centerIn: parent
+                    text: (typeof shellRoot !== "undefined" && shellRoot.isRecording) ? "radio_button_checked" : Config.getIcon("recorder")
+                    color: (typeof shellRoot !== "undefined" && shellRoot.isRecording) ? "#ef4444" : ((Config.showScreenRecorder || recordHover.hovered) ? Config.accent : Config.textMain)
+                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
             }
 
             Rectangle {
@@ -183,15 +234,40 @@ Rectangle {
             implicitWidth: 32
             implicitHeight: 32
             radius: 10
-            color: (Config.showPlayer || playerHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+            color: Config.showPlayer ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
             Behavior on color { ColorAnimation { duration: 150 } }
 
-            Text {
+            Item {
                 anchors.centerIn: parent
-                text: Config.getIcon("player")
-                color: Config.showPlayer ? Config.accent : Config.textMain
-                font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                implicitWidth: playerIconText.implicitWidth
+                implicitHeight: playerIconText.implicitHeight
+                scale: playerHover.hovered ? 1.25 : 1.0
+
+                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                Glow {
+                    anchors.fill: playerIconText
+                    source: playerIconText
+                    radius: playerHover.hovered ? 8 : 0
+                    samples: 16
+                    color: Config.accent
+                    spread: 0.2
+                    transparentBorder: true
+                    visible: playerHover.hovered
+
+                    Behavior on radius { NumberAnimation { duration: 180 } }
+                }
+
+                Text {
+                    id: playerIconText
+                    anchors.centerIn: parent
+                    text: Config.getIcon("player")
+                    color: (Config.showPlayer || playerHover.hovered) ? Config.accent : Config.textMain
+                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
             }
 
             Rectangle {
@@ -214,15 +290,40 @@ Rectangle {
             implicitWidth: 32
             implicitHeight: 32
             radius: 10
-            color: (Config.showMirror || mirrorHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+            color: Config.showMirror ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
             Behavior on color { ColorAnimation { duration: 150 } }
 
-            Text {
+            Item {
                 anchors.centerIn: parent
-                text: Config.getIcon("mirror")
-                color: Config.showMirror ? Config.accent : Config.textMain
-                font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                implicitWidth: mirrorIconText.implicitWidth
+                implicitHeight: mirrorIconText.implicitHeight
+                scale: mirrorHover.hovered ? 1.25 : 1.0
+
+                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                Glow {
+                    anchors.fill: mirrorIconText
+                    source: mirrorIconText
+                    radius: mirrorHover.hovered ? 8 : 0
+                    samples: 16
+                    color: Config.accent
+                    spread: 0.2
+                    transparentBorder: true
+                    visible: mirrorHover.hovered
+
+                    Behavior on radius { NumberAnimation { duration: 180 } }
+                }
+
+                Text {
+                    id: mirrorIconText
+                    anchors.centerIn: parent
+                    text: Config.getIcon("mirror")
+                    color: (Config.showMirror || mirrorHover.hovered) ? Config.accent : Config.textMain
+                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
             }
 
             Rectangle {
@@ -248,15 +349,40 @@ Rectangle {
             implicitWidth: 32
             implicitHeight: 32
             radius: 10
-            color: screenshotHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+            color: "transparent"
 
             Behavior on color { ColorAnimation { duration: 150 } }
 
-            Text {
+            Item {
                 anchors.centerIn: parent
-                text: Config.getIcon("screenshot")
-                color: Config.textMain
-                font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                implicitWidth: snapIconText.implicitWidth
+                implicitHeight: snapIconText.implicitHeight
+                scale: screenshotHover.hovered ? 1.25 : 1.0
+
+                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                Glow {
+                    anchors.fill: snapIconText
+                    source: snapIconText
+                    radius: screenshotHover.hovered ? 8 : 0
+                    samples: 16
+                    color: Config.accent
+                    spread: 0.2
+                    transparentBorder: true
+                    visible: screenshotHover.hovered
+
+                    Behavior on radius { NumberAnimation { duration: 180 } }
+                }
+
+                Text {
+                    id: snapIconText
+                    anchors.centerIn: parent
+                    text: Config.getIcon("screenshot")
+                    color: screenshotHover.hovered ? Config.accent : Config.textMain
+                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
             }
 
             Rectangle {
@@ -280,17 +406,40 @@ Rectangle {
             implicitWidth: 32
             implicitHeight: 32
             radius: 10
-            color: (Config.showNotifications || notificationsHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+            color: Config.showNotifications ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
             Behavior on color { ColorAnimation { duration: 150 } }
 
-            Text {
+            Item {
                 anchors.centerIn: parent
-                text: (typeof shellRoot !== "undefined" && shellRoot.activeNotifs > 0) ? "inbox_text" : Config.getIcon("notifications")
-                color: (Config.showNotifications || (typeof shellRoot !== "undefined" && shellRoot.activeNotifs > 0)) ? Config.accent : Config.textMain
-                font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+                implicitWidth: notifIconText.implicitWidth
+                implicitHeight: notifIconText.implicitHeight
+                scale: notificationsHover.hovered ? 1.25 : 1.0
 
-                Behavior on color { ColorAnimation { duration: 150 } }
+                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                Glow {
+                    anchors.fill: notifIconText
+                    source: notifIconText
+                    radius: notificationsHover.hovered ? 8 : 0
+                    samples: 16
+                    color: Config.accent
+                    spread: 0.2
+                    transparentBorder: true
+                    visible: notificationsHover.hovered
+
+                    Behavior on radius { NumberAnimation { duration: 180 } }
+                }
+
+                Text {
+                    id: notifIconText
+                    anchors.centerIn: parent
+                    text: (typeof shellRoot !== "undefined" && shellRoot.activeNotifs > 0) ? "inbox_text" : Config.getIcon("notifications")
+                    color: (Config.showNotifications || notificationsHover.hovered || (typeof shellRoot !== "undefined" && shellRoot.activeNotifs > 0)) ? Config.accent : Config.textMain
+                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
             }
 
             Rectangle {
@@ -314,15 +463,40 @@ Rectangle {
             implicitWidth: 32
             implicitHeight: 32
             radius: 10
-            color: (Config.showWallpaper || wallpaperHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+            color: Config.showWallpaper ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
             Behavior on color { ColorAnimation { duration: 150 } }
 
-            Text {
+            Item {
                 anchors.centerIn: parent
-                text: Config.getIcon("wallpaper")
-                color: Config.showWallpaper ? Config.accent : Config.textMain
-                font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                implicitWidth: wallIconText.implicitWidth
+                implicitHeight: wallIconText.implicitHeight
+                scale: wallpaperHover.hovered ? 1.25 : 1.0
+
+                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                Glow {
+                    anchors.fill: wallIconText
+                    source: wallIconText
+                    radius: wallpaperHover.hovered ? 8 : 0
+                    samples: 16
+                    color: Config.accent
+                    spread: 0.2
+                    transparentBorder: true
+                    visible: wallpaperHover.hovered
+
+                    Behavior on radius { NumberAnimation { duration: 180 } }
+                }
+
+                Text {
+                    id: wallIconText
+                    anchors.centerIn: parent
+                    text: Config.getIcon("wallpaper")
+                    color: (Config.showWallpaper || wallpaperHover.hovered) ? Config.accent : Config.textMain
+                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
             }
 
             Rectangle {
@@ -346,15 +520,40 @@ Rectangle {
             implicitWidth: 32
             implicitHeight: 32
             radius: 10
-            color: (Config.showSettings || settingsHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+            color: Config.showSettings ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
             Behavior on color { ColorAnimation { duration: 150 } }
 
-            Text {
+            Item {
                 anchors.centerIn: parent
-                text: Config.getIcon("settings")
-                color: Config.showSettings ? Config.accent : Config.textMain
-                font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                implicitWidth: settingsIconText.implicitWidth
+                implicitHeight: settingsIconText.implicitHeight
+                scale: settingsHover.hovered ? 1.25 : 1.0
+
+                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                Glow {
+                    anchors.fill: settingsIconText
+                    source: settingsIconText
+                    radius: settingsHover.hovered ? 8 : 0
+                    samples: 16
+                    color: Config.accent
+                    spread: 0.2
+                    transparentBorder: true
+                    visible: settingsHover.hovered
+
+                    Behavior on radius { NumberAnimation { duration: 180 } }
+                }
+
+                Text {
+                    id: settingsIconText
+                    anchors.centerIn: parent
+                    text: Config.getIcon("settings")
+                    color: (Config.showSettings || settingsHover.hovered) ? Config.accent : Config.textMain
+                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
             }
 
             Rectangle {
@@ -378,15 +577,40 @@ Rectangle {
             implicitWidth: 32
             implicitHeight: 32
             radius: 10
-            color: (Config.showAppLauncher || launcherHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+            color: Config.showAppLauncher ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
             Behavior on color { ColorAnimation { duration: 150 } }
 
-            Text {
+            Item {
                 anchors.centerIn: parent
-                text: Config.getIcon("launcher")
-                color: Config.showAppLauncher ? Config.accent : Config.textMain
-                font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                implicitWidth: launcherIconText.implicitWidth
+                implicitHeight: launcherIconText.implicitHeight
+                scale: launcherHover.hovered ? 1.25 : 1.0
+
+                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                Glow {
+                    anchors.fill: launcherIconText
+                    source: launcherIconText
+                    radius: launcherHover.hovered ? 8 : 0
+                    samples: 16
+                    color: Config.accent
+                    spread: 0.2
+                    transparentBorder: true
+                    visible: launcherHover.hovered
+
+                    Behavior on radius { NumberAnimation { duration: 180 } }
+                }
+
+                Text {
+                    id: launcherIconText
+                    anchors.centerIn: parent
+                    text: Config.getIcon("launcher")
+                    color: (Config.showAppLauncher || launcherHover.hovered) ? Config.accent : Config.textMain
+                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
             }
 
             Rectangle {

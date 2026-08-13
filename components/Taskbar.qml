@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import Qt5Compat.GraphicalEffects
 import Quickshell
 import Quickshell.Hyprland
 
@@ -27,16 +28,41 @@ Item {
         implicitWidth: 28
         implicitHeight: 28
         radius: 8
-        color: (Config.showTaskOverflow || viewAppsHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+        color: Config.showTaskOverflow ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
         Behavior on color { ColorAnimation { duration: 150 } }
 
-        Text {
+        Item {
             anchors.centerIn: parent
-            text: Config.getIcon("apps")
-            font.family: "Material Symbols Outlined"
-            font.weight: Font.Bold
-            font.pixelSize: 18
-            color: Config.showTaskOverflow ? Config.accent : Config.textMain
+            implicitWidth: appsIconText.implicitWidth
+            implicitHeight: appsIconText.implicitHeight
+            scale: viewAppsHover.hovered ? 1.25 : 1.0
+
+            Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+            Glow {
+                anchors.fill: appsIconText
+                source: appsIconText
+                radius: viewAppsHover.hovered ? 8 : 0
+                samples: 16
+                color: Config.accent
+                spread: 0.2
+                transparentBorder: true
+                visible: viewAppsHover.hovered
+
+                Behavior on radius { NumberAnimation { duration: 180 } }
+            }
+
+            Text {
+                id: appsIconText
+                anchors.centerIn: parent
+                text: Config.getIcon("apps")
+                font.family: "Material Symbols Outlined"
+                font.weight: Font.Bold
+                font.pixelSize: 18
+                color: (Config.showTaskOverflow || viewAppsHover.hovered) ? Config.accent : Config.textMain
+
+                Behavior on color { ColorAnimation { duration: 150 } }
+            }
         }
 
         // Active running indicator dot shown when open windows exist

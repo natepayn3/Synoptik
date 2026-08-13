@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import Qt5Compat.GraphicalEffects
 import ".."
 
 Rectangle {
@@ -119,15 +120,40 @@ Rectangle {
             implicitWidth: 32
             implicitHeight: 32
             radius: 10
-            color: (Config.showAudio || audioHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+            color: Config.showAudio ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
             Behavior on color { ColorAnimation { duration: 150 } }
 
-            Text {
+            Item {
                 anchors.centerIn: parent
-                text: shellRoot.audioMuted ? "hearing_disabled" : (shellRoot.audioVolume === 0 ? "hearing_disabled" : Config.getIcon("audio"))
-                color: Config.showAudio ? Config.accent : (shellRoot.audioMuted ? Config.textMuted : Config.textMain)
-                font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+                implicitWidth: audioIconText.implicitWidth
+                implicitHeight: audioIconText.implicitHeight
+                scale: audioHover.hovered ? 1.25 : 1.0
+
+                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                Glow {
+                    anchors.fill: audioIconText
+                    source: audioIconText
+                    radius: audioHover.hovered ? 8 : 0
+                    samples: 16
+                    color: Config.accent
+                    spread: 0.2
+                    transparentBorder: true
+                    visible: audioHover.hovered
+
+                    Behavior on radius { NumberAnimation { duration: 180 } }
+                }
+
+                Text {
+                    id: audioIconText
+                    anchors.centerIn: parent
+                    text: shellRoot.audioMuted ? "hearing_disabled" : (shellRoot.audioVolume === 0 ? "hearing_disabled" : Config.getIcon("audio"))
+                    color: (Config.showAudio || audioHover.hovered) ? Config.accent : (shellRoot.audioMuted ? Config.textMuted : Config.textMain)
+                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
             }
 
             Rectangle {
@@ -151,15 +177,40 @@ Rectangle {
             implicitWidth: 32
             implicitHeight: 32
             radius: 10
-            color: (Config.showSystemMonitor || sysHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+            color: Config.showSystemMonitor ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
             Behavior on color { ColorAnimation { duration: 150 } }
 
-            Text {
+            Item {
                 anchors.centerIn: parent
-                text: Config.getIcon("sys")
-                color: Config.showSystemMonitor ? Config.accent : Config.textMain
-                font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+                implicitWidth: sysIconText.implicitWidth
+                implicitHeight: sysIconText.implicitHeight
+                scale: sysHover.hovered ? 1.25 : 1.0
+
+                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                Glow {
+                    anchors.fill: sysIconText
+                    source: sysIconText
+                    radius: sysHover.hovered ? 8 : 0
+                    samples: 16
+                    color: Config.accent
+                    spread: 0.2
+                    transparentBorder: true
+                    visible: sysHover.hovered
+
+                    Behavior on radius { NumberAnimation { duration: 180 } }
+                }
+
+                Text {
+                    id: sysIconText
+                    anchors.centerIn: parent
+                    text: Config.getIcon("sys")
+                    color: (Config.showSystemMonitor || sysHover.hovered) ? Config.accent : Config.textMain
+                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
             }
 
             Rectangle {
@@ -183,25 +234,50 @@ Rectangle {
             implicitWidth: 32
             implicitHeight: 32
             radius: 10
-            color: (Config.showBattery || battHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+            color: Config.showBattery ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
             Behavior on color { ColorAnimation { duration: 150 } }
 
-            Text {
+            Item {
                 anchors.centerIn: parent
-                text: {
-                    if (shellRoot.battStatus === "Charging") return "battery_android_frame_bolt"
-                    if (shellRoot.battCapacity <= 10) return "battery_android_frame_0"
-                    if (shellRoot.battCapacity <= 25) return "battery_android_frame_1"
-                    if (shellRoot.battCapacity <= 40) return "battery_android_frame_2"
-                    if (shellRoot.battCapacity <= 60) return "battery_android_frame_3"
-                    if (shellRoot.battCapacity <= 75) return "battery_android_frame_4"
-                    if (shellRoot.battCapacity <= 90) return "battery_android_frame_5"
-                    if (shellRoot.battCapacity < 100) return "battery_android_frame_6"
-                    return "battery_android_frame_full"
+                implicitWidth: battIconText.implicitWidth
+                implicitHeight: battIconText.implicitHeight
+                scale: battHover.hovered ? 1.25 : 1.0
+
+                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                Glow {
+                    anchors.fill: battIconText
+                    source: battIconText
+                    radius: battHover.hovered ? 8 : 0
+                    samples: 16
+                    color: Config.accent
+                    spread: 0.2
+                    transparentBorder: true
+                    visible: battHover.hovered
+
+                    Behavior on radius { NumberAnimation { duration: 180 } }
                 }
-                color: Config.showBattery ? Config.accent : (shellRoot.battCapacity <= 15 ? "#ef4444" : Config.textMain)
-                font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+
+                Text {
+                    id: battIconText
+                    anchors.centerIn: parent
+                    text: {
+                        if (shellRoot.battStatus === "Charging") return "battery_android_frame_bolt"
+                        if (shellRoot.battCapacity <= 10) return "battery_android_frame_0"
+                        if (shellRoot.battCapacity <= 25) return "battery_android_frame_1"
+                        if (shellRoot.battCapacity <= 40) return "battery_android_frame_2"
+                        if (shellRoot.battCapacity <= 60) return "battery_android_frame_3"
+                        if (shellRoot.battCapacity <= 75) return "battery_android_frame_4"
+                        if (shellRoot.battCapacity <= 90) return "battery_android_frame_5"
+                        if (shellRoot.battCapacity < 100) return "battery_android_frame_6"
+                        return "battery_android_frame_full"
+                    }
+                    color: (Config.showBattery || battHover.hovered) ? Config.accent : (shellRoot.battCapacity <= 15 ? "#ef4444" : Config.textMain)
+                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
             }
 
             Rectangle {
@@ -225,15 +301,40 @@ Rectangle {
             implicitWidth: 32
             implicitHeight: 32
             radius: 10
-            color: (Config.showControlCenter || ccHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+            color: Config.showControlCenter ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
             Behavior on color { ColorAnimation { duration: 150 } }
 
-            Text {
+            Item {
                 anchors.centerIn: parent
-                text: Config.getIcon("cc")
-                color: Config.showControlCenter ? Config.accent : Config.textMain
-                font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+                implicitWidth: ccIconText.implicitWidth
+                implicitHeight: ccIconText.implicitHeight
+                scale: ccHover.hovered ? 1.25 : 1.0
+
+                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                Glow {
+                    anchors.fill: ccIconText
+                    source: ccIconText
+                    radius: ccHover.hovered ? 8 : 0
+                    samples: 16
+                    color: Config.accent
+                    spread: 0.2
+                    transparentBorder: true
+                    visible: ccHover.hovered
+
+                    Behavior on radius { NumberAnimation { duration: 180 } }
+                }
+
+                Text {
+                    id: ccIconText
+                    anchors.centerIn: parent
+                    text: Config.getIcon("cc")
+                    color: (Config.showControlCenter || ccHover.hovered) ? Config.accent : Config.textMain
+                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
             }
 
             Rectangle {
@@ -257,15 +358,40 @@ Rectangle {
             implicitWidth: 32
             implicitHeight: 32
             radius: 10
-            color: (Config.showNetwork || networkHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+            color: Config.showNetwork ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
             Behavior on color { ColorAnimation { duration: 150 } }
 
-            Text {
+            Item {
                 anchors.centerIn: parent
-                text: shellRoot.vpnActive ? "vpn_key" : Config.getIcon("network")
-                color: Config.showNetwork ? Config.accent : Config.textMain
-                font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+                implicitWidth: netIconText.implicitWidth
+                implicitHeight: netIconText.implicitHeight
+                scale: networkHover.hovered ? 1.25 : 1.0
+
+                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                Glow {
+                    anchors.fill: netIconText
+                    source: netIconText
+                    radius: networkHover.hovered ? 8 : 0
+                    samples: 16
+                    color: Config.accent
+                    spread: 0.2
+                    transparentBorder: true
+                    visible: networkHover.hovered
+
+                    Behavior on radius { NumberAnimation { duration: 180 } }
+                }
+
+                Text {
+                    id: netIconText
+                    anchors.centerIn: parent
+                    text: shellRoot.vpnActive ? "vpn_key" : Config.getIcon("network")
+                    color: (Config.showNetwork || networkHover.hovered) ? Config.accent : Config.textMain
+                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
             }
 
             Rectangle {
@@ -289,15 +415,40 @@ Rectangle {
             implicitWidth: 32
             implicitHeight: 32
             radius: 10
-            color: (Config.showClipboard || clipHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+            color: Config.showClipboard ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
             Behavior on color { ColorAnimation { duration: 150 } }
 
-            Text {
+            Item {
                 anchors.centerIn: parent
-                text: Config.getIcon("clipboard")
-                color: Config.showClipboard ? Config.accent : Config.textMain
-                font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                implicitWidth: clipIconText.implicitWidth
+                implicitHeight: clipIconText.implicitHeight
+                scale: clipHover.hovered ? 1.25 : 1.0
+
+                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                Glow {
+                    anchors.fill: clipIconText
+                    source: clipIconText
+                    radius: clipHover.hovered ? 8 : 0
+                    samples: 16
+                    color: Config.accent
+                    spread: 0.2
+                    transparentBorder: true
+                    visible: clipHover.hovered
+
+                    Behavior on radius { NumberAnimation { duration: 180 } }
+                }
+
+                Text {
+                    id: clipIconText
+                    anchors.centerIn: parent
+                    text: Config.getIcon("clipboard")
+                    color: (Config.showClipboard || clipHover.hovered) ? Config.accent : Config.textMain
+                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
             }
 
             Rectangle {
@@ -321,9 +472,110 @@ Rectangle {
             implicitWidth: rootRef.isHorizontal ? dateRow.implicitWidth + 20 : 32
             implicitHeight: rootRef.isHorizontal ? 32 : dateColumn.implicitHeight + 12
             radius: 10
-            color: (Config.showCalendar || clockHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+            color: Config.showCalendar ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
             Behavior on color { ColorAnimation { duration: 150 } }
+
+            Item {
+                anchors.centerIn: parent
+                implicitWidth: clockContent.implicitWidth
+                implicitHeight: clockContent.implicitHeight
+                scale: clockHover.hovered ? 1.15 : 1.0
+
+                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                Glow {
+                    anchors.fill: clockContent
+                    source: clockContent
+                    radius: clockHover.hovered ? 8 : 0
+                    samples: 16
+                    color: Config.accent
+                    spread: 0.2
+                    transparentBorder: true
+                    visible: clockHover.hovered
+
+                    Behavior on radius { NumberAnimation { duration: 180 } }
+                }
+
+                Item {
+                    id: clockContent
+                    anchors.centerIn: parent
+                    implicitWidth: rootRef.isHorizontal ? dateRow.implicitWidth : dateColumn.implicitWidth
+                    implicitHeight: rootRef.isHorizontal ? dateRow.implicitHeight : dateColumn.implicitHeight
+
+                    // Live horizontal time layout
+                    RowLayout {
+                        id: dateRow
+                        visible: rootRef.isHorizontal
+                        anchors.centerIn: parent
+                        spacing: 8
+
+                        Text {
+                            text: (shellRoot.vertHour || (new Date().getHours() % 12 || 12).toString()) + ":" + (shellRoot.vertMinute || Qt.formatTime(new Date(), "mm"))
+                            color: (Config.showCalendar || clockHover.hovered) ? Config.accent : Config.textMain
+                            font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: Config.size(Config.fontTitle)
+                            Layout.alignment: Qt.AlignVCenter
+                        }
+
+                        Text {
+                            text: shellRoot.vertAmPm || Qt.formatTime(new Date(), "ap").toLowerCase()
+                            color: Config.accent
+                            font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: Config.size(Config.fontSubhead)
+                            Layout.alignment: Qt.AlignVCenter
+                        }
+
+                        Text {
+                            text: (shellRoot.vertMonth || Qt.formatDate(new Date(), "MMM")) + " " + (shellRoot.vertDay || Qt.formatDate(new Date(), "d"))
+                            color: (Config.showCalendar || clockHover.hovered) ? Config.accent : Config.textMuted
+                            font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: Config.size(Config.fontSubhead)
+                            Layout.alignment: Qt.AlignVCenter
+                        }
+                    }
+
+                    // Live vertical time layout
+                    ColumnLayout {
+                        id: dateColumn
+                        visible: !rootRef.isHorizontal
+                        anchors.centerIn: parent
+                        spacing: 1
+
+                        Text {
+                            text: shellRoot.vertHour || (new Date().getHours() % 12 || 12).toString()
+                            color: (Config.showCalendar || clockHover.hovered) ? Config.accent : Config.textMain
+                            font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 15
+                            Layout.alignment: Qt.AlignHCenter
+                        }
+
+                        Text {
+                            text: shellRoot.vertMinute || Qt.formatTime(new Date(), "mm")
+                            color: (Config.showCalendar || clockHover.hovered) ? Config.accent : Config.textMain
+                            font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 15
+                            Layout.alignment: Qt.AlignHCenter
+                        }
+
+                        Text {
+                            text: shellRoot.vertAmPm || Qt.formatTime(new Date(), "ap").toLowerCase()
+                            color: Config.accent
+                            font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 12
+                            Layout.alignment: Qt.AlignHCenter
+                        }
+
+                        Text {
+                            text: shellRoot.vertMonth || Qt.formatDate(new Date(), "MMM")
+                            color: (Config.showCalendar || clockHover.hovered) ? Config.accent : Config.textMuted
+                            font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 12
+                            Layout.alignment: Qt.AlignHCenter
+                        }
+
+                        Text {
+                            text: shellRoot.vertDay || Qt.formatDate(new Date(), "d")
+                            color: (Config.showCalendar || clockHover.hovered) ? Config.accent : Config.textMuted
+                            font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 12
+                            Layout.alignment: Qt.AlignHCenter
+                        }
+                    }
+                }
+            }
 
             Rectangle {
                 anchors.top: parent.top; anchors.right: parent.right
@@ -331,78 +583,6 @@ Rectangle {
                 width: 5; height: 5; radius: 2.5
                 color: Config.accent
                 visible: !Config.rightCardCollapsed && Config.isPinned("clock")
-            }
-
-            // Inline Comment: Live horizontal time layout
-            RowLayout {
-                id: dateRow
-                visible: rootRef.isHorizontal
-                anchors.centerIn: parent
-                spacing: 8
-
-                Text {
-                    text: (shellRoot.vertHour || (new Date().getHours() % 12 || 12).toString()) + ":" + (shellRoot.vertMinute || Qt.formatTime(new Date(), "mm"))
-                    color: Config.showCalendar ? Config.accent : Config.textMain
-                    font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: Config.size(Config.fontTitle)
-                    Layout.alignment: Qt.AlignVCenter
-                }
-
-                Text {
-                    text: shellRoot.vertAmPm || Qt.formatTime(new Date(), "ap").toLowerCase()
-                    color: Config.accent
-                    font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: Config.size(Config.fontSubhead)
-                    Layout.alignment: Qt.AlignVCenter
-                }
-
-                Text {
-                    text: (shellRoot.vertMonth || Qt.formatDate(new Date(), "MMM")) + " " + (shellRoot.vertDay || Qt.formatDate(new Date(), "d"))
-                    color: Config.showCalendar ? Config.accent : Config.textMuted
-                    font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: Config.size(Config.fontSubhead)
-                    Layout.alignment: Qt.AlignVCenter
-                }
-            }
-
-            // Inline Comment: Live vertical time layout
-            ColumnLayout {
-                id: dateColumn
-                visible: !rootRef.isHorizontal
-                anchors.centerIn: parent
-                spacing: 1
-
-                Text {
-                    text: shellRoot.vertHour || (new Date().getHours() % 12 || 12).toString()
-                    color: Config.showCalendar ? Config.accent : Config.textMain
-                    font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 15
-                    Layout.alignment: Qt.AlignHCenter
-                }
-
-                Text {
-                    text: shellRoot.vertMinute || Qt.formatTime(new Date(), "mm")
-                    color: Config.showCalendar ? Config.accent : Config.textMain
-                    font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 15
-                    Layout.alignment: Qt.AlignHCenter
-                }
-
-                Text {
-                    text: shellRoot.vertAmPm || Qt.formatTime(new Date(), "ap").toLowerCase()
-                    color: Config.accent
-                    font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 12
-                    Layout.alignment: Qt.AlignHCenter
-                }
-
-                Text {
-                    text: shellRoot.vertMonth || Qt.formatDate(new Date(), "MMM")
-                    color: Config.showCalendar ? Config.accent : Config.textMuted
-                    font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 12
-                    Layout.alignment: Qt.AlignHCenter
-                }
-
-                Text {
-                    text: shellRoot.vertDay || Qt.formatDate(new Date(), "d")
-                    color: Config.showCalendar ? Config.accent : Config.textMuted
-                    font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 12
-                    Layout.alignment: Qt.AlignHCenter
-                }
             }
 
             TapHandler { onTapped: { popoutRequested(btnClock); Config.showCalendar = !Config.showCalendar; } }

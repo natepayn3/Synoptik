@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import Qt5Compat.GraphicalEffects
 import Quickshell.Hyprland
 
 Item {
@@ -173,15 +174,40 @@ Item {
                 Rectangle {
                     anchors.fill: parent
                     radius: 8
-                    color: addHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                    color: "transparent"
                     Behavior on color { ColorAnimation { duration: 150 } }
                 }
 
-                Text {
+                Item {
                     anchors.centerIn: parent
-                    font.family: Config.sysFont; font.pixelSize: 20; font.bold: true
-                    color: addHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
-                    text: "+"
+                    implicitWidth: addIconText.implicitWidth
+                    implicitHeight: addIconText.implicitHeight
+                    scale: addHover.hovered ? 1.25 : 1.0
+
+                    Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                    Glow {
+                        anchors.fill: addIconText
+                        source: addIconText
+                        radius: addHover.hovered ? 8 : 0
+                        samples: 16
+                        color: Config.accent
+                        spread: 0.2
+                        transparentBorder: true
+                        visible: addHover.hovered
+
+                        Behavior on radius { NumberAnimation { duration: 180 } }
+                    }
+
+                    Text {
+                        id: addIconText
+                        anchors.centerIn: parent
+                        font.family: Config.sysFont; font.pixelSize: 20; font.bold: true
+                        color: addHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
+                        text: "+"
+
+                        Behavior on color { ColorAnimation { duration: 150 } }
+                    }
                 }
                 TapHandler {
                     onTapped: {
@@ -200,15 +226,40 @@ Item {
                 Rectangle {
                     anchors.fill: parent
                     radius: 8
-                    color: overviewHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                    color: Config.showWorkspacePreview ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
                     Behavior on color { ColorAnimation { duration: 150 } }
                 }
 
-                Text {
+                Item {
                     anchors.centerIn: parent
-                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
-                    color: (Config.showWorkspacePreview || overviewHover.hovered) ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
-                    text: Config.getIcon("overview")
+                    implicitWidth: overviewIconText.implicitWidth
+                    implicitHeight: overviewIconText.implicitHeight
+                    scale: overviewHover.hovered ? 1.25 : 1.0
+
+                    Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                    Glow {
+                        anchors.fill: overviewIconText
+                        source: overviewIconText
+                        radius: overviewHover.hovered ? 8 : 0
+                        samples: 16
+                        color: Config.accent
+                        spread: 0.2
+                        transparentBorder: true
+                        visible: overviewHover.hovered
+
+                        Behavior on radius { NumberAnimation { duration: 180 } }
+                    }
+
+                    Text {
+                        id: overviewIconText
+                        anchors.centerIn: parent
+                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                        color: (Config.showWorkspacePreview || overviewHover.hovered) ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
+                        text: Config.getIcon("overview")
+
+                        Behavior on color { ColorAnimation { duration: 150 } }
+                    }
                 }
                 TapHandler { onTapped: if (typeof Config.showWorkspacePreview !== "undefined") Config.showWorkspacePreview = !Config.showWorkspacePreview }
                 HoverHandler { id: overviewHover; cursorShape: Qt.PointingHandCursor }
@@ -222,16 +273,41 @@ Item {
                 Rectangle {
                     anchors.fill: parent
                     radius: 8
-                    color: magicHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                    color: root.isMagicActive ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
                     Behavior on color { ColorAnimation { duration: 150 } }
                 }
 
-                Text {
+                Item {
                     anchors.centerIn: parent
-                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold
-                    font.pixelSize: root.isMagicActive ? 24 : 20
-                    color: (root.isMagicActive || magicHover.hovered) ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
-                    text: root.isMagicActive ? Config.getIcon("magic_active") : Config.getIcon("magic")
+                    implicitWidth: magicIconText.implicitWidth
+                    implicitHeight: magicIconText.implicitHeight
+                    scale: magicHover.hovered ? 1.25 : 1.0
+
+                    Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                    Glow {
+                        anchors.fill: magicIconText
+                        source: magicIconText
+                        radius: magicHover.hovered ? 8 : 0
+                        samples: 16
+                        color: Config.accent
+                        spread: 0.2
+                        transparentBorder: true
+                        visible: magicHover.hovered
+
+                        Behavior on radius { NumberAnimation { duration: 180 } }
+                    }
+
+                    Text {
+                        id: magicIconText
+                        anchors.centerIn: parent
+                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold
+                        font.pixelSize: root.isMagicActive ? 24 : 20
+                        color: (root.isMagicActive || magicHover.hovered) ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
+                        text: root.isMagicActive ? Config.getIcon("magic_active") : Config.getIcon("magic")
+
+                        Behavior on color { ColorAnimation { duration: 150 } }
+                    }
                 }
                 TapHandler { onTapped: Hyprland.dispatch("hl.dsp.workspace.toggle_special(\"magic\")") }
                 HoverHandler { id: magicHover; cursorShape: Qt.PointingHandCursor }
@@ -244,16 +320,41 @@ Item {
                 Rectangle {
                     anchors.fill: parent
                     radius: 8
-                    color: musicHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                    color: root.isMusicActive ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
                     Behavior on color { ColorAnimation { duration: 150 } }
                 }
 
-                Text {
+                Item {
                     anchors.centerIn: parent
-                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold
-                    font.pixelSize: root.isMusicActive ? 24 : 20
-                    color: (root.isMusicActive || musicHover.hovered) ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
-                    text: root.isMusicActive ? Config.getIcon("music_active") : Config.getIcon("music")
+                    implicitWidth: musicIconText.implicitWidth
+                    implicitHeight: musicIconText.implicitHeight
+                    scale: musicHover.hovered ? 1.25 : 1.0
+
+                    Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                    Glow {
+                        anchors.fill: musicIconText
+                        source: musicIconText
+                        radius: musicHover.hovered ? 8 : 0
+                        samples: 16
+                        color: Config.accent
+                        spread: 0.2
+                        transparentBorder: true
+                        visible: musicHover.hovered
+
+                        Behavior on radius { NumberAnimation { duration: 180 } }
+                    }
+
+                    Text {
+                        id: musicIconText
+                        anchors.centerIn: parent
+                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold
+                        font.pixelSize: root.isMusicActive ? 24 : 20
+                        color: (root.isMusicActive || musicHover.hovered) ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
+                        text: root.isMusicActive ? Config.getIcon("music_active") : Config.getIcon("music")
+
+                        Behavior on color { ColorAnimation { duration: 150 } }
+                    }
                 }
                 TapHandler { onTapped: Hyprland.dispatch("hl.dsp.workspace.toggle_special(\"music\")") }
                 HoverHandler { id: musicHover; cursorShape: Qt.PointingHandCursor }
@@ -266,16 +367,41 @@ Item {
                 Rectangle {
                     anchors.fill: parent
                     radius: 8
-                    color: privateHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                    color: root.isPrivateActive ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
                     Behavior on color { ColorAnimation { duration: 150 } }
                 }
 
-                Text {
+                Item {
                     anchors.centerIn: parent
-                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold
-                    font.pixelSize: root.isPrivateActive ? 24 : 20
-                    color: (root.isPrivateActive || privateHover.hovered) ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
-                    text: root.isPrivateActive ? Config.getIcon("private_active") : Config.getIcon("private")
+                    implicitWidth: privateIconText.implicitWidth
+                    implicitHeight: privateIconText.implicitHeight
+                    scale: privateHover.hovered ? 1.25 : 1.0
+
+                    Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                    Glow {
+                        anchors.fill: privateIconText
+                        source: privateIconText
+                        radius: privateHover.hovered ? 8 : 0
+                        samples: 16
+                        color: Config.accent
+                        spread: 0.2
+                        transparentBorder: true
+                        visible: privateHover.hovered
+
+                        Behavior on radius { NumberAnimation { duration: 180 } }
+                    }
+
+                    Text {
+                        id: privateIconText
+                        anchors.centerIn: parent
+                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold
+                        font.pixelSize: root.isPrivateActive ? 24 : 20
+                        color: (root.isPrivateActive || privateHover.hovered) ? Config.accent : Qt.rgba(255, 255, 255, 0.35)
+                        text: root.isPrivateActive ? Config.getIcon("private_active") : Config.getIcon("private")
+
+                        Behavior on color { ColorAnimation { duration: 150 } }
+                    }
                 }
                 TapHandler { onTapped: Hyprland.dispatch("hl.dsp.workspace.toggle_special(\"private\")") }
                 HoverHandler { id: privateHover; cursorShape: Qt.PointingHandCursor }
