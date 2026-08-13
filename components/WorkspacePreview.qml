@@ -22,6 +22,28 @@ FocusScope {
     property var resolvedIconPaths: ({})
     property int highlightedIndex: 0
     property bool contentReady: false
+    property string selectedWindowAddress: ""
+    property string draggingWindowAddress: ""
+    property string draggingWindowClass: ""
+    property int dragHoverWorkspaceId: -1
+    property real dragX: 0
+    property real dragY: 0
+    property bool isDraggingWindow: false
+
+    function findWorkspaceAtPoint(globalX, globalY) {
+        if (!rowContainer || !rowContainer.children) return -1;
+        for (let i = 0; i < rowContainer.children.length; i++) {
+            let child = rowContainer.children[i];
+            if (child && typeof child.workingWorkspace !== "undefined") {
+                let localPt = child.mapFromItem(overviewFlyout, globalX, globalY);
+                if (localPt.x >= 0 && localPt.x <= child.width &&
+                    localPt.y >= 0 && localPt.y <= child.height) {
+                    return child.workingWorkspace;
+                }
+            }
+        }
+        return -1;
+    }
 
     readonly property var activeWorkspaces: {
         let ids = [1];
@@ -44,6 +66,44 @@ FocusScope {
         // 3. Close the preview drawer
         if (typeof Config.showWorkspacePreview !== "undefined") {
             Config.showWorkspacePreview = false;
+        }
+    }
+
+    function formatWindowRef(windowAddr) {
+        if (!windowAddr) return "";
+        let trimmed = windowAddr.trim();
+        if (trimmed.startsWith("address:")) return trimmed;
+        if (trimmed.startsWith("0x")) return "address:" + trimmed;
+        return trimmed;
+    }
+
+    function moveWindowToWorkspace(targetWs, windowAddr) {
+        Hyprland.dispatch("hl.dsp.release_input_capture()");
+
+        let formatted = formatWindowRef(windowAddr);
+        if (formatted !== "") {
+            // Focus specific window by address matcher, then move to workspace using Hyprland Lua syntax
+            Hyprland.dispatch("hl.dsp.focus({ window = \"" + formatted + "\" })");
+            Hyprland.dispatch("hl.dsp.window.move({ workspace = " + targetWs + " })");
+        } else {
+            // Move active window to target workspace using Hyprland Lua syntax
+            Hyprland.dispatch("hl.dsp.window.move({ workspace = " + targetWs + " })");
+        }
+
+        // Refresh live client and workspace data
+        clientQueryProcess.running = true;
+        Hyprland.refreshWorkspaces();
+        Hyprland.refreshToplevels();
+    }
+
+    function focusWindow(windowAddr) {
+        let formatted = formatWindowRef(windowAddr);
+        if (formatted !== "") {
+            Hyprland.dispatch("hl.dsp.release_input_capture()");
+            Hyprland.dispatch("hl.dsp.focus({ window = \"" + formatted + "\" })");
+            if (typeof Config.showWorkspacePreview !== "undefined") {
+                Config.showWorkspacePreview = false;
+            }
         }
     }
 
@@ -283,12 +343,13 @@ print(json.dumps(resolved_map))
 
                             readonly property bool isCurrent: (Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : 1) === modelData
                             readonly property bool isSelected: overviewFlyout.highlightedIndex === index
+                            readonly property bool isDragTarget: overviewFlyout.isDraggingWindow && overviewFlyout.dragHoverWorkspaceId === modelData
                             property int workingWorkspace: modelData
 
-                            color: tileHover.hovered || isSelected ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(0, 0, 0, 0.3)
+                            color: tileHover.hovered || isSelected || isDragTarget ? Qt.rgba(255, 255, 255, 0.18) : Qt.rgba(0, 0, 0, 0.3)
                     
-                            border.color: tileHover.hovered || isSelected || isCurrent ? Config.accent : "transparent"
-                            border.width: tileHover.hovered || isSelected ? 3 : (isCurrent ? 2 : 0)
+                            border.color: tileHover.hovered || isSelected || isCurrent || isDragTarget ? Config.accent : "transparent"
+                            border.width: tileHover.hovered || isSelected || isDragTarget ? 3 : (isCurrent ? 2 : 0)
                             
                             radius: Config.cornerRadius / 2
                             clip: false
@@ -494,6 +555,73 @@ print(json.dumps(resolved_map))
                                                     horizontalAlignment: Text.AlignHCenter
                                                 }
                                             }
+
+                                            MouseArea {
+                                                id: windowMouseArea
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                cursorShape: overviewFlyout.isDraggingWindow ? Qt.ClosedHandCursor : Qt.PointingHandCursor
+                                                property point pressPos: Qt.point(0, 0)
+
+                                                onPressed: (mouse) => {
+                                                    overviewFlyout.forceActiveFocus();
+                                                    pressPos = Qt.point(mouse.x, mouse.y);
+                                                    if (modelData && modelData.address) {
+                                                        overviewFlyout.selectedWindowAddress = modelData.address;
+                                                    }
+                                                }
+
+                                                onPositionChanged: (mouse) => {
+                                                    if (pressed) {
+                                                        let dx = mouse.x - pressPos.x;
+                                                        let dy = mouse.y - pressPos.y;
+                                                        let dist = Math.sqrt(dx * dx + dy * dy);
+
+                                                        let mapped = mapToItem(overviewFlyout, mouse.x, mouse.y);
+                                                        if (!overviewFlyout.isDraggingWindow && dist > 5) {
+                                                            overviewFlyout.isDraggingWindow = true;
+                                                            overviewFlyout.draggingWindowAddress = modelData.address;
+                                                            overviewFlyout.draggingWindowClass = modelData.class || "Window";
+                                                        }
+
+                                                        if (overviewFlyout.isDraggingWindow) {
+                                                            overviewFlyout.dragX = mapped.x;
+                                                            overviewFlyout.dragY = mapped.y;
+                                                            overviewFlyout.dragHoverWorkspaceId = overviewFlyout.findWorkspaceAtPoint(mapped.x, mapped.y);
+                                                        }
+                                                    }
+                                                }
+
+                                                onReleased: (mouse) => {
+                                                    if (overviewFlyout.isDraggingWindow) {
+                                                        let mapped = mapToItem(overviewFlyout, mouse.x, mouse.y);
+                                                        let dropWs = overviewFlyout.findWorkspaceAtPoint(mapped.x, mapped.y);
+                                                        let targetAddr = overviewFlyout.draggingWindowAddress;
+
+                                                        overviewFlyout.isDraggingWindow = false;
+                                                        overviewFlyout.draggingWindowAddress = "";
+                                                        overviewFlyout.draggingWindowClass = "";
+                                                        overviewFlyout.dragHoverWorkspaceId = -1;
+
+                                                        if (dropWs > 0) {
+                                                            overviewFlyout.moveWindowToWorkspace(dropWs, targetAddr);
+                                                        }
+                                                    } else {
+                                                        if (mouse.modifiers & Qt.ShiftModifier) {
+                                                            let currentWs = Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : 1;
+                                                            overviewFlyout.moveWindowToWorkspace(currentWs, modelData.address);
+                                                        } else {
+                                                            overviewFlyout.focusWindow(modelData.address);
+                                                        }
+                                                    }
+                                                }
+
+                                                onEntered: {
+                                                    if (modelData && modelData.address) {
+                                                        overviewFlyout.selectedWindowAddress = modelData.address;
+                                                    }
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -501,9 +629,20 @@ print(json.dumps(resolved_map))
 
                             // Handle precise pointer inputs without blocking Wayland layer-shell events
                             TapHandler {
+                                id: tileNormalTapHandler
+                                acceptedModifiers: Qt.NoModifier
                                 onTapped: {
-                                    overviewFlyout.forceActiveFocus() // Ensure FocusScope retains key listening
-                                    switchWorkspace(wsTile.modelData)
+                                    overviewFlyout.forceActiveFocus();
+                                    overviewFlyout.switchWorkspace(wsTile.modelData);
+                                }
+                            }
+
+                            TapHandler {
+                                id: tileShiftTapHandler
+                                acceptedModifiers: Qt.ShiftModifier
+                                onTapped: {
+                                    overviewFlyout.forceActiveFocus();
+                                    overviewFlyout.moveWindowToWorkspace(wsTile.modelData, overviewFlyout.selectedWindowAddress);
                                 }
                             }
 
@@ -522,6 +661,41 @@ print(json.dumps(resolved_map))
                         }
                     }
                 }
+            }
+        }
+    }
+
+    Rectangle {
+        id: dragGhost
+        parent: overviewFlyout
+        z: 999
+        visible: overviewFlyout.isDraggingWindow
+        width: 100
+        height: 50
+        color: Qt.rgba(30, 30, 45, 0.9)
+        border.color: Config.accent
+        border.width: 2
+        radius: 6
+        x: overviewFlyout.dragX - width / 2
+        y: overviewFlyout.dragY - height / 2
+
+        RowLayout {
+            anchors.centerIn: parent
+            spacing: 6
+            Text {
+                text: "move_group"
+                color: Config.accent
+                font.family: "Material Symbols Outlined"
+                font.pixelSize: 14
+            }
+            Text {
+                text: overviewFlyout.draggingWindowClass
+                color: Config.textMain
+                font.family: Config.sysFont
+                font.pixelSize: 10
+                font.bold: true
+                elide: Text.ElideRight
+                Layout.maximumWidth: 70
             }
         }
     }
