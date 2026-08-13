@@ -577,6 +577,126 @@ QtObject {
     onMirrorPinnedChanged: { if (isLoaded) saveSettings() }
     onMirrorAnchorPosChanged: { if (isLoaded) saveSettings() }
 
+    // --- CAFFEINE STATE & TIMER ---
+    property bool caffeineHasHypridle: false
+    property int caffeineState: 0
+    property double caffeineTimerEndTime: 0
+    property string caffeineRemainingTimeString: ""
+
+    property Process caffeineCheckBinaryProc: Process {
+        id: caffeineCheckBinaryProc
+        command: ["fish", "-c", "which hypridle"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.caffeineHasHypridle = this.text.trim().length > 0
+                if (root.caffeineHasHypridle) root.caffeineCheckStatusProc.running = true
+            }
+        }
+    }
+
+    property Process caffeineCheckStatusProc: Process {
+        id: caffeineCheckStatusProc
+        command: ["fish", "-c", "pgrep -x hypridle"]
+        running: false
+        
+        stdout: StdioCollector {
+            id: caffeineStatusOutput
+        }
+
+        onExited: (exitCode, exitStatus) => {
+            let isRunning = (exitCode === 0 && caffeineStatusOutput.text.trim().length > 0)
+            
+            if (!isRunning) {
+                if (root.caffeineState === 0) {
+                    root.caffeineState = 1
+                }
+            } else {
+                if (root.caffeineState !== 0) {
+                    root.caffeineState = 0
+                    root.caffeineTimerEndTime = 0
+                }
+            }
+        }
+    }
+
+    property Process caffeineExecProc: Process {
+        id: caffeineExecProc
+        running: false
+        onExited: {
+            root.caffeineCheckStatusProc.running = true
+        }
+    }
+
+    property Timer caffeinePoller: Timer {
+        interval: 2000
+        running: root.caffeineHasHypridle
+        repeat: true
+        onTriggered: {
+            if (!root.caffeineExecProc.running && !root.caffeineCheckStatusProc.running) {
+                root.caffeineCheckStatusProc.running = true
+            }
+        }
+    }
+
+    property Timer caffeineCountdownTicker: Timer {
+        id: caffeineCountdownTicker
+        interval: 1000
+        repeat: true
+        running: root.caffeineState === 2
+        onTriggered: root.updateCaffeineCountdown()
+    }
+
+    function updateCaffeineCountdown() {
+        if (root.caffeineState !== 2) return
+
+        let now = Date.now()
+        let diffMs = root.caffeineTimerEndTime - now
+
+        if (diffMs <= 0) {
+            root.caffeineState = 0
+            root.caffeineTimerEndTime = 0
+            setHypridleRunning(true)
+            return
+        }
+
+        let totalSeconds = Math.round(diffMs / 1000)
+        let mins = Math.floor(totalSeconds / 60)
+        let secs = totalSeconds % 60
+
+        root.caffeineRemainingTimeString = `${mins}:${secs < 10 ? '0' : ''}${secs}`
+    }
+
+    function setHypridleRunning(enable) {
+        let cmd = enable
+            ? "systemctl --user start hypridle.service"
+            : "pkill -x hypridle; and systemctl --user stop hypridle.service; and systemctl --user reset-failed hypridle.service"
+
+        caffeineExecProc.command = ["fish", "-c", cmd]
+        caffeineExecProc.running = true
+    }
+
+    function cycleCaffeine() {
+        if (!caffeineHasHypridle) return
+
+        let nextState = (caffeineState + 1) % 3
+
+        if (nextState === 1) {
+            caffeineTimerEndTime = 0
+            setHypridleRunning(false)
+        } else if (nextState === 2) {
+            let roundedNow = Math.floor(Date.now() / 1000) * 1000
+            caffeineTimerEndTime = roundedNow + 1800000
+            updateCaffeineCountdown()
+            setHypridleRunning(false)
+        } else {
+            caffeineTimerEndTime = 0
+            setHypridleRunning(true)
+        }
+
+        caffeineState = nextState
+    }
+
     // --- ICON MAP & OVERRIDES ---
     property var iconOverrides: ({})
 
