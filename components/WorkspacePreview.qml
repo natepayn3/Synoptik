@@ -501,7 +501,7 @@ print(json.dumps(resolved_map))
                                     id: viewportFrame
                                     Layout.fillWidth: false
                                     Layout.alignment: Qt.AlignHCenter
-                                    color: "transparent"
+                                    color: Qt.rgba(0, 0, 0, 0.25)
                                     radius: 4
                                     clip: true
 
@@ -528,14 +528,6 @@ print(json.dumps(resolved_map))
                                     
                                     property real scaleX: width / wsTile.monitorBounds.w
                                     property real scaleY: height / wsTile.monitorBounds.h
-
-                                    ScreencopyView {
-                                        anchors.fill: parent
-                                        captureSource: viewportFrame.targetMonitorOutput
-                                        live: overviewFlyout.isOpen
-                                        paintCursor: false
-                                        opacity: 0.7
-                                    }
                                     
                                     Repeater {
                                         model: viewportFrame.workspaceWindows
