@@ -258,7 +258,7 @@ PanelWindow {
 
     mask: Region {
         Region { item: barContent }
-        Region { item: (root.isOpen || root.progress > 0.01) ? contentContainer : null }
+        Region { item: root.progress > 0.01 ? contentContainer : null }
     }
 
     WlrLayershell.layer: WlrLayer.Top
@@ -578,7 +578,7 @@ PanelWindow {
                 id: screenFrameCorners
                 Shape {
                     anchors.fill: parent
-                    readonly property bool popupActive: root.isOpen || root.progress > 0
+                    readonly property bool popupActive: root.progress > 0.005
                     readonly property bool hideTL: popupActive && ((root.barPosition === "left" && root.isLeftFlush) || (root.barPosition === "top" && root.isLeftFlush))
                     readonly property bool hideTR: popupActive && ((root.barPosition === "right" && root.isLeftFlush) || (root.barPosition === "top" && root.isRightFlush))
                     readonly property bool hideBL: popupActive && ((root.barPosition === "left" && root.isRightFlush) || (root.barPosition === "bottom" && root.isLeftFlush))
@@ -618,7 +618,7 @@ PanelWindow {
             Shape {
                 id: closedShape
                 anchors.fill: parent
-                visible: root.progress === 0 && !root.isScreenFrame
+                visible: root.progress <= 0.005 && !root.isScreenFrame
 
                 readonly property real bX: root.isRight ? (mainContainer.width - root.barH + root.halfB) : root.halfB
                 readonly property real bY: root.isBottom ? (mainContainer.height - root.barH + root.halfB) : root.halfB
@@ -649,7 +649,7 @@ PanelWindow {
             Shape {
                 id: openShapeLeftFloating
                 anchors.fill: parent
-                visible: root.barPosition === "left" && !root.isScreenFrame && (root.isOpen || root.progress > 0)
+                visible: root.barPosition === "left" && !root.isScreenFrame && root.progress > 0
 
                 ShapePath {
                     fillColor: Config.bgPanel
@@ -682,7 +682,7 @@ PanelWindow {
             Shape {
                 id: openShapeTopFloating
                 anchors.fill: parent
-                visible: root.barPosition === "top" && !root.isScreenFrame && (root.isOpen || root.progress > 0)
+                visible: root.barPosition === "top" && !root.isScreenFrame && root.progress > 0
 
                 ShapePath {
                     fillColor: Config.bgPanel
@@ -715,7 +715,7 @@ PanelWindow {
             Shape {
                 id: openShapeBottomFloating
                 anchors.fill: parent
-                visible: root.barPosition === "bottom" && !root.isScreenFrame && (root.isOpen || root.progress > 0)
+                visible: root.barPosition === "bottom" && !root.isScreenFrame && root.progress > 0
                 readonly property real barTopY: mainContainer.height - root.barH + root.halfB
 
                 ShapePath {
@@ -749,7 +749,7 @@ PanelWindow {
             Shape {
                 id: openShapeRightFloating
                 anchors.fill: parent
-                visible: root.barPosition === "right" && !root.isScreenFrame && (root.isOpen || root.progress > 0)
+                visible: root.barPosition === "right" && !root.isScreenFrame && root.progress > 0
                 readonly property real rX: mainContainer.width - root.barH
 
                 ShapePath {
@@ -827,7 +827,7 @@ PanelWindow {
             Item {
                 id: sfOpenGroupLeft
                 anchors.fill: parent
-                visible: root.barPosition === "left" && root.isScreenFrame && (root.isOpen || root.progress > 0)
+                visible: root.barPosition === "left" && root.isScreenFrame && root.progress > 0
 
                 Rectangle { x: 0; y: 0; width: mainContainer.width; height: root.inY; color: Config.bgPanel }
                 Rectangle { x: 0; y: root.inY + root.inH; width: mainContainer.width; height: mainContainer.height - (root.inY + root.inH); color: Config.bgPanel }
@@ -963,7 +963,7 @@ PanelWindow {
             Item {
                 id: sfOpenGroupRight
                 anchors.fill: parent
-                visible: root.barPosition === "right" && root.isScreenFrame && (root.isOpen || root.progress > 0)
+                visible: root.barPosition === "right" && root.isScreenFrame && root.progress > 0
 
                 Rectangle { x: 0; y: 0; width: mainContainer.width; height: root.inY; color: Config.bgPanel }
                 Rectangle { x: 0; y: root.inY + root.inH; width: mainContainer.width; height: mainContainer.height - (root.inY + root.inH); color: Config.bgPanel }
@@ -1095,7 +1095,7 @@ PanelWindow {
             Item {
                 id: sfOpenGroupTop
                 anchors.fill: parent
-                visible: root.barPosition === "top" && root.isScreenFrame && (root.isOpen || root.progress > 0)
+                visible: root.barPosition === "top" && root.isScreenFrame && root.progress > 0
 
                 Rectangle { x: 0; y: 0; width: mainContainer.width; height: root.inY; color: Config.bgPanel }
                 Rectangle { x: 0; y: root.inY + root.inH; width: mainContainer.width; height: mainContainer.height - (root.inY + root.inH); color: Config.bgPanel }
@@ -1230,7 +1230,7 @@ PanelWindow {
             Item {
                 id: sfOpenGroupBottom
                 anchors.fill: parent
-                visible: root.barPosition === "bottom" && root.isScreenFrame && (root.isOpen || root.progress > 0)
+                visible: root.barPosition === "bottom" && root.isScreenFrame && root.progress > 0
 
                 Rectangle { x: 0; y: 0; width: mainContainer.width; height: root.inY; color: Config.bgPanel }
                 Rectangle { x: 0; y: root.inY + root.inH; width: mainContainer.width; height: mainContainer.height - (root.inY + root.inH); color: Config.bgPanel }
