@@ -329,9 +329,9 @@ print(json.dumps(resolved_map))
 
             // GRAPHIC WATERMARK
             Item {
-                anchors.left: parent.left
+                anchors.right: parent.right
                 anchors.bottom: parent.bottom
-                anchors.leftMargin: -15
+                anchors.rightMargin: -15
                 anchors.bottomMargin: -20
                 implicitWidth: 150
                 implicitHeight: 150
