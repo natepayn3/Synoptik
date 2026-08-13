@@ -432,7 +432,7 @@ PanelWindow {
             height: root.currentHeight
             
             clip: true
-            visible: root.progress >= 0.98
+            visible: root.isOpen || root.progress > 0.05
             focus: true
 
             TapHandler { onTapped: {} }

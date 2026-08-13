@@ -64,8 +64,8 @@ Item {
     }
 
     Process {
-        id: thumbDirCreator
-        command: ["mkdir", "-p", Quickshell.env("HOME") + "/.cache/wallpaper-thumbs"]
+        id: thumbPreGenProcess
+        command: ["python3", "-c", "import os, subprocess; cd = os.path.expanduser('~/.cache/wallpaper-thumbs'); os.makedirs(cd, exist_ok=True); wd = os.path.expanduser('~/Pictures/Wallpapers'); (os.path.isdir(wd) and [subprocess.run(['ffmpeg', '-y', '-i', os.path.join(wd, f), '-vf', 'scale=320:-1', os.path.join(cd, f.replace('.', '_') + '.jpg')], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) for f in os.listdir(wd) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.mp4', '.webm')) and not os.path.exists(os.path.join(cd, f.replace('.', '_') + '.jpg'))])"]
         running: true
     }
 
@@ -300,7 +300,7 @@ Item {
                     ListView {
                         id: accordionList
                         anchors.fill: parent
-                        cacheBuffer: 2000
+                        cacheBuffer: 4000
                         reuseItems: true
                         orientation: root.isVerticalLayout ? ListView.Vertical : ListView.Horizontal
                         spacing: 8
@@ -381,16 +381,16 @@ Item {
                                 return ext === "mp4" || ext === "webm";
                             }
 
-                            readonly property string thumbName: isVideo ? (fileName.replace(/[^a-zA-Z0-9]/g, "_") + ".png") : ""
-                            readonly property string thumbPath: isVideo ? (Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + thumbName) : ""
-                            readonly property string thumbUrl: isVideo ? ("file://" + thumbPath) : ""
+                            readonly property string thumbName: fileName.replace(/\./g, "_") + ".jpg"
+                            readonly property string thumbPath: Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + thumbName
+                            readonly property string thumbUrl: "file://" + thumbPath
 
                             Process {
                                 id: delegateThumbGenerator
                                 running: false
 
                                 onExited: (exitCode, exitStatus) => {
-                                    if (exitCode === 0 && isVideo) {
+                                    if (exitCode === 0) {
                                         let path = delegateItem.thumbUrl;
                                         thumbImage.source = "";
                                         thumbImage.source = path;
@@ -399,11 +399,9 @@ Item {
                             }
 
                             Component.onCompleted: {
-                                if (isVideo) {
-                                    let cmd = "test -f '" + thumbPath + "' || ffmpeg -y -ss 00:00:00 -i '" + filePath + "' -frames:v 1 -vf 'scale=600:-1' '" + thumbPath + "' >/dev/null 2>&1";
-                                    delegateThumbGenerator.command = ["sh", "-c", cmd];
-                                    delegateThumbGenerator.running = true;
-                                }
+                                let cmd = "if not test -f '" + thumbPath + "'; ffmpeg -y -i '" + filePath + "' -vf 'scale=320:-1' '" + thumbPath + "' >/dev/null 2>&1; end";
+                                delegateThumbGenerator.command = ["fish", "-c", cmd];
+                                delegateThumbGenerator.running = true;
                             }
 
                             Rectangle {
@@ -423,14 +421,12 @@ Item {
                                     Image {
                                         id: thumbImage
                                         anchors.fill: parent
-                                        source: isVideo ? delegateItem.thumbUrl : fileUrl
+                                        source: thumbUrl
                                         fillMode: Image.PreserveAspectCrop
                                         sourceSize.width: 320
                                         sourceSize.height: 180
                                         asynchronous: true
                                         cache: true
-                                        opacity: status === Image.Ready ? 1.0 : 0.0
-                                        Behavior on opacity { NumberAnimation { duration: 150 } }
                                     }
 
                                     Rectangle {

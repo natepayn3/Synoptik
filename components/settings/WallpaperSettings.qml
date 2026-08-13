@@ -336,9 +336,9 @@ Flickable {
                         return ext === "mp4" || ext === "webm";
                     }
 
-                    readonly property string thumbName: isVideo ? (fileName.replace(/[^a-zA-Z0-9]/g, "_") + ".png") : ""
-                    readonly property string thumbPath: isVideo ? (Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + thumbName) : ""
-                    readonly property string thumbUrl: isVideo ? ("file://" + thumbPath) : ""
+                    readonly property string thumbName: fileName.replace(/\./g, "_") + ".jpg"
+                    readonly property string thumbPath: Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + thumbName
+                    readonly property string thumbUrl: "file://" + thumbPath
 
                     // Inline Comment: Handle thumbnail reload on process exit to avoid initial load warnings
                     Process {
@@ -346,7 +346,7 @@ Flickable {
                         running: false
 
                         onExited: (exitCode, exitStatus) => {
-                            if (exitCode === 0 && isVideo) {
+                            if (exitCode === 0) {
                                 let path = delegateItem.thumbUrl;
                                 thumbImage.source = "";
                                 thumbImage.source = path;
@@ -355,11 +355,9 @@ Flickable {
                     }
 
                     Component.onCompleted: {
-                        if (isVideo) {
-                            let cmd = "if not test -f '" + thumbPath + "'; ffmpeg -y -ss 00:00:00 -i '" + filePath + "' -frames:v 1 -vf 'scale=300:-1' '" + thumbPath + "' >/dev/null 2>&1; end";
-                            delegateThumbGenerator.command = ["fish", "-c", cmd];
-                            delegateThumbGenerator.running = true;
-                        }
+                        let cmd = "if not test -f '" + thumbPath + "'; ffmpeg -y -i '" + filePath + "' -vf 'scale=300:-1' '" + thumbPath + "' >/dev/null 2>&1; end";
+                        delegateThumbGenerator.command = ["fish", "-c", cmd];
+                        delegateThumbGenerator.running = true;
                     }
 
                     Item {
@@ -374,14 +372,12 @@ Flickable {
                             Image {
                                 id: thumbImage
                                 anchors.fill: parent
-                                source: isVideo ? delegateItem.thumbUrl : fileUrl
+                                source: thumbUrl
                                 fillMode: Image.PreserveAspectCrop
                                 sourceSize.width: 320
                                 sourceSize.height: 180
                                 asynchronous: true
                                 cache: true
-                                opacity: status === Image.Ready ? 1.0 : 0.0
-                                Behavior on opacity { NumberAnimation { duration: 150 } }
                             }
                         }
 
