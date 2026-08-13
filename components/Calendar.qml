@@ -134,27 +134,59 @@ Item {
         anchors.margins: root.cardMargin
         spacing: root.cardMargin / 2
 
-        // --- LEFT COLUMN: CLOCK, WEATHER & REMINDERS ---
+        // --- LEFT COLUMN: CLOCK, GRAPHIC WEATHER & REMINDERS ---
         ColumnLayout {
             Layout.fillHeight: true
-            Layout.preferredWidth: 250
-            Layout.maximumWidth: 250
+            Layout.preferredWidth: 260
+            Layout.maximumWidth: 260
             spacing: root.cardMargin / 2
 
-            // CARD 1: CLOCK & WEATHER
+            // CARD 1: HERO CLOCK & ATMOSPHERIC GRAPHIC WEATHER
             Rectangle {
                 Layout.fillWidth: true
                 implicitHeight: clockWeatherCol.implicitHeight + (root.cardMargin * 2)
                 color: Qt.rgba(1, 1, 1, 0.08)
                 radius: Config.cornerRadius
+                clip: true
+
+                // ATMOSPHERIC BACKGROUND AMBIENT GLOW
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: parent.width * 0.9
+                    height: parent.height * 0.9
+                    radius: width / 2
+                    color: Config.accent
+                    opacity: 0.08
+                }
+
+                // MASSIVE GRAPHIC WEATHER WATERMARK
+                Item {
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    anchors.rightMargin: -10
+                    anchors.bottomMargin: -20
+                    implicitWidth: 130
+                    implicitHeight: 130
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: Config.weather.glyph
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 130
+                        color: Config.accent
+                        opacity: 0.16
+                        rotation: -12
+                    }
+                }
 
                 ColumnLayout {
                     id: clockWeatherCol
                     anchors.fill: parent
                     anchors.margins: root.cardMargin
-                    spacing: 4
+                    spacing: 12
 
-                    Row {
+                    // HERO CLOCK DISPLAY
+                    RowLayout {
                         Layout.alignment: Qt.AlignHCenter
                         spacing: 6
 
@@ -162,80 +194,174 @@ Item {
                             text: bigHour + ":" + bigMinute
                             color: Config.textMain
                             font.family: Config.sysFont
-                            font.pixelSize: Config.size([32, 36, 40])
+                            font.pixelSize: 58
                             font.bold: true
+                            font.letterSpacing: -1
                         }
 
                         Text {
-                            text: bigAmPm
-                            color: Config.textMuted
+                            text: bigAmPm.toLowerCase()
+                            color: Config.textMain
                             font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontTitle)
+                            font.pixelSize: 34
                             font.bold: true
-                            anchors.bottom: parent.bottom
-                            anchors.bottomMargin: 4
+                            Layout.alignment: Qt.AlignBaseline
                         }
                     }
 
-                    ColumnLayout {
+                    // GRAPHIC WEATHER HUD OVERLAY CARD
+                    Rectangle {
                         Layout.fillWidth: true
-                        Layout.alignment: Qt.AlignHCenter
-                        spacing: 2
+                        implicitHeight: weatherHudRow.implicitHeight + 16
+                        color: Qt.rgba(0, 0, 0, 0.25)
+                        radius: Config.cornerRadius / 1.5
 
                         RowLayout {
-                            Layout.alignment: Qt.AlignHCenter
-                            spacing: 6
+                            id: weatherHudRow
+                            anchors.fill: parent
+                            anchors.margins: 10
+                            spacing: 10
 
-                            Text {
-                                text: Config.weather.glyph
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 24
-                                color: Config.accent
+                            // ACTIVE WEATHER ICON WITH BADGE GLOW
+                            Rectangle {
+                                implicitWidth: 40
+                                implicitHeight: 40
+                                radius: 20
+                                color: Qt.rgba(255, 255, 255, 0.08)
                                 Layout.alignment: Qt.AlignVCenter
+
+                                Item {
+                                    implicitWidth: 26
+                                    implicitHeight: 26
+                                    anchors.centerIn: parent
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: Config.weather.glyph
+                                        font.family: "Material Symbols Outlined"
+                                        font.pixelSize: 26
+                                        color: Config.accent
+                                    }
+                                }
                             }
 
-                            Text {
-                                text: Config.weather.temp
-                                color: Config.textMain
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontSubhead)
-                                font.bold: true
+                            // MAIN TEMP & CONDITION DESC
+                            ColumnLayout {
+                                spacing: 0
+                                Layout.fillWidth: true
                                 Layout.alignment: Qt.AlignVCenter
-                            }
-                        }
 
-                        Text {
-                            text: Config.weather.desc + "\nFeels like " + Config.weather.feelsLike
-                            color: Config.textMuted
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            horizontalAlignment: Text.AlignHCenter
-                            Layout.alignment: Qt.AlignHCenter
-                            Layout.fillWidth: true
-                            wrapMode: Text.WordWrap
+                                Text {
+                                    text: Config.weather.temp
+                                    color: Config.textMain
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontTitle)
+                                    font.bold: true
+                                }
+
+                                Text {
+                                    text: Config.weather.desc !== "" ? Config.weather.desc : "Current Weather"
+                                    color: Config.textMuted
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontCaption)
+                                    font.bold: true
+                                    elide: Text.ElideRight
+                                    Layout.fillWidth: true
+                                }
+                            }
+
+                            // FEELS LIKE STAT BADGE
+                            ColumnLayout {
+                                spacing: 2
+                                Layout.alignment: Qt.AlignVCenter
+
+                                RowLayout {
+                                    spacing: 4
+                                    Layout.alignment: Qt.AlignRight
+
+                                    Item {
+                                        implicitWidth: 16
+                                        implicitHeight: 16
+                                        Layout.alignment: Qt.AlignVCenter
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: "thermostat"
+                                            font.family: "Material Symbols Outlined"
+                                            font.pixelSize: 16
+                                            color: Config.accent
+                                        }
+                                    }
+
+                                    Text {
+                                        text: Config.weather.feelsLike
+                                        color: Config.accent
+                                        font.family: Config.sysFont
+                                        font.pixelSize: Config.size(Config.fontCaption)
+                                        font.bold: true
+                                    }
+                                }
+
+                                Text {
+                                    text: "Feels Like"
+                                    color: Config.textMuted
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontMicro)
+                                    font.bold: true
+                                    Layout.alignment: Qt.AlignRight
+                                }
+                            }
                         }
                     }
                 }
             }
 
-            // CARD 2: REMINDERS
+            // CARD 2: REMINDERS CARD WITH GRAPHIC WATERMARK
             Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 color: Qt.rgba(1, 1, 1, 0.08)
                 radius: Config.cornerRadius
+                clip: true
+
+                // GRAPHIC NOTES WATERMARK
+                Item {
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    anchors.rightMargin: -12
+                    anchors.bottomMargin: -16
+                    implicitWidth: 110
+                    implicitHeight: 110
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "edit_note"
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 110
+                        color: Config.accent
+                        opacity: 0.12
+                        rotation: -10
+                    }
+                }
 
                 ColumnLayout {
                     anchors.fill: parent
                     anchors.margins: root.cardMargin / 2
                     spacing: 8
 
-                    Text {
-                        text: "NOTES / REMINDERS"
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontCaption)
-                        font.bold: true
+                    RowLayout {
+                        spacing: 6
+                        Rectangle {
+                            implicitWidth: 3; implicitHeight: 12; radius: 1.5
+                            color: Config.accent
+                        }
+                        Text {
+                            text: "NOTES / REMINDERS"
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            font.bold: true
+                        }
                     }
 
                     ListView {
@@ -357,12 +483,33 @@ Item {
             }
         }
 
-        // --- CARD 3: CALENDAR MONTHGRID ---
+        // --- CARD 3: CALENDAR MONTHGRID CARD WITH GRAPHIC WATERMARK ---
         Rectangle {
             Layout.fillHeight: true
             Layout.fillWidth: true
             color: Qt.rgba(1, 1, 1, 0.08)
             radius: Config.cornerRadius
+            clip: true
+
+            // GRAPHIC CALENDAR WATERMARK
+            Item {
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.rightMargin: -15
+                anchors.bottomMargin: -20
+                implicitWidth: 150
+                implicitHeight: 150
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "calendar_month"
+                    font.family: "Material Symbols Outlined"
+                    font.pixelSize: 150
+                    color: Config.accent
+                    opacity: 0.07
+                    rotation: -8
+                }
+            }
 
             ColumnLayout {
                 anchors.fill: parent
@@ -371,6 +518,7 @@ Item {
 
                 RowLayout {
                     Layout.fillWidth: true
+                    spacing: 6
                     Text {
                         text: dayOfWeekStr.toUpperCase()
                         color: Config.accent
@@ -394,50 +542,66 @@ Item {
                         Layout.fillWidth: true
                     }
 
-                    Rectangle {
-                        implicitWidth: 28
-                        implicitHeight: 28
-                        radius: Config.cornerRadius / 2
-                        color: prevHover.hovered ? Qt.rgba(255, 255, 255, 0.1) : "transparent"
-                        border.color: prevHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
-                        border.width: 1
+                    RowLayout {
+                        spacing: 4
 
-                        Behavior on color { ColorAnimation { duration: 150 } }
-                        Behavior on border.color { ColorAnimation { duration: 150 } }
+                        Rectangle {
+                            implicitWidth: 28
+                            implicitHeight: 28
+                            radius: Config.cornerRadius / 2
+                            color: prevHover.hovered ? Qt.rgba(255, 255, 255, 0.1) : "transparent"
+                            border.color: prevHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
+                            border.width: 1
 
-                        Text {
-                            anchors.centerIn: parent
-                            text: "chevron_left"
-                            color: prevHover.hovered ? Config.accent : Config.textMain
-                            font.family: "Material Symbols Outlined"
-                            font.pixelSize: 18
+                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                            Item {
+                                implicitWidth: 18
+                                implicitHeight: 18
+                                anchors.centerIn: parent
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "chevron_left"
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 18
+                                    color: prevHover.hovered ? Config.accent : Config.textMain
+                                }
+                            }
+
+                            TapHandler { onTapped: root.prevMonth() }
+                            HoverHandler { id: prevHover; cursorShape: Qt.PointingHandCursor }
                         }
 
-                        TapHandler { onTapped: root.prevMonth() }
-                        HoverHandler { id: prevHover; cursorShape: Qt.PointingHandCursor }
-                    }
+                        Rectangle {
+                            implicitWidth: 28
+                            implicitHeight: 28
+                            radius: Config.cornerRadius / 2
+                            color: nextHover.hovered ? Qt.rgba(255, 255, 255, 0.1) : "transparent"
+                            border.color: nextHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
+                            border.width: 1
 
-                    Rectangle {
-                        implicitWidth: 28
-                        implicitHeight: 28
-                        radius: Config.cornerRadius / 2
-                        color: nextHover.hovered ? Qt.rgba(255, 255, 255, 0.1) : "transparent"
-                        border.color: nextHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
-                        border.width: 1
+                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on border.color { ColorAnimation { duration: 150 } }
 
-                        Behavior on color { ColorAnimation { duration: 150 } }
-                        Behavior on border.color { ColorAnimation { duration: 150 } }
+                            Item {
+                                implicitWidth: 18
+                                implicitHeight: 18
+                                anchors.centerIn: parent
 
-                        Text {
-                            anchors.centerIn: parent
-                            text: "chevron_right"
-                            color: nextHover.hovered ? Config.accent : Config.textMain
-                            font.family: "Material Symbols Outlined"
-                            font.pixelSize: 18
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "chevron_right"
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 18
+                                    color: nextHover.hovered ? Config.accent : Config.textMain
+                                }
+                            }
+
+                            TapHandler { onTapped: root.nextMonth() }
+                            HoverHandler { id: nextHover; cursorShape: Qt.PointingHandCursor }
                         }
-
-                        TapHandler { onTapped: root.nextMonth() }
-                        HoverHandler { id: nextHover; cursorShape: Qt.PointingHandCursor }
                     }
                 }
 
