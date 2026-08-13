@@ -547,7 +547,33 @@ print(json.dumps(resolved_map))
 
                                             z: isSelected ? 10 : (index + 1)
 
-                                            x: Math.round((modelData.at[0] - wsTile.monitorBounds.originX) * viewportFrame.scaleX)
+                                            property var wins: viewportFrame.workspaceWindows
+                                            property int selectedIndex: {
+                                                if (!wins || wins.length <= 1 || !overviewFlyout.selectedWindowAddress) return 0;
+                                                let addr = overviewFlyout.selectedWindowAddress.trim().toLowerCase();
+                                                let idx = wins.findIndex(w => w.address && w.address.trim().toLowerCase() === addr);
+                                                return idx !== -1 ? idx : 0;
+                                            }
+
+                                            property real shiftX: {
+                                                if (!wins || wins.length <= 1) return 0;
+                                                let selWin = wins[selectedIndex];
+                                                if (!selWin || !selWin.at || !selWin.size) return 0;
+                                                let selBaseX = Math.round((selWin.at[0] - wsTile.monitorBounds.originX) * viewportFrame.scaleX);
+                                                let selBaseW = Math.max(4, Math.round(selWin.size[0] * viewportFrame.scaleX));
+                                                let selCenterX = selBaseX + (selBaseW / 2);
+                                                return Math.round((viewportFrame.width / 2) - selCenterX);
+                                            }
+
+                                            property real stackedOffset: {
+                                                if (!wins || wins.length <= 1) return 0;
+                                                let selWin = wins[selectedIndex];
+                                                if (!selWin || !selWin.at) return 0;
+                                                let isOverlap = wins.some((w, i) => i !== index && w.at && Math.abs((w.at[0] - modelData.at[0]) * viewportFrame.scaleX) < 20);
+                                                return isOverlap ? Math.round((index - selectedIndex) * (viewportFrame.width * 0.55)) : 0;
+                                            }
+
+                                            x: Math.round((modelData.at[0] - wsTile.monitorBounds.originX) * viewportFrame.scaleX) + shiftX + stackedOffset
                                             y: Math.round((modelData.at[1] - wsTile.monitorBounds.originY) * viewportFrame.scaleY)
                                             width: Math.max(4, Math.round(modelData.size[0] * viewportFrame.scaleX))
                                             height: Math.max(4, Math.round(modelData.size[1] * viewportFrame.scaleY))
@@ -559,6 +585,7 @@ print(json.dumps(resolved_map))
                                             radius: 2
                                             clip: true
 
+                                            Behavior on x { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
                                             Behavior on border.color { ColorAnimation { duration: 120 } }
                                             Behavior on opacity { NumberAnimation { duration: 120 } }
 
