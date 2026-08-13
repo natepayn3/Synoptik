@@ -13,8 +13,29 @@ Item {
 
     implicitWidth: 1000
     implicitHeight: 700
+    clip: true
 
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
+
+    // GIGANTIC GEAR WATERMARK
+    Item {
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.rightMargin: -40
+        anchors.bottomMargin: -60
+        implicitWidth: 350
+        implicitHeight: 350
+
+        Text {
+            anchors.centerIn: parent
+            text: Config.getIcon("settings")
+            font.family: "Material Symbols Outlined"
+            font.pixelSize: 350
+            color: Config.accent
+            opacity: 0.07
+            rotation: 15
+        }
+    }
 
     // Inline Comment: Initialize activeSection to match saved Config state
     property int activeSection: Config.lastSettingsSection

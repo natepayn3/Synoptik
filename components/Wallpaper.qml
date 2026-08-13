@@ -153,6 +153,27 @@ Item {
             Layout.fillHeight: true
             radius: Config.cornerRadius
             color: Qt.rgba(255, 255, 255, 0.05)
+            clip: true
+
+            // GRAPHIC WATERMARK
+            Item {
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.rightMargin: -15
+                anchors.bottomMargin: -20
+                implicitWidth: 150
+                implicitHeight: 150
+
+                Text {
+                    anchors.centerIn: parent
+                    text: Config.getIcon("wallpaper")
+                    font.family: "Material Symbols Outlined"
+                    font.pixelSize: 150
+                    color: Config.accent
+                    opacity: 0.07
+                    rotation: 15
+                }
+            }
 
             ColumnLayout {
                 anchors.fill: parent
@@ -334,15 +355,15 @@ Item {
                             
                             readonly property bool isSelected: ListView.isCurrentItem
                             readonly property bool isHovered: hoverHandler.hovered || accordionContainer.hoveredIndex === index
-                            readonly property bool isAnyHovered: accordionContainer.hoveredIndex !== -1
+                            readonly property bool isExpanded: isHovered || isSelected
                             readonly property string itemFilePath: filePath
                             
                             width: root.isVerticalLayout
                                 ? accordionList.width - 6
-                                : ((isHovered || (isSelected && !isAnyHovered)) ? Math.round(height * (16 / 9)) : (isAnyHovered ? 60 : 80))
+                                : (isExpanded ? Math.round(height * (16 / 9)) : 80)
 
                             height: root.isVerticalLayout
-                                ? ((isHovered || (isSelected && !isAnyHovered)) ? Math.round(width * (9 / 16)) : (isAnyHovered ? 50 : 70))
+                                ? (isExpanded ? Math.round(width * (9 / 16)) : 70)
                                 : accordionList.height - 6
 
                             z: (isHovered || isSelected) ? 100 : (100 - index)

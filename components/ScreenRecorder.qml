@@ -83,6 +83,27 @@ Item {
 
             radius: Config.cornerRadius / 2
             color: root.isRecording ? Qt.rgba(0.8, 0.2, 0.2, 0.2) : Qt.rgba(1, 1, 1, 0.08)
+            clip: true
+
+            // GRAPHIC WATERMARK
+            Item {
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.rightMargin: -15
+                anchors.bottomMargin: -20
+                implicitWidth: 120
+                implicitHeight: 120
+
+                Text {
+                    anchors.centerIn: parent
+                    text: Config.getIcon("recorder")
+                    font.family: "Material Symbols Outlined"
+                    font.pixelSize: 120
+                    color: Config.accent
+                    opacity: 0.07
+                    rotation: 15
+                }
+            }
 
             Behavior on color { ColorAnimation { duration: 150 } }
 

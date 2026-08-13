@@ -71,6 +71,27 @@ Item {
             implicitHeight: topHeaderLayout.implicitHeight + (root.cardMargin * 2)
             radius: Config.cornerRadius
             color: Qt.rgba(255, 255, 255, 0.04)
+            clip: true
+
+            // GRAPHIC WATERMARK
+            Item {
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.rightMargin: -15
+                anchors.bottomMargin: -20
+                implicitWidth: 150
+                implicitHeight: 150
+
+                Text {
+                    anchors.centerIn: parent
+                    text: Config.getIcon("cc")
+                    font.family: "Material Symbols Outlined"
+                    font.pixelSize: 150
+                    color: Config.accent
+                    opacity: 0.07
+                    rotation: 15
+                }
+            }
 
             z: 100
 

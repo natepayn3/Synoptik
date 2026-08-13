@@ -34,6 +34,26 @@ Item {
             radius: Config.cornerRadius
             clip: true
 
+            // GRAPHIC WATERMARK
+            Item {
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.rightMargin: -15
+                anchors.bottomMargin: -20
+                implicitWidth: 150
+                implicitHeight: 150
+
+                Text {
+                    anchors.centerIn: parent
+                    text: Config.getIcon("audio")
+                    font.family: "Material Symbols Outlined"
+                    font.pixelSize: 150
+                    color: Config.accent
+                    opacity: 0.07
+                    rotation: 15
+                }
+            }
+
             Behavior on color { ColorAnimation { duration: 150 } }
 
             HoverHandler { id: outputCardHover }
@@ -284,6 +304,27 @@ Item {
             implicitHeight: inputLayout.implicitHeight + (audioModule.cardMargin * 2)
             color: inputCardHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.05)
             radius: Config.cornerRadius
+            clip: true
+
+            // GRAPHIC WATERMARK
+            Item {
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.rightMargin: -15
+                anchors.bottomMargin: -20
+                implicitWidth: 150
+                implicitHeight: 150
+
+                Text {
+                    anchors.centerIn: parent
+                    text: Config.getIcon("audio")
+                    font.family: "Material Symbols Outlined"
+                    font.pixelSize: 150
+                    color: Config.accent
+                    opacity: 0.07
+                    rotation: 15
+                }
+            }
 
             Behavior on color { ColorAnimation { duration: 150 } }
 

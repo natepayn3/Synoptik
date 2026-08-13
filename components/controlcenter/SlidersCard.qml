@@ -13,6 +13,27 @@ Rectangle {
     Layout.preferredWidth: parent ? parent.width : 356
     implicitHeight: sliderLayout.implicitHeight + (cardMargin * 2)
     radius: Config.cornerRadius
+    clip: true
+
+    // GRAPHIC WATERMARK
+    Item {
+        anchors.right: parent.right
+        anchors.bottom: parent.bottom
+        anchors.rightMargin: -15
+        anchors.bottomMargin: -20
+        implicitWidth: 150
+        implicitHeight: 150
+
+        Text {
+            anchors.centerIn: parent
+            text: Config.getIcon("cc")
+            font.family: "Material Symbols Outlined"
+            font.pixelSize: 150
+            color: Config.accent
+            opacity: 0.07
+            rotation: 15
+        }
+    }
 
     color: cardHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.04)
     Behavior on color { ColorAnimation { duration: 150 } }

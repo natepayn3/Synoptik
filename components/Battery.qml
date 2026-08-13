@@ -59,6 +59,27 @@ Item {
             implicitHeight: topCardContent.implicitHeight + (root.cardMargin * 2)
             radius: Config.cornerRadius
             color: Qt.rgba(1, 1, 1, 0.05)
+            clip: true
+
+            // GRAPHIC WATERMARK
+            Item {
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.rightMargin: -15
+                anchors.bottomMargin: -20
+                implicitWidth: 150
+                implicitHeight: 150
+
+                Text {
+                    anchors.centerIn: parent
+                    text: Config.getIcon("batt")
+                    font.family: "Material Symbols Outlined"
+                    font.pixelSize: 150
+                    color: Config.accent
+                    opacity: 0.07
+                    rotation: 15
+                }
+            }
 
             ColumnLayout {
                 id: topCardContent
@@ -195,6 +216,27 @@ Item {
                 implicitHeight: 64
                 radius: Config.cornerRadius
                 color: Qt.rgba(1, 1, 1, 0.05)
+                clip: true
+
+                // GRAPHIC WATERMARK
+                Item {
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    anchors.rightMargin: -10
+                    anchors.bottomMargin: -15
+                    implicitWidth: 80
+                    implicitHeight: 80
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: Config.getIcon("batt")
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 80
+                        color: Config.accent
+                        opacity: 0.07
+                        rotation: 15
+                    }
+                }
 
                 ColumnLayout {
                     anchors.centerIn: parent
@@ -226,6 +268,27 @@ Item {
                 implicitHeight: 64
                 radius: Config.cornerRadius
                 color: Qt.rgba(1, 1, 1, 0.05)
+                clip: true
+
+                // GRAPHIC WATERMARK
+                Item {
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    anchors.rightMargin: -10
+                    anchors.bottomMargin: -15
+                    implicitWidth: 80
+                    implicitHeight: 80
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: Config.getIcon("batt")
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 80
+                        color: Config.accent
+                        opacity: 0.07
+                        rotation: 15
+                    }
+                }
 
                 ColumnLayout {
                     anchors.centerIn: parent

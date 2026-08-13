@@ -44,6 +44,27 @@ Item {
             implicitHeight: cardContent.implicitHeight + (notifModuleRoot.cardMargin * 2)
             color: Qt.rgba(1, 1, 1, 0.05)
             radius: Config.cornerRadius
+            clip: true
+
+            // GRAPHIC WATERMARK
+            Item {
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                anchors.rightMargin: -15
+                anchors.bottomMargin: -20
+                implicitWidth: 150
+                implicitHeight: 150
+
+                Text {
+                    anchors.centerIn: parent
+                    text: Config.getIcon("notifications")
+                    font.family: "Material Symbols Outlined"
+                    font.pixelSize: 150
+                    color: Config.accent
+                    opacity: 0.07
+                    rotation: 15
+                }
+            }
 
             ColumnLayout {
                 id: cardContent
