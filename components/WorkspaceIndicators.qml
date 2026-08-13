@@ -133,21 +133,39 @@ Item {
                     Behavior on implicitWidth { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
                     Behavior on implicitHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
-                    Rectangle {
+                    Item {
                         anchors.centerIn: parent
+                        implicitWidth: pillSlot.basePillW
+                        implicitHeight: pillSlot.basePillH
+                        scale: pillHover.hovered ? 1.25 : 1.0
 
-                        implicitWidth: pillSlot.basePillW + (pillHover.hovered ? 4 : 0)
-                        implicitHeight: pillSlot.basePillH + (pillHover.hovered ? 4 : 0)
-                        radius: root.isVertical ? width / 3 : height / 3
+                        Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
 
-                        color: pillSlot.isActive ? Config.accent : "transparent"
-                        border.width: pillSlot.isActive ? 0 : 3
-                        border.color: pillSlot.isActive ? "transparent" : (pillSlot.isOccupied ? Config.textMain : Qt.rgba(255, 255, 255, 0.15))
+                        Glow {
+                            anchors.fill: pillRect
+                            source: pillRect
+                            radius: pillHover.hovered ? 8 : 0
+                            samples: 16
+                            color: Config.accent
+                            spread: 0.2
+                            transparentBorder: true
+                            visible: pillHover.hovered
 
-                        Behavior on implicitWidth { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
-                        Behavior on implicitHeight { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
-                        Behavior on color { ColorAnimation { duration: 140 } }
-                        Behavior on border.color { ColorAnimation { duration: 140 } }
+                            Behavior on radius { NumberAnimation { duration: 180 } }
+                        }
+
+                        Rectangle {
+                            id: pillRect
+                            anchors.fill: parent
+                            radius: root.isVertical ? width / 3 : height / 3
+
+                            color: pillSlot.isActive ? Config.accent : "transparent"
+                            border.width: pillSlot.isActive ? 0 : 3
+                            border.color: pillSlot.isActive ? "transparent" : (pillSlot.isOccupied ? (pillHover.hovered ? Config.accent : Config.textMain) : Qt.rgba(255, 255, 255, 0.15))
+
+                            Behavior on color { ColorAnimation { duration: 140 } }
+                            Behavior on border.color { ColorAnimation { duration: 140 } }
+                        }
                     }
 
                     TapHandler {
