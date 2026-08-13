@@ -140,12 +140,6 @@ FocusScope {
         let targetWin = wins[nextIndex];
         if (targetWin && targetWin.address) {
             selectedWindowAddress = targetWin.address;
-
-            let formatted = formatWindowRef(targetWin.address);
-            if (formatted !== "") {
-                Hyprland.dispatch("hl.dsp.focus({ window = \"" + formatted + "\" })");
-                clientQueryProcess.running = true;
-            }
         }
     }
 
