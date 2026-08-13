@@ -241,9 +241,10 @@ Item {
                             implicitHeight: 22
                             radius: 11
                             color: Qt.rgba(255, 255, 255, 0.10)
-                            border.width: 1
+                            border.width: 2
                             border.color: Qt.rgba(255, 255, 255, 0.15)
-                            Layout.alignment: Qt.AlignBaseline
+                            Layout.alignment: Qt.AlignTop
+                            Layout.topMargin: 8
 
                             Text {
                                 id: amPmText
@@ -251,8 +252,9 @@ Item {
                                 text: bigAmPm.toUpperCase()
                                 color: Config.textMain
                                 font.family: Config.sysFont
-                                font.pixelSize: 11
+                                font.pixelSize: 13
                                 font.bold: true
+                                font.italic: true
                             }
                         }
                     }
