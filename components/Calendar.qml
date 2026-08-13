@@ -230,12 +230,19 @@ Item {
                     anchors.margins: root.cardMargin / 2
                     spacing: 8
 
-                    Text {
-                        text: "NOTES / REMINDERS"
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontCaption)
-                        font.bold: true
+                    RowLayout {
+                        spacing: 6
+                        Rectangle {
+                            implicitWidth: 3; implicitHeight: 12; radius: 1.5
+                            color: Config.accent
+                        }
+                        Text {
+                            text: "NOTES / REMINDERS"
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            font.bold: true
+                        }
                     }
 
                     ListView {
@@ -371,6 +378,11 @@ Item {
 
                 RowLayout {
                     Layout.fillWidth: true
+                    spacing: 6
+                    Rectangle {
+                        implicitWidth: 3; implicitHeight: 16; radius: 1.5
+                        color: Config.accent
+                    }
                     Text {
                         text: dayOfWeekStr.toUpperCase()
                         color: Config.accent

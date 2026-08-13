@@ -12,6 +12,8 @@ Item {
     implicitWidth: mainLayout.implicitWidth + (cardMargin * 2)
     implicitHeight: mainLayout.implicitHeight + (cardMargin * 2)
 
+    property string filterText: ""
+
     ListModel { id: clipModel }
 
     function refreshClipboard() {
@@ -197,8 +199,30 @@ Item {
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontTitle)
                         font.bold: true
-                        Layout.fillWidth: true
                     }
+
+                    // ITEM COUNT BADGE
+                    Rectangle {
+                        implicitWidth: countText.implicitWidth + 12
+                        implicitHeight: 20
+                        radius: 10
+                        color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.15)
+                        border.width: 1
+                        border.color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.3)
+                        visible: clipModel.count > 0
+
+                        Text {
+                            id: countText
+                            anchors.centerIn: parent
+                            text: clipModel.count + " ITEMS"
+                            color: Config.accent
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                            font.bold: true
+                        }
+                    }
+
+                    Item { Layout.fillWidth: true }
 
                     Rectangle {
                         implicitWidth: clearText.implicitWidth + 12
@@ -231,6 +255,62 @@ Item {
                     }
                 }
 
+                // SEARCH BAR
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: 32
+                    color: Qt.rgba(0, 0, 0, 0.25)
+                    radius: Config.cornerRadius / 2
+                    border.width: searchInput.activeFocus ? 1 : 0
+                    border.color: Config.accent
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 8
+                        anchors.rightMargin: 8
+                        spacing: 6
+
+                        Text {
+                            text: "search"
+                            color: Config.textMuted
+                            font.family: "Material Symbols Outlined"
+                            font.pixelSize: 16
+                            Layout.alignment: Qt.AlignVCenter
+                        }
+
+                        TextField {
+                            id: searchInput
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            placeholderText: "Search history..."
+                            placeholderTextColor: Config.textMuted
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            background: null
+                            selectByMouse: true
+                            onTextChanged: clipRoot.filterText = text.trim().toLowerCase()
+                        }
+
+                        Rectangle {
+                            implicitWidth: 18; implicitHeight: 18; radius: 9
+                            color: clearSearchHover.hovered ? Qt.rgba(255,255,255,0.15) : "transparent"
+                            visible: searchInput.text.length > 0
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "close"
+                                color: Config.textMuted
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 14
+                            }
+
+                            TapHandler { onTapped: searchInput.text = "" }
+                            HoverHandler { id: clearSearchHover; cursorShape: Qt.PointingHandCursor }
+                        }
+                    }
+                }
+
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: clipModel.count > 0 
@@ -257,23 +337,39 @@ Item {
                             required property bool isImage
                             required property string imagePath
 
+                            property bool matchesSearch: clipRoot.filterText === "" || previewText.toLowerCase().includes(clipRoot.filterText)
+
+                            visible: matchesSearch
                             width: ListView.view.width
-                            implicitHeight: (delegateRoot.isImage && delegateRoot.imagePath !== "" && imgPreview.status === Image.Ready) ? 110 : 38
+                            implicitHeight: matchesSearch ? ((delegateRoot.isImage && delegateRoot.imagePath !== "" && imgPreview.status === Image.Ready) ? 110 : 38) : 0
                             radius: 8
                             color: itemHover.hovered ? Qt.rgba(255, 255, 255, 0.1) : Qt.rgba(255, 255, 255, 0.03)
 
-                            Text {
+                            RowLayout {
                                 visible: !delegateRoot.isImage || delegateRoot.imagePath === "" || imgPreview.status !== Image.Ready
                                 anchors {
                                     left: parent.left; right: deleteBtn.left
                                     verticalCenter: parent.verticalCenter
                                     leftMargin: 10; rightMargin: 6
                                 }
-                                text: delegateRoot.previewText
-                                color: Config.textMain
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontBody)
-                                elide: Text.ElideRight
+                                spacing: 8
+
+                                Text {
+                                    text: delegateRoot.isImage ? "image" : "description"
+                                    color: Config.accent
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 16
+                                    Layout.alignment: Qt.AlignVCenter
+                                }
+
+                                Text {
+                                    text: delegateRoot.previewText
+                                    color: Config.textMain
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontBody)
+                                    elide: Text.ElideRight
+                                    Layout.fillWidth: true
+                                }
                             }
 
                             Image {
