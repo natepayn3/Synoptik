@@ -168,7 +168,8 @@ Item {
 
                         ColumnLayout {
                             id: scrollContent
-                            width: parent.width
+                            anchors.left: parent.left
+                            anchors.right: parent.right
                             spacing: 8
 
                             Repeater {
@@ -178,98 +179,97 @@ Item {
 
                                 delegate: Rectangle {
                                     id: notifCard
+                                    width: scrollContent.width
                                     Layout.fillWidth: true
-                                    implicitHeight: itemLayout.implicitHeight + (notifModuleRoot.cardMargin * 1.5)
+                                    implicitHeight: cardTextCol.implicitHeight + (notifModuleRoot.cardMargin * 2)
                                     radius: Config.cornerRadius / 2
                                     color: itemHover.hovered ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(0, 0, 0, 0.15)
 
                                     Behavior on color { ColorAnimation { duration: 150 } }
 
-                                    RowLayout {
-                                        id: itemLayout
+                                    ColumnLayout {
+                                        id: cardTextCol
                                         anchors.fill: parent
                                         anchors.margins: notifModuleRoot.cardMargin
-                                        spacing: notifModuleRoot.cardMargin
+                                        spacing: 4
 
-                                        ColumnLayout {
+                                        RowLayout {
                                             Layout.fillWidth: true
-                                            spacing: 2
-
-                                            RowLayout {
-                                                Layout.fillWidth: true
-                                                spacing: 6
-
-                                                Text {
-                                                    text: (modelData && modelData.appName) ? modelData.appName.toUpperCase() : "SYSTEM"
-                                                    color: Config.accent
-                                                    font.family: Config.sysFont
-                                                    font.pixelSize: Config.size(Config.fontMicro)
-                                                    font.bold: true
-                                                }
-
-                                                Text {
-                                                    visible: modelData && modelData.summary !== ""
-                                                    text: "•"
-                                                    color: Config.textMain
-                                                    font.family: Config.sysFont
-                                                    font.pixelSize: Config.size(Config.fontCaption)
-                                                }
-
-                                                Text {
-                                                    text: (modelData && modelData.summary) ? modelData.summary : ""
-                                                    color: Config.textMain
-                                                    font.family: Config.sysFont
-                                                    font.pixelSize: Config.size(Config.fontCaption)
-                                                    font.bold: true
-                                                    Layout.fillWidth: true
-                                                    elide: Text.ElideRight
-                                                }
-                                            }
+                                            spacing: 6
 
                                             Text {
-                                                text: (modelData && modelData.body) ? modelData.body : ""
-                                                color: Config.textMuted
+                                                text: (modelData && modelData.appName) ? modelData.appName.toUpperCase() : "SYSTEM"
+                                                color: Config.accent
                                                 font.family: Config.sysFont
-                                                font.pixelSize: Config.size(Config.fontCaption)
+                                                font.pixelSize: Config.size(Config.fontBody)
+                                                font.bold: true
+                                                font.italic: true
+                                                font.letterSpacing: 0.8
                                                 Layout.fillWidth: true
-                                                wrapMode: Text.Wrap
+                                                elide: Text.ElideRight
                                             }
                                         }
 
-                                        // Close Button Box
-                                        Rectangle {
-                                            implicitWidth: 24
-                                            implicitHeight: 24
-                                            radius: Config.cornerRadius / 2
-                                            color: closeHover.hovered ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
-                                            opacity: itemHover.hovered ? 1.0 : 0.0
-                                            Layout.alignment: Qt.AlignTop | Qt.AlignRight
+                                        Text {
+                                            visible: modelData && modelData.summary !== ""
+                                            text: (modelData && modelData.summary) ? modelData.summary : ""
+                                            color: Config.textMain
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontSubhead)
+                                            font.bold: true
+                                            Layout.fillWidth: true
+                                            wrapMode: Text.Wrap
+                                        }
+
+                                        Text {
+                                            visible: modelData && modelData.body !== ""
+                                            text: (modelData && modelData.body) ? modelData.body : ""
+                                            color: Config.textMuted
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontBody)
+                                            Layout.fillWidth: true
+                                            wrapMode: Text.Wrap
+                                        }
+                                    }
+
+                                    // Floating Close Button Box
+                                    Rectangle {
+                                        id: closeBtnRect
+                                        anchors.right: parent.right
+                                        anchors.top: parent.top
+                                        anchors.rightMargin: notifModuleRoot.cardMargin - 2
+                                        anchors.topMargin: notifModuleRoot.cardMargin - 2
+                                        implicitWidth: 22
+                                        implicitHeight: 22
+                                        radius: 11
+                                        color: closeHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                                        opacity: itemHover.hovered ? 1.0 : 0.0
+                                        z: 5
+
+                                        Behavior on color { ColorAnimation { duration: 150 } }
+                                        Behavior on opacity { NumberAnimation { duration: 150 } }
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: "close"
+                                            color: closeHover.hovered ? Config.accent : Config.textMuted
+                                            font.family: "Material Symbols Outlined"
+                                            font.pixelSize: 16
 
                                             Behavior on color { ColorAnimation { duration: 150 } }
-                                            Behavior on opacity { NumberAnimation { duration: 150 } }
+                                        }
 
-                                            Text {
-                                                anchors.centerIn: parent
-                                                text: "close"
-                                                color: closeHover.hovered ? Config.accent : Config.textMuted
-                                                font.family: "Material Symbols Outlined"
-                                                font.pixelSize: 16
-
-                                                Behavior on color { ColorAnimation { duration: 150 } }
-                                            }
-
-                                            TapHandler {
-                                                onTapped: {
-                                                    if (modelData) {
-                                                        modelData.dismiss();
-                                                    }
+                                        TapHandler {
+                                            onTapped: {
+                                                if (modelData) {
+                                                    modelData.dismiss();
                                                 }
                                             }
+                                        }
 
-                                            HoverHandler {
-                                                id: closeHover
-                                                cursorShape: Qt.PointingHandCursor
-                                            }
+                                        HoverHandler {
+                                            id: closeHover
+                                            cursorShape: Qt.PointingHandCursor
                                         }
                                     }
 

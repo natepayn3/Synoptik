@@ -149,6 +149,7 @@ Item {
                             font.family: Config.sysFont
                             font.pixelSize: Config.size(Config.fontBody)
                             font.bold: true
+                            font.italic: true
                             font.letterSpacing: 0.8
                             elide: Text.ElideRight
                         }
