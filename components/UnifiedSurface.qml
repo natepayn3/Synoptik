@@ -3,6 +3,7 @@ import QtQuick.Effects
 import QtQuick.Layouts
 import QtQuick.Controls
 import QtQuick.Shapes
+import QtMultimedia
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
@@ -174,10 +175,21 @@ PanelWindow {
         if (activeView === "player") updatePlayerPopoutPos()
     }
 
+    SoundEffect {
+        id: openSoundPlayer
+        volume: Config.windowSoundVolume !== undefined ? Config.windowSoundVolume : 0.25
+        source: {
+            let baseDir = Quickshell.shellDir.toString()
+            if (!baseDir.endsWith("/")) baseDir += "/"
+            let file = Config.windowSoundPath || "sound1.wav"
+            return Qt.resolvedUrl(baseDir + "assets/" + file)
+        }
+    }
+
     function playOpenSound() {
         if (!Config.playWindowSounds || root.activeView === "notifOsd" || root.activeView === "osd") return
-        let soundFile = Quickshell.shellDir.toString().replace(/^file:\/\//, "") + "/assets/" + (Config.windowSoundPath || "sound1.wav")
-        Quickshell.execDetached(["pw-play", "--volume", "0.25", soundFile])
+        openSoundPlayer.stop()
+        openSoundPlayer.play()
     }
 
     onIsOpenChanged: {

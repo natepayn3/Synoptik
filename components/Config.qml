@@ -512,11 +512,13 @@ QtObject {
     property bool playNotificationSounds: true
     property string windowSoundPath: "sound1.wav"
     property string notificationSoundPath: "sound1.wav"
+    property real windowSoundVolume: 0.25
 
     onPlayWindowSoundsChanged: { if (isLoaded) saveSettings() }
     onPlayNotificationSoundsChanged: { if (isLoaded) saveSettings() }
     onWindowSoundPathChanged: { if (isLoaded) saveSettings() }
     onNotificationSoundPathChanged: { if (isLoaded) saveSettings() }
+    onWindowSoundVolumeChanged: { if (isLoaded) saveSettings() }
 
     // --- MIRROR WIDGET CONFIGURATION ---
     property bool showMirror: false
@@ -1544,6 +1546,7 @@ QtObject {
                 "playNotificationSounds": root.playNotificationSounds,
                 "windowSoundPath": root.windowSoundPath,
                 "notificationSoundPath": root.notificationSoundPath,
+                "windowSoundVolume": root.windowSoundVolume,
 
                 "showMirror": root.showMirror,
                 "mirrorShowPanel": root.mirrorShowPanel,
@@ -1615,7 +1618,7 @@ QtObject {
                             "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", 
                             "clockShowBackground", "clockPositions", "clockScales", "enabledClockScreens",
                             "leftCardOrder", "rightCardOrder", "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides",
-                            "playWindowSounds", "playNotificationSounds", "windowSoundPath", "notificationSoundPath",
+                            "playWindowSounds", "playNotificationSounds", "windowSoundPath", "notificationSoundPath", "windowSoundVolume",
                             "showMirror", "mirrorShowPanel", "mirrorMirrored", "mirrorKeepAspect", "mirrorExpanded", "mirrorPinned", "mirrorAnchorPos",
                             "playerExpanded", "playerPinned",
                             "playerShowPanel", "playerKeepAspect", "playerX", "playerY", "playerAnchorPos"
