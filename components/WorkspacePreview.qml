@@ -29,6 +29,19 @@ FocusScope {
     property real dragX: 0
     property real dragY: 0
     property bool isDraggingWindow: false
+    property real draggingWindowWidth: 100
+    property real draggingWindowHeight: 60
+
+    property var draggingWlToplevel: {
+        if (!draggingWindowAddress) return null;
+        let targetAddr = draggingWindowAddress.trim().toLowerCase();
+        let match = Hyprland.toplevels.values.find(t => {
+            if (!t.lastIpcObject || !t.lastIpcObject.address) return false;
+            return t.lastIpcObject.address.trim().toLowerCase() === targetAddr;
+        });
+        if (match && match.wayland) return match.wayland;
+        return null;
+    }
 
     function findWorkspaceAtPoint(globalX, globalY) {
         if (!rowContainer || !rowContainer.children) return -1;
@@ -512,6 +525,7 @@ print(json.dumps(resolved_map))
                                             width: Math.max(4, Math.round(modelData.size[0] * viewportFrame.scaleX))
                                             height: Math.max(4, Math.round(modelData.size[1] * viewportFrame.scaleY))
                                             visible: modelData.mapped
+                                            opacity: (overviewFlyout.isDraggingWindow && overviewFlyout.draggingWindowAddress === modelData.address) ? 0.4 : 1.0
                                             color: Qt.rgba(255, 255, 255, 0.08)
                                             radius: 2
                                             clip: true
@@ -582,6 +596,8 @@ print(json.dumps(resolved_map))
                                                             overviewFlyout.isDraggingWindow = true;
                                                             overviewFlyout.draggingWindowAddress = modelData.address;
                                                             overviewFlyout.draggingWindowClass = modelData.class || "Window";
+                                                            overviewFlyout.draggingWindowWidth = windowDelegate.width;
+                                                            overviewFlyout.draggingWindowHeight = windowDelegate.height;
                                                         }
 
                                                         if (overviewFlyout.isDraggingWindow) {
@@ -670,32 +686,43 @@ print(json.dumps(resolved_map))
         parent: overviewFlyout
         z: 999
         visible: overviewFlyout.isDraggingWindow
-        width: 100
-        height: 50
-        color: Qt.rgba(30, 30, 45, 0.9)
+        width: Math.max(40, overviewFlyout.draggingWindowWidth)
+        height: Math.max(25, overviewFlyout.draggingWindowHeight)
+        color: Qt.rgba(20, 20, 30, 0.85)
         border.color: Config.accent
         border.width: 2
-        radius: 6
+        radius: 4
+        clip: true
+        opacity: 0.9
         x: overviewFlyout.dragX - width / 2
         y: overviewFlyout.dragY - height / 2
 
-        RowLayout {
-            anchors.centerIn: parent
-            spacing: 6
-            Text {
-                text: "move_group"
-                color: Config.accent
-                font.family: "Material Symbols Outlined"
-                font.pixelSize: 14
-            }
+        ScreencopyView {
+            anchors.fill: parent
+            captureSource: overviewFlyout.draggingWlToplevel
+            live: overviewFlyout.isOpen
+            paintCursor: false
+        }
+
+        Rectangle {
+            anchors.top: parent.top
+            anchors.left: parent.left
+            anchors.right: parent.right
+            height: Math.min(16, parent.height * 0.3)
+            color: "#cc11111b"
+            visible: parent.height > 18 && parent.width > 30
+            radius: 2
+
             Text {
                 text: overviewFlyout.draggingWindowClass
-                color: Config.textMain
                 font.family: Config.sysFont
-                font.pixelSize: 10
+                font.pixelSize: 8
                 font.bold: true
+                color: Config.textMain
+                anchors.centerIn: parent
+                width: parent.width - 4
                 elide: Text.ElideRight
-                Layout.maximumWidth: 70
+                horizontalAlignment: Text.AlignHCenter
             }
         }
     }
