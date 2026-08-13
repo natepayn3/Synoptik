@@ -497,6 +497,25 @@ print(json.dumps(resolved_map))
                                     }
 
                                     property var workspaceWindows: overviewFlyout.liveClientJson.filter(w => w.workspace.id === wsTile.workingWorkspace)
+                                    property var sortedWorkspaceWindows: {
+                                        let list = workspaceWindows.slice();
+                                        list.sort((a, b) => {
+                                            let aX = a && a.at ? a.at[0] : 0;
+                                            let bX = b && b.at ? b.at[0] : 0;
+                                            let aY = a && a.at ? a.at[1] : 0;
+                                            let bY = b && b.at ? b.at[1] : 0;
+
+                                            if (list.length <= 2) {
+                                                return aX - bX;
+                                            }
+
+                                            if (Math.abs(aY - bY) > 50) {
+                                                return aY - bY;
+                                            }
+                                            return aX - bX;
+                                        });
+                                        return list;
+                                    }
                                     readonly property bool isGridMode: (tileHover.hovered || wsTile.isSelected) && workspaceWindows.length > 1
 
                                     implicitHeight: wsTile.monitorBounds.isVertical ? 220 : 135
@@ -539,8 +558,15 @@ print(json.dumps(resolved_map))
                                             readonly property real cellW: Math.max(10, Math.floor((viewportFrame.width - (gap * (cols + 1))) / cols))
                                             readonly property real cellH: Math.max(10, Math.floor((viewportFrame.height - (gap * (rows + 1))) / rows))
 
-                                            readonly property int colIndex: index % cols
-                                            readonly property int rowIndex: Math.floor(index / cols)
+                                            readonly property int spatialIndex: {
+                                                if (!modelData || !modelData.address || !viewportFrame.sortedWorkspaceWindows) return index;
+                                                let addr = modelData.address.trim().toLowerCase();
+                                                let idx = viewportFrame.sortedWorkspaceWindows.findIndex(w => w && w.address && w.address.trim().toLowerCase() === addr);
+                                                return idx !== -1 ? idx : index;
+                                            }
+
+                                            readonly property int colIndex: spatialIndex % cols
+                                            readonly property int rowIndex: Math.floor(spatialIndex / cols)
 
                                             readonly property real gridX: gap + colIndex * (cellW + gap)
                                             readonly property real gridY: gap + rowIndex * (cellH + gap)
