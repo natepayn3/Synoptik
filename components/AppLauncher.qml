@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Hyprland
+import Quickshell.Widgets
 import Quickshell.Io
 
 Item {
@@ -11,12 +12,62 @@ Item {
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
     property string pinFilePath: ""
-    property var allApps: []
     property var filteredApps: []
     property var localPins: []
+    property var iconMap: ({})
 
-    implicitWidth: mainLayout.implicitWidth + (cardMargin * 2)
-    implicitHeight: mainLayout.implicitHeight + (cardMargin * 2)
+    // Index system icon themes in background for seamless icon pack recognition
+    Process {
+        id: iconIndexer
+        command: ["python3", "-c", `
+import os, json
+dirs = [
+    os.path.expanduser("~/.local/share/icons"),
+    os.path.expanduser("~/.icons"),
+    "/usr/share/icons/Papirus",
+    "/usr/share/icons/Papirus-Dark",
+    "/usr/share/icons/Papirus-Light",
+    "/usr/share/icons/breeze",
+    "/usr/share/icons/breeze-dark",
+    "/usr/share/icons/Adwaita",
+    "/usr/share/icons/hicolor",
+    "/usr/share/pixmaps"
+]
+icon_map = {}
+for d in dirs:
+    if not os.path.isdir(d): continue
+    for root, _, files in os.walk(d):
+        if any(s in root for s in ["/16x16/", "/22x22/", "/24x24/", "/32x32/", "/symbolic/"]): continue
+        for f in files:
+            if f.endswith((".svg", ".png", ".xpm")):
+                name = os.path.splitext(f)[0]
+                if name not in icon_map:
+                    icon_map[name] = os.path.join(root, f)
+print(json.dumps(icon_map))
+        `]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    appLauncherModule.iconMap = JSON.parse(this.text);
+                    appLauncherModule.updateModel();
+                } catch(e) {}
+            }
+        }
+    }
+
+    function getAppIcon(iconName) {
+        if (!iconName) return Quickshell.iconPath("application-x-executable", true) || "";
+        if (iconName.startsWith("/") || iconName.startsWith("file://")) {
+            return iconName.startsWith("/") ? "file://" + iconName : iconName;
+        }
+        if (appLauncherModule.iconMap && appLauncherModule.iconMap[iconName]) {
+            return "file://" + appLauncherModule.iconMap[iconName];
+        }
+        let qsPath = Quickshell.iconPath(iconName, true);
+        if (qsPath) return qsPath;
+        return Quickshell.iconPath("application-x-executable", true) || "";
+    }
 
     // Clear search and refresh models when opened
     Connections {
@@ -29,6 +80,13 @@ Item {
                 appLauncherModule.updateModel()
             }
         }
+    }
+
+    // Reactively update application list when desktop entries are added, removed, or changed
+    Connections {
+        target: DesktopEntries.applications
+        function onValuesChanged() { appLauncherModule.updateModel(); }
+        function onModelReset() { appLauncherModule.updateModel(); }
     }
 
     Process {
@@ -54,127 +112,84 @@ Item {
         }
     }
 
-    Process {
-        id: appFetcher
-        command: ["python", "-c", `
-import os, glob, json
-
-apps = []
-fallback_options = [
-    "/usr/share/pixmaps/archlinux-logo.png",
-    "/usr/share/icons/hicolor/48x48/apps/utilities-terminal.png"
-]
-fallback = next((p for p in fallback_options if os.path.isfile(p)), "")
-
-icon_dirs = [
-    os.path.expanduser("~/.local/share/icons"),
-    "/usr/share/icons/Papirus",
-    "/usr/share/icons/hicolor",
-    "/usr/share/pixmaps"
-]
-
-icon_map = {}
-for base in icon_dirs:
-    if not os.path.isdir(base): continue
-    for root, _, files in os.walk(base):
-        if any(skip in root for skip in ["/16x16/", "/22x22/", "/24x24/", "/32x32/", "/symbolic/"]):
-            continue
-        for f in files:
-            if f.endswith((".svg", ".png", ".xpm")):
-                name = os.path.splitext(f)[0]
-                if name not in icon_map:
-                    icon_map[name] = os.path.join(root, f)
-
-for folder in ["/usr/share/applications", os.path.expanduser("~/.local/share/applications")]:
-    if not os.path.isdir(folder): continue
-    for entry in os.scandir(folder):
-        if not entry.name.endswith(".desktop") or not entry.is_file(): continue
-        
-        path = entry.path
-        name, exec_cmd, icon, desc, nodisplay = "", "", "", "", False
-        
-        try:
-            with open(path, "r", encoding="utf-8", errors="ignore") as f:
-                for line in f:
-                    if line.startswith("Name=") and not name: name = line[5:].strip()
-                    elif line.startswith("Exec=") and not exec_cmd: exec_cmd = line[5:].strip()
-                    elif line.startswith("Icon=") and not icon: icon = line[5:].strip().split("?")[0]
-                    elif line.startswith("Comment=") and not desc: desc = line[8:].strip()
-                    elif line.startswith("NoDisplay=true"): nodisplay = True
-        except: continue
-
-        if nodisplay or not name or not exec_cmd: continue
-
-        resolved = fallback
-        if icon:
-            if icon.startswith("/") and os.path.isfile(icon):
-                resolved = icon
-            elif icon in icon_map:
-                resolved = icon_map[icon]
-
-        apps.append({
-            "name": name.replace("\\x22", "").replace("\\\\", ""),
-            "exec": exec_cmd.replace("\\x22", "").replace("\\\\", ""),
-            "icon": "file://" + resolved if resolved and not resolved.startswith("file://") else "file://" + fallback,
-            "desc": desc.replace("\\x22", "").replace("\\\\", "") if desc else "Application",
-            "path": path
-        })
-
-apps.sort(key=lambda x: x['name'].lower())
-print(json.dumps(apps))
-        `]
-        running: true
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    appLauncherModule.allApps = JSON.parse(this.text);
-                    appLauncherModule.updateModel();
-                } catch(e) {}
-            }
-        }
+    function isAppPinned(app) {
+        if (!app) return false;
+        let pins = appLauncherModule.localPins;
+        if (!pins || pins.length === 0) return false;
+        let appId = app.id || "";
+        return pins.includes(appId) || pins.some(p => p.endsWith("/" + appId + ".desktop") || p === appId);
     }
 
-    function togglePin(appPath) {
+    function togglePin(app) {
+        if (!app || !app.id) return;
+        let appId = app.id;
         let currentPins = appLauncherModule.localPins.slice();
-        let idx = currentPins.indexOf(appPath); 
+        let idx = currentPins.findIndex(p => p === appId || p.endsWith("/" + appId + ".desktop")); 
         if (idx !== -1) {
             currentPins.splice(idx, 1);
         } else { 
-            currentPins.push(appPath);
+            currentPins.push(appId);
         } 
         appLauncherModule.localPins = currentPins;
         appLauncherModule.updateModel();
         
         let jsonStr = JSON.stringify({ "pins": currentPins }); 
-        Quickshell.execDetached(["fish", "-c", "echo '" + jsonStr + "' > ~/.cache/quickshell_launcher_pins.json"]);
+        Quickshell.execDetached(["fish", "-c", "echo '" + jsonStr.replace(/'/g, "'\\''") + "' > ~/.cache/quickshell_launcher_pins.json"]);
     } 
 
     function updateModel() {
         let query = searchInput.text.trim().toLowerCase();
+        let rawApps = DesktopEntries.applications ? DesktopEntries.applications.values : [];
         let pins = []; 
         let others = [];
 
-        for (let i = 0; i < appLauncherModule.allApps.length; i++) {
-            let app = appLauncherModule.allApps[i];
-            if (query !== "" && !app.name.toLowerCase().includes(query) && !app.desc.toLowerCase().includes(query)) continue; 
-            if (appLauncherModule.localPins.includes(app.path)) {
+        for (let i = 0; i < rawApps.length; i++) {
+            let app = rawApps[i];
+            if (app.noDisplay) continue;
+
+            if (query !== "") {
+                let nameMatch = app.name && app.name.toLowerCase().includes(query);
+                let genMatch = app.genericName && app.genericName.toLowerCase().includes(query);
+                let descMatch = app.comment && app.comment.toLowerCase().includes(query);
+                let catMatch = app.categories && app.categories.some(c => c.toLowerCase().includes(query));
+                let kwMatch = app.keywords && app.keywords.some(k => k.toLowerCase().includes(query));
+
+                if (!nameMatch && !genMatch && !descMatch && !catMatch && !kwMatch) continue;
+            }
+
+            if (appLauncherModule.isAppPinned(app)) {
                 pins.push(app);
             } else { 
                 others.push(app);
             } 
         }
 
+        pins.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+        others.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
         appLauncherModule.filteredApps = pins.concat(others);
         
-        appListView.currentIndex = 0;
-        appListView.positionViewAtBeginning();
+        if (appListView) {
+            appListView.currentIndex = 0;
+            appListView.positionViewAtBeginning();
+        }
     } 
 
-    function launchApp(execString) {
-        let cleanExec = execString.replace(/%[uUfFkKcCiI]/g, "").trim();
-        Quickshell.execDetached(["fish", "-c", cleanExec]);
+    function launchApp(app) {
+        if (!app) return;
+        if (typeof app.execute === "function") {
+            app.execute();
+        } else if (app.execString) {
+            let cleanExec = app.execString.replace(/%[uUfFkKcCiI]/g, "").trim();
+            Quickshell.execDetached(["fish", "-c", cleanExec]);
+        }
         Config.showAppLauncher = false;
     }
+
+    Component.onCompleted: appLauncherModule.updateModel()
+
+    implicitWidth: mainLayout.implicitWidth + (cardMargin * 2)
+    implicitHeight: mainLayout.implicitHeight + (cardMargin * 2)
 
     ColumnLayout {
         id: mainLayout
@@ -308,8 +323,8 @@ print(json.dumps(apps))
                                         appListView.decrementCurrentIndex();
                                         event.accepted = true; 
                                     } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                                        if (appListView.currentItem) {
-                                            appLauncherModule.launchApp(appListView.currentItem.appExec);
+                                        if (appListView.currentItem && appListView.currentItem.appObject) {
+                                            appLauncherModule.launchApp(appListView.currentItem.appObject);
                                         } 
                                         event.accepted = true;
                                     } else if (event.key === Qt.Key_Escape) {
@@ -347,8 +362,8 @@ print(json.dumps(apps))
                                     ? Qt.rgba(255, 255, 255, 0.12) 
                                     : (itemHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : "transparent")
                                 
-                                property string appExec: modelData.exec
-                                property bool isPinned: appLauncherModule.localPins.includes(modelData.path)
+                                property var appObject: modelData
+                                property bool isPinned: appLauncherModule.isAppPinned(modelData)
 
                                 Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -358,13 +373,10 @@ print(json.dumps(apps))
                                     anchors.rightMargin: 10
                                     spacing: 12
 
-                                    Image { 
+                                    IconImage { 
                                         Layout.preferredWidth: 32 
                                         Layout.preferredHeight: 32
-                                        sourceSize.width: 64 
-                                        sourceSize.height: 64
-                                        source: modelData.icon ? modelData.icon : "file:///usr/share/icons/hicolor/scalable/apps/utilities-terminal.svg"
-                                        fillMode: Image.PreserveAspectFit
+                                        source: appLauncherModule.getAppIcon(modelData.icon)
                                         asynchronous: true
                                     }
 
@@ -374,7 +386,7 @@ print(json.dumps(apps))
                                         Layout.alignment: Qt.AlignVCenter 
 
                                         Text { 
-                                            text: modelData.name
+                                            text: modelData.name || ""
                                             font.family: Config.sysFont 
                                             font.pixelSize: Config.size(Config.fontBody)
                                             color: Config.textMain 
@@ -384,7 +396,7 @@ print(json.dumps(apps))
                                         }
 
                                         Text {
-                                            text: modelData.desc !== "" ? modelData.desc : "Application" 
+                                            text: (modelData.comment && modelData.comment !== "") ? modelData.comment : ((modelData.genericName && modelData.genericName !== "") ? modelData.genericName : "Application")
                                             font.family: Config.sysFont
                                             font.pixelSize: Config.size(Config.fontCaption)
                                             color: Config.textMuted
@@ -434,9 +446,9 @@ print(json.dumps(apps))
 
                                     onClicked: (mouse) => {
                                         if (mouse.button === Qt.RightButton) {
-                                            appLauncherModule.togglePin(modelData.path);
+                                            appLauncherModule.togglePin(modelData);
                                         } else { 
-                                            appLauncherModule.launchApp(modelData.exec);
+                                            appLauncherModule.launchApp(modelData);
                                         }
                                     }
                                 }
