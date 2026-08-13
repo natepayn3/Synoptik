@@ -1,4 +1,5 @@
 import QtQuick
+import Qt5Compat.GraphicalEffects
 import QtQuick.Layouts
 import QtQuick.Shapes
 import QtQuick.Controls
@@ -371,12 +372,30 @@ Item {
                 anchors.margins: sysRoot.cardMargin
                 spacing: sysRoot.cardMargin
 
-                Text {
-                    text: "SYSTEM MONITOR"
-                    color: Config.textMain
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontTitle)
-                    font.bold: true
+                Item {
+                    implicitWidth: sysTitleText.implicitWidth
+                    implicitHeight: sysTitleText.implicitHeight
+
+                    Glow {
+                        anchors.fill: sysTitleText
+                        source: sysTitleText
+                        radius: 8
+                        samples: 16
+                        color: Config.accent
+                        spread: 0.2
+                        transparentBorder: true
+                        visible: Config.clockShowGlow
+                    }
+
+                    Text {
+                        id: sysTitleText
+                        anchors.fill: parent
+                        text: "SYSTEM MONITOR"
+                        color: Config.textMain
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontTitle)
+                        font.bold: true
+                    }
                 }
 
                 RowLayout {

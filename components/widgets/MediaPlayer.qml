@@ -1,4 +1,5 @@
 import QtQuick
+import Qt5Compat.GraphicalEffects
 import QtQuick.Layouts
 import QtQuick.Controls
 import QtMultimedia
@@ -70,14 +71,32 @@ Item {
                     Layout.fillWidth: true
                     spacing: 8
 
-                    Text {
-                        text: "MEDIA PLAYER"
-                        color: Config.textMain
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontSubhead)
-                        font.bold: true
+                    Item {
+                        implicitWidth: playerTitleText.implicitWidth
+                        implicitHeight: playerTitleText.implicitHeight
                         Layout.fillWidth: true
-                        elide: Text.ElideRight
+
+                        Glow {
+                            anchors.fill: playerTitleText
+                            source: playerTitleText
+                            radius: 8
+                            samples: 16
+                            color: Config.accent
+                            spread: 0.2
+                            transparentBorder: true
+                            visible: Config.clockShowGlow
+                        }
+
+                        Text {
+                            id: playerTitleText
+                            anchors.fill: parent
+                            text: "MEDIA PLAYER"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontTitle)
+                            font.bold: true
+                            elide: Text.ElideRight
+                        }
                     }
 
                     // DYNAMIC ORIENTATION ANCHOR ARROWS

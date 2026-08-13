@@ -1,4 +1,5 @@
 import QtQuick
+import Qt5Compat.GraphicalEffects
 import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
@@ -353,13 +354,31 @@ print(json.dumps(resolved_map))
                 anchors.margins: overviewFlyout.cardMargin
                 spacing: overviewFlyout.cardMargin
 
-                Text {
-                    text: "WORKSPACE OVERVIEW"
-                    color: Config.textMain
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontTitle)
-                    font.bold: true
+                Item {
+                    implicitWidth: wsTitleText.implicitWidth
+                    implicitHeight: wsTitleText.implicitHeight
                     Layout.fillWidth: true
+
+                    Glow {
+                        anchors.fill: wsTitleText
+                        source: wsTitleText
+                        radius: 8
+                        samples: 16
+                        color: Config.accent
+                        spread: 0.2
+                        transparentBorder: true
+                        visible: Config.clockShowGlow
+                    }
+
+                    Text {
+                        id: wsTitleText
+                        anchors.fill: parent
+                        text: "WORKSPACES"
+                        color: Config.textMain
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontTitle)
+                        font.bold: true
+                    }
                 }
 
                 Row {

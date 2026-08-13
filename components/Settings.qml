@@ -1,4 +1,5 @@
 import QtQuick
+import Qt5Compat.GraphicalEffects
 import QtQuick.Layouts
 import QtQuick.Controls
 import Qt.labs.folderlistmodel
@@ -82,13 +83,31 @@ Item {
         RowLayout {
             Layout.fillWidth: true
 
-            Text {
-                text: "SETTINGS"
-                color: Config.textMain
-                font.family: Config.sysFont
-                font.pixelSize: Config.size(Config.fontTitle)
-                font.bold: true
+            Item {
+                implicitWidth: settingsTitleText.implicitWidth
+                implicitHeight: settingsTitleText.implicitHeight
                 Layout.fillWidth: true
+
+                Glow {
+                    anchors.fill: settingsTitleText
+                    source: settingsTitleText
+                    radius: 8
+                    samples: 16
+                    color: Config.accent
+                    spread: 0.2
+                    transparentBorder: true
+                    visible: Config.clockShowGlow
+                }
+
+                Text {
+                    id: settingsTitleText
+                    anchors.fill: parent
+                    text: "SETTINGS"
+                    color: Config.textMain
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontTitle)
+                    font.bold: true
+                }
             }
 
             Rectangle {

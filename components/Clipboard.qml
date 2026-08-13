@@ -1,4 +1,5 @@
 import QtQuick
+import Qt5Compat.GraphicalEffects
 import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
@@ -214,12 +215,30 @@ Item {
                     Layout.fillWidth: true
                     spacing: 8
 
-                    Text {
-                        text: "CLIPBOARD"
-                        color: Config.textMain
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontTitle)
-                        font.bold: true
+                    Item {
+                        implicitWidth: clipTitleText.implicitWidth
+                        implicitHeight: clipTitleText.implicitHeight
+
+                        Glow {
+                            anchors.fill: clipTitleText
+                            source: clipTitleText
+                            radius: 8
+                            samples: 16
+                            color: Config.accent
+                            spread: 0.2
+                            transparentBorder: true
+                            visible: Config.clockShowGlow
+                        }
+
+                        Text {
+                            id: clipTitleText
+                            anchors.fill: parent
+                            text: "CLIPBOARD"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontTitle)
+                            font.bold: true
+                        }
                     }
 
                     // ITEM COUNT BADGE

@@ -1,4 +1,5 @@
 import QtQuick
+import Qt5Compat.GraphicalEffects
 import QtQuick.Layouts
 import QtQuick.Controls
 import QtMultimedia
@@ -86,14 +87,32 @@ Item {
                     Layout.fillWidth: true
                     spacing: 8
 
-                    Text {
-                        text: "MIRROR"
-                        color: Config.textMain
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontSubhead)
-                        font.bold: true
+                    Item {
+                        implicitWidth: mirrorTitleText.implicitWidth
+                        implicitHeight: mirrorTitleText.implicitHeight
                         Layout.fillWidth: true
-                        elide: Text.ElideRight
+
+                        Glow {
+                            anchors.fill: mirrorTitleText
+                            source: mirrorTitleText
+                            radius: 8
+                            samples: 16
+                            color: Config.accent
+                            spread: 0.2
+                            transparentBorder: true
+                            visible: Config.clockShowGlow
+                        }
+
+                        Text {
+                            id: mirrorTitleText
+                            anchors.fill: parent
+                            text: "MIRROR"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontTitle)
+                            font.bold: true
+                            elide: Text.ElideRight
+                        }
                     }
 
                     // DYNAMIC ORIENTATION ANCHOR ARROWS

@@ -1,4 +1,5 @@
 import QtQuick
+import Qt5Compat.GraphicalEffects
 import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
@@ -70,13 +71,31 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true
 
-                    Text {
-                        text: "AUDIO OUTPUT"
-                        color: Config.textMain
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontTitle)
-                        font.bold: true
+                    Item {
+                        implicitWidth: outTitleText.implicitWidth
+                        implicitHeight: outTitleText.implicitHeight
                         Layout.fillWidth: true
+
+                        Glow {
+                            anchors.fill: outTitleText
+                            source: outTitleText
+                            radius: 8
+                            samples: 16
+                            color: Config.accent
+                            spread: 0.2
+                            transparentBorder: true
+                            visible: Config.clockShowGlow
+                        }
+
+                        Text {
+                            id: outTitleText
+                            anchors.fill: parent
+                            text: "AUDIO OUTPUT"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontTitle)
+                            font.bold: true
+                        }
                     }
 
                     Text {
@@ -342,13 +361,31 @@ Item {
                 RowLayout {
                     Layout.fillWidth: true
 
-                    Text {
-                        text: "AUDIO INPUT"
-                        color: Config.textMain
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontTitle)
-                        font.bold: true
+                    Item {
+                        implicitWidth: inTitleText.implicitWidth
+                        implicitHeight: inTitleText.implicitHeight
                         Layout.fillWidth: true
+
+                        Glow {
+                            anchors.fill: inTitleText
+                            source: inTitleText
+                            radius: 8
+                            samples: 16
+                            color: Config.accent
+                            spread: 0.2
+                            transparentBorder: true
+                            visible: Config.clockShowGlow
+                        }
+
+                        Text {
+                            id: inTitleText
+                            anchors.fill: parent
+                            text: "AUDIO INPUT"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontTitle)
+                            font.bold: true
+                        }
                     }
 
                     Text {
