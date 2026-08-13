@@ -270,6 +270,7 @@ print(json.dumps(icon_map))
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontTitle)
                         font.bold: true
+                        font.italic: true
                     }
                 }
 

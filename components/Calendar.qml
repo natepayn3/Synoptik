@@ -231,6 +231,7 @@ Item {
                                 font.family: Config.sysFont
                                 font.pixelSize: 68
                                 font.bold: true
+                                font.italic: true
                                 font.letterSpacing: -2.0
                             }
                         }

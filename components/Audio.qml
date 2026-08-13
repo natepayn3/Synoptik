@@ -95,6 +95,7 @@ Item {
                             font.family: Config.sysFont
                             font.pixelSize: Config.size(Config.fontTitle)
                             font.bold: true
+                            font.italic: true
                         }
                     }
 
@@ -385,6 +386,7 @@ Item {
                             font.family: Config.sysFont
                             font.pixelSize: Config.size(Config.fontTitle)
                             font.bold: true
+                            font.italic: true
                         }
                     }
 
