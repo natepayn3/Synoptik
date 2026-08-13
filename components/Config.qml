@@ -116,12 +116,14 @@ QtObject {
 
     property MediaDevices mirrorMediaDevices: MediaDevices {}
 
+    property bool mirrorCameraActive: false
+
     property CaptureSession mirrorCaptureSession: CaptureSession {
         id: globalMirrorCaptureSession
         camera: Camera {
             id: globalMirrorCamera
             cameraDevice: root.mirrorMediaDevices.defaultVideoInput
-            active: root.showMirror && !!cameraDevice
+            active: root.mirrorCameraActive && !!cameraDevice
 
             onActiveChanged: {
                 if (active) {
@@ -134,7 +136,7 @@ QtObject {
                 if (!cameraDevice) {
                     root.mirrorLoading = false
                     root.mirrorError = "No camera device found"
-                    active = false
+                    root.mirrorCameraActive = false
                     return
                 }
                 let formats = cameraDevice.videoFormats
@@ -154,7 +156,7 @@ QtObject {
                     }
                     if (bestFormat) cameraFormat = bestFormat
                 }
-                active = root.showMirror
+                root.mirrorCameraActive = root.showMirror
             }
         }
     }
@@ -164,7 +166,7 @@ QtObject {
 
     property Timer mirrorActivateTimer: Timer {
         id: mirrorActivateTimer
-        interval: 300
+        interval: 150
         repeat: false
         onTriggered: {
             if (root.showMirror) {
@@ -174,6 +176,7 @@ QtObject {
                 } else {
                     root.mirrorLoading = false
                     root.mirrorError = "No camera device found"
+                    root.mirrorCameraActive = false
                 }
             }
         }
@@ -195,11 +198,11 @@ QtObject {
 
     property Timer mirrorDeactivateTimer: Timer {
         id: mirrorDeactivateTimer
-        interval: 300
+        interval: 450
         repeat: false
         onTriggered: {
             if (!root.showMirror) {
-                globalMirrorCamera.active = false
+                root.mirrorCameraActive = false
             }
         }
     }
@@ -214,6 +217,7 @@ QtObject {
                 if (!root.mirrorMediaDevices.defaultVideoInput) {
                     root.mirrorLoading = false
                     root.mirrorError = "No camera device found"
+                    root.mirrorCameraActive = false
                 } else {
                     mirrorActivateTimer.restart()
                 }

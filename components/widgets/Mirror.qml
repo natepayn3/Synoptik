@@ -19,14 +19,6 @@ Item {
     implicitWidth: Config.mirrorExpanded ? 640 : 380
     implicitHeight: mainColumn.implicitHeight + (Config.cardMargin * 2)
 
-    Behavior on implicitWidth {
-        NumberAnimation { duration: 200; easing.type: Easing.InOutQuad }
-    }
-
-    MediaDevices {
-        id: mediaDevices
-    }
-
     function takeSnapshot() {
         let timestamp = Qt.formatDateTime(new Date(), "yyyyMMdd_hhmmss")
         let picturesDir = StandardPaths.writableLocation(StandardPaths.PicturesLocation).toString().replace(/^file:\/\//, "")
@@ -102,7 +94,7 @@ Item {
                             color: Config.accent
                             spread: 0.2
                             transparentBorder: true
-                            visible: Config.clockShowGlow
+                            visible: Config.clockShowGlow && mirrorRoot.visible && (typeof mainSurface !== "undefined" ? mainSurface.progress >= 0.95 : true)
                         }
 
                         Text {
@@ -270,10 +262,6 @@ Item {
                     border.width: Config.showBorders ? Config.borderThickness : 0
                     border.color: (typeof shellRoot !== "undefined" && shellRoot.currentBorderColor) ? shellRoot.currentBorderColor : Config.accent
                     clip: true
-
-                    Behavior on implicitHeight {
-                        NumberAnimation { duration: 200; easing.type: Easing.InOutQuad }
-                    }
 
                     Item {
                         id: videoWrapper
