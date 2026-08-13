@@ -1,4 +1,5 @@
 import QtQuick
+import Qt5Compat.GraphicalEffects
 import QtQuick.Layouts
 import QtQuick.Controls
 import Qt.labs.qmlmodels
@@ -113,6 +114,7 @@ Item {
     property string bigMinute: Qt.formatTime(new Date(), "mm")
     property string bigAmPm: Qt.formatTime(new Date(), "ap")
     property string dayOfWeekStr: Qt.formatDate(selectedDate, "dddd")
+    property string formattedDateUpper: Qt.formatDate(new Date(), "dddd, MMM d").toUpperCase()
 
     Timer {
         interval: 1000
@@ -123,6 +125,7 @@ Item {
             bigHour = root.get12Hour()
             bigMinute = Qt.formatTime(d, "mm")
             bigAmPm = Qt.formatTime(d, "ap")
+            formattedDateUpper = Qt.formatDate(d, "dddd, MMM d").toUpperCase()
         }
     }
 
@@ -149,32 +152,22 @@ Item {
                 radius: Config.cornerRadius
                 clip: true
 
-                // ATMOSPHERIC BACKGROUND AMBIENT GLOW
-                Rectangle {
-                    anchors.centerIn: parent
-                    width: parent.width * 0.9
-                    height: parent.height * 0.9
-                    radius: width / 2
-                    color: Config.accent
-                    opacity: 0.08
-                }
-
                 // MASSIVE GRAPHIC WEATHER WATERMARK
                 Item {
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
-                    anchors.rightMargin: -10
-                    anchors.bottomMargin: -20
-                    implicitWidth: 130
-                    implicitHeight: 130
+                    anchors.rightMargin: -15
+                    anchors.bottomMargin: -25
+                    implicitWidth: 150
+                    implicitHeight: 150
 
                     Text {
                         anchors.centerIn: parent
                         text: Config.weather.glyph
                         font.family: "Material Symbols Outlined"
-                        font.pixelSize: 130
+                        font.pixelSize: 150
                         color: Config.accent
-                        opacity: 0.16
+                        opacity: 0.18
                         rotation: 15
                     }
                 }
@@ -183,134 +176,134 @@ Item {
                     id: clockWeatherCol
                     anchors.fill: parent
                     anchors.margins: root.cardMargin
-                    spacing: 12
+                    spacing: 10
 
-                    // HERO CLOCK DISPLAY
+                    // TOP HEADER: DAY & DATE PILL
                     RowLayout {
-                        Layout.alignment: Qt.AlignHCenter
+                        Layout.fillWidth: true
                         spacing: 6
 
-                        Text {
-                            text: bigHour + ":" + bigMinute
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: 58
-                            font.bold: true
-                            font.letterSpacing: -1
+                        Rectangle {
+                            implicitWidth: 3
+                            implicitHeight: 12
+                            radius: 1.5
+                            color: Config.accent
+                            Layout.alignment: Qt.AlignVCenter
                         }
 
-                        Text {
-                            text: bigAmPm.toLowerCase()
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: 34
-                            font.bold: true
-                            Layout.alignment: Qt.AlignBaseline
+                        Item {
+                            implicitWidth: dateText.implicitWidth
+                            implicitHeight: dateText.implicitHeight
+                            Layout.alignment: Qt.AlignVCenter
+
+                            Glow {
+                                anchors.fill: dateText
+                                source: dateText
+                                radius: 8
+                                samples: 16
+                                color: Config.accent
+                                spread: 0.2
+                                transparentBorder: true
+                                visible: Config.clockShowGlow
+                            }
+
+                            Text {
+                                id: dateText
+                                anchors.fill: parent
+                                text: root.formattedDateUpper
+                                color: Config.accent
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontCaption)
+                                font.bold: true
+                                font.letterSpacing: 1.1
+                            }
                         }
                     }
 
-                    // GRAPHIC WEATHER HUD OVERLAY CARD
-                    Rectangle {
+                    // HERO CLOCK DISPLAY (CENTERED WITH EXACT MATCH ACCENT GLOW)
+                    RowLayout {
+                        id: heroTimeRow
+                        Layout.alignment: Qt.AlignHCenter
+                        spacing: 6
+
+                        Item {
+                            implicitWidth: heroTimeText.implicitWidth
+                            implicitHeight: heroTimeText.implicitHeight
+
+                            Glow {
+                                anchors.fill: heroTimeText
+                                source: heroTimeText
+                                radius: 12
+                                samples: 24
+                                color: Config.accent
+                                spread: 0.2
+                                transparentBorder: true
+                                visible: Config.clockShowGlow
+                            }
+
+                            Text {
+                                id: heroTimeText
+                                anchors.fill: parent
+                                text: bigHour + ":" + bigMinute
+                                color: Config.textMain
+                                font.family: Config.sysFont
+                                font.pixelSize: 68
+                                font.bold: true
+                                font.letterSpacing: -2.0
+                            }
+                        }
+
+                        Rectangle {
+                            implicitWidth: amPmText.implicitWidth + 10
+                            implicitHeight: 22
+                            radius: 11
+                            color: Qt.rgba(255, 255, 255, 0.10)
+                            border.width: 1
+                            border.color: Qt.rgba(255, 255, 255, 0.15)
+                            Layout.alignment: Qt.AlignBaseline
+
+                            Text {
+                                id: amPmText
+                                anchors.centerIn: parent
+                                text: bigAmPm.toUpperCase()
+                                color: Config.textMain
+                                font.family: Config.sysFont
+                                font.pixelSize: 11
+                                font.bold: true
+                            }
+                        }
+                    }
+
+                    // WEATHER TYPOGRAPHY (ALIGNED RIGHT, NO DUPLICATE GLYPH)
+                    RowLayout {
+                        spacing: 8
                         Layout.fillWidth: true
-                        implicitHeight: weatherHudRow.implicitHeight + 16
-                        color: Qt.rgba(0, 0, 0, 0.25)
-                        radius: Config.cornerRadius / 1.5
+                        Layout.alignment: Qt.AlignRight
 
-                        RowLayout {
-                            id: weatherHudRow
-                            anchors.fill: parent
-                            anchors.margins: 10
-                            spacing: 10
+                        Item { Layout.fillWidth: true }
 
-                            // ACTIVE WEATHER ICON WITH BADGE GLOW
-                            Rectangle {
-                                implicitWidth: 40
-                                implicitHeight: 40
-                                radius: 20
-                                color: Qt.rgba(255, 255, 255, 0.08)
-                                Layout.alignment: Qt.AlignVCenter
+                        Text {
+                            text: Config.weather.temp
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: 20
+                            font.bold: true
+                        }
 
-                                Item {
-                                    implicitWidth: 26
-                                    implicitHeight: 26
-                                    anchors.centerIn: parent
+                        Rectangle {
+                            implicitWidth: 5
+                            implicitHeight: 5
+                            radius: 2.5
+                            color: Config.accent
+                            Layout.alignment: Qt.AlignVCenter
+                        }
 
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: Config.weather.glyph
-                                        font.family: "Material Symbols Outlined"
-                                        font.pixelSize: 26
-                                        color: Config.accent
-                                    }
-                                }
-                            }
-
-                            // MAIN TEMP & CONDITION DESC
-                            ColumnLayout {
-                                spacing: 0
-                                Layout.fillWidth: true
-                                Layout.alignment: Qt.AlignVCenter
-
-                                Text {
-                                    text: Config.weather.temp
-                                    color: Config.textMain
-                                    font.family: Config.sysFont
-                                    font.pixelSize: Config.size(Config.fontTitle)
-                                    font.bold: true
-                                }
-
-                                Text {
-                                    text: Config.weather.desc !== "" ? Config.weather.desc : "Current Weather"
-                                    color: Config.textMuted
-                                    font.family: Config.sysFont
-                                    font.pixelSize: Config.size(Config.fontCaption)
-                                    font.bold: true
-                                    elide: Text.ElideRight
-                                    Layout.fillWidth: true
-                                }
-                            }
-
-                            // FEELS LIKE STAT BADGE
-                            ColumnLayout {
-                                spacing: 2
-                                Layout.alignment: Qt.AlignVCenter
-
-                                RowLayout {
-                                    spacing: 4
-                                    Layout.alignment: Qt.AlignRight
-
-                                    Item {
-                                        implicitWidth: 16
-                                        implicitHeight: 16
-                                        Layout.alignment: Qt.AlignVCenter
-
-                                        Text {
-                                            anchors.centerIn: parent
-                                            text: "thermostat"
-                                            font.family: "Material Symbols Outlined"
-                                            font.pixelSize: 16
-                                            color: Config.accent
-                                        }
-                                    }
-
-                                    Text {
-                                        text: Config.weather.feelsLike
-                                        color: Config.accent
-                                        font.family: Config.sysFont
-                                        font.pixelSize: Config.size(Config.fontCaption)
-                                        font.bold: true
-                                    }
-                                }
-
-                                Text {
-                                    text: "Feels Like"
-                                    color: Config.textMuted
-                                    font.family: Config.sysFont
-                                    font.pixelSize: Config.size(Config.fontMicro)
-                                    font.bold: true
-                                    Layout.alignment: Qt.AlignRight
-                                }
-                            }
+                        Text {
+                            text: Config.weather.desc !== "" ? Config.weather.desc : "Current Weather"
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
+                            font.bold: true
                         }
                     }
                 }

@@ -221,6 +221,27 @@ Item {
                     }
                 }
 
+                // TOGGLE GLOW EFFECT
+                RowLayout {
+                    spacing: 8
+                    Rectangle {
+                        implicitWidth: 18; implicitHeight: 18; radius: 4
+                        color: Config.clockShowGlow ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                        Text {
+                            anchors.centerIn: parent; text: "✓"; color: Config.bgBase
+                            visible: Config.clockShowGlow; font.pixelSize: 11; font.bold: true
+                        }
+                        TapHandler { onTapped: Config.clockShowGlow = !Config.clockShowGlow }
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    }
+                    Text {
+                        text: "Glow Effect"
+                        color: Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption)
+                        TapHandler { onTapped: Config.clockShowGlow = !Config.clockShowGlow }
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    }
+                }
+
                 // TOGGLE SECONDS
                 RowLayout {
                     spacing: 8

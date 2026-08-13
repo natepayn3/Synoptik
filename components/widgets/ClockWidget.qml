@@ -1,4 +1,5 @@
 import QtQuick
+import Qt5Compat.GraphicalEffects
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Wayland
@@ -144,129 +145,163 @@ PanelWindow {
                     return hStr + mStr + sStr
                 }
 
-                // Header Date String
-                RowLayout {
-                    id: dateHeader
-                    spacing: 8 * clockContainer.currentScale
+                // Header Date String (with Accent Glow)
+                Item {
                     Layout.alignment: Qt.AlignHCenter
+                    implicitWidth: dateHeader.implicitWidth
+                    implicitHeight: dateHeader.implicitHeight
 
-                    Text {
-                        text: "schedule"
+                    Glow {
+                        anchors.fill: dateHeader
+                        source: dateHeader
+                        radius: 8
+                        samples: 16
                         color: Config.accent
-                        font.family: "Material Symbols Outlined"
-                        font.pixelSize: Config.size(Config.fontCaption) * 1.2 * clockContainer.currentScale
-                        font.bold: true
+                        spread: 0.2
+                        transparentBorder: true
+                        visible: Config.clockShowGlow
                     }
 
-                    Text {
-                        text: Qt.formatDate(modernLayout.currentDate, "dddd, MMMM d").toUpperCase()
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro) * 1.1 * clockContainer.currentScale
-                        font.bold: true
-                        font.letterSpacing: 1.5
-                    }
-                }
-
-                // Dot Matrix Main Time Layout
-                RowLayout {
-                    id: timeRow
-                    spacing: 8 * clockContainer.currentScale
-                    Layout.alignment: Qt.AlignHCenter
-
-                    // Hours Digits
-                    Repeater {
-                        model: 2
-                        delegate: DotMatrixDigit {
-                            required property int index
-                            readonly property string charVal: modernLayout.formattedTime[index] || " "
-                            digitData: modernLayout.fontMap[charVal] || modernLayout.fontMap[" "]
-                            scaleFactor: clockContainer.currentScale
-                        }
-                    }
-
-                    // Pulsing Colon (Hours/Minutes)
-                    ColumnLayout {
+                    RowLayout {
+                        id: dateHeader
+                        anchors.fill: parent
                         spacing: 8 * clockContainer.currentScale
-                        Layout.alignment: Qt.AlignVCenter
-
-                        Repeater {
-                            model: 2
-                            delegate: Rectangle {
-                                implicitWidth: 6 * clockContainer.currentScale
-                                implicitHeight: 6 * clockContainer.currentScale
-                                radius: width / 2
-                                color: Config.accent
-
-                                SequentialAnimation on opacity {
-                                    running: true
-                                    loops: Animation.Infinite
-                                    NumberAnimation { to: 0.2; duration: 800; easing.type: Easing.InOutQuad }
-                                    NumberAnimation { to: 1.0; duration: 800; easing.type: Easing.InOutQuad }
-                                }
-                            }
-                        }
-                    }
-
-                    // Minutes Digits
-                    Repeater {
-                        model: 2
-                        delegate: DotMatrixDigit {
-                            required property int index
-                            readonly property string charVal: modernLayout.formattedTime[index + 2] || " "
-                            digitData: modernLayout.fontMap[charVal] || modernLayout.fontMap[" "]
-                            scaleFactor: clockContainer.currentScale
-                        }
-                    }
-
-                    // Pulsing Colon (Minutes/Seconds)
-                    ColumnLayout {
-                        visible: Config.clockShowSeconds
-                        spacing: 8 * clockContainer.currentScale
-                        Layout.alignment: Qt.AlignVCenter
-
-                        Repeater {
-                            model: 2
-                            delegate: Rectangle {
-                                implicitWidth: 4 * clockContainer.currentScale
-                                implicitHeight: 4 * clockContainer.currentScale
-                                radius: width / 2
-                                color: Config.accent
-
-                                SequentialAnimation on opacity {
-                                    running: true
-                                    loops: Animation.Infinite
-                                    NumberAnimation { to: 0.2; duration: 800; easing.type: Easing.InOutQuad }
-                                    NumberAnimation { to: 1.0; duration: 800; easing.type: Easing.InOutQuad }
-                                }
-                            }
-                        }
-                    }
-
-                    // Seconds Digits
-                    Repeater {
-                        model: Config.clockShowSeconds ? 2 : 0
-                        delegate: DotMatrixDigit {
-                            required property int index
-                            readonly property string charVal: modernLayout.formattedTime[index + 4] || " "
-                            digitData: modernLayout.fontMap[charVal] || modernLayout.fontMap[" "]
-                            scaleFactor: clockContainer.currentScale * 0.75
-                            Layout.alignment: Qt.AlignVCenter
-                        }
-                    }
-
-                    // AM/PM Indicator
-                    ColumnLayout {
-                        visible: Config.clockUse12Hour && Config.clockShowAmPm
-                        Layout.alignment: Qt.AlignBottom
-                        Layout.bottomMargin: 6 * clockContainer.currentScale
 
                         Text {
-                            text: Qt.formatTime(modernLayout.currentDate, "ap").toUpperCase()
+                            text: "schedule"
                             color: Config.accent
+                            font.family: "Material Symbols Outlined"
+                            font.pixelSize: Config.size(Config.fontCaption) * 1.2 * clockContainer.currentScale
+                            font.bold: true
+                        }
+
+                        Text {
+                            text: Qt.formatDate(modernLayout.currentDate, "dddd, MMMM d").toUpperCase()
+                            color: Config.textMuted
                             font.family: Config.sysFont
                             font.pixelSize: Config.size(Config.fontMicro) * 1.1 * clockContainer.currentScale
                             font.bold: true
+                            font.letterSpacing: 1.5
+                        }
+                    }
+                }
+
+                // Dot Matrix Main Time Layout (with Accent Glow)
+                Item {
+                    Layout.alignment: Qt.AlignHCenter
+                    implicitWidth: timeRow.implicitWidth
+                    implicitHeight: timeRow.implicitHeight
+
+                    Glow {
+                        anchors.fill: timeRow
+                        source: timeRow
+                        radius: 12
+                        samples: 24
+                        color: Config.accent
+                        spread: 0.2
+                        transparentBorder: true
+                        visible: Config.clockShowGlow
+                    }
+
+                    RowLayout {
+                        id: timeRow
+                        anchors.fill: parent
+                        spacing: 8 * clockContainer.currentScale
+
+                        // Hours Digits
+                        Repeater {
+                            model: 2
+                            delegate: DotMatrixDigit {
+                                required property int index
+                                readonly property string charVal: modernLayout.formattedTime[index] || " "
+                                digitData: modernLayout.fontMap[charVal] || modernLayout.fontMap[" "]
+                                scaleFactor: clockContainer.currentScale
+                            }
+                        }
+
+                        // Pulsing Colon (Hours/Minutes)
+                        ColumnLayout {
+                            spacing: 8 * clockContainer.currentScale
+                            Layout.alignment: Qt.AlignVCenter
+
+                            Repeater {
+                                model: 2
+                                delegate: Rectangle {
+                                    implicitWidth: 6 * clockContainer.currentScale
+                                    implicitHeight: 6 * clockContainer.currentScale
+                                    radius: width / 2
+                                    color: Config.accent
+
+                                    SequentialAnimation on opacity {
+                                        running: true
+                                        loops: Animation.Infinite
+                                        NumberAnimation { to: 0.2; duration: 800; easing.type: Easing.InOutQuad }
+                                        NumberAnimation { to: 1.0; duration: 800; easing.type: Easing.InOutQuad }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Minutes Digits
+                        Repeater {
+                            model: 2
+                            delegate: DotMatrixDigit {
+                                required property int index
+                                readonly property string charVal: modernLayout.formattedTime[index + 2] || " "
+                                digitData: modernLayout.fontMap[charVal] || modernLayout.fontMap[" "]
+                                scaleFactor: clockContainer.currentScale
+                            }
+                        }
+
+                        // Pulsing Colon (Minutes/Seconds)
+                        ColumnLayout {
+                            visible: Config.clockShowSeconds
+                            spacing: 8 * clockContainer.currentScale
+                            Layout.alignment: Qt.AlignVCenter
+
+                            Repeater {
+                                model: 2
+                                delegate: Rectangle {
+                                    implicitWidth: 4 * clockContainer.currentScale
+                                    implicitHeight: 4 * clockContainer.currentScale
+                                    radius: width / 2
+                                    color: Config.accent
+
+                                    SequentialAnimation on opacity {
+                                        running: true
+                                        loops: Animation.Infinite
+                                        NumberAnimation { to: 0.2; duration: 800; easing.type: Easing.InOutQuad }
+                                        NumberAnimation { to: 1.0; duration: 800; easing.type: Easing.InOutQuad }
+                                    }
+                                }
+                            }
+                        }
+
+                        // Seconds Digits
+                        Repeater {
+                            model: Config.clockShowSeconds ? 2 : 0
+                            delegate: DotMatrixDigit {
+                                required property int index
+                                readonly property string charVal: modernLayout.formattedTime[index + 4] || " "
+                                digitData: modernLayout.fontMap[charVal] || modernLayout.fontMap[" "]
+                                scaleFactor: clockContainer.currentScale * 0.75
+                                Layout.alignment: Qt.AlignVCenter
+                            }
+                        }
+
+                        // AM/PM Indicator
+                        ColumnLayout {
+                            visible: Config.clockUse12Hour && Config.clockShowAmPm
+                            Layout.alignment: Qt.AlignBottom
+                            Layout.bottomMargin: 6 * clockContainer.currentScale
+
+                            Text {
+                                text: Qt.formatTime(modernLayout.currentDate, "ap").toUpperCase()
+                                color: Config.accent
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontMicro) * 1.1 * clockContainer.currentScale
+                                font.bold: true
+                            }
                         }
                     }
                 }
@@ -300,41 +335,77 @@ PanelWindow {
                     return Qt.formatTime(currentDate, fmt)
                 }
 
-                Text {
-                    text: formatTimeString()
-                    color: Config.textMain
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontTitle) * 1.5 * clockContainer.currentScale
-                    font.bold: true
+                Item {
                     Layout.alignment: Qt.AlignHCenter
-                }
+                    implicitWidth: digitalTimeText.implicitWidth
+                    implicitHeight: digitalTimeText.implicitHeight
 
-                RowLayout {
-                    spacing: 6
-                    Layout.alignment: Qt.AlignHCenter
-
-                    Text {
-                        text: Qt.formatDate(currentDate, "ddd")
+                    Glow {
+                        anchors.fill: digitalTimeText
+                        source: digitalTimeText
+                        radius: 12
+                        samples: 24
                         color: Config.accent
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontSubhead) * clockContainer.currentScale
-                        font.bold: true
+                        spread: 0.2
+                        transparentBorder: true
+                        visible: Config.clockShowGlow
                     }
 
                     Text {
-                        text: "|"
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontSubhead) * clockContainer.currentScale
-                        opacity: 0.6
-                    }
-
-                    Text {
-                        text: Qt.formatDate(currentDate, "MMM d")
+                        id: digitalTimeText
+                        anchors.fill: parent
+                        text: formatTimeString()
                         color: Config.textMain
                         font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontSubhead) * clockContainer.currentScale
-                        font.bold: false
+                        font.pixelSize: Config.size(Config.fontTitle) * 1.5 * clockContainer.currentScale
+                        font.bold: true
+                    }
+                }
+
+                Item {
+                    Layout.alignment: Qt.AlignHCenter
+                    implicitWidth: digitalDateRow.implicitWidth
+                    implicitHeight: digitalDateRow.implicitHeight
+
+                    Glow {
+                        anchors.fill: digitalDateRow
+                        source: digitalDateRow
+                        radius: 8
+                        samples: 16
+                        color: Config.accent
+                        spread: 0.2
+                        transparentBorder: true
+                        visible: Config.clockShowGlow
+                    }
+
+                    RowLayout {
+                        id: digitalDateRow
+                        anchors.fill: parent
+                        spacing: 6
+
+                        Text {
+                            text: Qt.formatDate(currentDate, "ddd")
+                            color: Config.accent
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontSubhead) * clockContainer.currentScale
+                            font.bold: true
+                        }
+
+                        Text {
+                            text: "|"
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontSubhead) * clockContainer.currentScale
+                            opacity: 0.6
+                        }
+
+                        Text {
+                            text: Qt.formatDate(currentDate, "MMM d")
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontSubhead) * clockContainer.currentScale
+                            font.bold: false
+                        }
                     }
                 }
             }
@@ -348,6 +419,17 @@ PanelWindow {
                 readonly property real baseSize: 140
                 implicitWidth: baseSize * clockContainer.currentScale
                 implicitHeight: baseSize * clockContainer.currentScale
+
+                Glow {
+                    anchors.fill: analogCanvas
+                    source: analogCanvas
+                    radius: 12
+                    samples: 24
+                    color: Config.accent
+                    spread: 0.2
+                    transparentBorder: true
+                    visible: Config.clockShowGlow
+                }
 
                 Canvas {
                     id: analogCanvas

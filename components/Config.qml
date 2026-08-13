@@ -672,6 +672,7 @@ QtObject {
     property bool clockShowAmPm: true
     property bool clockShowBorder: true
     property bool clockShowBackground: true
+    property bool clockShowGlow: true
 
     property var clockPositions: ({})
     property var clockScales: ({})
@@ -818,6 +819,7 @@ QtObject {
     onClockShowAmPmChanged: { if (isLoaded) saveSettings() }
     onClockShowBorderChanged: { if (isLoaded) saveSettings() }
     onClockShowBackgroundChanged: { if (isLoaded) saveSettings() }
+    onClockShowGlowChanged: { if (isLoaded) saveSettings() }
 
     // --- ON-SCREEN KEYBOARD (OSK) STATE & PERSISTENCE ---
     property bool showOsk: false
@@ -1580,6 +1582,7 @@ QtObject {
                 "clockShowAmPm": root.clockShowAmPm,
                 "clockShowBorder": root.clockShowBorder,
                 "clockShowBackground": root.clockShowBackground,
+                "clockShowGlow": root.clockShowGlow,
                 "clockPositions": root.clockPositions,
                 "clockScales": root.clockScales,
                 "enabledClockScreens": root.enabledClockScreens
@@ -1616,7 +1619,7 @@ QtObject {
                             "customAccent", "animateGradient", "shellOpacity", "enableBlur",
                             "enableXray", "enableIris", "surfaceRadius", "borderThickness", "cardMargin", "showDesktopClock", "clockStyle", "clockScale", 
                             "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", 
-                            "clockShowBackground", "clockPositions", "clockScales", "enabledClockScreens",
+                            "clockShowBackground", "clockShowGlow", "clockPositions", "clockScales", "enabledClockScreens",
                             "leftCardOrder", "rightCardOrder", "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides",
                             "playWindowSounds", "playNotificationSounds", "windowSoundPath", "notificationSoundPath", "windowSoundVolume",
                             "showMirror", "mirrorShowPanel", "mirrorMirrored", "mirrorKeepAspect", "mirrorExpanded", "mirrorPinned", "mirrorAnchorPos",
