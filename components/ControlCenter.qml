@@ -77,6 +77,7 @@ Item {
             Item {
                 anchors.fill: parent
                 clip: true
+                visible: Config.showWatermarks
 
                 Item {
                     anchors.right: parent.right

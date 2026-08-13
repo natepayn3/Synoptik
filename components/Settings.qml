@@ -18,25 +18,7 @@ Item {
 
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
-    // GIGANTIC GEAR WATERMARK
-    Item {
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        anchors.rightMargin: -40
-        anchors.bottomMargin: -60
-        implicitWidth: 350
-        implicitHeight: 350
 
-        Text {
-            anchors.centerIn: parent
-            text: Config.getIcon("settings")
-            font.family: "Material Symbols Outlined"
-            font.pixelSize: 350
-            color: Config.accent
-            opacity: 0.12
-            rotation: 15
-        }
-    }
 
     // Inline Comment: Initialize activeSection to match saved Config state
     property int activeSection: Config.lastSettingsSection
@@ -375,6 +357,27 @@ Item {
                 color: Qt.rgba(255, 255, 255, 0.03)
                 radius: (Config.surfaceRadius || 18) * 0.75
                 clip: true
+
+                // GRAPHIC GEAR WATERMARK
+                Item {
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    anchors.rightMargin: -15
+                    anchors.bottomMargin: -20
+                    implicitWidth: 200
+                    implicitHeight: 200
+                    visible: Config.showWatermarks
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: Config.getIcon("settings")
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 200
+                        color: Config.accent
+                        opacity: 0.12
+                        rotation: 15
+                    }
+                }
 
                 Item {
                     anchors.fill: parent

@@ -884,6 +884,7 @@ QtObject {
     property bool enableBlur: true
     property bool enableXray: true
     property bool enableIris: false
+    property bool showWatermarks: true
 
     property Process irisRunner: Process {
         id: runner
@@ -1597,6 +1598,7 @@ QtObject {
                 "enableBlur": root.enableBlur,
                 "enableXray": root.enableXray,
                 "enableIris": root.enableIris,
+                "showWatermarks": root.showWatermarks,
                 "customThemes": customPalettes,
                 "windowStyle": root.windowStyle,
                 "playWindowSounds": root.playWindowSounds,
@@ -1672,7 +1674,7 @@ QtObject {
                             "barFrameStyle", "barPosition", "showScreenFrame", "sysFont", "fontScaleIndex", "locationQuery",
                             "enabledBarScreens", "useCustomColors", "customBgBase", "customBgPanel",
                             "customAccent", "animateGradient", "shellOpacity", "enableBlur",
-                            "enableXray", "enableIris", "surfaceRadius", "borderThickness", "cardMargin", "showDesktopClock", "clockStyle", "clockScale", 
+                            "enableXray", "enableIris", "showWatermarks", "surfaceRadius", "borderThickness", "cardMargin", "showDesktopClock", "clockStyle", "clockScale", 
                             "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", 
                             "clockShowBackground", "clockShowGlow", "clockPositions", "clockScales", "enabledClockScreens",
                             "leftCardOrder", "rightCardOrder", "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides",

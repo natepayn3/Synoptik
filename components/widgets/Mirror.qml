@@ -64,6 +64,7 @@ Item {
                 anchors.bottomMargin: -20
                 implicitWidth: 150
                 implicitHeight: 150
+                visible: Config.showWatermarks
 
                 Text {
                     anchors.centerIn: parent

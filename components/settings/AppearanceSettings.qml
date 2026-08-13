@@ -232,7 +232,20 @@ Flickable {
                 Text { text: "Xray"; color: Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption) }
             }
 
-            // Inline Comment: Added Iris toggle row after Xray
+            // Watermarks Toggle Row (between Xray and Auto-color)
+            RowLayout {
+                spacing: 8
+                Rectangle {
+                    implicitWidth: 18; implicitHeight: 18; radius: 4
+                    color: Config.showWatermarks ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                    Text { anchors.centerIn: parent; text: "✓"; color: Config.bgBase; visible: Config.showWatermarks; font.pixelSize: 11; font.bold: true }
+                    TapHandler { onTapped: Config.showWatermarks = !Config.showWatermarks }
+                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                }
+                Text { text: "Watermarks"; color: Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption) }
+            }
+
+            // Inline Comment: Added Iris toggle row after Xray & Watermarks
             RowLayout {
                 spacing: 8
                 Rectangle {

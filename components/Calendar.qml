@@ -160,6 +160,7 @@ Item {
                     anchors.bottomMargin: -25
                     implicitWidth: 150
                     implicitHeight: 150
+                    visible: Config.showWatermarks
 
                     Text {
                         anchors.centerIn: parent
@@ -309,6 +310,7 @@ Item {
                     anchors.bottomMargin: -16
                     implicitWidth: 110
                     implicitHeight: 110
+                    visible: Config.showWatermarks
 
                     Text {
                         anchors.centerIn: parent
@@ -476,6 +478,7 @@ Item {
                 anchors.bottomMargin: -20
                 implicitWidth: 150
                 implicitHeight: 150
+                visible: Config.showWatermarks
 
                 Text {
                     anchors.centerIn: parent
