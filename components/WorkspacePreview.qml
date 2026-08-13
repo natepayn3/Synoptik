@@ -520,15 +520,24 @@ print(json.dumps(resolved_map))
                                         delegate: Rectangle {
                                             id: windowDelegate
 
+                                            readonly property bool isSelected: !!(overviewFlyout.selectedWindowAddress && modelData && modelData.address && overviewFlyout.selectedWindowAddress.trim().toLowerCase() === modelData.address.trim().toLowerCase())
+
+                                            z: isSelected ? 10 : (index + 1)
+
                                             x: Math.round((modelData.at[0] - wsTile.monitorBounds.originX) * viewportFrame.scaleX)
                                             y: Math.round((modelData.at[1] - wsTile.monitorBounds.originY) * viewportFrame.scaleY)
                                             width: Math.max(4, Math.round(modelData.size[0] * viewportFrame.scaleX))
                                             height: Math.max(4, Math.round(modelData.size[1] * viewportFrame.scaleY))
                                             visible: modelData.mapped
-                                            opacity: (overviewFlyout.isDraggingWindow && overviewFlyout.draggingWindowAddress === modelData.address) ? 0.4 : 1.0
+                                            opacity: (overviewFlyout.isDraggingWindow && overviewFlyout.draggingWindowAddress === modelData.address) ? 0.4 : (isSelected ? 1.0 : 0.85)
                                             color: Qt.rgba(255, 255, 255, 0.08)
+                                            border.color: isSelected ? Config.accent : Qt.rgba(255, 255, 255, 0.2)
+                                            border.width: isSelected ? 2 : 1
                                             radius: 2
                                             clip: true
+
+                                            Behavior on border.color { ColorAnimation { duration: 120 } }
+                                            Behavior on opacity { NumberAnimation { duration: 120 } }
 
                                             property var wlToplevel: {
                                                 if (!modelData || !modelData.address) return null;
@@ -553,16 +562,18 @@ print(json.dumps(resolved_map))
                                                 anchors.left: parent.left
                                                 anchors.right: parent.right
                                                 height: Math.min(16, parent.height * 0.3)
-                                                color: "#cc11111b"
+                                                color: windowDelegate.isSelected ? Config.accent : "#cc11111b"
                                                 visible: parent.height > 20 && parent.width > 32
                                                 radius: 2
+
+                                                Behavior on color { ColorAnimation { duration: 120 } }
 
                                                 Text {
                                                     text: (modelData.class || "")
                                                     font.family: Config.sysFont
                                                     font.pixelSize: 8
                                                     font.bold: true
-                                                    color: Config.textMain
+                                                    color: windowDelegate.isSelected ? "#ffffff" : Config.textMain
                                                     anchors.centerIn: parent
                                                     width: parent.width - 4
                                                     elide: Text.ElideRight
@@ -671,6 +682,38 @@ print(json.dumps(resolved_map))
                                     if (hovered) {
                                         overviewFlyout.highlightedIndex = wsTile.index
                                         overviewFlyout.forceActiveFocus() // Re-grab keyboard focus on mouse enter
+                                    }
+                                }
+                            }
+
+                            // Enable scrolling through workspace windows on hover
+                            WheelHandler {
+                                id: tileWheelHandler
+                                target: wsTile
+                                onWheel: (event) => {
+                                    overviewFlyout.highlightedIndex = wsTile.index;
+                                    overviewFlyout.forceActiveFocus();
+
+                                    let wins = viewportFrame.workspaceWindows;
+                                    if (!wins || wins.length === 0) return;
+
+                                    let currentAddr = overviewFlyout.selectedWindowAddress;
+                                    let currentIndex = wins.findIndex(w => w.address && w.address.trim().toLowerCase() === (currentAddr ? currentAddr.trim().toLowerCase() : ""));
+                                    
+                                    let delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x;
+                                    if (delta === 0) return;
+
+                                    let nextIndex = 0;
+                                    if (currentIndex === -1) {
+                                        nextIndex = 0;
+                                    } else if (delta < 0) {
+                                        nextIndex = (currentIndex + 1) % wins.length;
+                                    } else {
+                                        nextIndex = (currentIndex - 1 + wins.length) % wins.length;
+                                    }
+
+                                    if (wins[nextIndex] && wins[nextIndex].address) {
+                                        overviewFlyout.selectedWindowAddress = wins[nextIndex].address;
                                     }
                                 }
                             }
