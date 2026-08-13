@@ -325,6 +325,27 @@ print(json.dumps(resolved_map))
             implicitHeight: cardLayout.implicitHeight + (overviewFlyout.cardMargin * 2)
             color: Qt.rgba(255, 255, 255, 0.05)
             radius: Config.cornerRadius
+            clip: true
+
+            // GRAPHIC WATERMARK
+            Item {
+                anchors.left: parent.left
+                anchors.bottom: parent.bottom
+                anchors.leftMargin: -15
+                anchors.bottomMargin: -20
+                implicitWidth: 150
+                implicitHeight: 150
+
+                Text {
+                    anchors.centerIn: parent
+                    text: Config.getIcon("overview")
+                    font.family: "Material Symbols Outlined"
+                    font.pixelSize: 150
+                    color: Config.accent
+                    opacity: 0.07
+                    rotation: 15
+                }
+            }
 
             ColumnLayout {
                 id: cardLayout
