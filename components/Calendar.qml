@@ -175,7 +175,7 @@ Item {
                         font.pixelSize: 130
                         color: Config.accent
                         opacity: 0.16
-                        rotation: -12
+                        rotation: 15
                     }
                 }
 
@@ -340,7 +340,7 @@ Item {
                         font.pixelSize: 110
                         color: Config.accent
                         opacity: 0.12
-                        rotation: -10
+                        rotation: 10
                     }
                 }
 
@@ -507,7 +507,7 @@ Item {
                     font.pixelSize: 150
                     color: Config.accent
                     opacity: 0.07
-                    rotation: -8
+                    rotation: 15
                 }
             }
 
