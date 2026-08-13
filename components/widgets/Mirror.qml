@@ -70,6 +70,7 @@ Item {
                     text: Config.getIcon("mirror")
                     font.family: "Material Symbols Outlined"
                     font.pixelSize: 150
+                    font.bold: true
                     color: Config.accent
                     opacity: 0.07
                     rotation: 15
@@ -152,6 +153,7 @@ Item {
                                     : (prevHover.hovered ? Config.textMain : Config.textMuted)
                                 font.family: "Material Symbols Outlined"
                                 font.pixelSize: 20
+                                font.bold: true
                             }
 
                             TapHandler { onTapped: anchorControls.cycleAnchor(anchorControls.isHorizontal ? "left" : "up") }
@@ -171,6 +173,7 @@ Item {
                                     : (nextHover.hovered ? Config.textMain : Config.textMuted)
                                 font.family: "Material Symbols Outlined"
                                 font.pixelSize: 20
+                                font.bold: true
                             }
 
                             TapHandler { onTapped: anchorControls.cycleAnchor(anchorControls.isHorizontal ? "right" : "down") }
@@ -189,6 +192,7 @@ Item {
                             color: Config.mirrorKeepAspect ? Config.accent : Config.textMuted
                             font.family: "Material Symbols Outlined"
                             font.pixelSize: 16
+                            font.bold: true
                         }
 
                         TapHandler { onTapped: Config.mirrorKeepAspect = !Config.mirrorKeepAspect }
@@ -206,6 +210,7 @@ Item {
                             color: Config.mirrorExpanded ? Config.accent : Config.textMuted
                             font.family: "Material Symbols Outlined"
                             font.pixelSize: 16
+                            font.bold: true
                         }
 
                         TapHandler { onTapped: Config.mirrorExpanded = !Config.mirrorExpanded }
@@ -223,6 +228,7 @@ Item {
                             color: Config.mirrorPinned ? Config.accent : Config.textMuted
                             font.family: "Material Symbols Outlined"
                             font.pixelSize: 16
+                            font.bold: true
                             rotation: Config.mirrorPinned ? 45 : 0
 
                             Behavior on rotation {
@@ -245,6 +251,7 @@ Item {
                             color: Config.textMuted
                             font.family: "Material Symbols Outlined"
                             font.pixelSize: 16
+                            font.bold: true
                         }
 
                         TapHandler { onTapped: Config.showMirror = false }
@@ -327,6 +334,7 @@ Item {
                                     color: Config.mirrorError !== "" ? "#ff5555" : Config.accent
                                     font.family: "Material Symbols Outlined"
                                     font.pixelSize: 32
+                                    font.bold: true
 
                                     RotationAnimation on rotation {
                                         from: 0
@@ -390,6 +398,7 @@ Item {
                                 color: "#ffffff"
                                 font.family: "Material Symbols Outlined"
                                 font.pixelSize: 18
+                                font.bold: true
                             }
 
                             TapHandler { onTapped: Config.mirrorMirrored = !Config.mirrorMirrored }
@@ -410,6 +419,7 @@ Item {
                                 color: "#ffffff"
                                 font.family: "Material Symbols Outlined"
                                 font.pixelSize: 18
+                                font.bold: true
                             }
 
                             TapHandler { onTapped: mirrorRoot.takeSnapshot() }

@@ -54,6 +54,7 @@ Item {
                     text: Config.getIcon("player")
                     font.family: "Material Symbols Outlined"
                     font.pixelSize: 150
+                    font.bold: true
                     color: Config.accent
                     opacity: 0.07
                     rotation: 15
@@ -137,6 +138,7 @@ Item {
                                     : (prevHover.hovered ? Config.textMain : Config.textMuted)
                                 font.family: "Material Symbols Outlined"
                                 font.pixelSize: 20
+                                font.bold: true
                             }
 
                             TapHandler { onTapped: anchorControls.cycleAnchor(anchorControls.isHorizontal ? "left" : "up") }
@@ -156,6 +158,7 @@ Item {
                                     : (nextHover.hovered ? Config.textMain : Config.textMuted)
                                 font.family: "Material Symbols Outlined"
                                 font.pixelSize: 20
+                                font.bold: true
                             }
 
                             TapHandler { onTapped: anchorControls.cycleAnchor(anchorControls.isHorizontal ? "right" : "down") }
@@ -174,6 +177,7 @@ Item {
                             color: Config.playerExpanded ? Config.accent : Config.textMuted
                             font.family: "Material Symbols Outlined"
                             font.pixelSize: 16
+                            font.bold: true
                         }
 
                         TapHandler { onTapped: Config.playerExpanded = !Config.playerExpanded }
@@ -191,6 +195,7 @@ Item {
                             color: Config.playerPinned ? Config.accent : Config.textMuted
                             font.family: "Material Symbols Outlined"
                             font.pixelSize: 16
+                            font.bold: true
                             rotation: Config.playerPinned ? 45 : 0
 
                             Behavior on rotation {
@@ -213,6 +218,7 @@ Item {
                             color: Config.textMuted
                             font.family: "Material Symbols Outlined"
                             font.pixelSize: 16
+                            font.bold: true
                         }
 
                         TapHandler { onTapped: Config.showPlayer = false }
@@ -240,6 +246,7 @@ Item {
                             color: Config.textMuted
                             font.family: "Material Symbols Outlined"
                             font.pixelSize: 16
+                            font.bold: true
                         }
 
                         TextInput {
@@ -283,6 +290,7 @@ Item {
                                 color: refreshBtnHover.hovered ? "#ffffff" : Config.textMuted
                                 font.family: "Material Symbols Outlined"
                                 font.pixelSize: 14
+                                font.bold: true
                             }
 
                             TapHandler {
@@ -322,6 +330,7 @@ Item {
                             color: Config.accent
                             font.family: "Material Symbols Outlined"
                             font.pixelSize: 16
+                            font.bold: true
                         }
 
                         Text {
@@ -343,6 +352,7 @@ Item {
                             color: Config.textMuted
                             font.family: "Material Symbols Outlined"
                             font.pixelSize: 18
+                            font.bold: true
                         }
                     }
 
@@ -425,6 +435,7 @@ Item {
                                                     color: deleteBtnHover.hovered ? Config.accent : Config.textMuted
                                                     font.family: "Material Symbols Outlined"
                                                     font.pixelSize: 14
+                                                    font.bold: true
                                                 }
 
                                                 TapHandler {
@@ -487,6 +498,7 @@ Item {
                             color: Config.accent
                             font.family: "Material Symbols Outlined"
                             font.pixelSize: 42
+                            font.bold: true
                             visible: Config.activeStreamThumbnail === "" || Config.isConnecting
                         }
 
@@ -606,6 +618,7 @@ Item {
                                 color: Config.accent
                                 font.family: "Material Symbols Outlined"
                                 font.pixelSize: 18
+                                font.bold: true
                             }
 
                             TapHandler {
@@ -713,6 +726,7 @@ Item {
                                 color: Config.accent
                                 font.family: "Material Symbols Outlined"
                                 font.pixelSize: 32
+                                font.bold: true
                                 opacity: (Config.embeddedStreamUrl !== "" && Config.currentPlaylist.length > 0 && Config.activePlaylistIndex > 0) ? 1.0 : 0.4
 
                                 TapHandler { onTapped: Config.prevTrack() }
@@ -724,6 +738,7 @@ Item {
                                 color: Config.accent
                                 font.family: "Material Symbols Outlined"
                                 font.pixelSize: 32
+                                font.bold: true
                                 opacity: Config.embeddedStreamUrl !== "" ? 1.0 : 0.4
 
                                 TapHandler {
@@ -744,6 +759,7 @@ Item {
                                 color: Config.accent
                                 font.family: "Material Symbols Outlined"
                                 font.pixelSize: 32
+                                font.bold: true
                                 opacity: (Config.embeddedStreamUrl !== "" && Config.currentPlaylist.length > 0 && Config.activePlaylistIndex < Config.currentPlaylist.length - 1) ? 1.0 : 0.4
 
                                 TapHandler { onTapped: Config.nextTrack() }
@@ -755,6 +771,7 @@ Item {
                                 color: Config.accent
                                 font.family: "Material Symbols Outlined"
                                 font.pixelSize: 32
+                                font.bold: true
                                 opacity: (Config.embeddedStreamUrl !== "" || Config.isLoadingStream) ? 1.0 : 0.4
 
                                 TapHandler { onTapped: Config.stopStream() }
