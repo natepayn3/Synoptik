@@ -40,14 +40,14 @@ ShellRoot {
     property int battCapacity: 75
     property string battStatus: "Discharging"
 
-    // Continuous Palette Loop / Animation
+    // Continuous Palette Loop / Animation (Controlled by Config.animateGradient)
     property real animOffset: 0.0
     NumberAnimation on animOffset {
         from: 0.0
         to: 1.0
         duration: 4000
         loops: Animation.Infinite
-        running: Config.showBorders
+        running: Config.showBorders && Config.animateGradient
     }
 
     // Dynamic Palette Interpolation (Cached Color Instances)
@@ -56,6 +56,7 @@ ShellRoot {
 
     readonly property color currentBorderColor: {
         if (!Config.showBorders) return "transparent"
+        if (!Config.animateGradient) return bStartColor
         let c1 = bStartColor
         let c2 = bEndColor
         let progress = (Math.sin(shellRoot.animOffset * Math.PI * 2) + 1.0) / 2.0
@@ -212,9 +213,9 @@ ShellRoot {
         }
     }
 
-    // Global Status Poller Timer (5-second interval, audio is event-driven)
+    // Global Status Poller Timer (10-second interval, audio is event-driven)
     Timer {
-        interval: 5000
+        interval: 10000
         running: true
         repeat: true
         triggeredOnStart: true
@@ -399,9 +400,6 @@ ShellRoot {
     }
 
     // --- CLOCK & DATE FORMATTING ---
-    property string timeStr: Qt.formatTime(new Date(), "h:mm ap")
-    property string shortDateStr: Qt.formatDate(new Date(), "MMM d")
-
     property string vertHour: {
         var h = new Date().getHours() % 12
         return (h === 0 ? 12 : h).toString()
@@ -417,9 +415,6 @@ ShellRoot {
         repeat: true
         onTriggered: {
             var d = new Date()
-            timeStr = Qt.formatTime(d, "h:mm ap")
-            shortDateStr = Qt.formatDate(d, "MMM d")
-
             var h = d.getHours() % 12
             vertHour = (h === 0 ? 12 : h).toString()
             vertMinute = Qt.formatTime(d, "mm")

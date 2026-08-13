@@ -107,7 +107,7 @@ Item {
         command: [
             "sh", "-c", 
             "mkdir -p /tmp/cliphist; " +
-            "cliphist list | while read -r id line; do " +
+            "cliphist list | head -n 40 | while read -r id line; do " +
                 "img_path=\"/tmp/cliphist/$id.png\"; " +
                 "if [ -f \"$img_path\" ]; then " +
                     "echo \"$id\"; " +

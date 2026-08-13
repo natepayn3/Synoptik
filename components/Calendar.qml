@@ -87,20 +87,19 @@ Item {
 
     Process { id: saveProcess }
 
-    Process {
-        id: loadProcess
-        command: ["fish", "-c", "cat " + storagePath]
-        stdout: SplitParser {
-            onRead: data => {
-                try {
-                    allReminders = JSON.parse(data)
-                    root.loadActiveReminders()
-                } catch (e) {
-                    console.error("Failed to parse reminders JSON:", e)
-                }
+    FileView {
+        id: remindersFileReader
+        path: root.storagePath
+        onTextChanged: {
+            let raw = text()
+            if (!raw || raw.trim() === "") return
+            try {
+                allReminders = JSON.parse(raw.trim())
+                root.loadActiveReminders()
+            } catch (e) {
+                console.error("Failed to parse reminders JSON:", e)
             }
         }
-        Component.onCompleted: loadProcess.running = true
     }
 
     // 12-Hour Clock Logic (No leading zero)

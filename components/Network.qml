@@ -104,13 +104,23 @@ Item {
 
     Process {
         id: bandwidthStreamProc
-        command: ["fish", "-c", "
-            set dev (ip route show | awk '/default/ {print $5}' | head -n1)
-            while true
-                cat /proc/net/dev | grep \"$dev\"
-                sleep 0.1
-            end
-        "]
+        command: ["python3", "-u", "-c", `
+import time, subprocess
+try:
+    dev = subprocess.check_output("ip route show | awk '/default/ {print $5}' | head -n1", shell=True).decode().strip()
+except Exception:
+    dev = ""
+while True:
+    try:
+        with open("/proc/net/dev", "r") as f:
+            for line in f:
+                if dev and dev in line:
+                    print(line.strip(), flush=True)
+                    break
+    except Exception:
+        pass
+    time.sleep(0.25)
+        `]
         running: Config.showNetwork
         
         stdout: SplitParser {
