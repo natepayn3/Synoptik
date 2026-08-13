@@ -120,29 +120,6 @@ FocusScope {
         }
     }
 
-    function cycleWorkspaceWindow(wsId, delta) {
-        if (!liveClientJson || delta === 0) return;
-        let wins = liveClientJson.filter(w => w.workspace && w.workspace.id === wsId && w.mapped);
-        if (!wins || wins.length <= 1) return;
-
-        let currentAddr = selectedWindowAddress ? selectedWindowAddress.trim().toLowerCase() : "";
-        let currentIndex = wins.findIndex(w => w.address && w.address.trim().toLowerCase() === currentAddr);
-
-        let nextIndex = 0;
-        if (currentIndex === -1) {
-            nextIndex = delta < 0 ? 0 : wins.length - 1;
-        } else if (delta < 0) {
-            nextIndex = (currentIndex + 1) % wins.length;
-        } else {
-            nextIndex = (currentIndex - 1 + wins.length) % wins.length;
-        }
-
-        let targetWin = wins[nextIndex];
-        if (targetWin && targetWin.address) {
-            selectedWindowAddress = targetWin.address;
-        }
-    }
-
     Keys.onPressed: (event) => {
         if (!overviewFlyout.isOpen) return;
 
@@ -447,15 +424,12 @@ print(json.dumps(resolved_map))
                             }
 
                             width: Math.max(160, viewportFrame.width + (overviewFlyout.cardMargin * 2))
-                            height: viewportFrame.height + headerRow.height + expandedWindowsTray.implicitHeight + (overviewFlyout.cardMargin * 2) + 6
-
-                            Behavior on height { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-                            Behavior on color { ColorAnimation { duration: 150 } }
+                            height: viewportFrame.height + headerRow.height + (overviewFlyout.cardMargin * 2)
 
                             ColumnLayout {
                                 anchors.fill: parent
                                 anchors.margins: 8
-                                spacing: 4
+                                spacing: 0
 
                                 RowLayout {
                                     id: headerRow
@@ -504,7 +478,7 @@ print(json.dumps(resolved_map))
                                     id: viewportFrame
                                     Layout.fillWidth: false
                                     Layout.alignment: Qt.AlignHCenter
-                                    color: Qt.rgba(0, 0, 0, 0.4)
+                                    color: Qt.rgba(0, 0, 0, 0.3)
                                     radius: 4
                                     clip: true
 
@@ -531,174 +505,137 @@ print(json.dumps(resolved_map))
                                     
                                     property real scaleX: width / wsTile.monitorBounds.w
                                     property real scaleY: height / wsTile.monitorBounds.h
-                                    
+
                                     ScreencopyView {
                                         anchors.fill: parent
                                         captureSource: viewportFrame.targetMonitorOutput
                                         live: overviewFlyout.isOpen
                                         paintCursor: false
-                                        opacity: 0.9
+                                        opacity: 0.7
+                                        visible: wsTile.isCurrent
                                     }
-                                }
-
-                                Rectangle {
-                                    id: expandedWindowsTray
-                                    Layout.alignment: Qt.AlignHCenter
-                                    width: viewportFrame.width
-                                    clip: true
-                                    color: Qt.rgba(0, 0, 0, 0.4)
-                                    radius: 4
-                                    border.color: Qt.rgba(255, 255, 255, 0.15)
-                                    border.width: 1
-
-                                    readonly property bool shouldExpand: (tileHover.hovered || wsTile.isSelected) && viewportFrame.workspaceWindows.length > 0
                                     
-                                    implicitHeight: shouldExpand ? 68 : 0
-                                    Layout.preferredHeight: implicitHeight
-                                    visible: implicitHeight > 0
+                                    Repeater {
+                                        model: viewportFrame.workspaceWindows
 
-                                    Behavior on implicitHeight {
-                                        NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
-                                    }
+                                        delegate: Rectangle {
+                                            id: windowDelegate
 
-                                    RowLayout {
-                                        anchors.fill: parent
-                                        anchors.margins: 4
-                                        spacing: 4
+                                            x: Math.round((modelData.at[0] - wsTile.monitorBounds.originX) * viewportFrame.scaleX)
+                                            y: Math.round((modelData.at[1] - wsTile.monitorBounds.originY) * viewportFrame.scaleY)
+                                            width: Math.max(4, Math.round(modelData.size[0] * viewportFrame.scaleX))
+                                            height: Math.max(4, Math.round(modelData.size[1] * viewportFrame.scaleY))
+                                            visible: modelData.mapped
+                                            opacity: (overviewFlyout.isDraggingWindow && overviewFlyout.draggingWindowAddress === modelData.address) ? 0.4 : 1.0
+                                            color: Qt.rgba(255, 255, 255, 0.08)
+                                            radius: 2
+                                            clip: true
 
-                                        Repeater {
-                                            model: viewportFrame.workspaceWindows
+                                            property var wlToplevel: {
+                                                if (!modelData || !modelData.address) return null;
+                                                let targetAddr = modelData.address.trim().toLowerCase();
+                                                let match = Hyprland.toplevels.values.find(t => {
+                                                    if (!t.lastIpcObject || !t.lastIpcObject.address) return false;
+                                                    return t.lastIpcObject.address.trim().toLowerCase() === targetAddr;
+                                                });
+                                                if (match && match.wayland) return match.wayland;
+                                                return null;
+                                            }
 
-                                            delegate: Rectangle {
-                                                id: trayWindowCard
-                                                Layout.fillHeight: true
-                                                Layout.preferredWidth: Math.max(50, Math.min(120, (expandedWindowsTray.width - 8 - ((viewportFrame.workspaceWindows.length - 1) * 4)) / viewportFrame.workspaceWindows.length))
-                                                color: trayMouseArea.containsMouse ? Qt.rgba(255, 255, 255, 0.18) : Qt.rgba(255, 255, 255, 0.06)
-                                                border.color: trayMouseArea.containsMouse ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
-                                                border.width: trayMouseArea.containsMouse ? 2 : 1
-                                                radius: 3
-                                                clip: true
+                                            ScreencopyView {
+                                                anchors.fill: parent
+                                                captureSource: windowDelegate.wlToplevel
+                                                live: overviewFlyout.isOpen
+                                                paintCursor: false
+                                            }
 
-                                                Behavior on border.color { ColorAnimation { duration: 120 } }
-                                                Behavior on color { ColorAnimation { duration: 120 } }
+                                            Rectangle {
+                                                anchors.top: parent.top
+                                                anchors.left: parent.left
+                                                anchors.right: parent.right
+                                                height: Math.min(16, parent.height * 0.3)
+                                                color: "#cc11111b"
+                                                visible: parent.height > 20 && parent.width > 32
+                                                radius: 2
 
-                                                property var wlToplevel: {
-                                                    if (!modelData || !modelData.address) return null;
-                                                    let targetAddr = modelData.address.trim().toLowerCase();
-                                                    let match = Hyprland.toplevels.values.find(t => {
-                                                        if (!t.lastIpcObject || !t.lastIpcObject.address) return false;
-                                                        return t.lastIpcObject.address.trim().toLowerCase() === targetAddr;
-                                                    });
-                                                    if (match && match.wayland) return match.wayland;
-                                                    return null;
+                                                Text {
+                                                    text: (modelData.class || "")
+                                                    font.family: Config.sysFont
+                                                    font.pixelSize: 8
+                                                    font.bold: true
+                                                    color: Config.textMain
+                                                    anchors.centerIn: parent
+                                                    width: parent.width - 4
+                                                    elide: Text.ElideRight
+                                                    horizontalAlignment: Text.AlignHCenter
                                                 }
+                                            }
 
-                                                ColumnLayout {
-                                                    anchors.fill: parent
-                                                    anchors.margins: 2
-                                                    spacing: 2
+                                            MouseArea {
+                                                id: windowMouseArea
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                cursorShape: overviewFlyout.isDraggingWindow ? Qt.ClosedHandCursor : Qt.PointingHandCursor
+                                                property point pressPos: Qt.point(0, 0)
 
-                                                    Rectangle {
-                                                        Layout.fillWidth: true
-                                                        Layout.fillHeight: true
-                                                        color: "#11111b"
-                                                        radius: 2
-                                                        clip: true
-
-                                                        ScreencopyView {
-                                                            anchors.fill: parent
-                                                            captureSource: trayWindowCard.wlToplevel
-                                                            live: overviewFlyout.isOpen
-                                                            paintCursor: false
-                                                        }
-                                                    }
-
-                                                    Rectangle {
-                                                        Layout.fillWidth: true
-                                                        height: 12
-                                                        color: trayMouseArea.containsMouse ? Config.accent : "#cc11111b"
-                                                        radius: 2
-
-                                                        Text {
-                                                            text: (modelData.class || "")
-                                                            font.family: Config.sysFont
-                                                            font.pixelSize: 8
-                                                            font.bold: true
-                                                            color: trayMouseArea.containsMouse ? "#ffffff" : Config.textMain
-                                                            anchors.centerIn: parent
-                                                            width: parent.width - 4
-                                                            elide: Text.ElideRight
-                                                            horizontalAlignment: Text.AlignHCenter
-                                                        }
+                                                onPressed: (mouse) => {
+                                                    overviewFlyout.forceActiveFocus();
+                                                    pressPos = Qt.point(mouse.x, mouse.y);
+                                                    if (modelData && modelData.address) {
+                                                        overviewFlyout.selectedWindowAddress = modelData.address;
                                                     }
                                                 }
 
-                                                MouseArea {
-                                                    id: trayMouseArea
-                                                    anchors.fill: parent
-                                                    hoverEnabled: true
-                                                    cursorShape: overviewFlyout.isDraggingWindow ? Qt.ClosedHandCursor : Qt.PointingHandCursor
-                                                    property point pressPos: Qt.point(0, 0)
+                                                onPositionChanged: (mouse) => {
+                                                    if (pressed) {
+                                                        let dx = mouse.x - pressPos.x;
+                                                        let dy = mouse.y - pressPos.y;
+                                                        let dist = Math.sqrt(dx * dx + dy * dy);
 
-                                                    onPressed: (mouse) => {
-                                                        overviewFlyout.forceActiveFocus();
-                                                        pressPos = Qt.point(mouse.x, mouse.y);
-                                                        if (modelData && modelData.address) {
-                                                            overviewFlyout.selectedWindowAddress = modelData.address;
+                                                        let mapped = mapToItem(overviewFlyout, mouse.x, mouse.y);
+                                                        if (!overviewFlyout.isDraggingWindow && dist > 5) {
+                                                            overviewFlyout.isDraggingWindow = true;
+                                                            overviewFlyout.draggingWindowAddress = modelData.address;
+                                                            overviewFlyout.draggingWindowClass = modelData.class || "Window";
+                                                            overviewFlyout.draggingWindowWidth = windowDelegate.width;
+                                                            overviewFlyout.draggingWindowHeight = windowDelegate.height;
                                                         }
-                                                    }
 
-                                                    onPositionChanged: (mouse) => {
-                                                        if (pressed) {
-                                                            let dx = mouse.x - pressPos.x;
-                                                            let dy = mouse.y - pressPos.y;
-                                                            let dist = Math.sqrt(dx * dx + dy * dy);
-
-                                                            let mapped = mapToItem(overviewFlyout, mouse.x, mouse.y);
-                                                            if (!overviewFlyout.isDraggingWindow && dist > 5) {
-                                                                overviewFlyout.isDraggingWindow = true;
-                                                                overviewFlyout.draggingWindowAddress = modelData.address;
-                                                                overviewFlyout.draggingWindowClass = modelData.class || "Window";
-                                                                overviewFlyout.draggingWindowWidth = trayWindowCard.width;
-                                                                overviewFlyout.draggingWindowHeight = trayWindowCard.height;
-                                                            }
-
-                                                            if (overviewFlyout.isDraggingWindow) {
-                                                                overviewFlyout.dragX = mapped.x;
-                                                                overviewFlyout.dragY = mapped.y;
-                                                                overviewFlyout.dragHoverWorkspaceId = overviewFlyout.findWorkspaceAtPoint(mapped.x, mapped.y);
-                                                            }
-                                                        }
-                                                    }
-
-                                                    onReleased: (mouse) => {
                                                         if (overviewFlyout.isDraggingWindow) {
-                                                            let mapped = mapToItem(overviewFlyout, mouse.x, mouse.y);
-                                                            let dropWs = overviewFlyout.findWorkspaceAtPoint(mapped.x, mapped.y);
-                                                            let targetAddr = overviewFlyout.draggingWindowAddress;
-
-                                                            overviewFlyout.isDraggingWindow = false;
-                                                            overviewFlyout.draggingWindowAddress = "";
-                                                            overviewFlyout.draggingWindowClass = "";
-                                                            overviewFlyout.dragHoverWorkspaceId = -1;
-
-                                                            if (dropWs > 0) {
-                                                                overviewFlyout.moveWindowToWorkspace(dropWs, targetAddr);
-                                                            }
-                                                        } else {
-                                                            if (mouse.modifiers & Qt.ShiftModifier) {
-                                                                let currentWs = Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : 1;
-                                                                overviewFlyout.moveWindowToWorkspace(currentWs, modelData.address);
-                                                            } else {
-                                                                overviewFlyout.focusWindow(modelData.address);
-                                                            }
+                                                            overviewFlyout.dragX = mapped.x;
+                                                            overviewFlyout.dragY = mapped.y;
+                                                            overviewFlyout.dragHoverWorkspaceId = overviewFlyout.findWorkspaceAtPoint(mapped.x, mapped.y);
                                                         }
                                                     }
+                                                }
 
-                                                    onEntered: {
-                                                        if (modelData && modelData.address) {
-                                                            overviewFlyout.selectedWindowAddress = modelData.address;
+                                                onReleased: (mouse) => {
+                                                    if (overviewFlyout.isDraggingWindow) {
+                                                        let mapped = mapToItem(overviewFlyout, mouse.x, mouse.y);
+                                                        let dropWs = overviewFlyout.findWorkspaceAtPoint(mapped.x, mapped.y);
+                                                        let targetAddr = overviewFlyout.draggingWindowAddress;
+
+                                                        overviewFlyout.isDraggingWindow = false;
+                                                        overviewFlyout.draggingWindowAddress = "";
+                                                        overviewFlyout.draggingWindowClass = "";
+                                                        overviewFlyout.dragHoverWorkspaceId = -1;
+
+                                                        if (dropWs > 0) {
+                                                            overviewFlyout.moveWindowToWorkspace(dropWs, targetAddr);
                                                         }
+                                                    } else {
+                                                        if (mouse.modifiers & Qt.ShiftModifier) {
+                                                            let currentWs = Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : 1;
+                                                            overviewFlyout.moveWindowToWorkspace(currentWs, modelData.address);
+                                                        } else {
+                                                            overviewFlyout.focusWindow(modelData.address);
+                                                        }
+                                                    }
+                                                }
+
+                                                onEntered: {
+                                                    if (modelData && modelData.address) {
+                                                        overviewFlyout.selectedWindowAddress = modelData.address;
                                                     }
                                                 }
                                             }
