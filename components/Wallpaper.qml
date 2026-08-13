@@ -85,42 +85,41 @@ Item {
         }
 
         function triggerBackendRun(filePath, activeOnly) {
-            if (!filePath || filePath === "") return;
+            if (!filePath) return;
 
-            let cleanFilePath = filePath.replace(/^file:\/\//, "");
-
-            // Inline Comment: Assigning activeWallpaperPath notifies Config.qml to trigger applyIrisColors()
+            let cleanFilePath = (typeof filePath === "string" ? filePath : filePath.toString()).replace(/^file:\/\//, "");
             Config.activeWallpaperPath = cleanFilePath;
 
             let ext = cleanFilePath.split('.').pop().toLowerCase();
             let waylandDisplay = Quickshell.env("WAYLAND_DISPLAY") || "wayland-1";
             let sockPath = "/run/user/" + Quickshell.env("UID") + "/" + waylandDisplay + "-awww-daemon.sock";
+            let targets = activeOnly ? [] : (Config.selectedWallpaperMonitors || []);
             let transition = Config.wallpaperTransitionType || "fade";
-            
-            // Inline Comment: Fish script with double-quoted vars and mpv options to force ultrawide aspect cropping
+
             let script = "killall -q mpvpaper 2>/dev/null; ";
-            script += "set TARGET_MON (hyprctl monitors -j | jq -r '.[] | select(.focused) | .name'); ";
-            
-            if (activeOnly) {
-                if (ext === "mp4" || ext === "webm") {
-                    script += "awww clear -o \"$TARGET_MON\" 2>/dev/null; ";
-                    script += "pkill -f 'mpvpaper' 2>/dev/null; ";
-                    script += "nohup mpvpaper -vs -o 'loop-file=inf no-audio panscan=1.0 video-unscaled=no' \"$TARGET_MON\" '" + cleanFilePath + "' >/dev/null 2>&1 & disown; ";
-                } else {
-                    script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; ";
-                    script += "awww img -o \"$TARGET_MON\" '" + cleanFilePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; ";
+
+            if (targets.length > 0) {
+                for (let i = 0; i < targets.length; i++) {
+                    let mon = targets[i];
+                    if (ext === "mp4" || ext === "webm") {
+                        script += "awww clear -o \"" + mon + "\" 2>/dev/null; ";
+                        script += "pkill -f 'mpvpaper' 2>/dev/null; ";
+                        script += "nohup mpvpaper -vs -o 'input-terminal=no loop-file=inf no-audio panscan=1.0 video-unscaled=no' \"" + mon + "\" '" + cleanFilePath + "' < /dev/null >/dev/null 2>&1 & disown; ";
+                    } else {
+                        script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; ";
+                        script += "awww img -o \"" + mon + "\" '" + cleanFilePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; ";
+                    }
                 }
             } else {
                 if (ext === "mp4" || ext === "webm") {
                     script += "awww kill 2>/dev/null; killall -9 -q awww-daemon 2>/dev/null; rm -f " + sockPath + "; ";
-                    script += "nohup mpvpaper -vs -o 'loop-file=inf no-audio panscan=1.0 video-unscaled=no' '*' '" + cleanFilePath + "' >/dev/null 2>&1 & disown; ";
+                    script += "nohup mpvpaper -vs -o 'input-terminal=no loop-file=inf no-audio panscan=1.0 video-unscaled=no' '*' '" + cleanFilePath + "' < /dev/null >/dev/null 2>&1 & disown; ";
                 } else {
                     script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; ";
-                    script += "awww img '" + cleanFilePath + "' --transition-type " + transition + " --transition-step 64 --transition-duration 2; ";
+                    script += "awww img '" + cleanFilePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; ";
                 }
             }
 
-            // Inline Comment: Generate frame on-the-fly if missing, then run iris in json-only mode
             if (Config.enableIris) {
                 if (ext === "mp4" || ext === "webm") {
                     let fileName = cleanFilePath.split('/').pop();
@@ -128,14 +127,14 @@ Item {
                     let thumbPath = Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + thumbName;
                     
                     pendingIrisPath = thumbPath;
-                    script += "if not test -f '" + thumbPath + "'; ffmpeg -y -ss 00:00:00 -i '" + cleanFilePath + "' -vframes 1 -vf 'scale=600:-1' '" + thumbPath + "' >/dev/null 2>&1; end; ";
-                    script += "if test -f '" + thumbPath + "'; iris --json-only '" + thumbPath + "' 2>/dev/null; end; ";
+                    script += "test -f '" + thumbPath + "'; or ffmpeg -y -ss 00:00:00 -i '" + cleanFilePath + "' -vframes 1 -vf 'scale=600:-1' '" + thumbPath + "' >/dev/null 2>&1; ";
+                    script += "iris '" + thumbPath + "'; ";
                 } else {
                     pendingIrisPath = cleanFilePath;
-                    script += "iris --json-only '" + cleanFilePath + "' 2>/dev/null; ";
+                    script += "iris '" + cleanFilePath + "'; ";
                 }
             }
-            
+
             command = ["fish", "-c", script];
             running = false;
             running = true;
@@ -492,7 +491,6 @@ Item {
 
                                 TapHandler {
                                     id: normalTapHandler
-                                    acceptedModifiers: Qt.NoModifier
                                     onTapped: {
                                         accordionList.forceActiveFocus();
                                         accordionList.currentIndex = index;

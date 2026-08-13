@@ -743,7 +743,7 @@ QtObject {
             onStreamFinished: {
                 let path = this.text ? this.text.trim() : ""
                 if (path.length > 0) {
-                    root.activeWallpaperPath = path
+                    root.applyWallpaperBackend(path, false)
                 }
             }
         }
@@ -758,27 +758,61 @@ QtObject {
     }
 
     function triggerRandomWallpaperBackground() {
-        let transition = root.wallpaperTransitionType || "fade"
-
-        // Inline Comment: Added mp4 and webm extensions + Fish branching logic for mpvpaper vs awww
-        let cmd = "set W (find ~/Pictures/Wallpapers -type f \\( -name '*.jpg' -o -name '*.png' -o -name '*.jpeg' -o -name '*.webp' -o -name '*.mp4' -o -name '*.webm' \\) 2>/dev/null | shuf -n 1); " +
-                  "if test -n \"$W\"; " +
-                  "  set EXT (string lower (string split -r -m1 . \"$W\")[2]); " +
-                  "  if test \"$EXT\" = \"mp4\" -o \"$EXT\" = \"webm\"; " +
-                  "    awww kill 2>/dev/null; killall -9 -q awww-daemon 2>/dev/null; " +
-                  "    pkill -f 'mpvpaper' 2>/dev/null; " +
-                  "    nohup mpvpaper -vs -o 'loop-file=inf no-audio panscan=1.0 video-unscaled=no' '*' \"$W\" >/dev/null 2>&1 & disown; " +
-                  "  else; " +
-                  "    killall -q mpvpaper 2>/dev/null; " +
-                  "    if not pgrep -x 'awww-daemon' > /dev/null; rm -f /run/user/" + Quickshell.env("UID") + "/*-awww-daemon.sock; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; " +
-                  "    awww img \"$W\" --transition-type " + transition + " --transition-step 64 --transition-duration 2; " +
-                  "  end; " +
-                  "  echo \"$W\"; " +
-                  "end"
-
-        bgSlideshowProc.command = ["fish", "-c", cmd]
+        bgSlideshowProc.command = [
+            "python3", "-c",
+            "import os, random; d=os.path.expanduser('~/Pictures/Wallpapers'); files=[os.path.join(d, f) for f in os.listdir(d) if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp', '.mp4', '.webm'))] if os.path.isdir(d) else []; print(random.choice(files) if files else '')"
+        ]
         bgSlideshowProc.running = false
         bgSlideshowProc.running = true
+    }
+
+    function applyWallpaperBackend(filePath, activeOnly) {
+        if (!filePath) return;
+
+        let cleanFilePath = (typeof filePath === "string" ? filePath : filePath.toString()).replace(/^file:\/\//, "");
+        root.activeWallpaperPath = cleanFilePath;
+
+        let ext = cleanFilePath.split('.').pop().toLowerCase()
+        let waylandDisplay = Quickshell.env("WAYLAND_DISPLAY") || "wayland-1"
+        let sockPath = "/run/user/" + Quickshell.env("UID") + "/" + waylandDisplay + "-awww-daemon.sock"
+        let transition = root.wallpaperTransitionType || "fade"
+
+        let script = "pkill -f 'mpvpaper' 2>/dev/null; "
+
+        if (activeOnly) {
+            script += "set TARGET_MON (hyprctl monitors -j | jq -r '.[] | select(.focused) | .name'); "
+            if (ext === "mp4" || ext === "webm") {
+                script += "if pgrep -x 'awww-daemon' > /dev/null; awww clear -o \"$TARGET_MON\" 2>/dev/null; end; "
+                script += "nohup mpvpaper -vs -o 'input-terminal=no loop-file=inf no-audio panscan=1.0 video-unscaled=no' \"$TARGET_MON\" '" + cleanFilePath + "' < /dev/null >/dev/null 2>&1 & disown; "
+            } else {
+                script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; "
+                script += "awww img -o \"$TARGET_MON\" '" + cleanFilePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; "
+            }
+        } else {
+            if (ext === "mp4" || ext === "webm") {
+                script += "if pgrep -x 'awww-daemon' > /dev/null; awww clear 2>/dev/null; end; "
+                script += "for MON in (hyprctl monitors -j | jq -r '.[].name'); "
+                script += "nohup mpvpaper -vs -o 'input-terminal=no loop-file=inf no-audio panscan=1.0 video-unscaled=no' \"$MON\" '" + cleanFilePath + "' < /dev/null >/dev/null 2>&1 & disown; "
+                script += "end; "
+            } else {
+                script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; "
+                script += "awww img '" + cleanFilePath + "' --transition-type " + transition + " --transition-step 64 --transition-duration 2; "
+            }
+        }
+
+        if (root.enableIris) {
+            if (ext === "mp4" || ext === "webm") {
+                let fileName = cleanFilePath.split('/').pop();
+                let thumbName = fileName.replace(/[^a-zA-Z0-9]/g, "_") + ".png";
+                let thumbPath = Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + thumbName;
+                script += "if not test -f '" + thumbPath + "'; ffmpeg -y -ss 00:00:00 -i '" + cleanFilePath + "' -vframes 1 -vf 'scale=600:-1' '" + thumbPath + "' >/dev/null 2>&1; end; ";
+                script += "if test -f '" + thumbPath + "'; iris --json-only '" + thumbPath + "' 2>/dev/null; end; ";
+            } else {
+                script += "iris --json-only '" + cleanFilePath + "' 2>/dev/null; ";
+            }
+        }
+
+        Quickshell.execDetached(["fish", "-c", script])
     }
 
     function toggleWallpaperMonitor(screenName) {
@@ -1474,7 +1508,10 @@ QtObject {
 
     property Process wallpaperScanner: Process {
         id: scanner
-        command: ["fish", "-c", "find ~/Pictures/Wallpapers -type f \\( -name '*.jpg' -o -name '*.jpeg' -o -name '*.png' -o -name '*.webp' \\) 2>/dev/null"]
+        command: [
+            "python3", "-c",
+            "import os; d=os.path.expanduser('~/Pictures/Wallpapers'); (os.path.isdir(d) and [print(os.path.join(d, f)) for f in os.listdir(d) if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp', '.mp4', '.webm'))])"
+        ]
         
         stdout: SplitParser {
             onRead: data => {
