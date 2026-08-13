@@ -120,6 +120,35 @@ FocusScope {
         }
     }
 
+    function cycleWorkspaceWindow(wsId, delta) {
+        if (!liveClientJson || delta === 0) return;
+        let wins = liveClientJson.filter(w => w.workspace && w.workspace.id === wsId && w.mapped);
+        if (!wins || wins.length <= 1) return;
+
+        let currentAddr = selectedWindowAddress ? selectedWindowAddress.trim().toLowerCase() : "";
+        let currentIndex = wins.findIndex(w => w.address && w.address.trim().toLowerCase() === currentAddr);
+
+        let nextIndex = 0;
+        if (currentIndex === -1) {
+            nextIndex = delta < 0 ? 0 : wins.length - 1;
+        } else if (delta < 0) {
+            nextIndex = (currentIndex + 1) % wins.length;
+        } else {
+            nextIndex = (currentIndex - 1 + wins.length) % wins.length;
+        }
+
+        let targetWin = wins[nextIndex];
+        if (targetWin && targetWin.address) {
+            selectedWindowAddress = targetWin.address;
+
+            let formatted = formatWindowRef(targetWin.address);
+            if (formatted !== "") {
+                Hyprland.dispatch("hl.dsp.focus({ window = \"" + formatted + "\" })");
+                clientQueryProcess.running = true;
+            }
+        }
+    }
+
     Keys.onPressed: (event) => {
         if (!overviewFlyout.isOpen) return;
 
@@ -588,6 +617,11 @@ print(json.dumps(resolved_map))
                                                 cursorShape: overviewFlyout.isDraggingWindow ? Qt.ClosedHandCursor : Qt.PointingHandCursor
                                                 property point pressPos: Qt.point(0, 0)
 
+                                                onWheel: (wheel) => {
+                                                    let delta = wheel.angleDelta.y !== 0 ? wheel.angleDelta.y : wheel.angleDelta.x;
+                                                    overviewFlyout.cycleWorkspaceWindow(wsTile.workingWorkspace, delta);
+                                                }
+
                                                 onPressed: (mouse) => {
                                                     overviewFlyout.forceActiveFocus();
                                                     pressPos = Qt.point(mouse.x, mouse.y);
@@ -687,34 +721,28 @@ print(json.dumps(resolved_map))
                             }
 
                             // Enable scrolling through workspace windows on hover
+                            MouseArea {
+                                id: tileWheelArea
+                                anchors.fill: parent
+                                z: -1
+                                hoverEnabled: false
+                                propagateComposedEvents: true
+                                onWheel: (wheel) => {
+                                    overviewFlyout.highlightedIndex = wsTile.index;
+                                    overviewFlyout.forceActiveFocus();
+                                    let delta = wheel.angleDelta.y !== 0 ? wheel.angleDelta.y : wheel.angleDelta.x;
+                                    overviewFlyout.cycleWorkspaceWindow(wsTile.workingWorkspace, delta);
+                                }
+                            }
+
                             WheelHandler {
                                 id: tileWheelHandler
                                 target: wsTile
                                 onWheel: (event) => {
                                     overviewFlyout.highlightedIndex = wsTile.index;
                                     overviewFlyout.forceActiveFocus();
-
-                                    let wins = viewportFrame.workspaceWindows;
-                                    if (!wins || wins.length === 0) return;
-
-                                    let currentAddr = overviewFlyout.selectedWindowAddress;
-                                    let currentIndex = wins.findIndex(w => w.address && w.address.trim().toLowerCase() === (currentAddr ? currentAddr.trim().toLowerCase() : ""));
-                                    
                                     let delta = event.angleDelta.y !== 0 ? event.angleDelta.y : event.angleDelta.x;
-                                    if (delta === 0) return;
-
-                                    let nextIndex = 0;
-                                    if (currentIndex === -1) {
-                                        nextIndex = 0;
-                                    } else if (delta < 0) {
-                                        nextIndex = (currentIndex + 1) % wins.length;
-                                    } else {
-                                        nextIndex = (currentIndex - 1 + wins.length) % wins.length;
-                                    }
-
-                                    if (wins[nextIndex] && wins[nextIndex].address) {
-                                        overviewFlyout.selectedWindowAddress = wins[nextIndex].address;
-                                    }
+                                    overviewFlyout.cycleWorkspaceWindow(wsTile.workingWorkspace, delta);
                                 }
                             }
                         }
