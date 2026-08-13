@@ -676,6 +676,24 @@ QtObject {
         caffeineExecProc.running = true
     }
 
+    function addCaffeineMinutes(minutes) {
+        if (caffeineState !== 2) return
+        let msToAdd = minutes * 60 * 1000
+        let now = Date.now()
+        
+        let baseTime = Math.max(now, caffeineTimerEndTime)
+        let newEndTime = baseTime + msToAdd
+
+        if (newEndTime <= now) {
+            caffeineState = 0
+            caffeineTimerEndTime = 0
+            setHypridleRunning(true)
+        } else {
+            caffeineTimerEndTime = newEndTime
+            updateCaffeineCountdown()
+        }
+    }
+
     function cycleCaffeine() {
         if (!caffeineHasHypridle) return
 
@@ -686,7 +704,7 @@ QtObject {
             setHypridleRunning(false)
         } else if (nextState === 2) {
             let roundedNow = Math.floor(Date.now() / 1000) * 1000
-            caffeineTimerEndTime = roundedNow + 1800000
+            caffeineTimerEndTime = roundedNow + 900000 // 15 minutes default
             updateCaffeineCountdown()
             setHypridleRunning(false)
         } else {
