@@ -191,32 +191,14 @@ Item {
                             Layout.alignment: Qt.AlignVCenter
                         }
 
-                        Item {
-                            implicitWidth: dateText.implicitWidth
-                            implicitHeight: dateText.implicitHeight
+                        Text {
+                            text: root.formattedDateUpper
+                            color: Config.accent
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            font.bold: true
+                            font.letterSpacing: 1.1
                             Layout.alignment: Qt.AlignVCenter
-
-                            Glow {
-                                anchors.fill: dateText
-                                source: dateText
-                                radius: 8
-                                samples: 16
-                                color: Config.accent
-                                spread: 0.2
-                                transparentBorder: true
-                                visible: Config.clockShowGlow
-                            }
-
-                            Text {
-                                id: dateText
-                                anchors.fill: parent
-                                text: root.formattedDateUpper
-                                color: Config.accent
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontCaption)
-                                font.bold: true
-                                font.letterSpacing: 1.1
-                            }
                         }
                     }
 
