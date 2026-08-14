@@ -1,4 +1,5 @@
 import QtQuick
+import Qt5Compat.GraphicalEffects
 import QtQuick.Layouts
 import QtQuick.Controls
 import ".."
@@ -142,7 +143,7 @@ Item {
                             anchors.centerIn: parent
                             text: cardRoot.caffeineState === 2 ? "schedule" : "coffee"
                             font.family: "Material Symbols Outlined"
-                            font.pixelSize: 24
+                            font.pixelSize: 22
                             color: (!cardRoot.hasHypridle || cardRoot.caffeineState === 0) ? Config.textMuted : Config.bgBase
                         }
 
@@ -171,7 +172,7 @@ Item {
                         Text {
                             text: "Caffeine"
                             font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
+                            font.pixelSize: Config.size(Config.fontCaption)
                             font.bold: true
                             color: Config.textMain
                             elide: Text.ElideRight
@@ -188,7 +189,7 @@ Item {
                                 }
                             }
                             font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
+                            font.pixelSize: Config.size(Config.fontMicro)
                             font.bold: cardRoot.caffeineState !== 0
                             color: cardRoot.caffeineState !== 0 ? Config.accent : Config.textMuted
                             elide: Text.ElideRight
@@ -200,7 +201,7 @@ Item {
                     Text {
                         text: "chevron_right"
                         font.family: "Material Symbols Outlined"
-                        font.pixelSize: 22
+                        font.pixelSize: 20
                         color: cardHover.hovered ? Config.textMain : Config.textMuted
                         opacity: cardRoot.hasHypridle ? 0.7 : 0.2
                     }
@@ -234,9 +235,9 @@ Item {
                 spacing: 10
 
                 Rectangle {
-                    implicitWidth: 40
-                    implicitHeight: 40
-                    radius: 20
+                    implicitWidth: 36
+                    implicitHeight: 36
+                    radius: 18
                     color: backHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
                     Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -244,7 +245,7 @@ Item {
                         anchors.centerIn: parent
                         text: "arrow_back"
                         font.family: "Material Symbols Outlined"
-                        font.pixelSize: 22
+                        font.pixelSize: 20
                         color: Config.textMain
                     }
 
@@ -256,18 +257,39 @@ Item {
                     HoverHandler { id: backHover }
                 }
 
+                // Title Section with Accent Glow & Italicizing
                 ColumnLayout {
                     Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignVCenter
                     spacing: 1
 
-                    Text {
-                        text: "CAFFEINE"
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontTitle)
-                        font.bold: true
-                        color: Config.textMain
-                        elide: Text.ElideRight
+                    Item {
+                        implicitWidth: caffExpTitleText.implicitWidth
+                        implicitHeight: caffExpTitleText.implicitHeight
                         Layout.fillWidth: true
+
+                        Glow {
+                            anchors.fill: caffExpTitleText
+                            source: caffExpTitleText
+                            radius: 8
+                            samples: 16
+                            color: Config.accent
+                            spread: 0.2
+                            transparentBorder: true
+                            visible: Config.clockShowGlow
+                        }
+
+                        Text {
+                            id: caffExpTitleText
+                            anchors.fill: parent
+                            text: "CAFFEINE"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontTitle)
+                            font.bold: true
+                            font.italic: true
+                            elide: Text.ElideRight
+                        }
                     }
 
                     Text {
@@ -275,7 +297,7 @@ Item {
                             ? "Countdown Timer Active" 
                             : (cardRoot.caffeineState === 1 ? "System Awake (Indefinite)" : "Anti-Sleep Timer Disabled")
                         font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontCaption)
+                        font.pixelSize: Config.size(Config.fontMicro)
                         color: cardRoot.caffeineState !== 0 ? Config.accent : Config.textMuted
                         elide: Text.ElideRight
                         Layout.fillWidth: true
@@ -284,9 +306,9 @@ Item {
 
                 // Cycle State Quick Action Button
                 Rectangle {
-                    implicitWidth: 40
-                    implicitHeight: 40
-                    radius: 20
+                    implicitWidth: 36
+                    implicitHeight: 36
+                    radius: 18
                     color: cardRoot.caffeineState !== 0
                         ? (topPwrHover.hovered ? Qt.lighter(Config.accent, 1.1) : Config.accent)
                         : (topPwrHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08))
@@ -296,7 +318,7 @@ Item {
                         anchors.centerIn: parent
                         text: cardRoot.caffeineState === 2 ? "schedule" : "coffee"
                         font.family: "Material Symbols Outlined"
-                        font.pixelSize: 22
+                        font.pixelSize: 18
                         color: cardRoot.caffeineState !== 0 ? Config.bgBase : Config.textMuted
                     }
 

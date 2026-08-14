@@ -1,4 +1,5 @@
 import QtQuick
+import Qt5Compat.GraphicalEffects
 import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
@@ -20,26 +21,18 @@ Item {
     property Item controlCenterPanel: null
     property bool panelExpanded: false
 
+    property bool hasHardware: true
     property bool isPowered: false
     property bool isScanning: false
-    property bool hasHardware: true
-    property string expandedMac: ""
-    property string connectingMac: ""
     property string connectedDeviceName: ""
+    property string connectingMac: ""
+    property var btDevices: []
 
     property bool shouldExpand: panelExpanded
+    readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
     signal togglePower(bool power)
     signal triggerScan()
-
-    ListModel { id: btModel }
-
-    onHasHardwareChanged: {
-        if (hasHardware) {
-            fetchBtStatusProc.running = false
-            fetchBtStatusProc.running = true
-        }
-    }
 
     onVisibleChanged: {
         if (!visible) panelExpanded = false
@@ -47,12 +40,11 @@ Item {
 
     onPanelExpandedChanged: {
         if (panelExpanded && hasHardware && isPowered) {
-            fetchBtDevicesProc.running = false
-            fetchBtDevicesProc.running = true
+            execTriggerScan()
         }
     }
 
-    // Reactive collapsed position calculations spanning parent hierarchy up to controlCenterPanel (root)
+    // Reactive collapsed position calculation spanning parent hierarchy up to controlCenterPanel (root)
     readonly property real collapsedX: {
         let p0 = cardRoot
         let p1 = p0 ? p0.parent : null
@@ -84,8 +76,6 @@ Item {
         
         return y0 + y1 + y2 + y3 + y4
     }
-
-    readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
     // Floating overlay container that expands to fill the entire ControlCenter panel area
     Rectangle {
@@ -161,7 +151,7 @@ Item {
                             anchors.centerIn: parent
                             text: !cardRoot.hasHardware ? "bluetooth_disabled" : (cardRoot.isPowered ? "bluetooth" : "bluetooth_disabled")
                             font.family: "Material Symbols Outlined"
-                            font.pixelSize: 24
+                            font.pixelSize: 22
                             color: cardRoot.isPowered && cardRoot.hasHardware ? Config.bgBase : Config.textMuted
                         }
 
@@ -184,7 +174,7 @@ Item {
                         Text {
                             text: "Bluetooth"
                             font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
+                            font.pixelSize: Config.size(Config.fontCaption)
                             font.bold: true
                             color: Config.textMain
                             elide: Text.ElideRight
@@ -194,7 +184,7 @@ Item {
                         Text {
                             text: !cardRoot.hasHardware ? "No Controller" : (!cardRoot.isPowered ? "Off" : (cardRoot.connectedDeviceName !== "" ? cardRoot.connectedDeviceName : "On"))
                             font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
+                            font.pixelSize: Config.size(Config.fontMicro)
                             font.bold: cardRoot.connectedDeviceName !== "" && cardRoot.hasHardware
                             color: cardRoot.connectedDeviceName !== "" && cardRoot.hasHardware ? Config.accent : Config.textMuted
                             elide: Text.ElideRight
@@ -206,7 +196,7 @@ Item {
                     Text {
                         text: "chevron_right"
                         font.family: "Material Symbols Outlined"
-                        font.pixelSize: 22
+                        font.pixelSize: 20
                         color: cardHover.hovered ? Config.textMain : Config.textMuted
                         opacity: cardRoot.hasHardware ? 0.7 : 0.2
                         Behavior on color { ColorAnimation { duration: 150 } }
@@ -242,9 +232,9 @@ Item {
 
                 // Back Button
                 Rectangle {
-                    implicitWidth: 40
-                    implicitHeight: 40
-                    radius: 20
+                    implicitWidth: 36
+                    implicitHeight: 36
+                    radius: 18
                     color: backHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
                     Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -252,7 +242,7 @@ Item {
                         anchors.centerIn: parent
                         text: "arrow_back"
                         font.family: "Material Symbols Outlined"
-                        font.pixelSize: 22
+                        font.pixelSize: 20
                         color: Config.textMain
                     }
 
@@ -264,25 +254,45 @@ Item {
                     HoverHandler { id: backHover }
                 }
 
-                // Title Section
+                // Title Section with Accent Glow & Italicizing
                 ColumnLayout {
                     Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignVCenter
                     spacing: 1
 
-                    Text {
-                        text: "BLUETOOTH"
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontTitle)
-                        font.bold: true
-                        color: Config.textMain
-                        elide: Text.ElideRight
+                    Item {
+                        implicitWidth: btExpTitleText.implicitWidth
+                        implicitHeight: btExpTitleText.implicitHeight
                         Layout.fillWidth: true
+
+                        Glow {
+                            anchors.fill: btExpTitleText
+                            source: btExpTitleText
+                            radius: 8
+                            samples: 16
+                            color: Config.accent
+                            spread: 0.2
+                            transparentBorder: true
+                            visible: Config.clockShowGlow
+                        }
+
+                        Text {
+                            id: btExpTitleText
+                            anchors.fill: parent
+                            text: "BLUETOOTH"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontTitle)
+                            font.bold: true
+                            font.italic: true
+                            elide: Text.ElideRight
+                        }
                     }
 
                     Text {
                         text: !cardRoot.hasHardware ? "No Controller Available" : (cardRoot.connectedDeviceName !== "" ? cardRoot.connectedDeviceName : (cardRoot.isPowered ? "Bluetooth Enabled" : "Bluetooth Disabled"))
                         font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontCaption)
+                        font.pixelSize: Config.size(Config.fontMicro)
                         color: cardRoot.connectedDeviceName !== "" ? Config.accent : Config.textMuted
                         elide: Text.ElideRight
                         Layout.fillWidth: true
