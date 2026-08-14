@@ -53,6 +53,27 @@ Item {
         onTriggered: cardRoot.wifiScanning = false
     }
 
+    property bool isTogglingPower: false
+
+    Timer {
+        id: powerToggleTimeout
+        interval: 4000
+        repeat: false
+        onTriggered: cardRoot.isTogglingPower = false
+    }
+
+    onWifiPoweredChanged: {
+        isTogglingPower = false
+        powerToggleTimeout.stop()
+    }
+
+    function reqTogglePower(turnOn) {
+        if (!cardRoot.hasAdapter) return
+        cardRoot.isTogglingPower = true
+        powerToggleTimeout.restart()
+        cardRoot.togglePower(turnOn)
+    }
+
     onActiveSsidChanged: {
         if (activeSsid !== "") {
             connectingSsid = ""
@@ -154,25 +175,23 @@ Item {
                         implicitWidth: 44
                         implicitHeight: 44
                         radius: Config.cornerRadius / 2
-                        color: cardRoot.wifiPowered && cardRoot.hasAdapter
+                        color: (cardRoot.wifiPowered || cardRoot.isTogglingPower) && cardRoot.hasAdapter
                             ? (iconHover.hovered ? Qt.lighter(Config.accent, 1.1) : Config.accent)
                             : (iconHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08))
                         Behavior on color { ColorAnimation { duration: 150 } }
 
                         Text {
                             anchors.centerIn: parent
-                            text: !cardRoot.hasAdapter ? "signal_wifi_off" : (cardRoot.wifiPowered ? "wifi" : "signal_wifi_off")
+                            text: !cardRoot.hasAdapter ? "signal_wifi_off" : ((cardRoot.wifiPowered || cardRoot.isTogglingPower) ? "wifi" : "signal_wifi_off")
                             font.family: "Material Symbols Outlined"
                             font.pixelSize: 22
-                            color: cardRoot.wifiPowered && cardRoot.hasAdapter ? Config.bgBase : Config.textMuted
+                            color: (cardRoot.wifiPowered || cardRoot.isTogglingPower) && cardRoot.hasAdapter ? Config.bgBase : Config.textMuted
                         }
 
                         MouseArea {
                             anchors.fill: parent
                             cursorShape: cardRoot.hasAdapter ? Qt.PointingHandCursor : Qt.ArrowCursor
-                            onClicked: {
-                                if (cardRoot.hasAdapter) cardRoot.togglePower(!cardRoot.wifiPowered)
-                            }
+                            onClicked: cardRoot.reqTogglePower(!cardRoot.wifiPowered)
                         }
                         HoverHandler { id: iconHover }
                     }
@@ -194,11 +213,17 @@ Item {
                         }
 
                         Text {
-                            text: !cardRoot.hasAdapter ? "No Adapter" : (!cardRoot.wifiPowered ? "Off" : (cardRoot.displaySsid !== "" ? cardRoot.displaySsid : "Disconnected"))
+                            text: !cardRoot.hasAdapter 
+                                ? "No Adapter" 
+                                : (cardRoot.isTogglingPower 
+                                    ? "..." 
+                                    : (!cardRoot.wifiPowered 
+                                        ? "Off" 
+                                        : (cardRoot.displaySsid !== "" ? cardRoot.displaySsid : "Disconnected")))
                             font.family: Config.sysFont
                             font.pixelSize: Config.size(Config.fontMicro)
-                            font.bold: cardRoot.wifiPowered && cardRoot.displaySsid !== "" && cardRoot.hasAdapter
-                            color: cardRoot.wifiPowered && cardRoot.displaySsid !== "" && cardRoot.hasAdapter ? Config.accent : Config.textMuted
+                            font.bold: cardRoot.hasAdapter && (cardRoot.isTogglingPower || (cardRoot.wifiPowered && cardRoot.displaySsid !== ""))
+                            color: cardRoot.hasAdapter && (cardRoot.isTogglingPower || (cardRoot.wifiPowered && cardRoot.displaySsid !== "")) ? Config.accent : Config.textMuted
                             elide: Text.ElideRight
                             Layout.fillWidth: true
                         }
@@ -282,10 +307,16 @@ Item {
                     }
 
                     Text {
-                        text: !cardRoot.hasAdapter ? "No Adapter Available" : (!cardRoot.wifiPowered ? "Wi-Fi Disabled" : (cardRoot.displaySsid !== "" ? cardRoot.displaySsid : "Disconnected"))
+                        text: !cardRoot.hasAdapter 
+                            ? "No Adapter Available" 
+                            : (cardRoot.isTogglingPower 
+                                ? "..." 
+                                : (!cardRoot.wifiPowered 
+                                    ? "Wi-Fi Disabled" 
+                                    : (cardRoot.displaySsid !== "" ? cardRoot.displaySsid : "Disconnected")))
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontMicro)
-                        color: cardRoot.wifiPowered && cardRoot.displaySsid !== "" && cardRoot.hasAdapter ? Config.accent : Config.textMuted
+                        color: cardRoot.hasAdapter && (cardRoot.isTogglingPower || (cardRoot.wifiPowered && cardRoot.displaySsid !== "")) ? Config.accent : Config.textMuted
                         elide: Text.ElideRight
                         Layout.fillWidth: true
                     }
@@ -336,23 +367,23 @@ Item {
                     implicitHeight: 36
                     radius: 18
                     visible: cardRoot.hasAdapter
-                    color: cardRoot.wifiPowered 
+                    color: (cardRoot.wifiPowered || cardRoot.isTogglingPower) 
                         ? (pwrHover.hovered ? Qt.lighter(Config.accent, 1.1) : Config.accent)
                         : (pwrHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08))
                     Behavior on color { ColorAnimation { duration: 150 } }
 
                     Text {
                         anchors.centerIn: parent
-                        text: cardRoot.wifiPowered ? "wifi" : "signal_wifi_off"
+                        text: (cardRoot.wifiPowered || cardRoot.isTogglingPower) ? "wifi" : "signal_wifi_off"
                         font.family: "Material Symbols Outlined"
                         font.pixelSize: 18
-                        color: cardRoot.wifiPowered ? Config.bgBase : Config.textMuted
+                        color: (cardRoot.wifiPowered || cardRoot.isTogglingPower) ? Config.bgBase : Config.textMuted
                     }
 
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: cardRoot.togglePower(!cardRoot.wifiPowered)
+                        onClicked: cardRoot.reqTogglePower(!cardRoot.wifiPowered)
                     }
                     HoverHandler { id: pwrHover }
                 }
@@ -837,7 +868,7 @@ Item {
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: cardRoot.togglePower(true)
+                        onClicked: cardRoot.reqTogglePower(true)
                     }
                     HoverHandler { id: pwrOffHover }
                 }
