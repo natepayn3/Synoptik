@@ -1,5 +1,5 @@
 {
-  "lastSettingsSection": 0,
+  "lastSettingsSection": 1,
   "savedUrls": [],
   "monitorConfigs": {
     "DP-1": {
@@ -105,7 +105,7 @@
   "iconOverrides": {
     "cc": "dashboard"
   },
-  "surfaceRadius": 20,
+  "surfaceRadius": 16,
   "borderThickness": 3,
   "cardMargin": 24,
   "showDesktopClock": true,
