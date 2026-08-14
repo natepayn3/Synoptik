@@ -449,34 +449,9 @@ Item {
                     Layout.alignment: Qt.AlignHCenter
                     spacing: 8
 
-                    // -15m Button
-                    Rectangle {
-                        implicitWidth: 42
-                        implicitHeight: 36
-                        radius: Config.cornerRadius / 2
-                        color: btnM15Hover.hovered ? Qt.rgba(255, 255, 255, 0.18) : Qt.rgba(255, 255, 255, 0.08)
-                        Behavior on color { ColorAnimation { duration: 150 } }
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "-15m"
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontMicro)
-                            font.bold: true
-                            color: btnM15Hover.hovered ? Config.accent : Config.textMain
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: Config.addCaffeineMinutes(-15)
-                        }
-                        HoverHandler { id: btnM15Hover }
-                    }
-
                     // -5m Button
                     Rectangle {
-                        implicitWidth: 38
+                        implicitWidth: 42
                         implicitHeight: 36
                         radius: Config.cornerRadius / 2
                         color: btnM5Hover.hovered ? Qt.rgba(255, 255, 255, 0.18) : Qt.rgba(255, 255, 255, 0.08)
@@ -557,7 +532,7 @@ Item {
 
                     // +5m Button
                     Rectangle {
-                        implicitWidth: 38
+                        implicitWidth: 42
                         implicitHeight: 36
                         radius: Config.cornerRadius / 2
                         color: btnP5Hover.hovered ? Qt.rgba(255, 255, 255, 0.18) : Qt.rgba(255, 255, 255, 0.08)
@@ -579,31 +554,6 @@ Item {
                         }
                         HoverHandler { id: btnP5Hover }
                     }
-
-                    // +15m Button
-                    Rectangle {
-                        implicitWidth: 42
-                        implicitHeight: 36
-                        radius: Config.cornerRadius / 2
-                        color: btnP15Hover.hovered ? Qt.rgba(255, 255, 255, 0.18) : Qt.rgba(255, 255, 255, 0.08)
-                        Behavior on color { ColorAnimation { duration: 150 } }
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "+15m"
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontMicro)
-                            font.bold: true
-                            color: btnP15Hover.hovered ? Config.accent : Config.textMain
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: Config.addCaffeineMinutes(15)
-                        }
-                        HoverHandler { id: btnP15Hover }
-                    }
                 }
             }
 
@@ -611,38 +561,12 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignHCenter
-                spacing: 6
+                spacing: 8
 
                 Rectangle {
                     Layout.fillWidth: true
-                    implicitHeight: 30
-                    radius: 15
-                    color: pr15Hover.hovered ? Qt.rgba(255, 255, 255, 0.18) : Qt.rgba(255, 255, 255, 0.06)
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "15m"
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                        font.bold: true
-                        color: pr15Hover.hovered ? Config.accent : Config.textMain
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            cardRoot.typedMinutes = 15
-                            Config.startCaffeineTimer(15)
-                        }
-                    }
-                    HoverHandler { id: pr15Hover }
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: 30
-                    radius: 15
+                    implicitHeight: 32
+                    radius: 16
                     color: pr30Hover.hovered ? Qt.rgba(255, 255, 255, 0.18) : Qt.rgba(255, 255, 255, 0.06)
 
                     Text {
@@ -667,8 +591,8 @@ Item {
 
                 Rectangle {
                     Layout.fillWidth: true
-                    implicitHeight: 30
-                    radius: 15
+                    implicitHeight: 32
+                    radius: 16
                     color: pr1hHover.hovered ? Qt.rgba(255, 255, 255, 0.18) : Qt.rgba(255, 255, 255, 0.06)
 
                     Text {
@@ -693,34 +617,8 @@ Item {
 
                 Rectangle {
                     Layout.fillWidth: true
-                    implicitHeight: 30
-                    radius: 15
-                    color: pr2hHover.hovered ? Qt.rgba(255, 255, 255, 0.18) : Qt.rgba(255, 255, 255, 0.06)
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "2h"
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                        font.bold: true
-                        color: pr2hHover.hovered ? Config.accent : Config.textMain
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            cardRoot.typedMinutes = 120
-                            Config.startCaffeineTimer(120)
-                        }
-                    }
-                    HoverHandler { id: pr2hHover }
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: 30
-                    radius: 15
+                    implicitHeight: 32
+                    radius: 16
                     color: prInfHover.hovered ? Qt.rgba(255, 255, 255, 0.18) : Qt.rgba(255, 255, 255, 0.06)
 
                     Text {
