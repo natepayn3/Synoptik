@@ -197,8 +197,8 @@ Item {
                             text: !cardRoot.hasAdapter ? "No Adapter" : (!cardRoot.wifiPowered ? "Off" : (cardRoot.displaySsid !== "" ? cardRoot.displaySsid : "Disconnected"))
                             font.family: Config.sysFont
                             font.pixelSize: Config.size(Config.fontMicro)
-                            font.bold: cardRoot.displaySsid !== "" && cardRoot.hasAdapter
-                            color: cardRoot.displaySsid !== "" && cardRoot.hasAdapter ? Config.accent : Config.textMuted
+                            font.bold: cardRoot.wifiPowered && cardRoot.displaySsid !== "" && cardRoot.hasAdapter
+                            color: cardRoot.wifiPowered && cardRoot.displaySsid !== "" && cardRoot.hasAdapter ? Config.accent : Config.textMuted
                             elide: Text.ElideRight
                             Layout.fillWidth: true
                         }
@@ -285,7 +285,7 @@ Item {
                         text: !cardRoot.hasAdapter ? "No Adapter Available" : (!cardRoot.wifiPowered ? "Wi-Fi Disabled" : (cardRoot.displaySsid !== "" ? cardRoot.displaySsid : "Disconnected"))
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontMicro)
-                        color: cardRoot.displaySsid !== "" ? Config.accent : Config.textMuted
+                        color: cardRoot.wifiPowered && cardRoot.displaySsid !== "" && cardRoot.hasAdapter ? Config.accent : Config.textMuted
                         elide: Text.ElideRight
                         Layout.fillWidth: true
                     }
