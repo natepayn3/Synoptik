@@ -95,12 +95,12 @@ PanelWindow {
     readonly property bool isBottom: barPosition === "bottom"
     readonly property bool isRight: barPosition === "right"
 
-    property real currentMargin: Config.barFrameStyle === "floating" ? (Config.barMargin || 4) : 0
+    property real currentMargin: isFloatingStyle ? (Config.barMargin || 4) : 0
     Behavior on currentMargin {
         NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
     }
 
-    property real barRadius: Config.barFrameStyle === "floating" ? (Config.cornerRadius || 12) : 0
+    property real barRadius: isFloatingStyle ? (Config.cornerRadius || 12) : 0
     Behavior on barRadius {
         NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
     }
@@ -285,16 +285,45 @@ PanelWindow {
         }
     }
 
+    readonly property bool isIsland: Config.barFrameStyle === "island"
+    readonly property bool isFloatingStyle: Config.barFrameStyle === "floating" || isIsland
+
+    readonly property real islandContentWidth: (leftCard ? leftCard.width : 0) + (activeWindowCard && activeWindowCard.visible ? activeWindowCard.width : 0) + (rightCard ? rightCard.width : 0) + 32
+    readonly property real islandTargetWidth: Math.min(mainContainer.width - (root.currentMargin * 2), Math.max(200, islandContentWidth))
+
+    property real animatedIslandWidth: isIsland ? islandTargetWidth : (mainContainer.width - Math.ceil(root.borderWidth))
+    Behavior on animatedIslandWidth {
+        NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
+    }
+
+    readonly property real islandContentHeight: (leftCard ? leftCard.height : 0) + (activeWindowCard && activeWindowCard.visible ? activeWindowCard.height : 0) + (rightCard ? rightCard.height : 0) + 32
+    readonly property real islandTargetHeight: Math.min(mainContainer.height - (root.currentMargin * 2), Math.max(200, islandContentHeight))
+
+    property real animatedIslandHeight: isIsland ? islandTargetHeight : (mainContainer.height - Math.ceil(root.borderWidth))
+    Behavior on animatedIslandHeight {
+        NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
+    }
+
+    readonly property real islandX: (mainContainer.width - animatedIslandWidth) / 2
+    readonly property real islandY: (mainContainer.height - animatedIslandHeight) / 2
+
+    readonly property bool isOsdView: activeView === "osd" || activeView === "notifOsd"
+
+    readonly property real islandBarL: root.isIsland ? Math.max(root.halfB, Math.min(root.islandX, isOsdView ? root.islandX : root.pLeft)) : root.halfB
+    readonly property real islandBarR: root.isIsland ? Math.min(mainContainer.width - root.halfB, Math.max(root.islandX + root.animatedIslandWidth, isOsdView ? (root.islandX + root.animatedIslandWidth) : root.pRight)) : (mainContainer.width - root.halfB)
+    readonly property real islandBarT: root.isIsland ? Math.max(root.halfB, Math.min(root.islandY, isOsdView ? root.islandY : root.pLeft)) : root.halfB
+    readonly property real islandBarB: root.isIsland ? Math.min(mainContainer.height - root.halfB, Math.max(root.islandY + root.animatedIslandHeight, isOsdView ? (root.islandY + root.animatedIslandHeight) : root.pRight)) : (mainContainer.height - root.halfB)
+
     readonly property real minPossibleLeft: isScreenFrame ? ((isHorizontal ? inX : inY) + halfB) : halfB
     readonly property real maxPossibleRight: isScreenFrame ? ((isHorizontal ? inX + inW : inY + inH) - halfB) : ((isHorizontal ? mainContainer.width : mainContainer.height) - halfB)
 
-    readonly property bool isLeftFlush: !isCentered && (
-        (isHorizontal ? (popoutXOffset - (targetWidth / 2.0)) : (popoutYOffset - (targetHeight / 2.0))) < (minPossibleLeft + root.barRadius + root.wingW + (root.isScreenFrame ? root.inRadi : root.radius))
-    )
+    readonly property bool isLeftFlush: root.isIsland
+        ? (root.isHorizontal ? (islandBarL >= pLeft - 4) : (islandBarT >= pLeft - 4))
+        : (!isCentered && ((isHorizontal ? (popoutXOffset - (targetWidth / 2.0)) : (popoutYOffset - (targetHeight / 2.0))) <= (minPossibleLeft + root.wingW)))
 
-    readonly property bool isRightFlush: !isCentered && (
-        (isHorizontal ? (popoutXOffset + (targetWidth / 2.0)) : (popoutYOffset + (targetHeight / 2.0))) > (maxPossibleRight - root.barRadius - root.wingW - (root.isScreenFrame ? root.inRadi : root.radius))
-    )
+    readonly property bool isRightFlush: root.isIsland
+        ? (root.isHorizontal ? (islandBarR <= pRight + 4) : (islandBarB <= pRight + 4))
+        : (!isCentered && ((isHorizontal ? (popoutXOffset + (targetWidth / 2.0)) : (popoutYOffset + (targetHeight / 2.0))) >= (maxPossibleRight - root.wingW)))
 
     readonly property real targetCenteredLeft: Math.max(minPossibleLeft + 16, Math.min(maxPossibleRight - (isHorizontal ? targetWidth : targetHeight) - 16, ((isHorizontal ? mainContainer.width : mainContainer.height) - (isHorizontal ? targetWidth : targetHeight)) / 2.0))
 
@@ -302,8 +331,8 @@ PanelWindow {
         let span = isHorizontal ? targetWidth : targetHeight
         let offset = isHorizontal ? popoutXOffset : popoutYOffset
         if (isCentered) return targetCenteredLeft
-        if (isLeftFlush) return minPossibleLeft
-        if (isRightFlush) return maxPossibleRight - span
+        if (!isIsland && isLeftFlush) return minPossibleLeft
+        if (!isIsland && isRightFlush) return maxPossibleRight - span
         return Math.max(minPossibleLeft + 16, Math.min(maxPossibleRight - span - 16, offset - (span / 2.0)))
     }
 
@@ -318,18 +347,21 @@ PanelWindow {
     onActiveViewChanged: {
         if (activeView === "none" || activeView === "workspacePreview") return
 
-        // 1. Edge OSDs: Snap coordinates directly to screen boundaries
-        if (activeView === "osd") {
+        // 1. Edge OSDs: Snap coordinates to screen boundaries or center on Island bar
+        if (activeView === "osd" || activeView === "notifOsd") {
             root.isCentered = false
-            if (root.isHorizontal) root.popoutXOffset = mainContainer.width
-            else root.popoutYOffset = mainContainer.height
-            return
-        }
-
-        if (activeView === "notifOsd") {
-            root.isCentered = false
-            root.popoutXOffset = 0
-            root.popoutYOffset = 0
+            if (root.isIsland) {
+                if (root.isHorizontal) root.popoutXOffset = root.islandX + (root.animatedIslandWidth / 2.0)
+                else root.popoutYOffset = root.islandY + (root.animatedIslandHeight / 2.0)
+            } else {
+                if (activeView === "osd") {
+                    if (root.isHorizontal) root.popoutXOffset = mainContainer.width
+                    else root.popoutYOffset = mainContainer.height
+                } else {
+                    root.popoutXOffset = 0
+                    root.popoutYOffset = 0
+                }
+            }
             return
         }
 
@@ -351,11 +383,11 @@ PanelWindow {
             case "clipboard":      btn = leftCard ? leftCard.getButton("clipboard") : null; break
             case "player":         btn = leftCard ? leftCard.getButton("player") : null; break
 
-            // Right Card Modules
+            // Right Card & Center Modules
             case "workspacePreview": btn = rightCard ? rightCard.getButton("overview") : null; break
-            case "taskOverflow":   btn = rightCard ? rightCard.getButton("apps") : null; break
-            case "controlCenter":  btn = rightCard ? rightCard.getButton("cc") : null; break
-            case "calendar":       btn = rightCard ? rightCard.getButton("clock") : null; break
+            case "taskOverflow":     btn = activeWindowCard; break
+            case "controlCenter":    btn = rightCard ? rightCard.getButton("cc") : null; break
+            case "calendar":         btn = rightCard ? rightCard.getButton("clock") : null; break
         }
 
         // Snap popout offset to the active button position or anchor mode
@@ -491,8 +523,7 @@ PanelWindow {
         function onShowTaskOverflowChanged() {
             if (Config.showTaskOverflow) {
                 closeOthers("taskOverflow")
-                let btn = rightCard ? rightCard.getButton("apps") : null
-                if (btn) setPopoutPos(btn)
+                if (activeWindowCard) setPopoutPos(activeWindowCard)
             }
             updateActiveView()
         }
@@ -614,10 +645,21 @@ PanelWindow {
                 anchors.fill: parent
                 visible: root.progress <= 0.005 && !root.isScreenFrame
 
-                readonly property real bX: root.isRight ? (mainContainer.width - root.barH + root.halfB) : root.halfB
-                readonly property real bY: root.isBottom ? (mainContainer.height - root.barH + root.halfB) : root.halfB
-                readonly property real bW: root.isHorizontal ? (mainContainer.width - root.halfB) : (root.isRight ? (mainContainer.width - root.halfB) : (root.barH - root.halfB))
-                readonly property real bH: root.isHorizontal ? (root.isBottom ? (mainContainer.height - root.halfB) : (root.barH - root.halfB)) : (mainContainer.height - root.halfB)
+                readonly property real bX: root.isIsland 
+                    ? (root.isHorizontal ? root.islandX : (root.isRight ? (mainContainer.width - root.barH + root.halfB) : root.halfB))
+                    : (root.isRight ? (mainContainer.width - root.barH + root.halfB) : root.halfB)
+
+                readonly property real bY: root.isIsland
+                    ? (root.isHorizontal ? (root.isBottom ? (mainContainer.height - root.barH + root.halfB) : root.halfB) : root.islandY)
+                    : (root.isBottom ? (mainContainer.height - root.barH + root.halfB) : root.halfB)
+
+                readonly property real bW: root.isIsland
+                    ? (root.isHorizontal ? (root.islandX + root.animatedIslandWidth) : (root.isRight ? (mainContainer.width - root.halfB) : (root.barH - root.halfB)))
+                    : (root.isHorizontal ? (mainContainer.width - root.halfB) : (root.isRight ? (mainContainer.width - root.halfB) : (root.barH - root.halfB)))
+
+                readonly property real bH: root.isIsland
+                    ? (root.isHorizontal ? (root.isBottom ? (mainContainer.height - root.halfB) : (root.barH - root.halfB)) : (root.islandY + root.animatedIslandHeight))
+                    : (root.isHorizontal ? (root.isBottom ? (mainContainer.height - root.halfB) : (root.barH - root.halfB)) : (mainContainer.height - root.halfB))
 
                 ShapePath {
                     fillColor: Config.bgPanel
@@ -653,9 +695,9 @@ PanelWindow {
                     capStyle: ShapePath.RoundCap
 
                     startX: root.halfB + root.barRadius
-                    startY: root.halfB
-                    PathLine { x: root.isLeftFlush ? (root.barH - root.halfB) : (root.barH - root.halfB - root.barRadius); y: root.halfB }
-                    PathArc { x: root.barH - root.halfB; y: root.isLeftFlush ? root.halfB : (root.halfB + root.barRadius); radiusX: root.isLeftFlush ? 0 : root.barRadius; radiusY: root.isLeftFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
+                    startY: root.islandBarT
+                    PathLine { x: root.isLeftFlush ? (root.barH - root.halfB) : (root.barH - root.halfB - root.barRadius); y: root.islandBarT }
+                    PathArc { x: root.barH - root.halfB; y: root.isLeftFlush ? root.islandBarT : (root.islandBarT + root.barRadius); radiusX: root.isLeftFlush ? 0 : root.barRadius; radiusY: root.isLeftFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
                     PathLine { x: root.barH - root.halfB; y: root.isLeftFlush ? root.pLeft : (root.pLeft - root.wingW) }
                     PathCubic { x: root.barH - root.halfB + root.wingW; y: root.pLeft; control1X: root.barH - root.halfB; control1Y: root.isLeftFlush ? root.pLeft : (root.pLeft - (root.wingW * 0.5)); control2X: root.barH - root.halfB + (root.wingW * 0.5); control2Y: root.pLeft }
                     PathLine { x: root.barH - root.halfB + root.currentWidth - root.radius; y: root.pLeft }
@@ -664,12 +706,12 @@ PanelWindow {
                     PathArc { x: root.barH - root.halfB + root.currentWidth - root.radius; y: root.pRight; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
                     PathLine { x: root.barH - root.halfB + root.wingW; y: root.pRight }
                     PathCubic { x: root.barH - root.halfB; y: root.isRightFlush ? root.pRight : (root.pRight + root.wingW); control1X: root.barH - root.halfB + (root.wingW * 0.5); control1Y: root.pRight; control2X: root.barH - root.halfB; control2Y: root.isRightFlush ? root.pRight : (root.pRight + (root.wingW * 0.5)) }
-                    PathLine { x: root.barH - root.halfB; y: root.isRightFlush ? (mainContainer.height - root.halfB) : (mainContainer.height - root.halfB - root.barRadius) }
-                    PathArc { x: root.barH - root.halfB - (root.isRightFlush ? 0 : root.barRadius); y: mainContainer.height - root.halfB; radiusX: root.isRightFlush ? 0 : root.barRadius; radiusY: root.isRightFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
-                    PathLine { x: root.halfB + root.barRadius; y: mainContainer.height - root.halfB }
-                    PathArc { x: root.halfB; y: mainContainer.height - root.halfB - root.barRadius; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
-                    PathLine { x: root.halfB; y: root.halfB + root.barRadius }
-                    PathArc { x: root.halfB + root.barRadius; y: root.halfB; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
+                    PathLine { x: root.barH - root.halfB; y: root.isRightFlush ? root.islandBarB : (root.islandBarB - root.barRadius) }
+                    PathArc { x: root.barH - root.halfB - (root.isRightFlush ? 0 : root.barRadius); y: root.islandBarB; radiusX: root.isRightFlush ? 0 : root.barRadius; radiusY: root.isRightFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
+                    PathLine { x: root.halfB + root.barRadius; y: root.islandBarB }
+                    PathArc { x: root.halfB; y: root.islandBarB - root.barRadius; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
+                    PathLine { x: root.halfB; y: root.islandBarT + root.barRadius }
+                    PathArc { x: root.halfB + root.barRadius; y: root.islandBarT; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
                 }
             }
 
@@ -685,24 +727,24 @@ PanelWindow {
                     joinStyle: ShapePath.RoundJoin
                     capStyle: ShapePath.RoundCap
 
-                    startX: root.halfB + root.barRadius
+                    startX: root.islandBarL + root.barRadius
                     startY: root.halfB
-                    PathLine { x: mainContainer.width - root.halfB - root.barRadius; y: root.halfB }
-                    PathArc { x: mainContainer.width - root.halfB; y: root.halfB + root.barRadius; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
-                    PathLine { x: mainContainer.width - root.halfB; y: root.isRightFlush ? (root.barBottomY + root.currentHeight - root.radius) : (root.barBottomY - root.barRadius) }
-                    PathArc { x: root.isRightFlush ? (mainContainer.width - root.halfB) : (mainContainer.width - root.halfB - root.barRadius); y: root.isRightFlush ? (root.barBottomY + root.currentHeight - root.radius) : root.barBottomY; radiusX: root.isRightFlush ? 0 : root.barRadius; radiusY: root.isRightFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
-                    PathLine { x: root.isRightFlush ? (mainContainer.width - root.halfB) : (root.pRight + root.wingW); y: root.isRightFlush ? (root.barBottomY + root.currentHeight - root.radius) : root.barBottomY }
-                    PathCubic { x: root.isRightFlush ? (mainContainer.width - root.halfB) : root.pRight; y: root.isRightFlush ? (root.barBottomY + root.currentHeight - root.radius) : (root.barBottomY + root.wingH); control1X: root.isRightFlush ? (mainContainer.width - root.halfB) : (root.pRight + (root.wingW * 0.5)); control1Y: root.isRightFlush ? (root.barBottomY + root.currentHeight - root.radius) : root.barBottomY; control2X: root.isRightFlush ? (mainContainer.width - root.halfB) : root.pRight; control2Y: root.isRightFlush ? (root.barBottomY + root.currentHeight - root.radius) : (root.barBottomY + (root.wingH * 0.5)) }
-                    PathLine { x: root.isRightFlush ? (mainContainer.width - root.halfB) : root.pRight; y: root.barBottomY + root.currentHeight - root.radius }
-                    PathArc { x: root.isRightFlush ? (mainContainer.width - root.halfB - root.radius) : (root.pRight - root.radius); y: root.barBottomY + root.currentHeight; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
-                    PathLine { x: root.isLeftFlush ? (root.halfB + root.radius) : (root.pLeft + root.radius); y: root.barBottomY + root.currentHeight }
-                    PathArc { x: root.isLeftFlush ? root.halfB : root.pLeft; y: root.barBottomY + root.currentHeight - root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
-                    PathLine { x: root.isLeftFlush ? root.halfB : root.pLeft; y: root.isLeftFlush ? (root.halfB + root.barRadius) : (root.barBottomY + root.wingH) }
-                    PathCubic { x: root.isLeftFlush ? root.halfB : (root.pLeft - root.wingW); y: root.isLeftFlush ? (root.halfB + root.barRadius) : root.barBottomY; control1X: root.isLeftFlush ? root.halfB : root.pLeft; control1Y: root.isLeftFlush ? (root.halfB + root.barRadius) : (root.barBottomY + (root.wingH * 0.5)); control2X: root.isLeftFlush ? root.halfB : (root.pLeft - (root.wingW * 0.5)); control2Y: root.isLeftFlush ? (root.halfB + root.barRadius) : root.barBottomY }
-                    PathLine { x: root.isLeftFlush ? root.halfB : (root.halfB + root.barRadius); y: root.isLeftFlush ? (root.halfB + root.barRadius) : root.barBottomY }
-                    PathArc { x: root.halfB; y: root.isLeftFlush ? (root.halfB + root.barRadius) : (root.barBottomY - root.barRadius); radiusX: root.isLeftFlush ? 0 : root.barRadius; radiusY: root.isLeftFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
-                    PathLine { x: root.halfB; y: root.halfB + root.barRadius }
-                    PathArc { x: root.halfB + root.barRadius; y: root.halfB; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
+                    PathLine { x: root.islandBarR - root.barRadius; y: root.halfB }
+                    PathArc { x: root.islandBarR; y: root.halfB + root.barRadius; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
+                    PathLine { x: root.isRightFlush ? root.islandBarR : (root.islandBarR - root.barRadius); y: root.isRightFlush ? (root.barBottomY + root.currentHeight - root.radius) : (root.barBottomY - root.barRadius) }
+                    PathArc { x: root.isRightFlush ? root.islandBarR : (root.islandBarR - root.barRadius); y: root.isRightFlush ? (root.barBottomY + root.currentHeight - root.radius) : root.barBottomY; radiusX: root.isRightFlush ? 0 : root.barRadius; radiusY: root.isRightFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
+                    PathLine { x: root.isRightFlush ? root.islandBarR : (root.pRight + root.wingW); y: root.isRightFlush ? (root.barBottomY + root.currentHeight - root.radius) : root.barBottomY }
+                    PathCubic { x: root.isRightFlush ? root.islandBarR : root.pRight; y: root.isRightFlush ? (root.barBottomY + root.currentHeight - root.radius) : (root.barBottomY + root.wingH); control1X: root.isRightFlush ? root.islandBarR : (root.pRight + (root.wingW * 0.5)); control1Y: root.isRightFlush ? (root.barBottomY + root.currentHeight - root.radius) : root.barBottomY; control2X: root.isRightFlush ? root.islandBarR : root.pRight; control2Y: root.isRightFlush ? (root.barBottomY + root.currentHeight - root.radius) : (root.barBottomY + (root.wingH * 0.5)) }
+                    PathLine { x: root.isRightFlush ? root.islandBarR : root.pRight; y: root.barBottomY + root.currentHeight - root.radius }
+                    PathArc { x: root.isRightFlush ? (root.islandBarR - root.radius) : (root.pRight - root.radius); y: root.barBottomY + root.currentHeight; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
+                    PathLine { x: root.isLeftFlush ? (root.islandBarL + root.radius) : (root.pLeft + root.radius); y: root.barBottomY + root.currentHeight }
+                    PathArc { x: root.isLeftFlush ? root.islandBarL : root.pLeft; y: root.barBottomY + root.currentHeight - root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
+                    PathLine { x: root.isLeftFlush ? root.islandBarL : root.pLeft; y: root.isLeftFlush ? (root.halfB + root.barRadius) : (root.barBottomY + root.wingH) }
+                    PathCubic { x: root.isLeftFlush ? root.islandBarL : (root.pLeft - root.wingW); y: root.isLeftFlush ? (root.halfB + root.barRadius) : root.barBottomY; control1X: root.isLeftFlush ? root.islandBarL : root.pLeft; control1Y: root.isLeftFlush ? (root.halfB + root.barRadius) : (root.barBottomY + (root.wingH * 0.5)); control2X: root.isLeftFlush ? root.islandBarL : (root.pLeft - (root.wingW * 0.5)); control2Y: root.isLeftFlush ? (root.halfB + root.barRadius) : root.barBottomY }
+                    PathLine { x: root.isLeftFlush ? root.islandBarL : (root.islandBarL + root.barRadius); y: root.isLeftFlush ? (root.halfB + root.barRadius) : root.barBottomY }
+                    PathArc { x: root.islandBarL; y: root.isLeftFlush ? (root.halfB + root.barRadius) : (root.barBottomY - root.barRadius); radiusX: root.isLeftFlush ? 0 : root.barRadius; radiusY: root.isLeftFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
+                    PathLine { x: root.islandBarL; y: root.halfB + root.barRadius }
+                    PathArc { x: root.islandBarL + root.barRadius; y: root.halfB; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
                 }
             }
 
@@ -719,9 +761,9 @@ PanelWindow {
                     joinStyle: ShapePath.RoundJoin
                     capStyle: ShapePath.RoundCap
 
-                    startX: root.halfB
+                    startX: root.islandBarL
                     startY: root.isLeftFlush ? openShapeBottomFloating.barTopY : (openShapeBottomFloating.barTopY + root.barRadius)
-                    PathArc { x: root.halfB + (root.isLeftFlush ? 0 : root.barRadius); y: openShapeBottomFloating.barTopY; radiusX: root.isLeftFlush ? 0 : root.barRadius; radiusY: root.isLeftFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
+                    PathArc { x: root.islandBarL + (root.isLeftFlush ? 0 : root.barRadius); y: openShapeBottomFloating.barTopY; radiusX: root.isLeftFlush ? 0 : root.barRadius; radiusY: root.isLeftFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
                     PathLine { x: root.isLeftFlush ? root.halfB : (root.pLeft - root.wingW); y: openShapeBottomFloating.barTopY }
                     PathCubic { x: root.pLeft; y: root.isLeftFlush ? openShapeBottomFloating.barTopY : (openShapeBottomFloating.barTopY - root.wingH); control1X: root.isLeftFlush ? root.halfB : (root.pLeft - (root.wingW * 0.5)); control1Y: openShapeBottomFloating.barTopY; control2X: root.pLeft; control2Y: root.isLeftFlush ? openShapeBottomFloating.barTopY : (openShapeBottomFloating.barTopY - (root.wingH * 0.5)) }
                     PathLine { x: root.pLeft; y: openShapeBottomFloating.barTopY - root.currentHeight + root.radius }
@@ -729,14 +771,14 @@ PanelWindow {
                     PathLine { x: root.pRight - root.radius; y: openShapeBottomFloating.barTopY - root.currentHeight }
                     PathArc { x: root.pRight; y: openShapeBottomFloating.barTopY - root.currentHeight + root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
                     PathLine { x: root.pRight; y: root.isRightFlush ? openShapeBottomFloating.barTopY : (openShapeBottomFloating.barTopY - root.wingH) }
-                    PathCubic { x: root.isRightFlush ? (mainContainer.width - root.halfB) : (root.pRight + root.wingW); y: openShapeBottomFloating.barTopY; control1X: root.pRight; control1Y: root.isRightFlush ? openShapeBottomFloating.barTopY : (openShapeBottomFloating.barTopY - (root.wingH * 0.5)); control2X: root.isRightFlush ? (mainContainer.width - root.halfB) : (root.pRight + (root.wingW * 0.5)); control2Y: openShapeBottomFloating.barTopY }
-                    PathLine { x: root.isRightFlush ? (mainContainer.width - root.halfB) : (mainContainer.width - root.halfB - root.barRadius); y: openShapeBottomFloating.barTopY }
-                    PathArc { x: mainContainer.width - root.halfB; y: openShapeBottomFloating.barTopY + (root.isRightFlush ? 0 : root.barRadius); radiusX: root.isRightFlush ? 0 : root.barRadius; radiusY: root.isRightFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
-                    PathLine { x: mainContainer.width - root.halfB; y: mainContainer.height - root.halfB - root.barRadius }
-                    PathArc { x: mainContainer.width - root.halfB - root.barRadius; y: mainContainer.height - root.halfB; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
-                    PathLine { x: root.halfB + root.barRadius; y: mainContainer.height - root.halfB }
-                    PathArc { x: root.halfB; y: mainContainer.height - root.halfB - root.barRadius; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
-                    PathLine { x: root.halfB; y: openShapeBottomFloating.barTopY + (root.isLeftFlush ? 0 : root.barRadius) }
+                    PathCubic { x: root.isRightFlush ? root.islandBarR : (root.pRight + root.wingW); y: openShapeBottomFloating.barTopY; control1X: root.pRight; control1Y: root.isRightFlush ? openShapeBottomFloating.barTopY : (openShapeBottomFloating.barTopY - (root.wingH * 0.5)); control2X: root.isRightFlush ? root.islandBarR : (root.pRight + (root.wingW * 0.5)); control2Y: openShapeBottomFloating.barTopY }
+                    PathLine { x: root.isRightFlush ? root.islandBarR : (root.islandBarR - root.barRadius); y: openShapeBottomFloating.barTopY }
+                    PathArc { x: root.islandBarR; y: openShapeBottomFloating.barTopY + (root.isRightFlush ? 0 : root.barRadius); radiusX: root.isRightFlush ? 0 : root.barRadius; radiusY: root.isRightFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
+                    PathLine { x: root.islandBarR; y: mainContainer.height - root.halfB - root.barRadius }
+                    PathArc { x: root.islandBarR - root.barRadius; y: mainContainer.height - root.halfB; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
+                    PathLine { x: root.islandBarL + root.barRadius; y: mainContainer.height - root.halfB }
+                    PathArc { x: root.islandBarL; y: mainContainer.height - root.halfB - root.barRadius; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
+                    PathLine { x: root.islandBarL; y: openShapeBottomFloating.barTopY + (root.isLeftFlush ? 0 : root.barRadius) }
                 }
             }
 
@@ -754,15 +796,15 @@ PanelWindow {
                     capStyle: ShapePath.RoundCap
 
                     startX: openShapeRightFloating.rX + root.halfB + (root.isLeftFlush ? 0 : root.barRadius)
-                    startY: root.halfB
-                    PathLine { x: mainContainer.width - root.halfB - root.barRadius; y: root.halfB }
-                    PathArc { x: mainContainer.width - root.halfB; y: root.halfB + root.barRadius; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
-                    PathLine { x: mainContainer.width - root.halfB; y: mainContainer.height - root.halfB - root.barRadius }
-                    PathArc { x: mainContainer.width - root.halfB - root.barRadius; y: mainContainer.height - root.halfB; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
-                    PathLine { x: openShapeRightFloating.rX + root.halfB + root.barRadius; y: mainContainer.height - root.halfB }
-                    PathArc { x: openShapeRightFloating.rX + root.halfB; y: mainContainer.height - root.halfB - (root.isRightFlush ? 0 : root.barRadius); radiusX: root.isRightFlush ? 0 : root.barRadius; radiusY: root.isRightFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
-                    PathLine { x: openShapeRightFloating.rX + root.halfB; y: root.isRightFlush ? (mainContainer.height - root.halfB) : (root.pRight + root.wingW) }
-                    PathCubic { x: root.isRightFlush ? (openShapeRightFloating.rX + root.halfB) : (openShapeRightFloating.rX + root.halfB - root.wingW); y: root.pRight; control1X: openShapeRightFloating.rX + root.halfB; control1Y: root.isRightFlush ? (mainContainer.height - root.halfB) : (root.pRight + (root.wingW * 0.5)); control2X: root.isRightFlush ? (openShapeRightFloating.rX + root.halfB) : (openShapeRightFloating.rX + root.halfB - (root.wingW * 0.5)); control2Y: root.pRight }
+                    startY: root.islandBarT
+                    PathLine { x: mainContainer.width - root.halfB - root.barRadius; y: root.islandBarT }
+                    PathArc { x: mainContainer.width - root.halfB; y: root.islandBarT + root.barRadius; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
+                    PathLine { x: mainContainer.width - root.halfB; y: root.islandBarB - root.barRadius }
+                    PathArc { x: mainContainer.width - root.halfB - root.barRadius; y: root.islandBarB; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
+                    PathLine { x: openShapeRightFloating.rX + root.halfB + root.barRadius; y: root.islandBarB }
+                    PathArc { x: openShapeRightFloating.rX + root.halfB; y: root.islandBarB - (root.isRightFlush ? 0 : root.barRadius); radiusX: root.isRightFlush ? 0 : root.barRadius; radiusY: root.isRightFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
+                    PathLine { x: openShapeRightFloating.rX + root.halfB; y: root.isRightFlush ? root.islandBarB : (root.pRight + root.wingW) }
+                    PathCubic { x: root.isRightFlush ? (openShapeRightFloating.rX + root.halfB) : (openShapeRightFloating.rX + root.halfB - root.wingW); y: root.pRight; control1X: openShapeRightFloating.rX + root.halfB; control1Y: root.isRightFlush ? root.islandBarB : (root.pRight + (root.wingW * 0.5)); control2X: root.isRightFlush ? (openShapeRightFloating.rX + root.halfB) : (openShapeRightFloating.rX + root.halfB - (root.wingW * 0.5)); control2Y: root.pRight }
                     PathLine { x: openShapeRightFloating.rX + root.halfB - root.currentWidth + root.radius; y: root.pRight }
                     PathArc { x: openShapeRightFloating.rX + root.halfB - root.currentWidth; y: root.pRight - root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
                     PathLine { x: openShapeRightFloating.rX + root.halfB - root.currentWidth; y: root.pLeft + root.radius }
@@ -771,14 +813,14 @@ PanelWindow {
                     
                     PathCubic { 
                         x: openShapeRightFloating.rX + root.halfB; 
-                        y: root.isLeftFlush ? root.halfB : (root.pLeft - root.wingW); 
+                        y: root.isLeftFlush ? root.islandBarT : (root.pLeft - root.wingW); 
                         control1X: root.isLeftFlush ? (openShapeRightFloating.rX + root.halfB) : (openShapeRightFloating.rX + root.halfB - (root.wingW * 0.5)); 
                         control1Y: root.pLeft; 
                         control2X: openShapeRightFloating.rX + root.halfB; 
-                        control2Y: root.isLeftFlush ? root.halfB : (root.pLeft - (root.wingW * 0.5)) 
+                        control2Y: root.isLeftFlush ? root.islandBarT : (root.pLeft - (root.wingW * 0.5)) 
                     }
-                    PathLine { x: openShapeRightFloating.rX + root.halfB; y: root.isLeftFlush ? root.halfB : (root.halfB + root.barRadius) }
-                    PathArc { x: openShapeRightFloating.rX + root.halfB + (root.isLeftFlush ? 0 : root.barRadius); y: root.halfB; radiusX: root.isLeftFlush ? 0 : root.barRadius; radiusY: root.isLeftFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
+                    PathLine { x: openShapeRightFloating.rX + root.halfB; y: root.isLeftFlush ? root.islandBarT : (root.islandBarT + root.barRadius) }
+                    PathArc { x: openShapeRightFloating.rX + root.halfB + (root.isLeftFlush ? 0 : root.barRadius); y: root.islandBarT; radiusX: root.isLeftFlush ? 0 : root.barRadius; radiusY: root.isLeftFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
                 }
             }
 
@@ -1367,16 +1409,21 @@ PanelWindow {
 
             Item {
                 id: barContent
-                x: root.isRight ? (mainContainer.width - root.barH + Math.floor(root.halfB)) : Math.floor(root.halfB)
-                y: root.isBottom ? (mainContainer.height - root.barH + Math.floor(root.halfB)) : Math.floor(root.halfB)
-                
+                x: root.isIsland 
+                    ? (root.isHorizontal ? root.islandX : (root.isRight ? (mainContainer.width - root.barH + Math.floor(root.halfB)) : Math.floor(root.halfB)))
+                    : (root.isRight ? (mainContainer.width - root.barH + Math.floor(root.halfB)) : Math.floor(root.halfB))
+
+                y: root.isIsland
+                    ? (root.isHorizontal ? (root.isBottom ? (mainContainer.height - root.barH + Math.floor(root.halfB)) : Math.floor(root.halfB)) : root.islandY)
+                    : (root.isBottom ? (mainContainer.height - root.barH + Math.floor(root.halfB)) : Math.floor(root.halfB))
+
                 transform: Translate {
                     x: root.isScreenFrame ? (root.barPosition === "left" ? root.framePadding / 2 : (root.barPosition === "right" ? -root.framePadding / 2 : 0)) : 0
                     y: root.isScreenFrame ? (root.barPosition === "top" ? root.framePadding / 2 : (root.barPosition === "bottom" ? -root.framePadding / 2 : 0)) : 0
                 }
 
-                width: root.isHorizontal ? (mainContainer.width - Math.ceil(root.borderWidth)) : (root.barH - Math.ceil(root.borderWidth))
-                height: root.isHorizontal ? (root.barH - Math.ceil(root.borderWidth)) : (mainContainer.height - Math.ceil(root.borderWidth))
+                width: root.isHorizontal ? (root.isIsland ? root.animatedIslandWidth : (mainContainer.width - Math.ceil(root.borderWidth))) : (root.barH - Math.ceil(root.borderWidth))
+                height: root.isHorizontal ? (root.barH - Math.ceil(root.borderWidth)) : (root.isIsland ? root.animatedIslandHeight : (mainContainer.height - Math.ceil(root.borderWidth)))
 
                 LeftModules {
                     id: leftCard
@@ -1386,7 +1433,13 @@ PanelWindow {
                 ActiveWindowCard {
                     id: activeWindowCard
                     rootRef: root
-                    anchors.centerIn: parent
+                    x: root.isHorizontal
+                        ? Math.max(leftCard.x + leftCard.width + 12, Math.min(rightCard.x - activeWindowCard.width - 12, (parent.width - activeWindowCard.width) / 2))
+                        : (parent.width - activeWindowCard.width) / 2
+
+                    y: root.isHorizontal
+                        ? (parent.height - activeWindowCard.height) / 2
+                        : Math.max(leftCard.y + leftCard.height + 12, Math.min(rightCard.y - activeWindowCard.height - 12, (parent.height - activeWindowCard.height) / 2))
                 }
                 RightModules {
                     id: rightCard

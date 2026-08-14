@@ -32,12 +32,15 @@ PanelWindow {
     readonly property bool isBottom: barPosition === "bottom"
     readonly property bool isRight: barPosition === "right"
 
-    property real currentMargin: Config.barFrameStyle === "floating" ? (Config.barMargin || 4) : 0
+    readonly property bool isIsland: Config.barFrameStyle === "island"
+    readonly property bool isFloatingStyle: Config.barFrameStyle === "floating" || isIsland
+
+    property real currentMargin: isFloatingStyle ? (Config.barMargin || 4) : 0
     Behavior on currentMargin {
         NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
     }
 
-    property real barRadius: Config.barFrameStyle === "floating" ? (Config.cornerRadius || 12) : 0
+    property real barRadius: isFloatingStyle ? (Config.cornerRadius || 12) : 0
     Behavior on barRadius {
         NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
     }
@@ -284,8 +287,13 @@ PanelWindow {
             if (Config.showOSD) {
                 closeOthers("osd")
                 root.isCentered = false
-                if (root.isHorizontal) root.popoutXOffset = mainContainer.width
-                else root.popoutYOffset = mainContainer.height
+                if (root.isIsland) {
+                    if (root.isHorizontal) root.popoutXOffset = root.islandX + (root.animatedIslandWidth / 2.0)
+                    else root.popoutYOffset = root.islandY + (root.animatedIslandHeight / 2.0)
+                } else {
+                    if (root.isHorizontal) root.popoutXOffset = mainContainer.width
+                    else root.popoutYOffset = mainContainer.height
+                }
             }
             updateActiveView()
         }
@@ -293,8 +301,13 @@ PanelWindow {
             if (Config.showNotificationOsd) {
                 closeOthers("notifOsd")
                 root.isCentered = false
-                root.popoutXOffset = 0
-                root.popoutYOffset = 0
+                if (root.isIsland) {
+                    if (root.isHorizontal) root.popoutXOffset = root.islandX + (root.animatedIslandWidth / 2.0)
+                    else root.popoutYOffset = root.islandY + (root.animatedIslandHeight / 2.0)
+                } else {
+                    root.popoutXOffset = 0
+                    root.popoutYOffset = 0
+                }
             }
             updateActiveView()
         }
@@ -317,7 +330,7 @@ PanelWindow {
         function onShowScreenRecorderChanged() { if (Config.showScreenRecorder) { closeOthers("screenRecorder"); setPopoutPos(leftCard ? leftCard.getButton("recorder") : null); } updateActiveView() }
         function onShowMirrorChanged() { if (Config.showMirror) { closeOthers("mirror"); setPopoutPos(leftCard ? leftCard.getButton("mirror") : null); } updateActiveView() }
         function onShowControlCenterChanged() { if (Config.showControlCenter) { closeOthers("controlCenter"); setPopoutPos(rightCard ? rightCard.getButton("cc") : null); } updateActiveView() }
-        function onShowTaskOverflowChanged() { if (Config.showTaskOverflow) { closeOthers("taskOverflow"); setPopoutPos(rightCard ? rightCard.getButton("apps") : null); } updateActiveView() }
+        function onShowTaskOverflowChanged() { if (Config.showTaskOverflow) { closeOthers("taskOverflow"); setPopoutPos(activeWindowCard); } updateActiveView() }
     }
 
     Item {
@@ -376,7 +389,13 @@ PanelWindow {
             ActiveWindowCard {
                 id: activeWindowCard
                 rootRef: root
-                anchors.centerIn: parent
+                x: root.isHorizontal
+                    ? Math.max(leftCard.x + leftCard.width + 12, Math.min(rightCard.x - activeWindowCard.width - 12, (parent.width - activeWindowCard.width) / 2))
+                    : (parent.width - activeWindowCard.width) / 2
+
+                y: root.isHorizontal
+                    ? (parent.height - activeWindowCard.height) / 2
+                    : Math.max(leftCard.y + leftCard.height + 12, Math.min(rightCard.y - activeWindowCard.height - 12, (parent.height - activeWindowCard.height) / 2))
             }
             RightModules {
                 id: rightCard

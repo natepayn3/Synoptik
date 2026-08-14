@@ -89,28 +89,52 @@ Flickable {
                     id: miniActiveBar
                     color: Config.accent
                     opacity: 1.0
-                    radius: Config.barFrameStyle === "floating" ? 4 : 0
+                    radius: (Config.barFrameStyle === "floating" || Config.barFrameStyle === "island") ? 4 : 0
 
                     states: [
                         State {
                             name: "top"
                             when: Config.barPosition === "top"
-                            PropertyChanges { target: miniActiveBar; x: 0; y: 0; width: containerItem.width; height: 8 }
+                            PropertyChanges {
+                                target: miniActiveBar
+                                x: Config.barFrameStyle === "island" ? (containerItem.width * 0.2) : 0
+                                y: 0
+                                width: Config.barFrameStyle === "island" ? (containerItem.width * 0.6) : containerItem.width
+                                height: 8
+                            }
                         },
                         State {
                             name: "bottom"
                             when: Config.barPosition === "bottom"
-                            PropertyChanges { target: miniActiveBar; x: 0; y: containerItem.height - 8; width: containerItem.width; height: 8 }
+                            PropertyChanges {
+                                target: miniActiveBar
+                                x: Config.barFrameStyle === "island" ? (containerItem.width * 0.2) : 0
+                                y: containerItem.height - 8
+                                width: Config.barFrameStyle === "island" ? (containerItem.width * 0.6) : containerItem.width
+                                height: 8
+                            }
                         },
                         State {
                             name: "left"
                             when: Config.barPosition === "left"
-                            PropertyChanges { target: miniActiveBar; x: 0; y: 0; width: 8; height: containerItem.height }
+                            PropertyChanges {
+                                target: miniActiveBar
+                                x: 0
+                                y: Config.barFrameStyle === "island" ? (containerItem.height * 0.2) : 0
+                                width: 8
+                                height: Config.barFrameStyle === "island" ? (containerItem.height * 0.6) : containerItem.height
+                            }
                         },
                         State {
                             name: "right"
                             when: Config.barPosition === "right"
-                            PropertyChanges { target: miniActiveBar; x: containerItem.width - 8; y: 0; width: 8; height: containerItem.height }
+                            PropertyChanges {
+                                target: miniActiveBar
+                                x: containerItem.width - 8
+                                y: Config.barFrameStyle === "island" ? (containerItem.height * 0.2) : 0
+                                width: 8
+                                height: Config.barFrameStyle === "island" ? (containerItem.height * 0.6) : containerItem.height
+                            }
                         }
                     ]
 
@@ -162,13 +186,14 @@ Flickable {
                 Repeater {
                     model: [
                         { name: "Floating", style: "floating", icon: "sliders" },
+                        { name: "Island", style: "island", icon: "dataset" },
                         { name: "Edge", style: "edge", icon: "border_left" },
                         { name: "Frame", style: "screen", icon: "web_asset" }
                     ]
 
                     delegate: Rectangle {
                         required property var modelData
-                        implicitWidth: 130
+                        implicitWidth: 95
                         implicitHeight: 36
                         radius: Config.cornerRadius / 2
 

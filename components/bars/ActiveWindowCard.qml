@@ -32,6 +32,8 @@ Rectangle {
 
     visible: hasWindow
 
+    signal popoutRequested(var item)
+
     // Rotation angle for text in vertical mode:
     // Left bar: 90 degrees (reads top-to-bottom)
     // Right bar: -90 degrees (reads bottom-to-top)
@@ -40,32 +42,39 @@ Rectangle {
         return barPos === "left" ? 90 : -90
     }
 
-    // Card dimensions
-    width: isHoriz
-        ? Math.min(contentRow.implicitWidth + 16, Math.max(120, (rootRef.width || 1920) - 600))
-        : 36
-
-    height: isHoriz
-        ? 36
-        : Math.min(contentColumn.implicitHeight + 16, Math.max(120, (rootRef.height || 1080) - 600))
+    // STATIC FIXED DIMENSIONS - NO RESIZING
+    width: isHoriz ? 190 : 36
+    height: isHoriz ? 36 : 190
 
     radius: Config.cornerRadius / 2
-    color: Qt.rgba(255, 255, 255, 0.05)
+    color: (Config.showTaskOverflow || cardHover.hovered) ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(255, 255, 255, 0.05)
+    border.color: (Config.showTaskOverflow || cardHover.hovered) ? Config.accent : "transparent"
+    border.width: (Config.showTaskOverflow || cardHover.hovered) ? 2 : 0
     clip: true
 
-    Behavior on width { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
-    Behavior on height { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+    Behavior on color { ColorAnimation { duration: 150 } }
+    Behavior on border.color { ColorAnimation { duration: 150 } }
 
-    // HORIZONTAL LAYOUT
+    TapHandler {
+        onTapped: {
+            activeWinCard.popoutRequested(activeWinCard)
+            if (rootRef) rootRef.setPopoutPos(activeWinCard)
+            Config.showTaskOverflow = !Config.showTaskOverflow
+        }
+    }
+    HoverHandler { id: cardHover; cursorShape: Qt.PointingHandCursor }
+
+    // HORIZONTAL LAYOUT (Icon fixed left, ticker text fills remaining width)
     RowLayout {
         id: contentRow
         visible: isHoriz
         anchors.fill: parent
-        anchors.leftMargin: 8
-        anchors.rightMargin: 8
+        anchors.leftMargin: 10
+        anchors.rightMargin: 10
         spacing: 8
 
         IconImage {
+            id: iconHoriz
             Layout.preferredWidth: 20
             Layout.preferredHeight: 20
             Layout.alignment: Qt.AlignVCenter
@@ -81,28 +90,57 @@ Rectangle {
             }
         }
 
-        Text {
-            text: activeWinCard.winTitle
-            color: Config.textMain
-            font.family: Config.sysFont
-            font.pixelSize: Config.size(Config.fontCaption)
-            font.bold: true
-            elide: Text.ElideRight
+        Item {
+            id: tickerBoxHoriz
             Layout.fillWidth: true
-            Layout.alignment: Qt.AlignVCenter
+            Layout.fillHeight: true
+            clip: true
+
+            Text {
+                id: titleTextHoriz
+                anchors.verticalCenter: parent.verticalCenter
+                text: activeWinCard.winTitle
+                color: Config.textMain
+                font.family: Config.sysFont
+                font.pixelSize: Config.size(Config.fontCaption)
+                font.bold: true
+
+                readonly property real overflowDist: Math.max(0, titleTextHoriz.implicitWidth - tickerBoxHoriz.width)
+                readonly property bool needsTicker: overflowDist > 2
+
+                x: 0
+
+                SequentialAnimation on x {
+                    id: tickerAnimHoriz
+                    running: activeWinCard.isHoriz && titleTextHoriz.needsTicker && activeWinCard.visible
+                    loops: 1
+
+                    NumberAnimation {
+                        to: -titleTextHoriz.overflowDist
+                        duration: Math.max(1000, titleTextHoriz.overflowDist * 40)
+                        easing.type: Easing.Linear
+                    }
+                }
+
+                onTextChanged: {
+                    x = 0
+                    tickerAnimHoriz.restart()
+                }
+            }
         }
     }
 
-    // VERTICAL LAYOUT
+    // VERTICAL LAYOUT (Icon fixed top, ticker text fills remaining height)
     ColumnLayout {
         id: contentColumn
         visible: !isHoriz
         anchors.fill: parent
-        anchors.topMargin: 8
-        anchors.bottomMargin: 8
+        anchors.topMargin: 10
+        anchors.bottomMargin: 10
         spacing: 8
 
         IconImage {
+            id: iconVert
             Layout.preferredWidth: 20
             Layout.preferredHeight: 20
             Layout.alignment: Qt.AlignHCenter
@@ -119,25 +157,55 @@ Rectangle {
         }
 
         Item {
-            id: rotatedTextWrapper
-            Layout.alignment: Qt.AlignHCenter
+            id: tickerBoxVert
+            Layout.fillWidth: true
             Layout.fillHeight: true
-            implicitWidth: titleTextVert.implicitHeight
-            implicitHeight: Math.min(titleTextVert.implicitWidth, 200)
+            clip: true
 
-            Text {
-                id: titleTextVert
+            Item {
+                id: titleTextVertWrapper
                 anchors.centerIn: parent
-                text: activeWinCard.winTitle
-                color: Config.textMain
-                font.family: Config.sysFont
-                font.pixelSize: Config.size(Config.fontCaption)
-                font.bold: true
-                elide: Text.ElideRight
-                rotation: activeWinCard.textRotation
-                transformOrigin: Item.Center
-                width: rotatedTextWrapper.implicitHeight
-                horizontalAlignment: Text.AlignHCenter
+                implicitWidth: titleTextVert.implicitHeight
+                implicitHeight: titleTextVert.implicitWidth
+
+                readonly property real overflowDist: Math.max(0, titleTextVert.implicitWidth - tickerBoxVert.height)
+                readonly property bool needsTicker: overflowDist > 2
+
+                property real tickerOffset: 0
+
+                SequentialAnimation on tickerOffset {
+                    id: tickerAnimVert
+                    running: !activeWinCard.isHoriz && titleTextVertWrapper.needsTicker && activeWinCard.visible
+                    loops: 1
+
+                    NumberAnimation {
+                        to: -titleTextVertWrapper.overflowDist
+                        duration: Math.max(1000, titleTextVertWrapper.overflowDist * 40)
+                        easing.type: Easing.Linear
+                    }
+                }
+
+                Text {
+                    id: titleTextVert
+                    anchors.centerIn: parent
+                    text: activeWinCard.winTitle
+                    color: Config.textMain
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontCaption)
+                    font.bold: true
+                    rotation: activeWinCard.textRotation
+                    transformOrigin: Item.Center
+                    width: titleTextVertWrapper.implicitHeight
+
+                    transform: Translate {
+                        y: activeWinCard.barPos === "left" ? titleTextVertWrapper.tickerOffset : -titleTextVertWrapper.tickerOffset
+                    }
+
+                    onTextChanged: {
+                        titleTextVertWrapper.tickerOffset = 0
+                        tickerAnimVert.restart()
+                    }
+                }
             }
         }
     }

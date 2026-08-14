@@ -21,8 +21,8 @@ Rectangle {
         return leftCard
     }
 
-    width: rootRef.isHorizontal ? (leftModules.implicitWidth + 4) : 36
-    height: rootRef.isHorizontal ? 36 : (leftModules.implicitHeight + 4)
+    width: rootRef.isHorizontal ? (leftModules.implicitWidth + 16) : 36
+    height: rootRef.isHorizontal ? 36 : (leftModules.implicitHeight + 16)
     radius: Config.cornerRadius / 2
     color: Qt.rgba(255, 255, 255, 0.05)
     clip: true
@@ -58,9 +58,50 @@ Rectangle {
     anchors.leftMargin: rootRef.isHorizontal ? 10 : 0
     anchors.topMargin: !rootRef.isHorizontal ? 10 : 0
 
+    property bool iconsFullyExpanded: !Config.leftCardCollapsed
+
+    Connections {
+        target: Config
+        ignoreUnknownSignals: true
+        function onLeftCardCollapsedChanged() {
+            if (!Config.leftCardCollapsed) {
+                expandTimer.restart()
+            } else {
+                iconsFullyExpanded = false
+                collapseTimer.restart()
+            }
+        }
+    }
+
+    readonly property bool showUnpinnedLoaders: !Config.leftCardCollapsed || collapseTimer.running
+
+    Timer {
+        id: expandTimer
+        interval: 280
+        repeat: false
+        onTriggered: {
+            if (!Config.leftCardCollapsed) {
+                iconsFullyExpanded = true
+            }
+        }
+    }
+
+    Timer {
+        id: collapseTimer
+        interval: 220
+        repeat: false
+    }
+
     GridLayout {
         id: leftModules
-        anchors.centerIn: parent
+        anchors.left: rootRef.isHorizontal ? parent.left : undefined
+        anchors.leftMargin: rootRef.isHorizontal ? 8 : 0
+        anchors.verticalCenter: rootRef.isHorizontal ? parent.verticalCenter : undefined
+
+        anchors.top: !rootRef.isHorizontal ? parent.top : undefined
+        anchors.topMargin: !rootRef.isHorizontal ? 8 : 0
+        anchors.horizontalCenter: !rootRef.isHorizontal ? parent.horizontalCenter : undefined
+
         columns: rootRef.isHorizontal ? 99 : 1
         rows: rootRef.isHorizontal ? 1 : 99
         columnSpacing: 8
@@ -75,8 +116,15 @@ Rectangle {
                 
                 visible: {
                     if (itemKey === "batt" && typeof shellRoot !== "undefined" && !shellRoot.hasBattery) return false
-                    return !Config.leftCardCollapsed || Config.isPinned(itemKey)
+                    return leftCard.showUnpinnedLoaders || Config.isPinned(itemKey)
                 }
+
+                opacity: {
+                    if (Config.isPinned(itemKey)) return 1.0
+                    return leftCard.iconsFullyExpanded ? 1.0 : 0.0
+                }
+
+                Behavior on opacity { NumberAnimation { duration: 320; easing.type: Easing.InOutQuad } }
 
                 sourceComponent: {
                     switch(itemKey) {
@@ -101,17 +149,41 @@ Rectangle {
 
         Rectangle {
             implicitWidth: 32; implicitHeight: 32; radius: 10
-            color: chevronLeftHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-            Behavior on color { ColorAnimation { duration: 150 } }
+            color: "transparent"
 
-            Text {
+            Item {
                 anchors.centerIn: parent
-                text: {
-                    if (rootRef.isHorizontal) return Config.leftCardCollapsed ? "chevron_right" : "chevron_left"
-                    return Config.leftCardCollapsed ? "expand_more" : "expand_less"
+                implicitWidth: chevronIconText.implicitWidth
+                implicitHeight: chevronIconText.implicitHeight
+                scale: chevronLeftHover.hovered ? 1.25 : 1.0
+
+                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                Glow {
+                    anchors.fill: chevronIconText
+                    source: chevronIconText
+                    radius: chevronLeftHover.hovered ? 8 : 0
+                    samples: 16
+                    color: Config.accent
+                    spread: 0.2
+                    transparentBorder: true
+                    visible: chevronLeftHover.hovered
+
+                    Behavior on radius { NumberAnimation { duration: 180 } }
                 }
-                color: Config.textMuted
-                font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+
+                Text {
+                    id: chevronIconText
+                    anchors.centerIn: parent
+                    text: {
+                        if (rootRef.isHorizontal) return Config.leftCardCollapsed ? "chevron_right" : "chevron_left"
+                        return Config.leftCardCollapsed ? "expand_more" : "expand_less"
+                    }
+                    color: chevronLeftHover.hovered ? Config.accent : Config.textMuted
+                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
             }
 
             TapHandler { onTapped: Config.leftCardCollapsed = !Config.leftCardCollapsed }

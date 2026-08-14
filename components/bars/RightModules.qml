@@ -14,10 +14,6 @@ Rectangle {
             let layout = centerContentLayout.item
             if (layout && layout.clockBtn) return layout.clockBtn
         }
-        if (key === "apps" || key === "launcher" || key === "view_apps") {
-            let layout = centerContentLayout.item
-            if (layout && layout.viewAppsBtn) return layout.viewAppsBtn
-        }
         if (key === "cc" || key === "controlCenter") {
             let layout = centerContentLayout.item
             if (layout && layout.ccBtn) return layout.ccBtn
@@ -91,7 +87,6 @@ Rectangle {
             spacing: 8
             anchors.fill: parent
 
-            readonly property var viewAppsBtn: taskbarHoriz.viewAppsBtn
             readonly property var ccBtn: btnCCHoriz
             readonly property var clockBtn: btnClockHoriz
             readonly property var overviewBtn: wsHoriz.overviewButton
@@ -100,15 +95,6 @@ Rectangle {
             WorkspaceIndicators {
                 id: wsHoriz
                 isVertical: false
-                Layout.alignment: Qt.AlignVCenter
-                onPopoutRequested: item => rightCard.popoutRequested(item)
-            }
-
-            // Taskbar
-            Taskbar {
-                id: taskbarHoriz
-                isVertical: false
-                activeScreenName: (rootRef && rootRef.screen) ? rootRef.screen.name : ""
                 Layout.alignment: Qt.AlignVCenter
                 onPopoutRequested: item => rightCard.popoutRequested(item)
             }
@@ -239,7 +225,6 @@ Rectangle {
             spacing: 8
             anchors.fill: parent
 
-            readonly property var viewAppsBtn: taskbarVert.viewAppsBtn
             readonly property var ccBtn: btnCCVert
             readonly property var clockBtn: btnClockVert
             readonly property var overviewBtn: wsVert.overviewButton
@@ -248,15 +233,6 @@ Rectangle {
             WorkspaceIndicators {
                 id: wsVert
                 isVertical: true
-                Layout.alignment: Qt.AlignHCenter
-                onPopoutRequested: item => rightCard.popoutRequested(item)
-            }
-
-            // Taskbar
-            Taskbar {
-                id: taskbarVert
-                isVertical: true
-                activeScreenName: (rootRef && rootRef.screen) ? rootRef.screen.name : ""
                 Layout.alignment: Qt.AlignHCenter
                 onPopoutRequested: item => rightCard.popoutRequested(item)
             }

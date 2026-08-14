@@ -1,5 +1,5 @@
 {
-  "lastSettingsSection": 1,
+  "lastSettingsSection": 0,
   "savedUrls": [],
   "monitorConfigs": {
     "DP-1": {
@@ -41,8 +41,8 @@
   ],
   "fetchOnlineQuotes": false,
   "quoteSource": "zenquotes",
-  "barFrameStyle": "floating",
-  "barPosition": "top",
+  "barFrameStyle": "island",
+  "barPosition": "left",
   "showScreenFrame": false,
   "sysFont": "Montserrat Alternates",
   "fontScaleIndex": 1,
@@ -100,7 +100,11 @@
     "cc": false,
     "network": false,
     "clipboard": false,
-    "clock": false
+    "clock": false,
+    "settings": false,
+    "player": false,
+    "launcher": false,
+    "notifications": false
   },
   "iconOverrides": {
     "cc": "dashboard"
