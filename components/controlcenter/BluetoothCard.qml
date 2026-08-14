@@ -369,343 +369,350 @@ Item {
                 color: Qt.rgba(255, 255, 255, 0.08)
             }
 
-            // Devices Section Header
-            RowLayout {
-                Layout.fillWidth: true
-                visible: cardRoot.hasHardware && cardRoot.isPowered
-
-                Text {
-                    text: "DEVICES"
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontMicro)
-                    font.bold: true
-                    color: Config.textMuted
-                }
-
-                Item { Layout.fillWidth: true }
-
-                Text {
-                    text: cardRoot.isScanning ? "Scanning..." : (btModel.count + " available")
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontMicro)
-                    color: cardRoot.isScanning ? Config.accent : Config.textMuted
-                }
-            }
-
-            // Full Device List View
-            ListView {
-                id: fullBtListView
+            // Body Content Container (Locks Header Bar & Divider Line strictly to top of card)
+            ColumnLayout {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                clip: true
-                model: btModel
-                spacing: 6
-                visible: cardRoot.hasHardware && cardRoot.isPowered && btModel.count > 0
+                spacing: 12
 
-                delegate: Rectangle {
-                    id: devDelegate
-                    property bool isExpanded: cardRoot.expandedMac === model.mac
-                    property bool isConnecting: cardRoot.connectingMac === model.mac
+                // Devices Section Header
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: cardRoot.hasHardware && cardRoot.isPowered
 
-                    width: fullBtListView.width
-                    implicitHeight: devDelegateLayout.implicitHeight + 20
-                    radius: Config.cornerRadius / 2
+                    Text {
+                        text: "DEVICES"
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        font.bold: true
+                        color: Config.textMuted
+                    }
+
+                    Item { Layout.fillWidth: true }
+
+                    Text {
+                        text: cardRoot.isScanning ? "Scanning..." : (btModel.count + " available")
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        color: cardRoot.isScanning ? Config.accent : Config.textMuted
+                    }
+                }
+
+                // Full Device List View
+                ListView {
+                    id: fullBtListView
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
                     clip: true
+                    model: btModel
+                    spacing: 6
+                    visible: cardRoot.hasHardware && cardRoot.isPowered && btModel.count > 0
 
-                    color: model.connected 
-                        ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.15) 
-                        : (devHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
+                    delegate: Rectangle {
+                        id: devDelegate
+                        property bool isExpanded: cardRoot.expandedMac === model.mac
+                        property bool isConnecting: cardRoot.connectingMac === model.mac
 
-                    border.width: model.connected ? 2 : 0
-                    border.color: model.connected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.6) : "transparent"
+                        width: fullBtListView.width
+                        implicitHeight: devDelegateLayout.implicitHeight + 20
+                        radius: Config.cornerRadius / 2
+                        clip: true
 
-                    Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-                    Behavior on color { ColorAnimation { duration: 150 } }
+                        color: model.connected 
+                            ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.15) 
+                            : (devHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
 
-                    ColumnLayout {
-                        id: devDelegateLayout
-                        anchors.top: parent.top
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.topMargin: 10
-                        anchors.leftMargin: 10
-                        anchors.rightMargin: 10
-                        spacing: 8
+                        border.width: model.connected ? 2 : 0
+                        border.color: model.connected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.6) : "transparent"
 
-                        Item {
-                            Layout.fillWidth: true
-                            implicitHeight: 32
+                        Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                        Behavior on color { ColorAnimation { duration: 150 } }
 
-                            RowLayout {
-                                anchors.fill: parent
-                                spacing: 8
+                        ColumnLayout {
+                            id: devDelegateLayout
+                            anchors.top: parent.top
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.topMargin: 10
+                            anchors.leftMargin: 10
+                            anchors.rightMargin: 10
+                            spacing: 8
 
-                                Rectangle {
-                                    implicitWidth: 28
-                                    implicitHeight: 28
-                                    radius: 14
-                                    Layout.alignment: Qt.AlignVCenter
-                                    color: model.connected ? Config.accent : Qt.rgba(255, 255, 255, 0.06)
+                            Item {
+                                Layout.fillWidth: true
+                                implicitHeight: 32
+
+                                RowLayout {
+                                    anchors.fill: parent
+                                    spacing: 8
+
+                                    Rectangle {
+                                        implicitWidth: 28
+                                        implicitHeight: 28
+                                        radius: 14
+                                        Layout.alignment: Qt.AlignVCenter
+                                        color: model.connected ? Config.accent : Qt.rgba(255, 255, 255, 0.06)
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: "bluetooth"
+                                            font.family: "Material Symbols Outlined"
+                                            font.pixelSize: 16
+                                            color: model.connected ? Config.bgBase : Config.textMuted
+                                        }
+                                    }
+
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        Layout.alignment: Qt.AlignVCenter
+                                        spacing: 1
+
+                                        Text {
+                                            text: model.name
+                                            color: model.connected ? Config.accent : Config.textMain
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontCaption)
+                                            font.bold: model.connected
+                                            elide: Text.ElideRight
+                                            Layout.fillWidth: true
+                                        }
+
+                                        Text {
+                                            text: isConnecting ? "Connecting..." : (model.connected ? "Connected" : (model.paired ? "Paired" : "Available"))
+                                            color: model.connected ? Config.accent : Config.textMuted
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontMicro)
+                                            elide: Text.ElideRight
+                                            Layout.fillWidth: true
+                                        }
+                                    }
 
                                     Text {
-                                        anchors.centerIn: parent
-                                        text: "bluetooth"
+                                        text: isExpanded ? "expand_less" : "expand_more"
                                         font.family: "Material Symbols Outlined"
-                                        font.pixelSize: 16
-                                        color: model.connected ? Config.bgBase : Config.textMuted
+                                        font.pixelSize: 18
+                                        color: Config.textMuted
+                                        Layout.alignment: Qt.AlignVCenter
                                     }
                                 }
 
-                                ColumnLayout {
-                                    Layout.fillWidth: true
-                                    Layout.alignment: Qt.AlignVCenter
-                                    spacing: 1
-
-                                    Text {
-                                        text: model.name
-                                        color: model.connected ? Config.accent : Config.textMain
-                                        font.family: Config.sysFont
-                                        font.pixelSize: Config.size(Config.fontCaption)
-                                        font.bold: model.connected
-                                        elide: Text.ElideRight
-                                        Layout.fillWidth: true
-                                    }
-
-                                    Text {
-                                        text: isConnecting ? "Connecting..." : (model.connected ? "Connected" : (model.paired ? "Paired" : "Available"))
-                                        color: model.connected ? Config.accent : Config.textMuted
-                                        font.family: Config.sysFont
-                                        font.pixelSize: Config.size(Config.fontMicro)
-                                        elide: Text.ElideRight
-                                        Layout.fillWidth: true
-                                    }
-                                }
-
-                                Text {
-                                    text: isExpanded ? "expand_less" : "expand_more"
-                                    font.family: "Material Symbols Outlined"
-                                    font.pixelSize: 18
-                                    color: Config.textMuted
-                                    Layout.alignment: Qt.AlignVCenter
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: cardRoot.expandedMac = (cardRoot.expandedMac === model.mac ? "" : model.mac)
                                 }
                             }
 
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: cardRoot.expandedMac = (cardRoot.expandedMac === model.mac ? "" : model.mac)
-                            }
-                        }
+                            // Expanded Action Row (Smooth Bidirectional Height & Opacity Animation)
+                            Item {
+                                id: actionRowContainer
+                                Layout.fillWidth: true
+                                implicitHeight: isExpanded ? actionLayout.implicitHeight : 0
+                                visible: implicitHeight > 0 || opacity > 0
+                                opacity: isExpanded ? 1.0 : 0.0
+                                clip: true
 
-                        // Expanded Action Row (Smooth Bidirectional Height & Opacity Animation)
-                        Item {
-                            id: actionRowContainer
-                            Layout.fillWidth: true
-                            implicitHeight: isExpanded ? actionLayout.implicitHeight : 0
-                            visible: implicitHeight > 0 || opacity > 0
-                            opacity: isExpanded ? 1.0 : 0.0
-                            clip: true
+                                Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                                Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
-                            Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-                            Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
+                                RowLayout {
+                                    id: actionLayout
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.top: parent.top
+                                    spacing: 8
 
-                            RowLayout {
-                                id: actionLayout
-                                anchors.left: parent.left
-                                anchors.right: parent.right
-                                anchors.top: parent.top
-                                spacing: 8
+                                    // Connect / Disconnect / Pair Action
+                                    Rectangle {
+                                        Layout.fillWidth: true
+                                        implicitHeight: 32
+                                        radius: Config.cornerRadius / 2
+                                        color: connBtnMouse.containsMouse 
+                                            ? Qt.lighter(model.connected ? Qt.rgba(255,255,255,0.15) : Config.accent, 1.1) 
+                                            : (model.connected ? Qt.rgba(255, 255, 255, 0.08) : Config.accent)
+                                        Behavior on color { ColorAnimation { duration: 150 } }
 
-                                // Connect / Disconnect / Pair Action
-                                Rectangle {
-                                    Layout.fillWidth: true
-                                    implicitHeight: 32
-                                    radius: Config.cornerRadius / 2
-                                    color: connBtnMouse.containsMouse 
-                                        ? Qt.lighter(model.connected ? Qt.rgba(255,255,255,0.15) : Config.accent, 1.1) 
-                                        : (model.connected ? Qt.rgba(255, 255, 255, 0.08) : Config.accent)
-                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: isConnecting ? "CONNECTING..." : (model.connected ? "DISCONNECT" : (model.paired ? "CONNECT" : "PAIR & CONNECT"))
+                                            color: model.connected ? Config.textMain : Config.bgBase
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontMicro)
+                                            font.bold: true
+                                        }
 
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: isConnecting ? "CONNECTING..." : (model.connected ? "DISCONNECT" : (model.paired ? "CONNECT" : "PAIR & CONNECT"))
-                                        color: model.connected ? Config.textMain : Config.bgBase
-                                        font.family: Config.sysFont
-                                        font.pixelSize: Config.size(Config.fontMicro)
-                                        font.bold: true
-                                    }
-
-                                    MouseArea {
-                                        id: connBtnMouse
-                                        anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        hoverEnabled: true
-                                        onClicked: {
-                                            if (isConnecting || !cardRoot.hasHardware) return
-                                            if (model.connected) cardRoot.reqDisconnectDevice(model.mac)
-                                            else if (model.paired) cardRoot.reqConnectDevice(model.mac)
-                                            else cardRoot.reqPairDevice(model.mac)
+                                        MouseArea {
+                                            id: connBtnMouse
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            hoverEnabled: true
+                                            onClicked: {
+                                                if (isConnecting || !cardRoot.hasHardware) return
+                                                if (model.connected) cardRoot.reqDisconnectDevice(model.mac)
+                                                else if (model.paired) cardRoot.reqConnectDevice(model.mac)
+                                                else cardRoot.reqPairDevice(model.mac)
+                                            }
                                         }
                                     }
-                                }
 
-                                // Forget Action
-                                Rectangle {
-                                    Layout.fillWidth: true
-                                    implicitHeight: 32
-                                    radius: Config.cornerRadius / 2
-                                    visible: model.paired || model.connected
-                                    color: forgetBtnMouse.containsMouse ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.06)
-                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                    // Forget Action
+                                    Rectangle {
+                                        Layout.fillWidth: true
+                                        implicitHeight: 32
+                                        radius: Config.cornerRadius / 2
+                                        visible: model.paired || model.connected
+                                        color: forgetBtnMouse.containsMouse ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.06)
+                                        Behavior on color { ColorAnimation { duration: 150 } }
 
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: "FORGET"
-                                        color: forgetBtnMouse.containsMouse ? Config.accent : Config.textMuted
-                                        font.family: Config.sysFont
-                                        font.pixelSize: Config.size(Config.fontMicro)
-                                        font.bold: true
-                                    }
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: "FORGET"
+                                            color: forgetBtnMouse.containsMouse ? Config.accent : Config.textMuted
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontMicro)
+                                            font.bold: true
+                                        }
 
-                                    MouseArea {
-                                        id: forgetBtnMouse
-                                        anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        hoverEnabled: true
-                                        onClicked: {
-                                            if (!cardRoot.hasHardware) return
-                                            cardRoot.reqRemoveDevice(model.mac)
+                                        MouseArea {
+                                            id: forgetBtnMouse
+                                            anchors.fill: parent
+                                            cursorShape: Qt.PointingHandCursor
+                                            hoverEnabled: true
+                                            onClicked: {
+                                                if (!cardRoot.hasHardware) return
+                                                cardRoot.reqRemoveDevice(model.mac)
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
+                        HoverHandler { id: devHover }
                     }
-                    HoverHandler { id: devHover }
-                }
-            }
-
-            // Empty State View
-            ColumnLayout {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                Layout.alignment: Qt.AlignCenter
-                spacing: 12
-                visible: cardRoot.hasHardware && cardRoot.isPowered && btModel.count === 0
-
-                Text {
-                    text: "bluetooth_searching"
-                    font.family: "Material Symbols Outlined"
-                    font.pixelSize: 48
-                    color: Config.accent
-                    opacity: 0.5
-                    Layout.alignment: Qt.AlignHCenter
                 }
 
-                Text {
-                    text: "No Bluetooth Devices Found"
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontCaption)
-                    font.bold: true
-                    color: Config.textMain
-                    Layout.alignment: Qt.AlignHCenter
-                }
-
-                Text {
-                    text: "Ensure your Bluetooth device is turned on and in pairing mode."
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontMicro)
-                    color: Config.textMuted
-                    wrapMode: Text.WordWrap
-                    horizontalAlignment: Text.AlignHCenter
-                    Layout.maximumWidth: 260
-                    Layout.alignment: Qt.AlignHCenter
-                }
-
-                Rectangle {
-                    implicitWidth: 140
-                    implicitHeight: 34
-                    radius: 17
-                    color: scanEmptyHover.hovered ? Qt.lighter(Config.accent, 1.1) : Config.accent
-                    Layout.alignment: Qt.AlignHCenter
+                // Empty State View
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.alignment: Qt.AlignCenter
+                    spacing: 12
+                    visible: cardRoot.hasHardware && cardRoot.isPowered && btModel.count === 0
 
                     Text {
-                        anchors.centerIn: parent
-                        text: cardRoot.isScanning ? "Scanning..." : "Scan for Devices"
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                        font.bold: true
-                        color: Config.bgBase
+                        text: "bluetooth_searching"
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 48
+                        color: Config.accent
+                        opacity: 0.5
+                        Layout.alignment: Qt.AlignHCenter
                     }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: cardRoot.execTriggerScan()
-                    }
-                    HoverHandler { id: scanEmptyHover }
-                }
-            }
-
-            // Powered Off State View
-            ColumnLayout {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                Layout.alignment: Qt.AlignCenter
-                spacing: 12
-                visible: cardRoot.hasHardware && !cardRoot.isPowered
-
-                Text {
-                    text: "bluetooth_disabled"
-                    font.family: "Material Symbols Outlined"
-                    font.pixelSize: 48
-                    color: Config.textMuted
-                    opacity: 0.5
-                    Layout.alignment: Qt.AlignHCenter
-                }
-
-                Text {
-                    text: "Bluetooth is Disabled"
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontCaption)
-                    font.bold: true
-                    color: Config.textMain
-                    Layout.alignment: Qt.AlignHCenter
-                }
-
-                Text {
-                    text: "Turn on Bluetooth to discover and connect to nearby devices."
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontMicro)
-                    color: Config.textMuted
-                    wrapMode: Text.WordWrap
-                    horizontalAlignment: Text.AlignHCenter
-                    Layout.maximumWidth: 260
-                    Layout.alignment: Qt.AlignHCenter
-                }
-
-                Rectangle {
-                    implicitWidth: 140
-                    implicitHeight: 34
-                    radius: 17
-                    color: pwrOffHover.hovered ? Qt.lighter(Config.accent, 1.1) : Config.accent
-                    Layout.alignment: Qt.AlignHCenter
 
                     Text {
-                        anchors.centerIn: parent
-                        text: "Turn On Bluetooth"
+                        text: "No Bluetooth Devices Found"
                         font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
+                        font.pixelSize: Config.size(Config.fontCaption)
                         font.bold: true
-                        color: Config.bgBase
+                        color: Config.textMain
+                        Layout.alignment: Qt.AlignHCenter
                     }
 
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: cardRoot.execTogglePower(true)
+                    Text {
+                        text: "Ensure your Bluetooth device is turned on and in pairing mode."
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        color: Config.textMuted
+                        wrapMode: Text.WordWrap
+                        horizontalAlignment: Text.AlignHCenter
+                        Layout.maximumWidth: 260
+                        Layout.alignment: Qt.AlignHCenter
                     }
-                    HoverHandler { id: pwrOffHover }
+
+                    Rectangle {
+                        implicitWidth: 140
+                        implicitHeight: 34
+                        radius: 17
+                        color: scanEmptyHover.hovered ? Qt.lighter(Config.accent, 1.1) : Config.accent
+                        Layout.alignment: Qt.AlignHCenter
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: cardRoot.isScanning ? "Scanning..." : "Scan for Devices"
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                            font.bold: true
+                            color: Config.bgBase
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: cardRoot.execTriggerScan()
+                        }
+                        HoverHandler { id: scanEmptyHover }
+                    }
+                }
+
+                // Powered Off State View
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.alignment: Qt.AlignCenter
+                    spacing: 12
+                    visible: cardRoot.hasHardware && !cardRoot.isPowered
+
+                    Text {
+                        text: "bluetooth_disabled"
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 48
+                        color: Config.textMuted
+                        opacity: 0.5
+                        Layout.alignment: Qt.AlignHCenter
+                    }
+
+                    Text {
+                        text: "Bluetooth is Disabled"
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontCaption)
+                        font.bold: true
+                        color: Config.textMain
+                        Layout.alignment: Qt.AlignHCenter
+                    }
+
+                    Text {
+                        text: "Turn on Bluetooth to discover and connect to nearby devices."
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        color: Config.textMuted
+                        wrapMode: Text.WordWrap
+                        horizontalAlignment: Text.AlignHCenter
+                        Layout.maximumWidth: 260
+                        Layout.alignment: Qt.AlignHCenter
+                    }
+
+                    Rectangle {
+                        implicitWidth: 140
+                        implicitHeight: 34
+                        radius: 17
+                        color: pwrOffHover.hovered ? Qt.lighter(Config.accent, 1.1) : Config.accent
+                        Layout.alignment: Qt.AlignHCenter
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "Turn On Bluetooth"
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                            font.bold: true
+                            color: Config.bgBase
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: cardRoot.execTogglePower(true)
+                        }
+                        HoverHandler { id: pwrOffHover }
+                    }
                 }
             }
         }
