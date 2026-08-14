@@ -225,11 +225,11 @@ Item {
             opacity: cardRoot.panelExpanded ? 1.0 : 0.0
             Behavior on opacity { NumberAnimation { duration: 180 } }
 
-            // Panel Header Bar
+            // Panel Header Bar (Fixed 44px Height)
             RowLayout {
                 Layout.fillWidth: true
-                implicitHeight: 36
-                Layout.preferredHeight: 36
+                implicitHeight: 44
+                Layout.preferredHeight: 44
                 spacing: 10
 
                 // Back Button
@@ -237,6 +237,7 @@ Item {
                     implicitWidth: 36
                     implicitHeight: 36
                     radius: 18
+                    Layout.alignment: Qt.AlignVCenter
                     color: backHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
                     Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -272,7 +273,7 @@ Item {
                             text: "BLUETOOTH"
                             color: Config.textMain
                             font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
+                            font.pixelSize: Config.size(Config.fontTitle)
                             font.bold: true
                             font.italic: true
                             elide: Text.ElideRight
