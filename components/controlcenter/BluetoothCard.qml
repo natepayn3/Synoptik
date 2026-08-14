@@ -351,8 +351,6 @@ Item {
                         font.pixelSize: 18
                         color: cardRoot.isPowered ? Config.bgBase : Config.textMuted
                     }
-                        color: cardRoot.isPowered ? Config.bgBase : Config.textMuted
-                    }
 
                     MouseArea {
                         anchors.fill: parent
