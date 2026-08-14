@@ -21,8 +21,11 @@ Rectangle {
         return leftCard
     }
 
-    width: rootRef.isHorizontal ? (leftModules.implicitWidth + 16) : 36
-    height: rootRef.isHorizontal ? 36 : (leftModules.implicitHeight + 16)
+    readonly property real maxAllowedWidth: parent ? Math.max(100, parent.width - 260) : 1920
+    readonly property real maxAllowedHeight: parent ? Math.max(100, parent.height - 260) : 1080
+
+    width: rootRef.isHorizontal ? Math.min(leftModules.implicitWidth + 16, maxAllowedWidth) : 36
+    height: rootRef.isHorizontal ? 36 : Math.min(leftModules.implicitHeight + 16, maxAllowedHeight)
     radius: Config.cornerRadius / 2
     color: Qt.rgba(255, 255, 255, 0.05)
     clip: true
@@ -95,11 +98,11 @@ Rectangle {
     GridLayout {
         id: leftModules
         anchors.left: rootRef.isHorizontal ? parent.left : undefined
-        anchors.leftMargin: rootRef.isHorizontal ? 8 : 0
+        anchors.leftMargin: rootRef.isHorizontal ? 2 : 0
         anchors.verticalCenter: rootRef.isHorizontal ? parent.verticalCenter : undefined
 
         anchors.top: !rootRef.isHorizontal ? parent.top : undefined
-        anchors.topMargin: !rootRef.isHorizontal ? 8 : 0
+        anchors.topMargin: !rootRef.isHorizontal ? 2 : 0
         anchors.horizontalCenter: !rootRef.isHorizontal ? parent.horizontalCenter : undefined
 
         columns: rootRef.isHorizontal ? 99 : 1

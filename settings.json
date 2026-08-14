@@ -42,7 +42,7 @@
   "fetchOnlineQuotes": false,
   "quoteSource": "zenquotes",
   "barFrameStyle": "island",
-  "barPosition": "right",
+  "barPosition": "top",
   "showScreenFrame": false,
   "sysFont": "Montserrat Alternates",
   "fontScaleIndex": 1,
@@ -96,7 +96,7 @@
   "leftCardCollapsed": true,
   "rightCardCollapsed": false,
   "pinnedIcons": {
-    "audio": false,
+    "audio": true,
     "cc": false,
     "network": false,
     "clipboard": false,
@@ -104,7 +104,7 @@
     "settings": false,
     "player": false,
     "launcher": false,
-    "notifications": false
+    "notifications": true
   },
   "iconOverrides": {
     "cc": "dashboard"

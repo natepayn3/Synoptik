@@ -96,6 +96,9 @@ Rectangle {
             Layout.fillHeight: true
             clip: true
 
+            readonly property real overflowDist: Math.max(0, titleTextHoriz.implicitWidth - tickerBoxHoriz.width)
+            readonly property bool needsTicker: overflowDist > 2
+
             Text {
                 id: titleTextHoriz
                 anchors.verticalCenter: parent.verticalCenter
@@ -105,19 +108,18 @@ Rectangle {
                 font.pixelSize: Config.size(Config.fontCaption)
                 font.bold: true
 
-                readonly property real overflowDist: Math.max(0, titleTextHoriz.implicitWidth - tickerBoxHoriz.width)
-                readonly property bool needsTicker: overflowDist > 2
-
                 x: 0
 
                 SequentialAnimation on x {
                     id: tickerAnimHoriz
-                    running: activeWinCard.isHoriz && titleTextHoriz.needsTicker && activeWinCard.visible
+                    running: activeWinCard.isHoriz && tickerBoxHoriz.needsTicker && activeWinCard.visible
                     loops: 1
 
+                    PauseAnimation { duration: 1000 }
+
                     NumberAnimation {
-                        to: -titleTextHoriz.overflowDist
-                        duration: Math.max(1000, titleTextHoriz.overflowDist * 40)
+                        to: -tickerBoxHoriz.overflowDist
+                        duration: Math.max(1000, tickerBoxHoriz.overflowDist * 40)
                         easing.type: Easing.Linear
                     }
                 }
@@ -162,49 +164,41 @@ Rectangle {
             Layout.fillHeight: true
             clip: true
 
-            Item {
-                id: titleTextVertWrapper
-                anchors.centerIn: parent
-                implicitWidth: titleTextVert.implicitHeight
-                implicitHeight: titleTextVert.implicitWidth
+            readonly property real overflowDist: Math.max(0, titleTextVert.implicitWidth - tickerBoxVert.height)
+            readonly property bool needsTicker: overflowDist > 2
+            property real tickerOffset: 0
 
-                readonly property real overflowDist: Math.max(0, titleTextVert.implicitWidth - tickerBoxVert.height)
-                readonly property bool needsTicker: overflowDist > 2
+            SequentialAnimation on tickerOffset {
+                id: tickerAnimVert
+                running: !activeWinCard.isHoriz && tickerBoxVert.needsTicker && activeWinCard.visible
+                loops: 1
 
-                property real tickerOffset: 0
+                PauseAnimation { duration: 1000 }
 
-                SequentialAnimation on tickerOffset {
-                    id: tickerAnimVert
-                    running: !activeWinCard.isHoriz && titleTextVertWrapper.needsTicker && activeWinCard.visible
-                    loops: 1
-
-                    NumberAnimation {
-                        to: -titleTextVertWrapper.overflowDist
-                        duration: Math.max(1000, titleTextVertWrapper.overflowDist * 40)
-                        easing.type: Easing.Linear
-                    }
+                NumberAnimation {
+                    to: -tickerBoxVert.overflowDist
+                    duration: Math.max(1000, tickerBoxVert.overflowDist * 40)
+                    easing.type: Easing.Linear
                 }
+            }
 
-                Text {
-                    id: titleTextVert
-                    anchors.centerIn: parent
-                    text: activeWinCard.winTitle
-                    color: Config.textMain
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontCaption)
-                    font.bold: true
-                    rotation: activeWinCard.textRotation
-                    transformOrigin: Item.Center
-                    width: titleTextVertWrapper.implicitHeight
+            Text {
+                id: titleTextVert
+                text: activeWinCard.winTitle
+                color: Config.textMain
+                font.family: Config.sysFont
+                font.pixelSize: Config.size(Config.fontCaption)
+                font.bold: true
 
-                    transform: Translate {
-                        y: activeWinCard.barPos === "left" ? titleTextVertWrapper.tickerOffset : -titleTextVertWrapper.tickerOffset
-                    }
+                transformOrigin: Item.TopLeft
+                rotation: 90
 
-                    onTextChanged: {
-                        titleTextVertWrapper.tickerOffset = 0
-                        tickerAnimVert.restart()
-                    }
+                x: Math.round((tickerBoxVert.width + titleTextVert.implicitHeight) / 2.0)
+                y: tickerBoxVert.needsTicker ? tickerBoxVert.tickerOffset : Math.round((tickerBoxVert.height - titleTextVert.implicitWidth) / 2.0)
+
+                onTextChanged: {
+                    tickerBoxVert.tickerOffset = 0
+                    tickerAnimVert.restart()
                 }
             }
         }

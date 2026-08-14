@@ -288,7 +288,7 @@ PanelWindow {
     readonly property bool isIsland: Config.barFrameStyle === "island"
     readonly property bool isFloatingStyle: Config.barFrameStyle === "floating" || isIsland
 
-    readonly property real islandContentWidth: (leftCard ? leftCard.width : 0) + (activeWindowCard && activeWindowCard.visible ? activeWindowCard.width : 0) + (rightCard ? rightCard.width : 0) + 32
+    readonly property real islandContentWidth: (leftCard ? leftCard.width : 0) + (activeWindowCard && activeWindowCard.visible ? activeWindowCard.width : 0) + (rightCard ? rightCard.width : 0) + 44
     readonly property real islandTargetWidth: Math.min(mainContainer.width - (root.currentMargin * 2), Math.max(200, islandContentWidth))
 
     property real animatedIslandWidth: isIsland ? islandTargetWidth : (mainContainer.width - Math.ceil(root.borderWidth))
@@ -296,7 +296,7 @@ PanelWindow {
         NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
     }
 
-    readonly property real islandContentHeight: (leftCard ? leftCard.height : 0) + (activeWindowCard && activeWindowCard.visible ? activeWindowCard.height : 0) + (rightCard ? rightCard.height : 0) + 32
+    readonly property real islandContentHeight: (leftCard ? leftCard.height : 0) + (activeWindowCard && activeWindowCard.visible ? activeWindowCard.height : 0) + (rightCard ? rightCard.height : 0) + 44
     readonly property real islandTargetHeight: Math.min(mainContainer.height - (root.currentMargin * 2), Math.max(200, islandContentHeight))
 
     property real animatedIslandHeight: isIsland ? islandTargetHeight : (mainContainer.height - Math.ceil(root.borderWidth))
@@ -731,7 +731,7 @@ PanelWindow {
                     startY: root.halfB
                     PathLine { x: root.islandBarR - root.barRadius; y: root.halfB }
                     PathArc { x: root.islandBarR; y: root.halfB + root.barRadius; radiusX: root.barRadius; radiusY: root.barRadius; direction: PathArc.Clockwise }
-                    PathLine { x: root.isRightFlush ? root.islandBarR : (root.islandBarR - root.barRadius); y: root.isRightFlush ? (root.barBottomY + root.currentHeight - root.radius) : (root.barBottomY - root.barRadius) }
+                    PathLine { x: root.islandBarR; y: root.isRightFlush ? (root.barBottomY + root.currentHeight - root.radius) : (root.barBottomY - root.barRadius) }
                     PathArc { x: root.isRightFlush ? root.islandBarR : (root.islandBarR - root.barRadius); y: root.isRightFlush ? (root.barBottomY + root.currentHeight - root.radius) : root.barBottomY; radiusX: root.isRightFlush ? 0 : root.barRadius; radiusY: root.isRightFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
                     PathLine { x: root.isRightFlush ? root.islandBarR : (root.pRight + root.wingW); y: root.isRightFlush ? (root.barBottomY + root.currentHeight - root.radius) : root.barBottomY }
                     PathCubic { x: root.isRightFlush ? root.islandBarR : root.pRight; y: root.isRightFlush ? (root.barBottomY + root.currentHeight - root.radius) : (root.barBottomY + root.wingH); control1X: root.isRightFlush ? root.islandBarR : (root.pRight + (root.wingW * 0.5)); control1Y: root.isRightFlush ? (root.barBottomY + root.currentHeight - root.radius) : root.barBottomY; control2X: root.isRightFlush ? root.islandBarR : root.pRight; control2Y: root.isRightFlush ? (root.barBottomY + root.currentHeight - root.radius) : (root.barBottomY + (root.wingH * 0.5)) }
@@ -764,8 +764,8 @@ PanelWindow {
                     startX: root.islandBarL
                     startY: root.isLeftFlush ? openShapeBottomFloating.barTopY : (openShapeBottomFloating.barTopY + root.barRadius)
                     PathArc { x: root.islandBarL + (root.isLeftFlush ? 0 : root.barRadius); y: openShapeBottomFloating.barTopY; radiusX: root.isLeftFlush ? 0 : root.barRadius; radiusY: root.isLeftFlush ? 0 : root.barRadius; direction: PathArc.Clockwise }
-                    PathLine { x: root.isLeftFlush ? root.halfB : (root.pLeft - root.wingW); y: openShapeBottomFloating.barTopY }
-                    PathCubic { x: root.pLeft; y: root.isLeftFlush ? openShapeBottomFloating.barTopY : (openShapeBottomFloating.barTopY - root.wingH); control1X: root.isLeftFlush ? root.halfB : (root.pLeft - (root.wingW * 0.5)); control1Y: openShapeBottomFloating.barTopY; control2X: root.pLeft; control2Y: root.isLeftFlush ? openShapeBottomFloating.barTopY : (openShapeBottomFloating.barTopY - (root.wingH * 0.5)) }
+                    PathLine { x: root.isLeftFlush ? root.islandBarL : (root.pLeft - root.wingW); y: openShapeBottomFloating.barTopY }
+                    PathCubic { x: root.pLeft; y: root.isLeftFlush ? openShapeBottomFloating.barTopY : (openShapeBottomFloating.barTopY - root.wingH); control1X: root.isLeftFlush ? root.islandBarL : (root.pLeft - (root.wingW * 0.5)); control1Y: openShapeBottomFloating.barTopY; control2X: root.pLeft; control2Y: root.isLeftFlush ? openShapeBottomFloating.barTopY : (openShapeBottomFloating.barTopY - (root.wingH * 0.5)) }
                     PathLine { x: root.pLeft; y: openShapeBottomFloating.barTopY - root.currentHeight + root.radius }
                     PathArc { x: root.pLeft + root.radius; y: openShapeBottomFloating.barTopY - root.currentHeight; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Clockwise }
                     PathLine { x: root.pRight - root.radius; y: openShapeBottomFloating.barTopY - root.currentHeight }
