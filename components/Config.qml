@@ -715,6 +715,28 @@ QtObject {
         caffeineState = nextState
     }
 
+    function startCaffeineTimer(minutes) {
+        if (!caffeineHasHypridle) return
+        if (minutes <= 0) {
+            caffeineState = 0
+            caffeineTimerEndTime = 0
+            setHypridleRunning(true)
+            return
+        }
+        let roundedNow = Math.floor(Date.now() / 1000) * 1000
+        caffeineTimerEndTime = roundedNow + (minutes * 60 * 1000)
+        caffeineState = 2
+        updateCaffeineCountdown()
+        setHypridleRunning(false)
+    }
+
+    function setIndefiniteCaffeine() {
+        if (!caffeineHasHypridle) return
+        caffeineState = 1
+        caffeineTimerEndTime = 0
+        setHypridleRunning(false)
+    }
+
     // --- ICON MAP & OVERRIDES ---
     property var iconOverrides: ({})
 

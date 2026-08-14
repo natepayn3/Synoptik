@@ -99,7 +99,7 @@ Item {
                 }
             }
 
-            z: (staticToggleRow && ((wifiCard && (wifiCard.panelExpanded || wifiCard.shouldExpand)) || (btCard && (btCard.panelExpanded || btCard.shouldExpand)))) ? 1000 : 1
+            z: ((wifiCard && (wifiCard.panelExpanded || wifiCard.shouldExpand)) || (btCard && (btCard.panelExpanded || btCard.shouldExpand)) || (caffeineCard && caffeineCard.panelExpanded)) ? 1000 : 1
 
             ColumnLayout {
                 id: topHeaderLayout
@@ -139,13 +139,17 @@ Item {
                 }
 
                 RowLayout {
+                    id: topHeaderRow
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignTop
                     spacing: root.cardMargin / 2
+                    z: (caffeineCard && caffeineCard.panelExpanded) ? 1000 : 1
 
                     CaffeineCard {
+                        id: caffeineCard
                         Layout.fillWidth: true
                         Layout.preferredWidth: 1
+                        controlCenterPanel: root
                     }
 
                     DndCard {
