@@ -86,7 +86,7 @@ Rectangle {
 
         Repeater {
             id: repeater
-            model: Config.rightCardOrder || ["audio", "sys", "batt", "cc", "network", "clipboard", "clock"]
+            model: Config.rightCardOrder || ["audio", "batt", "network", "clipboard", "clock"]
 
             delegate: Loader {
                 readonly property string itemKey: modelData

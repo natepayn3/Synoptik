@@ -33,6 +33,8 @@ Item {
     property string expandedSsid: ""
     property string connectingSsid: ""
     property string disconnectingSsid: ""
+    property string errorSsid: ""
+    property string connectionError: ""
     property var knownNetworks: ({})
 
     // Bind directly to global shell state to eliminate loading latency & jumps
@@ -179,6 +181,8 @@ Item {
                         expandedSsid: root.expandedSsid
                         connectingSsid: root.connectingSsid
                         disconnectingSsid: root.disconnectingSsid
+                        errorSsid: root.errorSsid
+                        connectionError: root.connectionError
                         knownNetworks: root.knownNetworks
                         wifiModel: wifiModel
                         onTogglePower: power => root.toggleWifiPower(power)
@@ -201,27 +205,10 @@ Item {
             }
         }
 
-        SlidersCard {
-            id: slidersCard
-            
-            // Brightness Bindings
-            currentBrightness: root.currentBrightness
-            hasBacklight: root.hasBacklight
-            onBrightnessChanged: pct => setBrightnessProc.setVal(pct)
-
-            // Volume Bindings
-            currentVolume: root.currentVolume
-            isAudioMuted: root.isAudioMuted
-            onIsUserDraggingVolChanged: {
-                root.isUserDraggingVol = slidersCard.isUserDraggingVol
-                if (typeof shellRoot !== "undefined") shellRoot.isUserSettingVolume = slidersCard.isUserDraggingVol
-            }
-            onVolumeChanged: pct => {
-                root.isSettingVolume = true
-                if (typeof shellRoot !== "undefined") shellRoot.isUserSettingVolume = true
-                root.currentVolume = pct
-                setVolumeProc.setVal(pct)
-            }
+        SystemMonitorCard {
+            id: sysMonitorCard
+            controlCenterPanel: root
+            z: panelExpanded ? 1000 : 1
         }
 
         MediaCard {
@@ -425,32 +412,92 @@ Item {
         id: forgetWifiProc
         running: false
         function forget(ssid) {
-            command = ["nmcli", "connection", "delete", "id", ssid]
+            root.errorSsid = ""
+            root.connectionError = ""
+            let safeSsid = ssid.replace(/'/g, "'\"'\"'")
+            command = ["fish", "-c", `
+                set uuids (nmcli -t -f UUID,TYPE,NAME connection show | awk -F: -v target='${safeSsid}' '$2 ~ /802-11-wireless|wifi/ && $3 == target {print $1}')
+                for u in $uuids
+                    nmcli connection delete uuid "$u"
+                end
+            `]
             running = true
         }
-        onExited: fetchWifiStatusProc.running = true
+        onExited: {
+            root.errorSsid = ""
+            root.connectionError = ""
+            fetchWifiStatusProc.running = false
+            fetchWifiStatusProc.running = true
+        }
+    }
+
+    Process {
+        id: cleanupWifiProc
+        running: false
+        onExited: {
+            fetchWifiStatusProc.running = false
+            fetchWifiStatusProc.running = true
+        }
     }
 
     Process {
         id: connectWifiProc
         running: false
-        function connectTo(ssidTarget, password, isKnown) {
-            root.connectingSsid = ssidTarget
-            let safeSsid = ssidTarget.replace(/'/g, "'\\''")
-            let safePass = password ? password.replace(/'/g, "'\\''") : ""
+        property string activeTargetSsid: ""
 
-            if (isKnown) {
-                command = ["fish", "-c", `nmcli connection up id '${safeSsid}'`]
-            } else if (!password || password.trim() === "") {
-                command = ["fish", "-c", `nmcli dev wifi connect '${safeSsid}'`]
+        stdout: StdioCollector { id: connectStdout }
+        stderr: StdioCollector { id: connectStderr }
+
+        function connectTo(ssidTarget, password, isKnown) {
+            activeTargetSsid = ssidTarget
+            root.connectingSsid = ssidTarget
+            root.errorSsid = ""
+            root.connectionError = ""
+
+            let safeSsid = ssidTarget.replace(/'/g, "'\"'\"'")
+            let cmd = ""
+            if (password && password.trim() !== "") {
+                let safePass = password.replace(/'/g, "'\"'\"'")
+                cmd = `nmcli dev wifi connect '${safeSsid}' password '${safePass}'`
+            } else if (isKnown) {
+                cmd = `nmcli connection up id '${safeSsid}'`
             } else {
-                command = ["fish", "-c", `nmcli dev wifi connect '${safeSsid}' password '${safePass}'`]
+                cmd = `nmcli dev wifi connect '${safeSsid}'`
             }
+            command = ["fish", "-c", cmd]
+            running = false
             running = true
         }
-        onExited: {
+
+        onExited: (exitCode) => {
+            let failedSsid = activeTargetSsid
             root.connectingSsid = ""
-            fetchWifiStatusProc.running = true
+
+            if (exitCode !== 0 && failedSsid !== "") {
+                root.errorSsid = failedSsid
+                root.expandedSsid = failedSsid
+                let fullErr = (connectStdout.text + "\n" + connectStderr.text).trim().toLowerCase()
+                if (fullErr.includes("not found") || fullErr.includes("no network")) {
+                    root.connectionError = "Network Not Found"
+                } else {
+                    root.connectionError = "Invalid Password"
+                }
+
+                let safeSsid = failedSsid.replace(/'/g, "'\"'\"'")
+                cleanupWifiProc.command = ["fish", "-c", `
+                    set uuids (nmcli -t -f UUID,TYPE,NAME connection show | awk -F: -v target='${safeSsid}' '$2 ~ /802-11-wireless|wifi/ && $3 == target {print $1}')
+                    for u in $uuids
+                        nmcli connection delete uuid "$u" 2>/dev/null
+                    end
+                `]
+                cleanupWifiProc.running = false
+                cleanupWifiProc.running = true
+            } else {
+                root.errorSsid = ""
+                root.connectionError = ""
+                fetchWifiStatusProc.running = false
+                fetchWifiStatusProc.running = true
+            }
         }
     }
 

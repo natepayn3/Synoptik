@@ -321,7 +321,7 @@ PanelWindow {
         function onShowClipboardChanged() { if (Config.showClipboard) { closeOthers("clipboard"); setPopoutPos(rightCard ? rightCard.getButton("clipboard") : null); } updateActiveView() }
         function onShowScreenRecorderChanged() { if (Config.showScreenRecorder) { closeOthers("screenRecorder"); setPopoutPos(leftCard ? leftCard.getButton("recorder") : null); } updateActiveView() }
         function onShowMirrorChanged() { if (Config.showMirror) { closeOthers("mirror"); setPopoutPos(leftCard ? leftCard.getButton("mirror") : null); } updateActiveView() }
-        function onShowControlCenterChanged() { if (Config.showControlCenter) { closeOthers("controlCenter"); setPopoutPos(rightCard ? rightCard.getButton("cc") : null); } updateActiveView() }
+        function onShowControlCenterChanged() { if (Config.showControlCenter) { closeOthers("controlCenter"); setPopoutPos(centerGroupContainer ? centerGroupContainer.getButton("cc") : (rightCard ? rightCard.getButton("cc") : null)); } updateActiveView() }
     }
 
     Item {

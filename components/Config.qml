@@ -807,7 +807,7 @@ QtObject {
 
     // --- DYNAMIC MODULE ORDERING ---
     property var leftCardOrder: ["power", "recorder", "mirror", "screenshot", "notifications", "player", "wallpaper", "settings", "launcher"]
-    property var rightCardOrder: ["audio", "sys", "batt", "cc", "network", "clipboard", "clock"]
+    property var rightCardOrder: ["audio", "batt", "network", "clipboard", "clock"]
 
     function moveModule(cardKey, iconId, direction) {
         let list = (cardKey === "left" ? leftCardOrder : rightCardOrder).slice()

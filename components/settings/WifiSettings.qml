@@ -156,7 +156,7 @@ ColumnLayout {
 
                         // Password Panel
                         RowLayout {
-                            visible: !connected && isSecure && !isSaved
+                            visible: !connected && isSecure && (!isSaved || hasError)
                             Layout.fillWidth: true
 
                             Rectangle {
@@ -172,9 +172,16 @@ ColumnLayout {
                                     echoMode: TextInput.Password
                                     enabled: !isConnecting && !isDisconnecting
                                     selectByMouse: true
-                                    onAccepted: root.connectWifi(ssid, passInput.text)
+                                    onAccepted: {
+                                        if (isSecure && passInput.text.trim() === "" && (!isSaved || hasError)) {
+                                            root.errorSsid = ssid
+                                            root.connectionError = "Password Required"
+                                            return
+                                        }
+                                        root.connectWifi(ssid, passInput.text)
+                                    }
                                     onTextChanged: {
-                                        if (hasError) {
+                                        if (hasError && passInput.activeFocus) {
                                             root.errorSsid = ""
                                             root.connectionError = ""
                                         }
@@ -195,7 +202,14 @@ ColumnLayout {
 
                                 TapHandler {
                                     enabled: !isConnecting && !isDisconnecting
-                                    onTapped: root.connectWifi(ssid, passInput.text)
+                                    onTapped: {
+                                        if (isSecure && passInput.text.trim() === "" && (!isSaved || hasError)) {
+                                            root.errorSsid = ssid
+                                            root.connectionError = "Password Required"
+                                            return
+                                        }
+                                        root.connectWifi(ssid, passInput.text)
+                                    }
                                 }
                                 HoverHandler { id: joinHover; cursorShape: Qt.PointingHandCursor }
                             }
@@ -203,7 +217,7 @@ ColumnLayout {
 
                         // Controls Panel
                         RowLayout {
-                            visible: connected || isSaved || !isSecure
+                            visible: connected || (isSaved && !hasError) || !isSecure
                             Layout.fillWidth: true
                             spacing: 6
 
@@ -384,6 +398,7 @@ ColumnLayout {
     
     function connectWifi(ssid, password) {
         if (!root.hasAdapter || connProc.running || discProc.running) return
+        connProc.activeTargetSsid = ssid
         root.connectingSsid = ssid
         root.errorSsid = ""
         root.connectionError = ""
@@ -468,25 +483,50 @@ ColumnLayout {
     }
 
     Process {
-        id: connProc
+        id: connCleanupProc
         running: false
-        stderr: StdioCollector {
-            onStreamFinished: {
-                let errText = this.text.trim()
-                if (errText.length > 0 && connProc.exitCode !== 0) {
-                    root.errorSsid = root.connectingSsid
-                    if (errText.includes("Secret") || errText.includes("passphrase") || errText.includes("authentication")) {
-                        root.connectionError = "Invalid Password"
-                    } else {
-                        root.connectionError = "Connection Failed"
-                    }
-                }
-            }
-        }
         onExited: {
-            root.connectingSsid = ""
             fetchWifiStatusProc.running = false
             fetchWifiStatusProc.running = true
+        }
+    }
+
+    Process {
+        id: connProc
+        running: false
+        property string activeTargetSsid: ""
+
+        stdout: StdioCollector { id: connStdout }
+        stderr: StdioCollector { id: connStderr }
+
+        onExited: (exitCode) => {
+            let failedSsid = activeTargetSsid
+            root.connectingSsid = ""
+
+            if (exitCode !== 0 && failedSsid !== "") {
+                root.errorSsid = failedSsid
+                root.expandedSsid = failedSsid
+                let fullErr = (connStdout.text + "\n" + connStderr.text).trim().toLowerCase()
+                if (fullErr.includes("not found") || fullErr.includes("no network")) {
+                    root.connectionError = "Network Not Found"
+                } else {
+                    root.connectionError = "Invalid Password"
+                }
+
+                let safeSsid = failedSsid.replace(/'/g, "'\"'\"'")
+                connCleanupProc.command = ["fish", "-c", `
+                    set uuids (nmcli -t -f UUID,TYPE,NAME connection show | awk -F: -v target='${safeSsid}' '$2 ~ /802-11-wireless|wifi/ && $3 == target {print $1}')
+                    for u in $uuids
+                        nmcli connection delete uuid "$u" 2>/dev/null
+                    end
+                `]
+                connCleanupProc.running = true
+            } else {
+                root.errorSsid = ""
+                root.connectionError = ""
+                fetchWifiStatusProc.running = false
+                fetchWifiStatusProc.running = true
+            }
         }
     }
 }

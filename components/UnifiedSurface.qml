@@ -357,7 +357,7 @@ PanelWindow {
             case "systemMonitor":  btn = rightCard ? rightCard.getButton("sys") : null; break
             case "battery":        btn = rightCard ? rightCard.getButton("batt") : null; break
             case "clipboard":      btn = rightCard ? rightCard.getButton("clipboard") : null; break
-            case "controlCenter":  btn = rightCard ? rightCard.getButton("cc") : null; break
+            case "controlCenter":  btn = centerGroupContainer ? centerGroupContainer.getButton("cc") : (rightCard ? rightCard.getButton("cc") : null); break
         }
 
         // Snap popout offset to the active button position or anchor mode
@@ -527,7 +527,7 @@ PanelWindow {
                 mirrorReopenTimer.restart()
             }
         }
-        function onShowControlCenterChanged() { if (Config.showControlCenter) { closeOthers("controlCenter"); let btn = rightCard ? rightCard.getButton("cc") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowControlCenterChanged() { if (Config.showControlCenter) { closeOthers("controlCenter"); let btn = centerGroupContainer ? centerGroupContainer.getButton("cc") : (rightCard ? rightCard.getButton("cc") : null); if (btn) setPopoutPos(btn); } updateActiveView() }
     }
 
     Item {
