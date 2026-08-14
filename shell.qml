@@ -481,7 +481,6 @@ ShellRoot {
     Component { id: notificationsComp; Notifications {} }
     Component { id: audioComp; Audio {} }
     Component { id: networkComp; Network {} }
-    Component { id: systemMonitorComp; SystemMonitor {} }
     Component { id: batteryComp; Battery {} }
     Component { id: clipboardComp; Clipboard {} }
     Component { id: screenRecorderComp; ScreenRecorder {} }

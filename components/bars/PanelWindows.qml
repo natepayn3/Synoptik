@@ -316,7 +316,6 @@ PanelWindow {
         function onShowNotificationsChanged() { if (Config.showNotifications) { closeOthers("notifications"); setPopoutPos(leftCard ? leftCard.getButton("notifications") : null); } updateActiveView() }
         function onShowAudioChanged() { if (Config.showAudio) { closeOthers("audio"); setPopoutPos(rightCard ? rightCard.getButton("audio") : null); } updateActiveView() }
         function onShowNetworkChanged() { if (Config.showNetwork) { closeOthers("network"); setPopoutPos(rightCard ? rightCard.getButton("network") : null); } updateActiveView() }
-        function onShowSystemMonitorChanged() { if (Config.showSystemMonitor) { closeOthers("systemMonitor"); setPopoutPos(rightCard ? rightCard.getButton("sys") : null); } updateActiveView() }
         function onShowBatteryChanged() { if (Config.showBattery) { closeOthers("battery"); setPopoutPos(rightCard ? rightCard.getButton("batt") : null); } updateActiveView() }
         function onShowClipboardChanged() { if (Config.showClipboard) { closeOthers("clipboard"); setPopoutPos(rightCard ? rightCard.getButton("clipboard") : null); } updateActiveView() }
         function onShowScreenRecorderChanged() { if (Config.showScreenRecorder) { closeOthers("screenRecorder"); setPopoutPos(leftCard ? leftCard.getButton("recorder") : null); } updateActiveView() }

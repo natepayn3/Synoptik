@@ -526,7 +526,6 @@ QtObject {
     property bool showNotificationOsd: false
     property bool showControlCenter: false
     property bool showBattery: false
-    property bool showSystemMonitor: false
     property bool showPower: false
     property bool showClipboard: false
     property bool showScreenRecorder: false

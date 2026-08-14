@@ -354,7 +354,6 @@ PanelWindow {
             case "calendar":       btn = rightCard ? rightCard.getButton("clock") : null; break
             case "audio":          btn = rightCard ? rightCard.getButton("audio") : null; break
             case "network":        btn = rightCard ? rightCard.getButton("network") : null; break
-            case "systemMonitor":  btn = rightCard ? rightCard.getButton("sys") : null; break
             case "battery":        btn = rightCard ? rightCard.getButton("batt") : null; break
             case "clipboard":      btn = rightCard ? rightCard.getButton("clipboard") : null; break
             case "controlCenter":  btn = centerGroupContainer ? centerGroupContainer.getButton("cc") : (rightCard ? rightCard.getButton("cc") : null); break
@@ -508,7 +507,6 @@ PanelWindow {
         function onShowNotificationsChanged() { if (Config.showNotifications) { closeOthers("notifications"); let btn = leftCard ? leftCard.getButton("notifications") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowAudioChanged() { if (Config.showAudio) { closeOthers("audio"); let btn = rightCard ? rightCard.getButton("audio") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowNetworkChanged() { if (Config.showNetwork) { closeOthers("network"); let btn = rightCard ? rightCard.getButton("network") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
-        function onShowSystemMonitorChanged() { if (Config.showSystemMonitor) { closeOthers("systemMonitor"); let btn = rightCard ? rightCard.getButton("sys") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowBatteryChanged() { if (Config.showBattery) { closeOthers("battery"); let btn = rightCard ? rightCard.getButton("batt") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowClipboardChanged() { if (Config.showClipboard) { closeOthers("clipboard"); let btn = rightCard ? rightCard.getButton("clipboard") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowScreenRecorderChanged() { if (Config.showScreenRecorder) { closeOthers("screenRecorder"); let btn = leftCard ? leftCard.getButton("recorder") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
