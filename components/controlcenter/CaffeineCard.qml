@@ -95,6 +95,14 @@ Item {
             enabled: !cardRoot.panelExpanded
         }
 
+        // Shield overlay: Eat all click and mouse events when panel is expanded so they never leak to items underneath
+        MouseArea {
+            anchors.fill: parent
+            enabled: cardRoot.panelExpanded
+            preventStealing: true
+            onClicked: {}
+        }
+
         // --- 1. COLLAPSED CARD HEADER VIEW ---
         Item {
             id: collapsedView
