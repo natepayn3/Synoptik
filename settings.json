@@ -98,7 +98,9 @@
     "clipboard": false,
     "clock": false
   },
-  "iconOverrides": {},
+  "iconOverrides": {
+    "cc": "dashboard"
+  },
   "surfaceRadius": 20,
   "borderThickness": 3,
   "cardMargin": 24,

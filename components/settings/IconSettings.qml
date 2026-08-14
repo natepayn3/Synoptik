@@ -115,7 +115,7 @@ ColumnLayout {
                         spacing: 4
 
                         Repeater {
-                            model: Config.leftCardOrder || ["power", "recorder", "screenshot", "notifications", "wallpaper", "settings", "launcher"]
+                            model: Config.leftCardOrder || ["power", "recorder", "mirror", "screenshot", "notifications", "player", "wallpaper", "settings", "launcher"]
 
                             delegate: Rectangle {
                                 implicitWidth: 26; implicitHeight: 26; radius: 6
@@ -151,7 +151,7 @@ ColumnLayout {
                 spacing: 8
 
                 Text {
-                    text: "Workspace Icons:"
+                    text: "Center / Workspace Icons:"
                     color: Config.textMuted
                     font.family: Config.sysFont
                     font.pixelSize: Config.size(Config.fontCaption)
@@ -173,9 +173,9 @@ ColumnLayout {
 
                         Repeater {
                             model: [
-                                { id: "player", label: "Media Player" },
-                                { id: "overview", label: "Overview" },
+                                { id: "cc", label: "Control Center" },
                                 { id: "apps", label: "Apps View" },
+                                { id: "overview", label: "Overview" },
                                 { id: "magic", label: "Magic" },
                                 { id: "magic_active", label: "Magic (Active)" },
                                 { id: "music", label: "Music" },
@@ -240,7 +240,7 @@ ColumnLayout {
                         spacing: 4
 
                         Repeater {
-                            model: Config.rightCardOrder || ["audio", "sys", "batt", "cc", "network", "clipboard", "clock"]
+                            model: Config.rightCardOrder || ["audio", "batt", "network", "clipboard", "clock"]
 
                             delegate: Rectangle {
                                 implicitWidth: 26; implicitHeight: 26; radius: 6

@@ -211,6 +211,17 @@ Item {
             z: panelExpanded ? 1000 : 1
         }
 
+        SlidersCard {
+            id: slidersCardComponent
+            currentBrightness: root.currentBrightness
+            hasBacklight: root.hasBacklight
+            currentVolume: root.currentVolume
+            isAudioMuted: root.isAudioMuted
+            onBrightnessChanged: pct => root.setBrightness(pct)
+            onVolumeChanged: pct => root.setVolume(pct)
+            onIsUserDraggingVolChanged: root.isUserDraggingVol = isUserDraggingVol
+        }
+
         MediaCard {
             id: mediaCardComponent
             onSendCommand: cmd => {
@@ -360,6 +371,18 @@ Item {
             root.isSettingVolume = false
             if (typeof shellRoot !== "undefined") shellRoot.isUserSettingVolume = false
         }
+    }
+
+    function setBrightness(pct) {
+        root.currentBrightness = pct
+        setBrightnessProc.setVal(pct)
+    }
+
+    function setVolume(pct) {
+        root.isSettingVolume = true
+        if (typeof shellRoot !== "undefined") shellRoot.isUserSettingVolume = true
+        root.currentVolume = pct
+        setVolumeProc.setVal(pct)
     }
 
     function triggerWifiScan() {
