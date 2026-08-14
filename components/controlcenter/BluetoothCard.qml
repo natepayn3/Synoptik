@@ -228,6 +228,8 @@ Item {
             // Panel Header Bar
             RowLayout {
                 Layout.fillWidth: true
+                implicitHeight: 36
+                Layout.preferredHeight: 36
                 spacing: 10
 
                 // Back Button
@@ -265,6 +267,17 @@ Item {
                         implicitHeight: btExpTitleText.implicitHeight
                         Layout.fillWidth: true
 
+                        Text {
+                            id: btExpTitleText
+                            text: "BLUETOOTH"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontTitle)
+                            font.bold: true
+                            font.italic: true
+                            elide: Text.ElideRight
+                        }
+
                         Glow {
                             anchors.fill: btExpTitleText
                             source: btExpTitleText
@@ -274,18 +287,6 @@ Item {
                             spread: 0.2
                             transparentBorder: true
                             visible: Config.clockShowGlow
-                        }
-
-                        Text {
-                            id: btExpTitleText
-                            anchors.fill: parent
-                            text: "BLUETOOTH"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontTitle)
-                            font.bold: true
-                            font.italic: true
-                            elide: Text.ElideRight
                         }
                     }
 
@@ -301,9 +302,9 @@ Item {
 
                 // Refresh / Scan Button
                 Rectangle {
-                    implicitWidth: 40
-                    implicitHeight: 40
-                    radius: 20
+                    implicitWidth: 36
+                    implicitHeight: 36
+                    radius: 18
                     visible: cardRoot.isPowered && cardRoot.hasHardware
                     color: scanHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
                     Behavior on color { ColorAnimation { duration: 150 } }
@@ -313,7 +314,7 @@ Item {
                         anchors.centerIn: parent
                         text: "refresh"
                         font.family: "Material Symbols Outlined"
-                        font.pixelSize: 22
+                        font.pixelSize: 18
                         color: scanHover.hovered ? Config.textMain : Config.textMuted
 
                         RotationAnimator {
@@ -334,9 +335,9 @@ Item {
 
                 // Power Toggle Switch Button
                 Rectangle {
-                    implicitWidth: 40
-                    implicitHeight: 40
-                    radius: 20
+                    implicitWidth: 36
+                    implicitHeight: 36
+                    radius: 18
                     visible: cardRoot.hasHardware
                     color: cardRoot.isPowered 
                         ? (pwrHover.hovered ? Qt.lighter(Config.accent, 1.1) : Config.accent)
@@ -347,7 +348,9 @@ Item {
                         anchors.centerIn: parent
                         text: cardRoot.isPowered ? "bluetooth" : "bluetooth_disabled"
                         font.family: "Material Symbols Outlined"
-                        font.pixelSize: 22
+                        font.pixelSize: 18
+                        color: cardRoot.isPowered ? Config.bgBase : Config.textMuted
+                    }
                         color: cardRoot.isPowered ? Config.bgBase : Config.textMuted
                     }
 

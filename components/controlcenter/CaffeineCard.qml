@@ -224,7 +224,7 @@ Item {
             id: expandedView
             anchors.fill: parent
             anchors.margins: 14
-            spacing: 14
+            spacing: 12
             visible: opacity > 0
             opacity: cardRoot.panelExpanded ? 1.0 : 0.0
             Behavior on opacity { NumberAnimation { duration: 180 } }
@@ -232,6 +232,8 @@ Item {
             // Header Bar
             RowLayout {
                 Layout.fillWidth: true
+                implicitHeight: 36
+                Layout.preferredHeight: 36
                 spacing: 10
 
                 Rectangle {
@@ -268,6 +270,17 @@ Item {
                         implicitHeight: caffExpTitleText.implicitHeight
                         Layout.fillWidth: true
 
+                        Text {
+                            id: caffExpTitleText
+                            text: "CAFFEINE"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontTitle)
+                            font.bold: true
+                            font.italic: true
+                            elide: Text.ElideRight
+                        }
+
                         Glow {
                             anchors.fill: caffExpTitleText
                             source: caffExpTitleText
@@ -277,18 +290,6 @@ Item {
                             spread: 0.2
                             transparentBorder: true
                             visible: Config.clockShowGlow
-                        }
-
-                        Text {
-                            id: caffExpTitleText
-                            anchors.fill: parent
-                            text: "CAFFEINE"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontTitle)
-                            font.bold: true
-                            font.italic: true
-                            elide: Text.ElideRight
                         }
                     }
 

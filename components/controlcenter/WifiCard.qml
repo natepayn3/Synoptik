@@ -274,6 +274,8 @@ Item {
             // Panel Header Bar
             RowLayout {
                 Layout.fillWidth: true
+                implicitHeight: 36
+                Layout.preferredHeight: 36
                 spacing: 10
 
                 // Back Button
@@ -311,6 +313,17 @@ Item {
                         implicitHeight: wifiExpTitleText.implicitHeight
                         Layout.fillWidth: true
 
+                        Text {
+                            id: wifiExpTitleText
+                            text: "WIFI"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontTitle)
+                            font.bold: true
+                            font.italic: true
+                            elide: Text.ElideRight
+                        }
+
                         Glow {
                             anchors.fill: wifiExpTitleText
                             source: wifiExpTitleText
@@ -320,18 +333,6 @@ Item {
                             spread: 0.2
                             transparentBorder: true
                             visible: Config.clockShowGlow
-                        }
-
-                        Text {
-                            id: wifiExpTitleText
-                            anchors.fill: parent
-                            text: "WIFI"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontTitle)
-                            font.bold: true
-                            font.italic: true
-                            elide: Text.ElideRight
                         }
                     }
 
