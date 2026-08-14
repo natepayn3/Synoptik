@@ -192,7 +192,7 @@ Item {
                             anchors.centerIn: parent
                             text: !cardRoot.hasAdapter ? "signal_wifi_off" : ((cardRoot.wifiPowered || cardRoot.isTogglingPower) ? "wifi" : "signal_wifi_off")
                             font.family: "Material Symbols Outlined"
-                            font.pixelSize: 22
+                            font.pixelSize: 24
                             color: (cardRoot.wifiPowered || cardRoot.isTogglingPower) && cardRoot.hasAdapter ? Config.bgBase : Config.textMuted
                         }
 
@@ -213,7 +213,7 @@ Item {
                         Text {
                             text: "Wifi"
                             font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
+                            font.pixelSize: Config.size(Config.fontBody)
                             font.bold: true
                             color: Config.textMain
                             elide: Text.ElideRight
@@ -229,7 +229,7 @@ Item {
                                         ? "Off" 
                                         : (cardRoot.displaySsid !== "" ? cardRoot.displaySsid : "Disconnected")))
                             font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontMicro)
+                            font.pixelSize: Config.size(Config.fontCaption)
                             font.bold: cardRoot.hasAdapter && (cardRoot.isTogglingPower || (cardRoot.wifiPowered && cardRoot.displaySsid !== ""))
                             color: cardRoot.hasAdapter && (cardRoot.isTogglingPower || (cardRoot.wifiPowered && cardRoot.displaySsid !== "")) ? Config.accent : Config.textMuted
                             elide: Text.ElideRight
@@ -241,7 +241,7 @@ Item {
                     Text {
                         text: "chevron_right"
                         font.family: "Material Symbols Outlined"
-                        font.pixelSize: 20
+                        font.pixelSize: 22
                         color: cardHover.hovered ? Config.textMain : Config.textMuted
                         opacity: cardRoot.hasAdapter ? 0.7 : 0.2
                         Behavior on color { ColorAnimation { duration: 150 } }
@@ -277,9 +277,9 @@ Item {
 
                 // Back Button
                 Rectangle {
-                    implicitWidth: 36
-                    implicitHeight: 36
-                    radius: 18
+                    implicitWidth: 40
+                    implicitHeight: 40
+                    radius: 20
                     color: backHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
                     Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -287,7 +287,7 @@ Item {
                         anchors.centerIn: parent
                         text: "arrow_back"
                         font.family: "Material Symbols Outlined"
-                        font.pixelSize: 20
+                        font.pixelSize: 22
                         color: Config.textMain
                     }
 
@@ -307,7 +307,7 @@ Item {
                     Text {
                         text: "WIFI"
                         font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontCaption)
+                        font.pixelSize: Config.size(Config.fontTitle)
                         font.bold: true
                         color: Config.textMain
                         elide: Text.ElideRight
@@ -323,7 +323,7 @@ Item {
                                     ? "Wi-Fi Disabled" 
                                     : (cardRoot.displaySsid !== "" ? cardRoot.displaySsid : "Disconnected")))
                         font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
+                        font.pixelSize: Config.size(Config.fontCaption)
                         color: cardRoot.hasAdapter && (cardRoot.isTogglingPower || (cardRoot.wifiPowered && cardRoot.displaySsid !== "")) ? Config.accent : Config.textMuted
                         elide: Text.ElideRight
                         Layout.fillWidth: true
@@ -332,9 +332,9 @@ Item {
 
                 // Refresh / Scan Button
                 Rectangle {
-                    implicitWidth: 36
-                    implicitHeight: 36
-                    radius: 18
+                    implicitWidth: 40
+                    implicitHeight: 40
+                    radius: 20
                     visible: cardRoot.wifiPowered && cardRoot.hasAdapter
                     color: scanHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
                     Behavior on color { ColorAnimation { duration: 150 } }
@@ -344,7 +344,7 @@ Item {
                         anchors.centerIn: parent
                         text: "refresh"
                         font.family: "Material Symbols Outlined"
-                        font.pixelSize: 18
+                        font.pixelSize: 22
                         color: scanHover.hovered ? Config.textMain : Config.textMuted
 
                         RotationAnimator {
@@ -371,9 +371,9 @@ Item {
 
                 // Power Toggle Switch Button
                 Rectangle {
-                    implicitWidth: 36
-                    implicitHeight: 36
-                    radius: 18
+                    implicitWidth: 40
+                    implicitHeight: 40
+                    radius: 20
                     visible: cardRoot.hasAdapter
                     color: (cardRoot.wifiPowered || cardRoot.isTogglingPower) 
                         ? (pwrHover.hovered ? Qt.lighter(Config.accent, 1.1) : Config.accent)
@@ -384,7 +384,7 @@ Item {
                         anchors.centerIn: parent
                         text: (cardRoot.wifiPowered || cardRoot.isTogglingPower) ? "wifi" : "signal_wifi_off"
                         font.family: "Material Symbols Outlined"
-                        font.pixelSize: 18
+                        font.pixelSize: 22
                         color: (cardRoot.wifiPowered || cardRoot.isTogglingPower) ? Config.bgBase : Config.textMuted
                     }
 

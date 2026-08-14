@@ -161,7 +161,7 @@ Item {
                             anchors.centerIn: parent
                             text: !cardRoot.hasHardware ? "bluetooth_disabled" : (cardRoot.isPowered ? "bluetooth" : "bluetooth_disabled")
                             font.family: "Material Symbols Outlined"
-                            font.pixelSize: 22
+                            font.pixelSize: 24
                             color: cardRoot.isPowered && cardRoot.hasHardware ? Config.bgBase : Config.textMuted
                         }
 
@@ -184,7 +184,7 @@ Item {
                         Text {
                             text: "Bluetooth"
                             font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
+                            font.pixelSize: Config.size(Config.fontBody)
                             font.bold: true
                             color: Config.textMain
                             elide: Text.ElideRight
@@ -194,7 +194,7 @@ Item {
                         Text {
                             text: !cardRoot.hasHardware ? "No Controller" : (!cardRoot.isPowered ? "Off" : (cardRoot.connectedDeviceName !== "" ? cardRoot.connectedDeviceName : "On"))
                             font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontMicro)
+                            font.pixelSize: Config.size(Config.fontCaption)
                             font.bold: cardRoot.connectedDeviceName !== "" && cardRoot.hasHardware
                             color: cardRoot.connectedDeviceName !== "" && cardRoot.hasHardware ? Config.accent : Config.textMuted
                             elide: Text.ElideRight
@@ -206,14 +206,14 @@ Item {
                     Text {
                         text: "chevron_right"
                         font.family: "Material Symbols Outlined"
-                        font.pixelSize: 20
+                        font.pixelSize: 22
                         color: cardHover.hovered ? Config.textMain : Config.textMuted
                         opacity: cardRoot.hasHardware ? 0.7 : 0.2
                         Behavior on color { ColorAnimation { duration: 150 } }
                     }
                 }
 
-                // Click handler for the rest of the card (expands to fill entire panel)
+                // Click handler for the rest of the card (expands to fill panel)
                 MouseArea {
                     anchors.fill: parent
                     anchors.leftMargin: 52 // Exclude icon button
@@ -242,9 +242,9 @@ Item {
 
                 // Back Button
                 Rectangle {
-                    implicitWidth: 36
-                    implicitHeight: 36
-                    radius: 18
+                    implicitWidth: 40
+                    implicitHeight: 40
+                    radius: 20
                     color: backHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
                     Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -252,7 +252,7 @@ Item {
                         anchors.centerIn: parent
                         text: "arrow_back"
                         font.family: "Material Symbols Outlined"
-                        font.pixelSize: 20
+                        font.pixelSize: 22
                         color: Config.textMain
                     }
 
@@ -272,7 +272,7 @@ Item {
                     Text {
                         text: "BLUETOOTH"
                         font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontCaption)
+                        font.pixelSize: Config.size(Config.fontTitle)
                         font.bold: true
                         color: Config.textMain
                         elide: Text.ElideRight
@@ -282,7 +282,7 @@ Item {
                     Text {
                         text: !cardRoot.hasHardware ? "No Controller Available" : (cardRoot.connectedDeviceName !== "" ? cardRoot.connectedDeviceName : (cardRoot.isPowered ? "Bluetooth Enabled" : "Bluetooth Disabled"))
                         font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
+                        font.pixelSize: Config.size(Config.fontCaption)
                         color: cardRoot.connectedDeviceName !== "" ? Config.accent : Config.textMuted
                         elide: Text.ElideRight
                         Layout.fillWidth: true
@@ -291,9 +291,9 @@ Item {
 
                 // Refresh / Scan Button
                 Rectangle {
-                    implicitWidth: 36
-                    implicitHeight: 36
-                    radius: 18
+                    implicitWidth: 40
+                    implicitHeight: 40
+                    radius: 20
                     visible: cardRoot.isPowered && cardRoot.hasHardware
                     color: scanHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
                     Behavior on color { ColorAnimation { duration: 150 } }
@@ -303,7 +303,7 @@ Item {
                         anchors.centerIn: parent
                         text: "refresh"
                         font.family: "Material Symbols Outlined"
-                        font.pixelSize: 18
+                        font.pixelSize: 22
                         color: scanHover.hovered ? Config.textMain : Config.textMuted
 
                         RotationAnimator {
@@ -324,9 +324,9 @@ Item {
 
                 // Power Toggle Switch Button
                 Rectangle {
-                    implicitWidth: 36
-                    implicitHeight: 36
-                    radius: 18
+                    implicitWidth: 40
+                    implicitHeight: 40
+                    radius: 20
                     visible: cardRoot.hasHardware
                     color: cardRoot.isPowered 
                         ? (pwrHover.hovered ? Qt.lighter(Config.accent, 1.1) : Config.accent)
@@ -337,7 +337,7 @@ Item {
                         anchors.centerIn: parent
                         text: cardRoot.isPowered ? "bluetooth" : "bluetooth_disabled"
                         font.family: "Material Symbols Outlined"
-                        font.pixelSize: 18
+                        font.pixelSize: 22
                         color: cardRoot.isPowered ? Config.bgBase : Config.textMuted
                     }
 
