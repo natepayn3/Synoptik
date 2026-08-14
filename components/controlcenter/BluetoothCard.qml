@@ -26,6 +26,7 @@ Item {
     property bool isScanning: false
     property string connectedDeviceName: ""
     property string connectingMac: ""
+    property string expandedMac: ""
     property var btDevices: []
 
     property bool shouldExpand: panelExpanded
@@ -33,6 +34,10 @@ Item {
 
     signal togglePower(bool power)
     signal triggerScan()
+
+    ListModel {
+        id: btModel
+    }
 
     onVisibleChanged: {
         if (!visible) panelExpanded = false
@@ -206,7 +211,7 @@ Item {
                 // Click handler for the rest of the card (expands to fill panel)
                 MouseArea {
                     anchors.fill: parent
-                    anchors.leftMargin: 52 // Exclude icon button
+                    anchors.leftMargin: 52
                     cursorShape: cardRoot.hasHardware ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onClicked: {
                         if (cardRoot.hasHardware) cardRoot.panelExpanded = true
@@ -216,20 +221,21 @@ Item {
         }
 
         // --- 2. EXPANDED FULL CONTROL CENTER PANEL VIEW ---
-        ColumnLayout {
+        Item {
             id: expandedView
             anchors.fill: parent
             anchors.margins: 14
-            spacing: 12
             visible: opacity > 0
             opacity: cardRoot.panelExpanded ? 1.0 : 0.0
             Behavior on opacity { NumberAnimation { duration: 180 } }
 
-            // Panel Header Bar (Fixed 44px Height)
+            // Fixed Panel Header Bar (Fixed 44px Height locked to top)
             RowLayout {
-                Layout.fillWidth: true
-                implicitHeight: 44
-                Layout.preferredHeight: 44
+                id: btHeaderRow
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: 44
                 spacing: 10
 
                 // Back Button
@@ -364,81 +370,92 @@ Item {
 
             // Separator Divider Line
             Rectangle {
-                Layout.fillWidth: true
+                id: btDividerLine
+                anchors.top: btHeaderRow.bottom
+                anchors.topMargin: 12
+                anchors.left: parent.left
+                anchors.right: parent.right
                 height: 1
                 color: Qt.rgba(255, 255, 255, 0.08)
             }
 
-            // Body Content Container (Locks Header Bar & Divider Line strictly to top of card)
-            ColumnLayout {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                spacing: 12
+            // Body Content Container
+            Item {
+                anchors.top: btDividerLine.bottom
+                anchors.topMargin: 12
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                clip: true
 
-                // Devices Section Header
-                RowLayout {
-                    Layout.fillWidth: true
-                    visible: cardRoot.hasHardware && cardRoot.isPowered
-
-                    Text {
-                        text: "DEVICES"
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                        font.bold: true
-                        color: Config.textMuted
-                    }
-
-                    Item { Layout.fillWidth: true }
-
-                    Text {
-                        text: cardRoot.isScanning ? "Scanning..." : (btModel.count + " available")
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                        color: cardRoot.isScanning ? Config.accent : Config.textMuted
-                    }
-                }
-
-                // Full Device List View
-                ListView {
-                    id: fullBtListView
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    clip: true
-                    model: btModel
-                    spacing: 6
+                // Active Devices Section & List
+                ColumnLayout {
+                    anchors.fill: parent
+                    spacing: 12
                     visible: cardRoot.hasHardware && cardRoot.isPowered && btModel.count > 0
 
-                    delegate: Rectangle {
-                        id: devDelegate
-                        property bool isExpanded: cardRoot.expandedMac === model.mac
-                        property bool isConnecting: cardRoot.connectingMac === model.mac
+                    // Devices Section Header
+                    RowLayout {
+                        Layout.fillWidth: true
 
-                        width: fullBtListView.width
-                        implicitHeight: devDelegateLayout.implicitHeight + 20
-                        radius: Config.cornerRadius / 2
+                        Text {
+                            text: "DEVICES"
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                            font.bold: true
+                            color: Config.textMuted
+                        }
+
+                        Item { Layout.fillWidth: true }
+
+                        Text {
+                            text: cardRoot.isScanning ? "Scanning..." : (btModel.count + " available")
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                            color: cardRoot.isScanning ? Config.accent : Config.textMuted
+                        }
+                    }
+
+                    // Full Device List View
+                    ListView {
+                        id: fullBtListView
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
                         clip: true
+                        model: btModel
+                        spacing: 6
 
-                        color: model.connected 
-                            ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.15) 
-                            : (devHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
+                        delegate: Rectangle {
+                            id: devDelegate
+                            property bool isExpanded: cardRoot.expandedMac === model.mac
+                            property bool isConnecting: cardRoot.connectingMac === model.mac
 
-                        border.width: model.connected ? 2 : 0
-                        border.color: model.connected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.6) : "transparent"
+                            width: fullBtListView.width
+                            implicitHeight: devDelegateLayout.implicitHeight + 16
+                            radius: Config.cornerRadius / 2
+                            clip: true
 
-                        Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-                        Behavior on color { ColorAnimation { duration: 150 } }
+                            color: model.connected 
+                                ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.15) 
+                                : (devHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
 
-                        ColumnLayout {
-                            id: devDelegateLayout
-                            anchors.top: parent.top
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.topMargin: 10
-                            anchors.leftMargin: 10
-                            anchors.rightMargin: 10
-                            spacing: 8
+                            border.width: model.connected ? 2 : 0
+                            border.color: model.connected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.6) : "transparent"
 
-                            Item {
+                            Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                            Behavior on color { ColorAnimation { duration: 150 } }
+
+                            ColumnLayout {
+                                id: devDelegateLayout
+                                anchors.top: parent.top
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.topMargin: 8
+                                anchors.leftMargin: 10
+                                anchors.rightMargin: 10
+                                spacing: 8
+
+                                Item {
                                 Layout.fillWidth: true
                                 implicitHeight: 32
 
@@ -503,7 +520,7 @@ Item {
                                 }
                             }
 
-                            // Expanded Action Row (Smooth Bidirectional Height & Opacity Animation)
+                            // Expanded Action Row
                             Item {
                                 id: actionRowContainer
                                 Layout.fillWidth: true
@@ -590,12 +607,11 @@ Item {
                         HoverHandler { id: devHover }
                     }
                 }
+            }
 
-                // Empty State View
+                // Empty State View (Centered)
                 ColumnLayout {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    Layout.alignment: Qt.AlignCenter
+                    anchors.centerIn: parent
                     spacing: 12
                     visible: cardRoot.hasHardware && cardRoot.isPowered && btModel.count === 0
 
@@ -653,11 +669,9 @@ Item {
                     }
                 }
 
-                // Powered Off State View
+                // Powered Off State View (Centered)
                 ColumnLayout {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    Layout.alignment: Qt.AlignCenter
+                    anchors.centerIn: parent
                     spacing: 12
                     visible: cardRoot.hasHardware && !cardRoot.isPowered
 
@@ -720,7 +734,7 @@ Item {
 
     function execTogglePower(turnOn) {
         if (!cardRoot.hasHardware) return
-        cardRoot.isPowered = turnOn // Optimistic mutation
+        cardRoot.isPowered = turnOn
         toggleBtProc.command = ["fish", "-c", `bluetoothctl power ${turnOn ? "on" : "off"}`]
         toggleBtProc.running = true
     }

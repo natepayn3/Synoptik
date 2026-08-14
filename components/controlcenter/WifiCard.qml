@@ -252,7 +252,7 @@ Item {
                 // Click handler for the rest of the card (expands to fill panel)
                 MouseArea {
                     anchors.fill: parent
-                    anchors.leftMargin: 52 // Exclude icon button
+                    anchors.leftMargin: 52
                     cursorShape: cardRoot.hasAdapter ? Qt.PointingHandCursor : Qt.ArrowCursor
                     onClicked: {
                         if (cardRoot.hasAdapter) cardRoot.panelExpanded = true
@@ -262,20 +262,21 @@ Item {
         }
 
         // --- 2. EXPANDED FULL CONTROL CENTER PANEL VIEW ---
-        ColumnLayout {
+        Item {
             id: expandedView
             anchors.fill: parent
             anchors.margins: 14
-            spacing: 12
             visible: opacity > 0
             opacity: cardRoot.panelExpanded ? 1.0 : 0.0
             Behavior on opacity { NumberAnimation { duration: 180 } }
 
-            // Panel Header Bar (Fixed 44px Height)
+            // Fixed Panel Header Bar (Fixed 44px Height locked to top)
             RowLayout {
-                Layout.fillWidth: true
-                implicitHeight: 44
-                Layout.preferredHeight: 44
+                id: expHeaderRow
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: 44
                 spacing: 10
 
                 // Back Button
@@ -422,84 +423,95 @@ Item {
 
             // Separator Divider Line
             Rectangle {
-                Layout.fillWidth: true
+                id: expDividerLine
+                anchors.top: expHeaderRow.bottom
+                anchors.topMargin: 12
+                anchors.left: parent.left
+                anchors.right: parent.right
                 height: 1
                 color: Qt.rgba(255, 255, 255, 0.08)
             }
 
-            // Body Content Container (Locks Header Bar & Divider Line strictly to top of card)
-            ColumnLayout {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                spacing: 12
+            // Body Content Container
+            Item {
+                anchors.top: expDividerLine.bottom
+                anchors.topMargin: 12
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                clip: true
 
-                // Networks Section Header
-                RowLayout {
-                    Layout.fillWidth: true
-                    visible: cardRoot.hasAdapter && cardRoot.wifiPowered
-
-                    Text {
-                        text: "NETWORKS"
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                        font.bold: true
-                        color: Config.textMuted
-                    }
-
-                    Item { Layout.fillWidth: true }
-
-                    Text {
-                        text: cardRoot.wifiScanning ? "Scanning..." : ((cardRoot.wifiModel ? cardRoot.wifiModel.count : 0) + " available")
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                        color: cardRoot.wifiScanning ? Config.accent : Config.textMuted
-                    }
-                }
-
-                // Full Wi-Fi Networks List View
-                ListView {
-                    id: fullWifiListView
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    clip: true
-                    model: cardRoot.wifiModel
-                    spacing: 6
+                // Active Wi-Fi Networks View
+                ColumnLayout {
+                    anchors.fill: parent
+                    spacing: 12
                     visible: cardRoot.hasAdapter && cardRoot.wifiPowered && cardRoot.wifiModel && cardRoot.wifiModel.count > 0
 
-                    delegate: Rectangle {
-                        id: wifiDelegate
-                        property bool isCurrentActive: cardRoot.activeSsid === model.ssid && model.ssid !== ""
-                        property bool isExpanded: cardRoot.expandedSsid === model.ssid
-                        property bool isConnecting: cardRoot.connectingSsid === model.ssid
-                        property bool isDisconnecting: cardRoot.disconnectingSsid === model.ssid
-                        property bool isKnown: cardRoot.knownNetworks[model.ssid] === true
+                    // Networks Section Header
+                    RowLayout {
+                        Layout.fillWidth: true
 
-                        width: fullWifiListView.width
-                        implicitHeight: wifiItemColumn.implicitHeight + 16
-                        radius: Config.cornerRadius / 2
+                        Text {
+                            text: "NETWORKS"
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                            font.bold: true
+                            color: Config.textMuted
+                        }
+
+                        Item { Layout.fillWidth: true }
+
+                        Text {
+                            text: cardRoot.wifiScanning ? "Scanning..." : ((cardRoot.wifiModel ? cardRoot.wifiModel.count : 0) + " available")
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                            color: cardRoot.wifiScanning ? Config.accent : Config.textMuted
+                        }
+                    }
+
+                    // Full Wi-Fi Networks List View
+                    ListView {
+                        id: fullWifiListView
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
                         clip: true
+                        model: cardRoot.wifiModel
+                        spacing: 6
 
-                        color: isCurrentActive 
-                            ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.15) 
-                            : (wifiItemHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
+                        delegate: Rectangle {
+                            id: wifiDelegate
+                            property bool isCurrentActive: cardRoot.activeSsid === model.ssid && model.ssid !== ""
+                            property bool isExpanded: cardRoot.expandedSsid === model.ssid
+                            property bool isConnecting: cardRoot.connectingSsid === model.ssid
+                            property bool isDisconnecting: cardRoot.disconnectingSsid === model.ssid
+                            property bool isKnown: cardRoot.knownNetworks[model.ssid] === true
 
-                        border.width: isCurrentActive ? 2 : 0
-                        border.color: isCurrentActive ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.6) : "transparent"
+                            width: fullWifiListView.width
+                            implicitHeight: wifiItemColumn.implicitHeight + 16
+                            radius: Config.cornerRadius / 2
+                            clip: true
 
-                        Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-                        Behavior on color { ColorAnimation { duration: 150 } }
+                            color: isCurrentActive 
+                                ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.15) 
+                                : (wifiItemHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
 
-                        ColumnLayout {
-                            id: wifiItemColumn
-                            anchors.top: parent.top
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            anchors.topMargin: 8
-                            anchors.leftMargin: 10
-                            anchors.rightMargin: 10
-                            spacing: 8
+                            border.width: isCurrentActive ? 2 : 0
+                            border.color: isCurrentActive ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.6) : "transparent"
 
-                            Item {
+                            Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                            Behavior on color { ColorAnimation { duration: 150 } }
+
+                            ColumnLayout {
+                                id: wifiItemColumn
+                                anchors.top: parent.top
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.topMargin: 8
+                                anchors.leftMargin: 10
+                                anchors.rightMargin: 10
+                                spacing: 8
+
+                                Item {
                                 Layout.fillWidth: true
                                 implicitHeight: 32
 
@@ -614,7 +626,6 @@ Item {
                                                 font.pixelSize: Config.size(Config.fontMicro)
                                                 echoMode: TextInput.Password
                                                 selectByMouse: true
-                                                cursorShape: Qt.IBeamCursor
 
                                                 Text {
                                                     text: "Enter Wi-Fi password..."
@@ -768,12 +779,11 @@ Item {
                         HoverHandler { id: wifiItemHover }
                     }
                 }
+            }
 
-                // Empty State View
+                // Empty State View (Centered)
                 ColumnLayout {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    Layout.alignment: Qt.AlignCenter
+                    anchors.centerIn: parent
                     spacing: 12
                     visible: cardRoot.hasAdapter && cardRoot.wifiPowered && (!cardRoot.wifiModel || cardRoot.wifiModel.count === 0)
 
@@ -837,11 +847,9 @@ Item {
                     }
                 }
 
-                // Powered Off State View
+                // Powered Off State View (Centered)
                 ColumnLayout {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    Layout.alignment: Qt.AlignCenter
+                    anchors.centerIn: parent
                     spacing: 12
                     visible: cardRoot.hasAdapter && !cardRoot.wifiPowered
 

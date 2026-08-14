@@ -30,6 +30,14 @@ Item {
         if (!visible) panelExpanded = false
     }
 
+    onPanelExpandedChanged: {
+        if (panelExpanded) stopwatchCanvas.updateProgress()
+    }
+
+    onCaffeineStateChanged: {
+        stopwatchCanvas.updateProgress()
+    }
+
     // Reactive collapsed position calculation spanning parent hierarchy up to controlCenterPanel (root)
     readonly property real collapsedX: {
         let p0 = cardRoot
@@ -96,7 +104,7 @@ Item {
             enabled: !cardRoot.panelExpanded
         }
 
-        // Shield overlay: Eat all click and mouse events when panel is expanded so they never leak to items underneath
+        // Shield overlay: Eat all click and mouse events when panel is expanded
         MouseArea {
             anchors.fill: parent
             enabled: cardRoot.panelExpanded
@@ -220,20 +228,21 @@ Item {
         }
 
         // --- 2. EXPANDED FULL CONTROL CENTER PANEL VIEW ---
-        ColumnLayout {
+        Item {
             id: expandedView
             anchors.fill: parent
             anchors.margins: 14
-            spacing: 12
             visible: opacity > 0
             opacity: cardRoot.panelExpanded ? 1.0 : 0.0
             Behavior on opacity { NumberAnimation { duration: 180 } }
 
-            // Panel Header Bar (Fixed 44px Height)
+            // Fixed Panel Header Bar (44px Height locked to top)
             RowLayout {
-                Layout.fillWidth: true
-                implicitHeight: 44
-                Layout.preferredHeight: 44
+                id: caffHeaderRow
+                anchors.top: parent.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: 44
                 spacing: 10
 
                 Rectangle {
@@ -341,374 +350,400 @@ Item {
 
             // Divider Line
             Rectangle {
-                Layout.fillWidth: true
+                id: caffDividerLine
+                anchors.top: caffHeaderRow.bottom
+                anchors.topMargin: 12
+                anchors.left: parent.left
+                anchors.right: parent.right
                 height: 1
                 color: Qt.rgba(255, 255, 255, 0.08)
             }
 
-            // Body Content Container (Locks Header Bar & Divider Line strictly to top of card)
-            ColumnLayout {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                spacing: 12
+            // Fixed Bottom Action Buttons Container
+            RowLayout {
+                id: bottomActionRow
+                anchors.bottom: parent.bottom
+                anchors.left: parent.left
+                anchors.right: parent.right
+                height: 38
+                spacing: 10
 
-                // --- 3. STOPWATCH GRAPHIC & TIMER CENTERPIECE ---
-                Item {
+                // Disable / Allow Sleep Button
+                Rectangle {
                     Layout.fillWidth: true
-                    implicitHeight: 150
-                    Layout.alignment: Qt.AlignHCenter
+                    implicitHeight: 38
+                    radius: Config.cornerRadius / 2
+                    color: disBtnHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
+                    Behavior on color { ColorAnimation { duration: 150 } }
 
-                    Canvas {
-                        id: stopwatchCanvas
-                        width: 150
-                        height: 150
+                    Text {
                         anchors.centerIn: parent
+                        text: "ALLOW SLEEP"
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        font.bold: true
+                        color: disBtnHover.hovered ? Config.accent : Config.textMain
+                    }
 
-                        property real animProgress: {
-                            if (cardRoot.caffeineState === 0) return 0.0
-                            if (cardRoot.caffeineState === 1) return 1.0
-                            if (cardRoot.caffeineState === 2) {
-                                let diffMs = Math.max(0, Config.caffeineTimerEndTime - Date.now())
-                                let totalMs = cardRoot.caffeineTimerDuration * 60 * 1000
-                                if (totalMs <= 0) return 0.0
-                                return Math.min(1.0, Math.max(0.0, diffMs / totalMs))
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Config.startCaffeineTimer(0)
+                    }
+                    HoverHandler { id: disBtnHover }
+                }
+
+                // Start / Update Timer Button
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: 38
+                    radius: Config.cornerRadius / 2
+                    color: startBtnHover.hovered ? Qt.lighter(Config.accent, 1.1) : Config.accent
+                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: cardRoot.caffeineState === 2 ? "UPDATE TIMER" : "START TIMER"
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        font.bold: true
+                        color: Config.bgBase
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (cardRoot.typedMinutes > 0) {
+                                Config.startCaffeineTimer(cardRoot.typedMinutes)
                             }
-                            return 0.0
                         }
+                    }
+                    HoverHandler { id: startBtnHover }
+                }
+            }
 
-                        onAnimProgressChanged: requestPaint()
+            // Middle Body: Centered Stopwatch, Steppers & Preset Pills
+            Item {
+                anchors.top: caffDividerLine.bottom
+                anchors.bottom: bottomActionRow.top
+                anchors.left: parent.left
+                anchors.right: parent.right
+                clip: true
 
-                        onPaint: {
-                            var ctx = getContext("2d")
-                            ctx.clearRect(0, 0, width, height)
+                ColumnLayout {
+                    anchors.centerIn: parent
+                    width: parent.width
+                    spacing: 14
 
-                            var centerX = width / 2
-                            var centerY = height / 2
-                            var radius = 55
-                            var startAngle = -Math.PI / 2
-                            var endAngle = startAngle + (2 * Math.PI * animProgress)
+                    // --- 3. ENLARGED STOPWATCH GRAPHIC & 60-MINUTE CLOCK RING ---
+                    Item {
+                        Layout.fillWidth: true
+                        implicitHeight: 220
+                        Layout.alignment: Qt.AlignHCenter
 
-                            // Background Circle Track
-                            ctx.beginPath()
-                            ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI, false)
-                            ctx.lineWidth = 6
-                            ctx.strokeStyle = Qt.rgba(255, 255, 255, 0.06)
-                            ctx.stroke()
+                        Canvas {
+                            id: stopwatchCanvas
+                            width: 220
+                            height: 220
+                            anchors.centerIn: parent
 
-                            // Active Arc
-                            if (animProgress > 0) {
+                            property real animProgress: 0.0
+
+                            function updateProgress() {
+                                if (cardRoot.caffeineState === 0) {
+                                    animProgress = 0.0
+                                } else if (cardRoot.caffeineState === 1) {
+                                    animProgress = 1.0
+                                } else if (cardRoot.caffeineState === 2) {
+                                    let diffMs = Math.max(0, Config.caffeineTimerEndTime - Date.now())
+                                    if (diffMs <= 0) {
+                                        animProgress = 0.0
+                                    } else {
+                                        // Map remaining time onto a 60-minute dial
+                                        let rem = diffMs % 3600000
+                                        animProgress = (rem === 0) ? 1.0 : (rem / 3600000.0)
+                                    }
+                                } else {
+                                    animProgress = 0.0
+                                }
+                                requestPaint()
+                            }
+
+                            onAnimProgressChanged: requestPaint()
+
+                            onPaint: {
+                                var ctx = getContext("2d")
+                                ctx.clearRect(0, 0, width, height)
+
+                                var centerX = width / 2
+                                var centerY = height / 2
+                                var radius = 96
+                                var startAngle = -Math.PI / 2
+                                var endAngle = startAngle + (2 * Math.PI * animProgress)
+
+                                // Background Circle Track
                                 ctx.beginPath()
-                                ctx.arc(centerX, centerY, radius, startAngle, endAngle, false)
-                                ctx.lineWidth = 6
-                                ctx.strokeStyle = Config.accent
-                                ctx.lineCap = "round"
+                                ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI, false)
+                                ctx.lineWidth = 8
+                                ctx.strokeStyle = Qt.rgba(255, 255, 255, 0.06)
                                 ctx.stroke()
+
+                                // Active Arc (Clock progress fill)
+                                if (animProgress > 0) {
+                                    ctx.beginPath()
+                                    ctx.arc(centerX, centerY, radius, startAngle, endAngle, false)
+                                    ctx.lineWidth = 8
+                                    ctx.strokeStyle = Config.accent
+                                    ctx.lineCap = "round"
+                                    ctx.stroke()
+                                }
                             }
+
+                            Timer {
+                                interval: 250
+                                running: cardRoot.caffeineState === 2 && cardRoot.panelExpanded
+                                repeat: true
+                                onTriggered: stopwatchCanvas.updateProgress()
+                            }
+
+                            Component.onCompleted: stopwatchCanvas.updateProgress()
                         }
 
-                        Timer {
-                            interval: 500
-                            running: cardRoot.caffeineState === 2 && cardRoot.panelExpanded
-                            repeat: true
-                            onTriggered: stopwatchCanvas.requestPaint()
+                        // Center Countdown / Status Text (Extra-Large Digits)
+                        ColumnLayout {
+                            anchors.centerIn: parent
+                            spacing: 0
+
+                            Text {
+                                text: cardRoot.caffeineState === 2 
+                                    ? cardRoot.remainingTimeString 
+                                    : (cardRoot.caffeineState === 1 ? "∞" : "00:00")
+                                font.family: Config.sysFont
+                                font.pixelSize: cardRoot.caffeineState === 1 ? 64 : 56
+                                font.bold: true
+                                color: cardRoot.caffeineState !== 0 ? Config.accent : Config.textMuted
+                                Layout.alignment: Qt.AlignHCenter
+                            }
+
+                            Text {
+                                text: cardRoot.caffeineState === 2 
+                                    ? "REMAINING" 
+                                    : (cardRoot.caffeineState === 1 ? "INDEFINITE" : "DISABLED")
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontMicro)
+                                font.bold: true
+                                color: Config.textMuted
+                                Layout.alignment: Qt.AlignHCenter
+                            }
                         }
                     }
 
-                    // Center Countdown / Status Text
+                    // --- 4. DURATION ADJUSTMENT CONTROLS ---
                     ColumnLayout {
-                        anchors.centerIn: parent
-                        spacing: 2
+                        Layout.fillWidth: true
+                        Layout.alignment: Qt.AlignHCenter
+                        spacing: 8
 
                         Text {
-                            text: cardRoot.caffeineState === 2 
-                                ? cardRoot.remainingTimeString 
-                                : (cardRoot.caffeineState === 1 ? "∞" : "00:00")
-                            font.family: Config.sysFont
-                            font.pixelSize: cardRoot.caffeineState === 1 ? 36 : Config.size(24)
-                            font.bold: true
-                            color: cardRoot.caffeineState !== 0 ? Config.accent : Config.textMuted
-                            Layout.alignment: Qt.AlignHCenter
-                        }
-
-                        Text {
-                            text: cardRoot.caffeineState === 2 
-                                ? "REMAINING" 
-                                : (cardRoot.caffeineState === 1 ? "INDEFINITE" : "DISABLED")
+                            text: "ADJUST DURATION"
                             font.family: Config.sysFont
                             font.pixelSize: Config.size(Config.fontMicro)
                             font.bold: true
                             color: Config.textMuted
                             Layout.alignment: Qt.AlignHCenter
                         }
-                    }
-                }
 
-                // --- 4. DURATION ADJUSTMENT CONTROLS ---
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
+                        // Numeric Step & Custom Input Row
+                        RowLayout {
+                            Layout.alignment: Qt.AlignHCenter
+                            spacing: 8
 
-                    Text {
-                        text: "ADJUST DURATION"
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                        font.bold: true
-                        color: Config.textMuted
-                        Layout.alignment: Qt.AlignHCenter
-                    }
-
-                    // Numeric Step & Custom Input Row
-                    RowLayout {
-                        Layout.alignment: Qt.AlignHCenter
-                        spacing: 8
-
-                        // -5m Button
-                        Rectangle {
-                            implicitWidth: 42
-                            implicitHeight: 32
-                            radius: Config.cornerRadius / 2
-                            color: minus5Hover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
-                            Behavior on color { ColorAnimation { duration: 150 } }
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: "-5m"
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontMicro)
-                                font.bold: true
-                                color: Config.textMain
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: cardRoot.typedMinutes = Math.max(1, cardRoot.typedMinutes - 5)
-                            }
-                            HoverHandler { id: minus5Hover }
-                        }
-
-                        // Editable Minutes Input Box (Fixed 2px Border & I-Beam Cursor)
-                        Rectangle {
-                            implicitWidth: 70
-                            implicitHeight: 32
-                            radius: Config.cornerRadius / 2
-                            color: Qt.rgba(0, 0, 0, 0.35)
-                            border.width: 2
-                            border.color: minutesInput.activeFocus ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
-
-                            RowLayout {
-                                anchors.centerIn: parent
-                                spacing: 3
-
-                                TextInput {
-                                    id: minutesInput
-                                    text: cardRoot.typedMinutes.toString()
-                                    color: Config.accent
-                                    font.family: Config.sysFont
-                                    font.pixelSize: Config.size(Config.fontCaption)
-                                    font.bold: true
-                                    horizontalAlignment: TextInput.AlignHCenter
-                                    verticalAlignment: TextInput.AlignVCenter
-                                    selectByMouse: true
-                                    cursorShape: Qt.IBeamCursor
-                                    validator: IntValidator { bottom: 1; top: 1440 }
-
-                                    onTextChanged: {
-                                        let val = parseInt(text)
-                                        if (!isNaN(val) && val > 0) {
-                                            cardRoot.typedMinutes = val
-                                        }
-                                    }
-                                }
+                            // -5m Button
+                            Rectangle {
+                                implicitWidth: 42
+                                implicitHeight: 32
+                                radius: Config.cornerRadius / 2
+                                color: minus5Hover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
+                                Behavior on color { ColorAnimation { duration: 150 } }
 
                                 Text {
-                                    text: "min"
+                                    anchors.centerIn: parent
+                                    text: "-5m"
                                     font.family: Config.sysFont
                                     font.pixelSize: Config.size(Config.fontMicro)
-                                    color: Config.textMuted
+                                    font.bold: true
+                                    color: Config.textMain
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: cardRoot.typedMinutes = Math.max(1, cardRoot.typedMinutes - 5)
+                                }
+                                HoverHandler { id: minus5Hover }
+                            }
+
+                            // Editable Minutes Input Box (Fixed 2px Border)
+                            Rectangle {
+                                implicitWidth: 70
+                                implicitHeight: 32
+                                radius: Config.cornerRadius / 2
+                                color: Qt.rgba(0, 0, 0, 0.35)
+                                border.width: 2
+                                border.color: minutesInput.activeFocus ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
+
+                                RowLayout {
+                                    anchors.centerIn: parent
+                                    spacing: 3
+
+                                    TextInput {
+                                        id: minutesInput
+                                        text: cardRoot.typedMinutes.toString()
+                                        color: Config.accent
+                                        font.family: Config.sysFont
+                                        font.pixelSize: Config.size(Config.fontCaption)
+                                        font.bold: true
+                                        horizontalAlignment: TextInput.AlignHCenter
+                                        verticalAlignment: TextInput.AlignVCenter
+                                        selectByMouse: true
+                                        validator: IntValidator { bottom: 1; top: 1440 }
+
+                                        onTextChanged: {
+                                            let val = parseInt(text)
+                                            if (!isNaN(val) && val > 0) {
+                                                cardRoot.typedMinutes = val
+                                            }
+                                        }
+                                    }
+
+                                    Text {
+                                        text: "min"
+                                        font.family: Config.sysFont
+                                        font.pixelSize: Config.size(Config.fontMicro)
+                                        color: Config.textMuted
+                                    }
                                 }
                             }
-                        }
 
-                        // +5m Button
-                        Rectangle {
-                            implicitWidth: 42
-                            implicitHeight: 32
-                            radius: Config.cornerRadius / 2
-                            color: plus5Hover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
-                            Behavior on color { ColorAnimation { duration: 150 } }
+                            // +5m Button
+                            Rectangle {
+                                implicitWidth: 42
+                                implicitHeight: 32
+                                radius: Config.cornerRadius / 2
+                                color: plus5Hover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
+                                Behavior on color { ColorAnimation { duration: 150 } }
 
-                            Text {
-                                anchors.centerIn: parent
-                                text: "+5m"
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontMicro)
-                                font.bold: true
-                                color: Config.textMain
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: cardRoot.typedMinutes = cardRoot.typedMinutes + 5
-                            }
-                            HoverHandler { id: plus5Hover }
-                        }
-                    }
-
-                    // Centered Preset Duration Pills Row
-                    RowLayout {
-                        Layout.alignment: Qt.AlignHCenter
-                        spacing: 8
-
-                        // 30m Preset Pill
-                        Rectangle {
-                            implicitWidth: 68
-                            implicitHeight: 28
-                            radius: 14
-                            color: cardRoot.typedMinutes === 30 
-                                ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.25)
-                                : (p30Hover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.06))
-                            border.width: cardRoot.typedMinutes === 30 ? 1 : 0
-                            border.color: Config.accent
-                            Behavior on color { ColorAnimation { duration: 150 } }
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: "30m"
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontMicro)
-                                font.bold: true
-                                color: cardRoot.typedMinutes === 30 ? Config.accent : Config.textMain
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: cardRoot.typedMinutes = 30
-                            }
-                            HoverHandler { id: p30Hover }
-                        }
-
-                        // 1h Preset Pill
-                        Rectangle {
-                            implicitWidth: 68
-                            implicitHeight: 28
-                            radius: 14
-                            color: cardRoot.typedMinutes === 60 
-                                ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.25)
-                                : (p1hHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.06))
-                            border.width: cardRoot.typedMinutes === 60 ? 1 : 0
-                            border.color: Config.accent
-                            Behavior on color { ColorAnimation { duration: 150 } }
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: "1h"
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontMicro)
-                                font.bold: true
-                                color: cardRoot.typedMinutes === 60 ? Config.accent : Config.textMain
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: cardRoot.typedMinutes = 60
-                            }
-                            HoverHandler { id: p1hHover }
-                        }
-
-                        // Always On (Indefinite Awake) Pill
-                        Rectangle {
-                            implicitWidth: 100
-                            implicitHeight: 28
-                            radius: 14
-                            color: cardRoot.caffeineState === 1 
-                                ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.25)
-                                : (pAlwaysHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.06))
-                            border.width: cardRoot.caffeineState === 1 ? 1 : 0
-                            border.color: Config.accent
-                            Behavior on color { ColorAnimation { duration: 150 } }
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: "Always On"
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontMicro)
-                                font.bold: true
-                                color: cardRoot.caffeineState === 1 ? Config.accent : Config.textMain
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: Config.setIndefiniteCaffeine()
-                            }
-                            HoverHandler { id: pAlwaysHover }
-                        }
-                    }
-                }
-
-                Item { Layout.fillHeight: true }
-
-                // --- 5. BOTTOM ACTION BUTTONS ---
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 10
-
-                    // Disable / Allow Sleep Button
-                    Rectangle {
-                        Layout.fillWidth: true
-                        implicitHeight: 38
-                        radius: Config.cornerRadius / 2
-                        color: disBtnHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
-                        Behavior on color { ColorAnimation { duration: 150 } }
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "ALLOW SLEEP"
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontMicro)
-                            font.bold: true
-                            color: disBtnHover.hovered ? Config.accent : Config.textMain
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: Config.startCaffeineTimer(0)
-                        }
-                        HoverHandler { id: disBtnHover }
-                    }
-
-                    // Start / Update Timer Button
-                    Rectangle {
-                        Layout.fillWidth: true
-                        implicitHeight: 38
-                        radius: Config.cornerRadius / 2
-                        color: startBtnHover.hovered ? Qt.lighter(Config.accent, 1.1) : Config.accent
-                        Behavior on color { ColorAnimation { duration: 150 } }
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: cardRoot.caffeineState === 2 ? "UPDATE TIMER" : "START TIMER"
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontMicro)
-                            font.bold: true
-                            color: Config.bgBase
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                if (cardRoot.typedMinutes > 0) {
-                                    Config.startCaffeineTimer(cardRoot.typedMinutes)
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "+5m"
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontMicro)
+                                    font.bold: true
+                                    color: Config.textMain
                                 }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: cardRoot.typedMinutes = cardRoot.typedMinutes + 5
+                                }
+                                HoverHandler { id: plus5Hover }
                             }
                         }
-                        HoverHandler { id: startBtnHover }
+
+                        // Centered Preset Duration Pills Row
+                        RowLayout {
+                            Layout.alignment: Qt.AlignHCenter
+                            spacing: 8
+
+                            // 30m Preset Pill
+                            Rectangle {
+                                implicitWidth: 68
+                                implicitHeight: 28
+                                radius: 14
+                                color: cardRoot.typedMinutes === 30 
+                                    ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.25)
+                                    : (p30Hover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.06))
+                                border.width: cardRoot.typedMinutes === 30 ? 2 : 0
+                                border.color: Config.accent
+                                Behavior on color { ColorAnimation { duration: 150 } }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "30m"
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontMicro)
+                                    font.bold: true
+                                    color: cardRoot.typedMinutes === 30 ? Config.accent : Config.textMain
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: cardRoot.typedMinutes = 30
+                                }
+                                HoverHandler { id: p30Hover }
+                            }
+
+                            // 1h Preset Pill
+                            Rectangle {
+                                implicitWidth: 68
+                                implicitHeight: 28
+                                radius: 14
+                                color: cardRoot.typedMinutes === 60 
+                                    ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.25)
+                                    : (p1hHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.06))
+                                border.width: cardRoot.typedMinutes === 60 ? 2 : 0
+                                border.color: Config.accent
+                                Behavior on color { ColorAnimation { duration: 150 } }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "1h"
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontMicro)
+                                    font.bold: true
+                                    color: cardRoot.typedMinutes === 60 ? Config.accent : Config.textMain
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: cardRoot.typedMinutes = 60
+                                }
+                                HoverHandler { id: p1hHover }
+                            }
+
+                            // Always On (Indefinite Awake) Pill
+                            Rectangle {
+                                implicitWidth: 100
+                                implicitHeight: 28
+                                radius: 14
+                                color: cardRoot.caffeineState === 1 
+                                    ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.25)
+                                    : (pAlwaysHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.06))
+                                border.width: cardRoot.caffeineState === 1 ? 2 : 0
+                                border.color: Config.accent
+                                Behavior on color { ColorAnimation { duration: 150 } }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "Always On"
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontMicro)
+                                    font.bold: true
+                                    color: cardRoot.caffeineState === 1 ? Config.accent : Config.textMain
+                                }
+
+                                MouseArea {
+                                    anchors.fill: parent
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: Config.setIndefiniteCaffeine()
+                                }
+                                HoverHandler { id: pAlwaysHover }
+                            }
+                        }
                     }
                 }
             }
