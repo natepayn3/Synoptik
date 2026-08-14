@@ -196,64 +196,13 @@ Item {
                         }
                     }
 
-                    // Quick +/- buttons when active, or Chevron indicator
-                    RowLayout {
-                        spacing: 4
-                        visible: cardRoot.caffeineState === 2
-                        Layout.alignment: Qt.AlignVCenter
-
-                        Rectangle {
-                            implicitWidth: 26
-                            implicitHeight: 26
-                            radius: 13
-                            color: minusMiniHover.hovered ? Qt.rgba(255, 255, 255, 0.25) : Qt.rgba(255, 255, 255, 0.1)
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: "remove"
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 14
-                                color: minusMiniHover.hovered ? Config.accent : Config.textMain
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: Config.addCaffeineMinutes(-5)
-                            }
-                            HoverHandler { id: minusMiniHover }
-                        }
-
-                        Rectangle {
-                            implicitWidth: 26
-                            implicitHeight: 26
-                            radius: 13
-                            color: plusMiniHover.hovered ? Qt.rgba(255, 255, 255, 0.25) : Qt.rgba(255, 255, 255, 0.1)
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: "add"
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 14
-                                color: plusMiniHover.hovered ? Config.accent : Config.textMain
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: Config.addCaffeineMinutes(5)
-                            }
-                            HoverHandler { id: plusMiniHover }
-                        }
-                    }
-
+                    // Chevron visual indicator for panel expansion
                     Text {
                         text: "chevron_right"
                         font.family: "Material Symbols Outlined"
                         font.pixelSize: 20
                         color: cardHover.hovered ? Config.textMain : Config.textMuted
                         opacity: cardRoot.hasHypridle ? 0.7 : 0.2
-                        visible: cardRoot.caffeineState !== 2
                     }
                 }
 
