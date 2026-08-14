@@ -58,13 +58,20 @@ Rectangle {
     anchors.leftMargin: rootRef.isHorizontal ? 10 : 0
     anchors.topMargin: !rootRef.isHorizontal ? 10 : 0
 
-    property bool iconsFullyExpanded: !Config.leftCardCollapsed
+    property bool iconsFullyExpanded: false
+
+    Component.onCompleted: {
+        if (!Config.leftCardCollapsed) {
+            iconsFullyExpanded = true
+        }
+    }
 
     Connections {
         target: Config
         ignoreUnknownSignals: true
         function onLeftCardCollapsedChanged() {
             if (!Config.leftCardCollapsed) {
+                iconsFullyExpanded = false
                 expandTimer.restart()
             } else {
                 iconsFullyExpanded = false

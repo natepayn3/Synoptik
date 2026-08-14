@@ -42,7 +42,7 @@
   "fetchOnlineQuotes": false,
   "quoteSource": "zenquotes",
   "barFrameStyle": "island",
-  "barPosition": "left",
+  "barPosition": "right",
   "showScreenFrame": false,
   "sysFont": "Montserrat Alternates",
   "fontScaleIndex": 1,
