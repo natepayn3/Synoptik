@@ -548,8 +548,13 @@ Item {
                         implicitHeight: 36
                         radius: Config.cornerRadius / 2
                         color: Qt.rgba(0, 0, 0, 0.4)
-                        border.color: numInput.activeFocus ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
-                        border.width: 1
+                        border.color: numInput.activeFocus ? Config.accent : (numInputHover.hovered ? Qt.rgba(255, 255, 255, 0.3) : Qt.rgba(255, 255, 255, 0.15))
+                        border.width: 2
+
+                        HoverHandler {
+                            id: numInputHover
+                            cursorShape: Qt.IBeamCursor
+                        }
 
                         RowLayout {
                             anchors.fill: parent
