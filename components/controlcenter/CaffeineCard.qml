@@ -263,7 +263,7 @@ Item {
                 ColumnLayout {
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignVCenter
-                    spacing: 1
+                    spacing: 0
 
                     Item {
                         implicitWidth: caffExpTitleText.implicitWidth
@@ -275,7 +275,7 @@ Item {
                             text: "CAFFEINE"
                             color: Config.textMain
                             font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontTitle)
+                            font.pixelSize: Config.size(Config.fontCaption)
                             font.bold: true
                             font.italic: true
                             elide: Text.ElideRight
@@ -284,8 +284,8 @@ Item {
                         Glow {
                             anchors.fill: caffExpTitleText
                             source: caffExpTitleText
-                            radius: 8
-                            samples: 16
+                            radius: 6
+                            samples: 12
                             color: Config.accent
                             spread: 0.2
                             transparentBorder: true
