@@ -75,12 +75,11 @@ Rectangle {
                 expandTimer.restart()
             } else {
                 iconsFullyExpanded = false
-                collapseTimer.restart()
             }
         }
     }
 
-    readonly property bool showUnpinnedLoaders: !Config.leftCardCollapsed || collapseTimer.running
+    readonly property bool showUnpinnedLoaders: !Config.leftCardCollapsed
 
     Timer {
         id: expandTimer
@@ -91,12 +90,6 @@ Rectangle {
                 iconsFullyExpanded = true
             }
         }
-    }
-
-    Timer {
-        id: collapseTimer
-        interval: 220
-        repeat: false
     }
 
     GridLayout {

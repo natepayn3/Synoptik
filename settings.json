@@ -93,7 +93,7 @@
     "network",
     "clipboard"
   ],
-  "leftCardCollapsed": false,
+  "leftCardCollapsed": true,
   "rightCardCollapsed": false,
   "pinnedIcons": {
     "audio": false,
