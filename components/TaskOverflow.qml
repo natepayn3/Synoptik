@@ -29,7 +29,7 @@ Item {
         // Inner Surface Frame
         Rectangle {
             Layout.fillWidth: true
-            implicitWidth: 320
+            implicitWidth: 270
             implicitHeight: cardContentLayout.implicitHeight + (overflowRoot.cardMargin * 2)
             radius: Config.cornerRadius
             color: Qt.rgba(255, 255, 255, 0.05)
@@ -41,15 +41,15 @@ Item {
                 anchors.bottom: parent.bottom
                 anchors.rightMargin: -15
                 anchors.bottomMargin: -20
-                implicitWidth: 150
-                implicitHeight: 150
+                implicitWidth: 120
+                implicitHeight: 120
                 visible: Config.showWatermarks
 
                 Text {
                     anchors.centerIn: parent
                     text: Config.getIcon("apps")
                     font.family: "Material Symbols Outlined"
-                    font.pixelSize: 150
+                    font.pixelSize: 120
                     color: Config.accent
                     opacity: 0.12
                     rotation: 15
@@ -60,7 +60,7 @@ Item {
                 id: cardContentLayout
                 anchors.fill: parent
                 anchors.margins: overflowRoot.cardMargin
-                spacing: overflowRoot.cardMargin
+                spacing: 8
 
                 // Header
                 Item {
@@ -96,24 +96,24 @@ Item {
                     text: "No active windows"
                     color: Config.textMuted
                     font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontBody)
+                    font.pixelSize: Config.size(Config.fontCaption)
                     Layout.alignment: Qt.AlignHCenter
-                    Layout.topMargin: 8
-                    Layout.bottomMargin: 8
+                    Layout.topMargin: 4
+                    Layout.bottomMargin: 4
                 }
 
                 // Single Column Task List
                 ColumnLayout {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: 4
 
                     Repeater {
                         model: overflowRoot.activeClients
 
                         delegate: Rectangle {
                             Layout.fillWidth: true
-                            implicitHeight: 52
-                            radius: Config.cornerRadius / 1.5
+                            implicitHeight: 36
+                            radius: Config.cornerRadius / 2
                             color: itemHover.hovered ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(0, 0, 0, 0.25)
 
                             Behavior on color { ColorAnimation { duration: 150 } }
@@ -122,13 +122,13 @@ Item {
 
                             RowLayout {
                                 anchors.fill: parent
-                                anchors.leftMargin: 10
-                                anchors.rightMargin: 12
-                                spacing: 12
+                                anchors.leftMargin: 8
+                                anchors.rightMargin: 8
+                                spacing: 8
 
                                 IconImage {
-                                    Layout.preferredWidth: 36
-                                    Layout.preferredHeight: 36
+                                    Layout.preferredWidth: 22
+                                    Layout.preferredHeight: 22
                                     asynchronous: true
                                     source: {
                                         let id = parent.parent.appId
@@ -146,7 +146,7 @@ Item {
                                     text: modelData.title || parent.parent.appId || "Window"
                                     color: modelData.activated ? Config.accent : Config.textMain
                                     font.family: Config.sysFont
-                                    font.pixelSize: Config.size(Config.fontBody)
+                                    font.pixelSize: Config.size(Config.fontCaption)
                                     font.bold: modelData.activated
                                     elide: Text.ElideRight
                                     Layout.fillWidth: true
