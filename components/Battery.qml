@@ -14,7 +14,7 @@ Item {
     implicitHeight: mainLayout.implicitHeight + (cardMargin * 2)
 
     property string battName: (typeof shellRoot !== "undefined" && shellRoot.hasBattery) ? shellRoot.battName : "BAT0"
-    property int battCapacity: (typeof shellRoot !== "undefined" && shellRoot.hasBattery && shellRoot.battCapacity > 0) ? shellRoot.battCapacity : 85
+    property int battCapacity: (typeof shellRoot !== "undefined" && shellRoot.hasBattery) ? shellRoot.battCapacity : 0
     property string battStatus: (typeof shellRoot !== "undefined" && shellRoot.hasBattery) ? shellRoot.battStatus : "Discharging"
     property string powerDraw: "2.4"
 

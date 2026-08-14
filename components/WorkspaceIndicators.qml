@@ -8,6 +8,9 @@ Item {
     
     property bool isVertical: false
 
+    signal popoutRequested(var item)
+    readonly property var overviewButton: overviewBtn
+
     implicitWidth: isVertical ? mainLayout.implicitWidth : mainLayout.implicitWidth
     implicitHeight: isVertical ? mainLayout.implicitHeight : mainLayout.implicitHeight
 
@@ -239,6 +242,7 @@ Item {
 
             // OVERVIEW BUTTON
             Item {
+                id: overviewBtn
                 implicitWidth: 32; implicitHeight: 32
 
                 Rectangle {
@@ -279,7 +283,7 @@ Item {
                         Behavior on color { ColorAnimation { duration: 150 } }
                     }
                 }
-                TapHandler { onTapped: if (typeof Config.showWorkspacePreview !== "undefined") Config.showWorkspacePreview = !Config.showWorkspacePreview }
+                TapHandler { onTapped: { root.popoutRequested(overviewBtn); if (typeof Config.showWorkspacePreview !== "undefined") Config.showWorkspacePreview = !Config.showWorkspacePreview; } }
                 HoverHandler { id: overviewHover; cursorShape: Qt.PointingHandCursor }
             }
 

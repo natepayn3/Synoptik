@@ -18,6 +18,7 @@ ColumnLayout {
     // Inline Comment: Helper check to disable reordering for unselected or workspace icons
     readonly property bool canMoveSelected: {
         if (!iconSettingsRoot.selectedIconId) return false
+        if (iconSettingsRoot.selectedIconId === "batt" || iconSettingsRoot.selectedIconId === "clock" || iconSettingsRoot.selectedIconId === "cc") return false
         return Config.leftCardOrder.includes(iconSettingsRoot.selectedIconId) 
             || Config.rightCardOrder.includes(iconSettingsRoot.selectedIconId)
     }
@@ -98,8 +99,7 @@ ColumnLayout {
                     font.family: Config.sysFont
                     font.pixelSize: Config.size(Config.fontCaption)
                     font.bold: true
-                    // Inline Comment: Unified column width and centered alignment so icon rows stay matching width
-                    Layout.preferredWidth: 135
+                    Layout.preferredWidth: 120
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
@@ -115,7 +115,7 @@ ColumnLayout {
                         spacing: 4
 
                         Repeater {
-                            model: Config.leftCardOrder || ["power", "recorder", "mirror", "screenshot", "notifications", "player", "wallpaper", "settings", "launcher"]
+                            model: (Config.leftCardOrder || ["power", "recorder", "mirror", "screenshot", "notifications", "player", "wallpaper", "settings", "launcher", "audio", "network", "clipboard"]).filter(id => id !== "batt")
 
                             delegate: Rectangle {
                                 implicitWidth: 26; implicitHeight: 26; radius: 6
@@ -145,18 +145,18 @@ ColumnLayout {
                 }
             }
 
-            // ROW 2: WORKSPACES / SPECIALS (Fixed Row)
+            // ROW 2: RIGHT MODULES & WORKSPACES
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
 
                 Text {
-                    text: "Center / Workspace Icons:"
+                    text: "Right/Bottom Icons:"
                     color: Config.textMuted
                     font.family: Config.sysFont
                     font.pixelSize: Config.size(Config.fontCaption)
                     font.bold: true
-                    Layout.preferredWidth: 135
+                    Layout.preferredWidth: 120
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                 }
@@ -173,6 +173,7 @@ ColumnLayout {
 
                         Repeater {
                             model: [
+                                { id: "clock", label: "Calendar / Clock" },
                                 { id: "cc", label: "Control Center" },
                                 { id: "apps", label: "Apps View" },
                                 { id: "overview", label: "Overview" },
@@ -212,63 +213,7 @@ ColumnLayout {
                 }
             }
 
-            // ROW 3: RIGHT MODULES
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 8
 
-                Text {
-                    text: "Right/Bottom Icons:"
-                    color: Config.textMuted
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontCaption)
-                    font.bold: true
-                    // Inline Comment: Unified column width and centered alignment so icon rows stay matching width
-                    Layout.preferredWidth: 135
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: 30
-                    radius: Config.cornerRadius / 2
-                    color: Qt.rgba(255, 255, 255, 0.05)
-
-                    RowLayout {
-                        anchors.centerIn: parent
-                        spacing: 4
-
-                        Repeater {
-                            model: Config.rightCardOrder || ["audio", "batt", "network", "clipboard", "clock"]
-
-                            delegate: Rectangle {
-                                implicitWidth: 26; implicitHeight: 26; radius: 6
-                                readonly property bool isSelected: iconSettingsRoot.selectedIconId === modelData
-                                color: isSelected ? Qt.rgba(255, 255, 255, 0.2) : (btnHoverR.hovered ? Qt.rgba(255, 255, 255, 0.1) : "transparent")
-                                border.color: isSelected ? Config.accent : "transparent"
-                                border.width: isSelected ? 1.5 : 0
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: Config.getIcon(modelData)
-                                    color: parent.isSelected ? Config.accent : Config.textMain
-                                    font.family: "Material Symbols Outlined"
-                                    font.weight: Font.Bold
-                                    font.pixelSize: 16
-                                }
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: iconSettingsRoot.selectedIconId = modelData
-                                }
-                                HoverHandler { id: btnHoverR }
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 

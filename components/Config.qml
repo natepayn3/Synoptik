@@ -805,8 +805,8 @@ QtObject {
     onRightCardCollapsedChanged: { if (isLoaded) saveSettings() }
 
     // --- DYNAMIC MODULE ORDERING ---
-    property var leftCardOrder: ["power", "recorder", "mirror", "screenshot", "notifications", "player", "wallpaper", "settings", "launcher"]
-    property var rightCardOrder: ["audio", "batt", "network", "clipboard", "clock"]
+    property var leftCardOrder: ["power", "recorder", "mirror", "screenshot", "notifications", "player", "wallpaper", "settings", "launcher", "audio", "batt", "network", "clipboard"]
+    property var rightCardOrder: ["clock", "cc"]
 
     function moveModule(cardKey, iconId, direction) {
         let list = (cardKey === "left" ? leftCardOrder : rightCardOrder).slice()
@@ -1850,6 +1850,14 @@ QtObject {
                         props.forEach(p => {
                             if (parsed[p] !== undefined) root[p] = parsed[p]
                         })
+
+                        // Ensure all default left modules exist in leftCardOrder
+                        let defaultLeft = ["power", "recorder", "mirror", "screenshot", "notifications", "player", "wallpaper", "settings", "launcher", "audio", "batt", "network", "clipboard"]
+                        let currentLeft = Array.isArray(root.leftCardOrder) ? root.leftCardOrder.slice() : []
+                        defaultLeft.forEach(mod => {
+                            if (!currentLeft.includes(mod)) currentLeft.push(mod)
+                        })
+                        root.leftCardOrder = currentLeft
 
                         if (parsed.isFloatingBar !== undefined && parsed.barFrameStyle === undefined) {
                             root.barFrameStyle = parsed.isFloatingBar ? "floating" : "edge"

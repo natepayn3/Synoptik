@@ -68,13 +68,15 @@ Rectangle {
 
         Repeater {
             id: repeater
-            model: Config.leftCardOrder || ["power", "recorder", "mirror", "screenshot", "notifications", "player", "wallpaper", "settings", "launcher"]
+            model: Config.leftCardOrder || ["power", "recorder", "mirror", "screenshot", "notifications", "player", "wallpaper", "settings", "launcher", "audio", "batt", "network", "clipboard"]
 
             delegate: Loader {
                 readonly property string itemKey: modelData
                 
-                // Standard Item visible property automatically collapses GridLayout cells/spacing
-                visible: !Config.leftCardCollapsed || Config.isPinned(itemKey)
+                visible: {
+                    if (itemKey === "batt" && typeof shellRoot !== "undefined" && !shellRoot.hasBattery) return false
+                    return !Config.leftCardCollapsed || Config.isPinned(itemKey)
+                }
 
                 sourceComponent: {
                     switch(itemKey) {
@@ -87,6 +89,10 @@ Rectangle {
                         case "wallpaper": return wallpaperComp
                         case "settings": return settingsComp
                         case "launcher": return launcherComp
+                        case "audio": return audioComp
+                        case "batt": return battComp
+                        case "network": return networkComp
+                        case "clipboard": return clipComp
                         default: return null
                     }
                 }
@@ -624,6 +630,200 @@ Rectangle {
             TapHandler { onTapped: { popoutRequested(btnLauncher); Config.showAppLauncher = !Config.showAppLauncher; } }
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("launcher") }
             HoverHandler { id: launcherHover; cursorShape: Qt.PointingHandCursor }
+        }
+    }
+
+    Component {
+        id: audioComp
+        Rectangle {
+            id: btnAudio
+            implicitWidth: 32; implicitHeight: 32; radius: 10
+            color: Config.showAudio ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+            Behavior on color { ColorAnimation { duration: 150 } }
+
+            Item {
+                anchors.centerIn: parent
+                implicitWidth: audioIconText.implicitWidth; implicitHeight: audioIconText.implicitHeight
+                scale: audioHover.hovered ? 1.25 : 1.0
+                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                Glow {
+                    anchors.fill: audioIconText; source: audioIconText
+                    radius: audioHover.hovered ? 8 : 0; samples: 16
+                    color: Config.accent; spread: 0.2; transparentBorder: true
+                    visible: audioHover.hovered
+                    Behavior on radius { NumberAnimation { duration: 180 } }
+                }
+
+                Text {
+                    id: audioIconText
+                    anchors.centerIn: parent
+                    text: shellRoot.audioMuted ? "hearing_disabled" : (shellRoot.audioVolume === 0 ? "hearing_disabled" : Config.getIcon("audio"))
+                    color: (Config.showAudio || audioHover.hovered) ? Config.accent : (shellRoot.audioMuted ? Config.textMuted : Config.textMain)
+                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
+            }
+
+            Rectangle {
+                anchors.top: parent.top; anchors.right: parent.right
+                anchors.topMargin: 2; anchors.rightMargin: 2
+                width: 5; height: 5; radius: 2.5
+                color: Config.accent
+                visible: !Config.leftCardCollapsed && Config.isPinned("audio")
+            }
+
+            TapHandler { onTapped: { popoutRequested(btnAudio); Config.showAudio = !Config.showAudio; } }
+            TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("audio") }
+            HoverHandler { id: audioHover; cursorShape: Qt.PointingHandCursor }
+        }
+    }
+
+    Component {
+        id: battComp
+        Rectangle {
+            id: btnBatt
+            implicitWidth: 32; implicitHeight: 32; radius: 10
+            color: Config.showBattery ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+            Behavior on color { ColorAnimation { duration: 150 } }
+
+            Item {
+                anchors.centerIn: parent
+                implicitWidth: battIconText.implicitWidth; implicitHeight: battIconText.implicitHeight
+                scale: battHover.hovered ? 1.25 : 1.0
+                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                Glow {
+                    anchors.fill: battIconText; source: battIconText
+                    radius: battHover.hovered ? 8 : 0; samples: 16
+                    color: Config.accent; spread: 0.2; transparentBorder: true
+                    visible: battHover.hovered
+                    Behavior on radius { NumberAnimation { duration: 180 } }
+                }
+
+                Text {
+                    id: battIconText
+                    anchors.centerIn: parent
+                    text: {
+                        if (shellRoot.battStatus === "Charging") return "battery_android_frame_bolt"
+                        if (shellRoot.battCapacity <= 10) return "battery_android_frame_0"
+                        if (shellRoot.battCapacity <= 25) return "battery_android_frame_1"
+                        if (shellRoot.battCapacity <= 40) return "battery_android_frame_2"
+                        if (shellRoot.battCapacity <= 60) return "battery_android_frame_3"
+                        if (shellRoot.battCapacity <= 75) return "battery_android_frame_4"
+                        if (shellRoot.battCapacity <= 90) return "battery_android_frame_5"
+                        if (shellRoot.battCapacity < 100) return "battery_android_frame_6"
+                        return "battery_android_frame_full"
+                    }
+                    color: (Config.showBattery || battHover.hovered) ? Config.accent : (shellRoot.battCapacity <= 15 ? "#ef4444" : Config.textMain)
+                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
+            }
+
+            Rectangle {
+                anchors.top: parent.top; anchors.right: parent.right
+                anchors.topMargin: 2; anchors.rightMargin: 2
+                width: 5; height: 5; radius: 2.5
+                color: Config.accent
+                visible: !Config.leftCardCollapsed && Config.isPinned("batt")
+            }
+
+            TapHandler { onTapped: { popoutRequested(btnBatt); Config.showBattery = !Config.showBattery; } }
+            TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("batt") }
+            HoverHandler { id: battHover; cursorShape: Qt.PointingHandCursor }
+        }
+    }
+
+    Component {
+        id: networkComp
+        Rectangle {
+            id: btnNetwork
+            implicitWidth: 32; implicitHeight: 32; radius: 10
+            color: Config.showNetwork ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+            Behavior on color { ColorAnimation { duration: 150 } }
+
+            Item {
+                anchors.centerIn: parent
+                implicitWidth: netIconText.implicitWidth; implicitHeight: netIconText.implicitHeight
+                scale: networkHover.hovered ? 1.25 : 1.0
+                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                Glow {
+                    anchors.fill: netIconText; source: netIconText
+                    radius: networkHover.hovered ? 8 : 0; samples: 16
+                    color: Config.accent; spread: 0.2; transparentBorder: true
+                    visible: networkHover.hovered
+                    Behavior on radius { NumberAnimation { duration: 180 } }
+                }
+
+                Text {
+                    id: netIconText
+                    anchors.centerIn: parent
+                    text: shellRoot.vpnActive ? "vpn_key" : Config.getIcon("network")
+                    color: (Config.showNetwork || networkHover.hovered) ? Config.accent : Config.textMain
+                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
+            }
+
+            Rectangle {
+                anchors.top: parent.top; anchors.right: parent.right
+                anchors.topMargin: 2; anchors.rightMargin: 2
+                width: 5; height: 5; radius: 2.5
+                color: Config.accent
+                visible: !Config.leftCardCollapsed && Config.isPinned("network")
+            }
+
+            TapHandler { onTapped: { popoutRequested(btnNetwork); Config.showNetwork = !Config.showNetwork; } }
+            TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("network") }
+            HoverHandler { id: networkHover; cursorShape: Qt.PointingHandCursor }
+        }
+    }
+
+    Component {
+        id: clipComp
+        Rectangle {
+            id: btnClipboard
+            implicitWidth: 32; implicitHeight: 32; radius: 10
+            color: Config.showClipboard ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+            Behavior on color { ColorAnimation { duration: 150 } }
+
+            Item {
+                anchors.centerIn: parent
+                implicitWidth: clipIconText.implicitWidth; implicitHeight: clipIconText.implicitHeight
+                scale: clipHover.hovered ? 1.25 : 1.0
+                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                Glow {
+                    anchors.fill: clipIconText; source: clipIconText
+                    radius: clipHover.hovered ? 8 : 0; samples: 16
+                    color: Config.accent; spread: 0.2; transparentBorder: true
+                    visible: clipHover.hovered
+                    Behavior on radius { NumberAnimation { duration: 180 } }
+                }
+
+                Text {
+                    id: clipIconText
+                    anchors.centerIn: parent
+                    text: Config.getIcon("clipboard")
+                    color: (Config.showClipboard || clipHover.hovered) ? Config.accent : Config.textMain
+                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
+            }
+
+            Rectangle {
+                anchors.top: parent.top; anchors.right: parent.right
+                anchors.topMargin: 2; anchors.rightMargin: 2
+                width: 5; height: 5; radius: 2.5
+                color: Config.accent
+                visible: !Config.leftCardCollapsed && Config.isPinned("clipboard")
+            }
+
+            TapHandler { onTapped: { popoutRequested(btnClipboard); Config.showClipboard = !Config.showClipboard; } }
+            TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("clipboard") }
+            HoverHandler { id: clipHover; cursorShape: Qt.PointingHandCursor }
         }
     }
 }

@@ -52,7 +52,7 @@ PanelWindow {
     function updatePlayerPopoutPos() {
         if (root.activeView !== "player") return
 
-        let btn = centerGroupContainer ? centerGroupContainer.getButton("player") : null
+        let btn = leftCard ? leftCard.getButton("player") : null
         let centerPos = btn 
             ? (isHorizontal ? btn.mapToItem(mainContainer, btn.width / 2, 0).x : btn.mapToItem(mainContainer, 0, btn.height / 2).y) 
             : (isHorizontal ? mainContainer.width / 2.0 : mainContainer.height / 2.0)
@@ -345,18 +345,17 @@ PanelWindow {
             case "notifications":  btn = leftCard ? leftCard.getButton("notifications") : null; break
             case "screenRecorder": btn = leftCard ? leftCard.getButton("recorder") : null; break
             case "mirror":         btn = leftCard ? leftCard.getButton("mirror") : null; break
-
-            // Center Group Modules
-            case "player":         btn = centerGroupContainer ? centerGroupContainer.getButton("player") : null; break
-            case "taskOverflow":   btn = centerGroupContainer ? centerGroupContainer.getButton("apps") : null; break
+            case "audio":          btn = leftCard ? leftCard.getButton("audio") : null; break
+            case "network":        btn = leftCard ? leftCard.getButton("network") : null; break
+            case "battery":        btn = leftCard ? leftCard.getButton("batt") : null; break
+            case "clipboard":      btn = leftCard ? leftCard.getButton("clipboard") : null; break
+            case "player":         btn = leftCard ? leftCard.getButton("player") : null; break
 
             // Right Card Modules
+            case "workspacePreview": btn = rightCard ? rightCard.getButton("overview") : null; break
+            case "taskOverflow":   btn = rightCard ? rightCard.getButton("apps") : null; break
+            case "controlCenter":  btn = rightCard ? rightCard.getButton("cc") : null; break
             case "calendar":       btn = rightCard ? rightCard.getButton("clock") : null; break
-            case "audio":          btn = rightCard ? rightCard.getButton("audio") : null; break
-            case "network":        btn = rightCard ? rightCard.getButton("network") : null; break
-            case "battery":        btn = rightCard ? rightCard.getButton("batt") : null; break
-            case "clipboard":      btn = rightCard ? rightCard.getButton("clipboard") : null; break
-            case "controlCenter":  btn = centerGroupContainer ? centerGroupContainer.getButton("cc") : (rightCard ? rightCard.getButton("cc") : null); break
         }
 
         // Snap popout offset to the active button position or anchor mode
@@ -463,18 +462,15 @@ PanelWindow {
         function onShowWorkspacePreviewChanged() {
             if (Config.showWorkspacePreview) {
                 closeOthers("workspacePreview")
-                root.isCentered = true
-                root.popoutXOffset = mainContainer.width / 2.0
-                root.popoutYOffset = mainContainer.height / 2.0
-            } else if (activeView === "workspacePreview") {
-                root.isCentered = false
+                let btn = rightCard ? rightCard.getButton("overview") : null
+                if (btn) setPopoutPos(btn)
             }
             updateActiveView()
         }
         function onShowSettingsChanged() {
             if (Config.showSettings) {
                 closeOthers("settings")
-                let btn = leftCard ? leftCard.getButton("settings") : (rightCard ? rightCard.getButton("settings") : null)
+                let btn = leftCard ? leftCard.getButton("settings") : null
                 if (btn) setPopoutPos(btn)
             }
             updateActiveView()
@@ -495,7 +491,7 @@ PanelWindow {
         function onShowTaskOverflowChanged() {
             if (Config.showTaskOverflow) {
                 closeOthers("taskOverflow")
-                let btn = centerGroupContainer ? centerGroupContainer.getButton("apps") : null
+                let btn = rightCard ? rightCard.getButton("apps") : null
                 if (btn) setPopoutPos(btn)
             }
             updateActiveView()
@@ -505,10 +501,10 @@ PanelWindow {
         function onShowWallpaperChanged() { if (Config.showWallpaper) { closeOthers("wallpaper"); let btn = leftCard ? leftCard.getButton("wallpaper") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowCalendarChanged() { if (Config.showCalendar) { closeOthers("calendar"); let btn = rightCard ? rightCard.getButton("clock") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowNotificationsChanged() { if (Config.showNotifications) { closeOthers("notifications"); let btn = leftCard ? leftCard.getButton("notifications") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
-        function onShowAudioChanged() { if (Config.showAudio) { closeOthers("audio"); let btn = rightCard ? rightCard.getButton("audio") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
-        function onShowNetworkChanged() { if (Config.showNetwork) { closeOthers("network"); let btn = rightCard ? rightCard.getButton("network") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
-        function onShowBatteryChanged() { if (Config.showBattery) { closeOthers("battery"); let btn = rightCard ? rightCard.getButton("batt") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
-        function onShowClipboardChanged() { if (Config.showClipboard) { closeOthers("clipboard"); let btn = rightCard ? rightCard.getButton("clipboard") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowAudioChanged() { if (Config.showAudio) { closeOthers("audio"); let btn = leftCard ? leftCard.getButton("audio") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowNetworkChanged() { if (Config.showNetwork) { closeOthers("network"); let btn = leftCard ? leftCard.getButton("network") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowBatteryChanged() { if (Config.showBattery) { closeOthers("battery"); let btn = leftCard ? leftCard.getButton("batt") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowClipboardChanged() { if (Config.showClipboard) { closeOthers("clipboard"); let btn = leftCard ? leftCard.getButton("clipboard") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowScreenRecorderChanged() { if (Config.showScreenRecorder) { closeOthers("screenRecorder"); let btn = leftCard ? leftCard.getButton("recorder") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowMirrorChanged() {
             if (Config.showMirror) {
@@ -525,7 +521,7 @@ PanelWindow {
                 mirrorReopenTimer.restart()
             }
         }
-        function onShowControlCenterChanged() { if (Config.showControlCenter) { closeOthers("controlCenter"); let btn = centerGroupContainer ? centerGroupContainer.getButton("cc") : (rightCard ? rightCard.getButton("cc") : null); if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowControlCenterChanged() { if (Config.showControlCenter) { closeOthers("controlCenter"); let btn = rightCard ? rightCard.getButton("cc") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
     }
 
     Item {
@@ -1046,22 +1042,24 @@ PanelWindow {
                     ShapePath {
                         fillColor: "transparent"; strokeWidth: root.borderWidth; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
                         startX: root.inX + root.inRadi; startY: root.inY + root.halfB
-                        PathArc { x: root.inX + root.inW - root.halfB; y: root.inY + root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
+                        
+                        PathLine { x: root.rightBarPopL - root.wingW; y: root.inY + root.halfB }
+                        PathCubic { x: root.rightBarPopL; y: root.inY + root.halfB + root.wingW; control1X: root.rightBarPopL - root.wingW * 0.5; control1Y: root.inY + root.halfB; control2X: root.rightBarPopL; control2Y: root.inY + root.halfB + root.wingW * 0.5 }
+                        
+                        PathLine { x: root.rightBarPopL; y: root.pRight - root.radius }
+                        PathArc { x: root.rightBarPopL + root.radius; y: root.pRight; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Counterclockwise }
+                        
+                        PathLine { x: root.inX + root.inW - root.wingW; y: root.pRight }
+                        PathCubic { x: root.inX + root.inW - root.halfB; y: root.pRight + root.wingW; control1X: root.inX + root.inW - root.wingW * 0.5; control1Y: root.pRight; control2X: root.inX + root.inW - root.halfB; control2Y: root.pRight + root.wingW * 0.5 }
+                        
                         PathLine { x: root.inX + root.inW - root.halfB; y: root.inY + root.inH - root.inRadi }
                         PathArc { x: root.inX + root.inW - root.inRadi; y: root.inY + root.inH - root.halfB; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
+                        
                         PathLine { x: root.inX + root.inRadi; y: root.inY + root.inH - root.halfB }
                         PathArc { x: root.inX + root.halfB; y: root.inY + root.inH - root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                         
-                        PathLine { x: root.inX + root.halfB; y: root.pRight + root.wingW } 
-                        PathCubic { x: root.inX + root.wingW; y: root.pRight; control1X: root.inX + root.halfB; control1Y: root.pRight + root.wingW * 0.5; control2X: root.inX + root.wingW * 0.5; control2Y: root.pRight } 
-                        
-                        PathLine { x: root.leftBarRx - root.radius; y: root.pRight } 
-                        PathArc { x: root.leftBarRx; y: root.pRight - root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Counterclockwise } 
-                        
-                        PathLine { x: root.leftBarRx; y: root.inY + root.halfB + root.wingW } 
-                        PathCubic { x: root.leftBarRx + root.wingW; y: root.inY + root.halfB; control1X: root.leftBarRx; control1Y: root.inY + root.halfB + root.wingW * 0.5; control2X: root.leftBarRx + root.wingW * 0.5; control2Y: root.inY + root.halfB } 
-                        
-                        PathLine { x: root.inX + root.inW - root.inRadi; y: root.inY + root.halfB } 
+                        PathLine { x: root.inX + root.halfB; y: root.inY + root.inRadi }
+                        PathArc { x: root.inX + root.inRadi; y: root.inY + root.halfB; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                     }
                 }
                 Shape {
@@ -1083,7 +1081,7 @@ PanelWindow {
                         PathCubic { x: root.rightBarPopL - root.wingW; y: root.inY + root.inH - root.halfB; control1X: root.rightBarPopL; control1Y: root.inY + root.inH - root.halfB - root.wingW * 0.5; control2X: root.rightBarPopL - root.wingW * 0.5; control2Y: root.inY + root.inH } 
                         
                         PathLine { x: root.inX + root.inRadi; y: root.inY + root.inH - root.halfB } 
-                        PathArc { x: root.halfB; y: root.inY + root.inH - root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
+                        PathArc { x: root.inX + root.halfB; y: root.inY + root.inH - root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                         PathLine { x: root.inX + root.halfB; y: root.inY + root.inRadi } 
                         PathArc { x: root.inX + root.inRadi; y: root.inY + root.halfB; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                     }
@@ -1218,7 +1216,7 @@ PanelWindow {
                         PathLine { x: root.inX + root.inW - root.halfB; y: root.inY + root.inH - root.inRadi }
                         PathArc { x: root.inX + root.inW - root.inRadi; y: root.inY + root.inH - root.halfB; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                         PathLine { x: root.inX + root.inRadi; y: root.inY + root.inH - root.halfB }
-                        PathArc { x: root.halfB; y: root.inY + root.inH - root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
+                        PathArc { x: root.inX + root.halfB; y: root.inY + root.inH - root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                         PathLine { x: root.inX + root.halfB; y: root.inY + root.inRadi }
                         PathArc { x: root.inX + root.inRadi; y: root.inY + root.halfB; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                     }
@@ -1268,9 +1266,6 @@ PanelWindow {
                         PathLine { x: root.inX + root.wingW; y: root.bottomBarPopT } 
                         PathCubic { x: root.inX; y: root.bottomBarPopT - root.wingW; control1X: root.inX + root.wingW * 0.5; control1Y: root.bottomBarPopT; control2X: root.inX; control2Y: root.bottomBarPopT - root.wingW * 0.5 }
                         
-                        PathLine { x: root.inX; y: root.inY + root.inRadi }
-                        PathArc { x: root.inX + root.inRadi; y: root.inY; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Counterclockwise }
-                        PathLine { x: root.inX; y: root.inY }
                         PathLine { x: root.inX; y: root.inY + root.inH } 
                     }
                 }
@@ -1290,9 +1285,6 @@ PanelWindow {
                         PathLine { x: root.inX + root.inW - root.wingW; y: root.bottomBarPopT } 
                         PathCubic { x: root.inX + root.inW; y: root.bottomBarPopT - root.wingW; control1X: root.inX + root.inW - root.wingW * 0.5; control1Y: root.bottomBarPopT; control2X: root.inX + root.inW; control2Y: root.bottomBarPopT - root.wingW * 0.5 }
                         
-                        PathLine { x: root.inX + root.inW; y: root.inY + root.inRadi }
-                        PathArc { x: root.inX + root.inW - root.inRadi; y: root.inY; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
-                        PathLine { x: root.inX + root.inW; y: root.inY }
                         PathLine { x: root.inX + root.inW; y: root.inY + root.inH } 
                     }
                 }
@@ -1366,7 +1358,7 @@ PanelWindow {
                         PathCubic { x: root.pLeft - root.wingW; y: root.inY + root.inH - root.halfB; control1X: root.pLeft; control1Y: root.inY + root.inH - root.halfB - root.wingW * 0.5; control2X: root.pLeft - root.wingW * 0.5; control2Y: root.inY + root.inH } 
                         
                         PathLine { x: root.inX + root.inRadi; y: root.inY + root.inH - root.halfB } 
-                        PathArc { x: root.halfB; y: root.inY + root.inH - root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
+                        PathArc { x: root.inX + root.halfB; y: root.inY + root.inH - root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                         PathLine { x: root.inX + root.halfB; y: root.inY + root.inRadi } 
                         PathArc { x: root.inX + root.inRadi; y: root.inY + root.halfB; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                     }
@@ -1392,14 +1384,7 @@ PanelWindow {
                     onPopoutRequested: item => root.setPopoutPos(item)
                 }
 
-                CenterModules {
-                    id: centerGroupContainer
-                    rootRef: root
-                    leftCardRef: leftCard
-                    rightCardRef: rightCard
-                    barContentRef: barContent
-                    onPopoutRequested: item => root.setPopoutPos(item)
-                }
+
 
                 RightModules {
                     id: rightCard

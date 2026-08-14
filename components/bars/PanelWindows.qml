@@ -301,11 +301,7 @@ PanelWindow {
         function onShowWorkspacePreviewChanged() {
             if (Config.showWorkspacePreview) {
                 closeOthers("workspacePreview")
-                root.isCentered = true
-                root.popoutXOffset = mainContainer.width / 2.0
-                root.popoutYOffset = mainContainer.height / 2.0
-            } else if (activeView === "workspacePreview") {
-                root.isCentered = false
+                setPopoutPos(rightCard ? rightCard.getButton("overview") : null)
             }
             updateActiveView()
         }
@@ -314,13 +310,14 @@ PanelWindow {
         function onShowWallpaperChanged() { if (Config.showWallpaper) { closeOthers("wallpaper"); setPopoutPos(leftCard ? leftCard.getButton("wallpaper") : null); } updateActiveView() }
         function onShowCalendarChanged() { if (Config.showCalendar) { closeOthers("calendar"); setPopoutPos(rightCard ? rightCard.getButton("clock") : null); } updateActiveView() }
         function onShowNotificationsChanged() { if (Config.showNotifications) { closeOthers("notifications"); setPopoutPos(leftCard ? leftCard.getButton("notifications") : null); } updateActiveView() }
-        function onShowAudioChanged() { if (Config.showAudio) { closeOthers("audio"); setPopoutPos(rightCard ? rightCard.getButton("audio") : null); } updateActiveView() }
-        function onShowNetworkChanged() { if (Config.showNetwork) { closeOthers("network"); setPopoutPos(rightCard ? rightCard.getButton("network") : null); } updateActiveView() }
-        function onShowBatteryChanged() { if (Config.showBattery) { closeOthers("battery"); setPopoutPos(rightCard ? rightCard.getButton("batt") : null); } updateActiveView() }
-        function onShowClipboardChanged() { if (Config.showClipboard) { closeOthers("clipboard"); setPopoutPos(rightCard ? rightCard.getButton("clipboard") : null); } updateActiveView() }
+        function onShowAudioChanged() { if (Config.showAudio) { closeOthers("audio"); setPopoutPos(leftCard ? leftCard.getButton("audio") : null); } updateActiveView() }
+        function onShowNetworkChanged() { if (Config.showNetwork) { closeOthers("network"); setPopoutPos(leftCard ? leftCard.getButton("network") : null); } updateActiveView() }
+        function onShowBatteryChanged() { if (Config.showBattery) { closeOthers("battery"); setPopoutPos(leftCard ? leftCard.getButton("batt") : null); } updateActiveView() }
+        function onShowClipboardChanged() { if (Config.showClipboard) { closeOthers("clipboard"); setPopoutPos(leftCard ? leftCard.getButton("clipboard") : null); } updateActiveView() }
         function onShowScreenRecorderChanged() { if (Config.showScreenRecorder) { closeOthers("screenRecorder"); setPopoutPos(leftCard ? leftCard.getButton("recorder") : null); } updateActiveView() }
         function onShowMirrorChanged() { if (Config.showMirror) { closeOthers("mirror"); setPopoutPos(leftCard ? leftCard.getButton("mirror") : null); } updateActiveView() }
-        function onShowControlCenterChanged() { if (Config.showControlCenter) { closeOthers("controlCenter"); setPopoutPos(centerGroupContainer ? centerGroupContainer.getButton("cc") : (rightCard ? rightCard.getButton("cc") : null)); } updateActiveView() }
+        function onShowControlCenterChanged() { if (Config.showControlCenter) { closeOthers("controlCenter"); setPopoutPos(rightCard ? rightCard.getButton("cc") : null); } updateActiveView() }
+        function onShowTaskOverflowChanged() { if (Config.showTaskOverflow) { closeOthers("taskOverflow"); setPopoutPos(rightCard ? rightCard.getButton("apps") : null); } updateActiveView() }
     }
 
     Item {
@@ -377,13 +374,7 @@ PanelWindow {
                 onPopoutRequested: item => root.setPopoutPos(item)
             }
 
-            CenterModules {
-                id: centerGroupContainer
-                rootRef: root
-                leftCardRef: leftCard
-                rightCardRef: rightCard
-                barContentRef: barContent
-            }
+
 
             RightModules {
                 id: rightCard

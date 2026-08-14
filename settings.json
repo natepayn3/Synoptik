@@ -1,5 +1,5 @@
 {
-  "lastSettingsSection": 12,
+  "lastSettingsSection": 0,
   "savedUrls": [],
   "monitorConfigs": {
     "DP-1": {
@@ -41,8 +41,8 @@
   ],
   "fetchOnlineQuotes": false,
   "quoteSource": "zenquotes",
-  "barFrameStyle": "screen",
-  "barPosition": "left",
+  "barFrameStyle": "floating",
+  "barPosition": "top",
   "showScreenFrame": false,
   "sysFont": "Montserrat Alternates",
   "fontScaleIndex": 1,
@@ -87,7 +87,11 @@
     "player",
     "wallpaper",
     "settings",
-    "launcher"
+    "launcher",
+    "audio",
+    "batt",
+    "network",
+    "clipboard"
   ],
   "leftCardCollapsed": false,
   "rightCardCollapsed": false,
