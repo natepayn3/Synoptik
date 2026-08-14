@@ -142,7 +142,13 @@ Item {
                             anchors.fill: parent
                             cursorShape: cardRoot.hasHypridle ? Qt.PointingHandCursor : Qt.ArrowCursor
                             onClicked: {
-                                if (cardRoot.hasHypridle) Config.cycleCaffeine()
+                                if (cardRoot.hasHypridle) {
+                                    if (cardRoot.caffeineState !== 0) {
+                                        Config.startCaffeineTimer(0)
+                                    } else {
+                                        Config.setIndefiniteCaffeine()
+                                    }
+                                }
                             }
                         }
                         HoverHandler { id: iconHover }
@@ -340,7 +346,13 @@ Item {
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: Config.cycleCaffeine()
+                        onClicked: {
+                            if (cardRoot.caffeineState !== 0) {
+                                Config.startCaffeineTimer(0)
+                            } else {
+                                Config.setIndefiniteCaffeine()
+                            }
+                        }
                     }
                     HoverHandler { id: topPwrHover }
                 }
