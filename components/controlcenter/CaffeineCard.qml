@@ -559,12 +559,11 @@ Item {
 
             // --- 5. QUICK PRESET PILLS ROW ---
             RowLayout {
-                Layout.fillWidth: true
                 Layout.alignment: Qt.AlignHCenter
-                spacing: 8
+                spacing: 10
 
                 Rectangle {
-                    Layout.fillWidth: true
+                    implicitWidth: 68
                     implicitHeight: 32
                     radius: 16
                     color: pr30Hover.hovered ? Qt.rgba(255, 255, 255, 0.18) : Qt.rgba(255, 255, 255, 0.06)
@@ -590,7 +589,7 @@ Item {
                 }
 
                 Rectangle {
-                    Layout.fillWidth: true
+                    implicitWidth: 68
                     implicitHeight: 32
                     radius: 16
                     color: pr1hHover.hovered ? Qt.rgba(255, 255, 255, 0.18) : Qt.rgba(255, 255, 255, 0.06)
@@ -616,7 +615,7 @@ Item {
                 }
 
                 Rectangle {
-                    Layout.fillWidth: true
+                    implicitWidth: 100
                     implicitHeight: 32
                     radius: 16
                     color: prInfHover.hovered ? Qt.rgba(255, 255, 255, 0.18) : Qt.rgba(255, 255, 255, 0.06)
