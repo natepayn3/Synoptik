@@ -1383,9 +1383,11 @@ PanelWindow {
                     rootRef: root
                     onPopoutRequested: item => root.setPopoutPos(item)
                 }
-
-
-
+                ActiveWindowCard {
+                    id: activeWindowCard
+                    rootRef: root
+                    anchors.centerIn: parent
+                }
                 RightModules {
                     id: rightCard
                     rootRef: root
