@@ -99,7 +99,7 @@ Item {
                 }
             }
 
-            z: (staticToggleRow && (wifiCard.shouldExpand || btCard.shouldExpand)) ? 100 : 1
+            z: (staticToggleRow && ((wifiCard && (wifiCard.panelExpanded || wifiCard.shouldExpand)) || (btCard && (btCard.panelExpanded || btCard.shouldExpand)))) ? 1000 : 1
 
             ColumnLayout {
                 id: topHeaderLayout
@@ -160,13 +160,14 @@ Item {
                     Layout.alignment: Qt.AlignTop
                     spacing: root.cardMargin / 2
 
-                    z: (wifiCard.shouldExpand || btCard.shouldExpand) ? 10 : 1
+                    z: ((wifiCard && (wifiCard.panelExpanded || wifiCard.shouldExpand)) || (btCard && (btCard.panelExpanded || btCard.shouldExpand))) ? 1000 : 1
 
                     WifiCard {
                         id: wifiCard
                         Layout.fillWidth: true
                         Layout.preferredWidth: 1
                         hasAdapter: root.hasWifiAdapter
+                        controlCenterPanel: root
                         wifiPowered: root.wifiPowered
                         wifiScanning: root.wifiScanning
                         activeSsid: root.activeSsid
@@ -186,6 +187,7 @@ Item {
                         Layout.fillWidth: true
                         Layout.preferredWidth: 1
                         hasHardware: root.hasBtAdapter
+                        controlCenterPanel: root
                         onTogglePower: power => btCard.execTogglePower(power)
                         onTriggerScan: btCard.execTriggerScan()
                     }
