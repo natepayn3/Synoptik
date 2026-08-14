@@ -579,8 +579,6 @@ Item {
 
                         WheelHandler {
                             id: processWheelHandler
-                            target: processListView
-                            property: "contentY"
                             onWheel: (event) => {
                                 let delta = event.angleDelta.y
                                 let maxScroll = Math.max(0, processListView.contentHeight - processListView.height)
