@@ -32,6 +32,7 @@ Item {
     property string activeSsid: ""
     property string expandedSsid: ""
     property string connectingSsid: ""
+    property string disconnectingSsid: ""
     property var knownNetworks: ({})
 
     // Bind directly to global shell state to eliminate loading latency & jumps
@@ -177,6 +178,7 @@ Item {
                         activeSsid: root.activeSsid
                         expandedSsid: root.expandedSsid
                         connectingSsid: root.connectingSsid
+                        disconnectingSsid: root.disconnectingSsid
                         knownNetworks: root.knownNetworks
                         wifiModel: wifiModel
                         onTogglePower: power => root.toggleWifiPower(power)
@@ -409,10 +411,14 @@ Item {
         id: disconnectWifiProc
         running: false
         function disconnect(ssid) {
+            root.disconnectingSsid = ssid
             command = ["nmcli", "connection", "down", "id", ssid]
             running = true
         }
-        onExited: fetchWifiStatusProc.running = true
+        onExited: {
+            root.disconnectingSsid = ""
+            fetchWifiStatusProc.running = true
+        }
     }
 
     Process {

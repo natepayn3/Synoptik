@@ -78,8 +78,8 @@ Item {
     onActiveSsidChanged: {
         if (activeSsid !== "") {
             connectingSsid = ""
-            disconnectingSsid = ""
         }
+        disconnectingSsid = ""
     }
 
     onVisibleChanged: {
