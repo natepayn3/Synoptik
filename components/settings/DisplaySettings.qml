@@ -185,8 +185,8 @@ Flickable {
 
                 Repeater {
                     model: [
-                        { name: "Floating", style: "floating", icon: "sliders" },
-                        { name: "Island", style: "island", icon: "dataset" },
+                        { name: "Floating", style: "floating", icon: "crop_21_9" },
+                        { name: "Island", style: "island", icon: "crop_16_9" },
                         { name: "Edge", style: "edge", icon: "border_left" },
                         { name: "Frame", style: "screen", icon: "web_asset" }
                     ]
@@ -253,7 +253,7 @@ Flickable {
             }
 
             Text {
-                text: "Auto-hide Bar (reveals on edge hover)"
+                text: "Auto-hide Bar"
                 color: Config.textMain
                 font.family: Config.sysFont
                 font.pixelSize: Config.size(Config.fontCaption)

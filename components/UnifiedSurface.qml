@@ -108,10 +108,14 @@ PanelWindow {
     readonly property real framePadding: isScreenFrame ? 8 : 0
     readonly property real frameRadius: isScreenFrame ? (Config.surfaceRadius || 18) : 0
 
-    readonly property real padL: barPosition === "left" ? barH + framePadding : framePadding
-    readonly property real padR: barPosition === "right" ? barH + framePadding : framePadding
-    readonly property real padT: barPosition === "top" ? barH + framePadding : framePadding
-    readonly property real padB: barPosition === "bottom" ? barH + framePadding : framePadding
+    readonly property real activeBarSideThickness: isScreenFrame
+        ? (framePadding + (barH * autoHideProgress))
+        : barH
+
+    readonly property real padL: barPosition === "left" ? activeBarSideThickness : framePadding
+    readonly property real padR: barPosition === "right" ? activeBarSideThickness : framePadding
+    readonly property real padT: barPosition === "top" ? activeBarSideThickness : framePadding
+    readonly property real padB: barPosition === "bottom" ? activeBarSideThickness : framePadding
 
     readonly property real inX: padL
     readonly property real inY: padT
@@ -284,9 +288,22 @@ PanelWindow {
     }
 
     readonly property real autoHideDist: barH + currentMargin + 32
+    readonly property real autoHideShiftDist: isScreenFrame ? barH : autoHideDist
+    readonly property real autoHideXOffset: {
+        if (!Config.autoHideBar) return 0
+        if (barPosition === "left") return (1.0 - autoHideProgress) * -autoHideShiftDist
+        if (barPosition === "right") return (1.0 - autoHideProgress) * autoHideShiftDist
+        return 0
+    }
+    readonly property real autoHideYOffset: {
+        if (!Config.autoHideBar) return 0
+        if (barPosition === "top") return (1.0 - autoHideProgress) * -autoHideShiftDist
+        if (barPosition === "bottom") return (1.0 - autoHideProgress) * autoHideShiftDist
+        return 0
+    }
 
     mask: Region {
-        Region { item: (isBarRevealed && autoHideProgress > 0.05) ? barContent : null }
+        Region { item: isBarRevealed ? barContent : null }
         Region { item: root.progress > 0.01 ? contentContainer : null }
         Region { item: (Config.autoHideBar && !isBarRevealed) ? edgeTrigger : null }
     }
@@ -611,12 +628,12 @@ PanelWindow {
     Item {
         id: edgeTrigger
         z: 999
-        visible: Config.autoHideBar
+        visible: Config.autoHideBar && !root.isBarRevealed
 
-        x: barPosition === "right" ? (root.width - 16) : 0
-        y: barPosition === "bottom" ? (root.height - 16) : 0
-        width: !isHorizontal ? 16 : root.width
-        height: isHorizontal ? 16 : root.height
+        x: root.shadowPadding + (barPosition === "right" ? (root.actualScreenWidth - 16) : 0)
+        y: root.shadowPadding + (barPosition === "bottom" ? (root.actualScreenHeight - 16) : 0)
+        width: !isHorizontal ? 16 : root.actualScreenWidth
+        height: isHorizontal ? 16 : root.actualScreenHeight
 
         HoverHandler {
             id: edgeHover
@@ -634,22 +651,8 @@ PanelWindow {
         anchors.fill: parent
         anchors.margins: shadowPadding
 
-        transform: Translate {
-            x: {
-                if (root.isHorizontal) return 0
-                return root.barPosition === "left"
-                    ? ((1.0 - root.autoHideProgress) * -root.autoHideDist)
-                    : ((1.0 - root.autoHideProgress) * root.autoHideDist)
-            }
-            y: {
-                if (!root.isHorizontal) return 0
-                return root.barPosition === "top"
-                    ? ((1.0 - root.autoHideProgress) * -root.autoHideDist)
-                    : ((1.0 - root.autoHideProgress) * root.autoHideDist)
-            }
-        }
-        opacity: Config.autoHideBar ? root.autoHideProgress : 1.0
-        visible: !Config.autoHideBar || root.autoHideProgress > 0.001
+        opacity: root.isScreenFrame ? 1.0 : (Config.autoHideBar ? root.autoHideProgress : 1.0)
+        visible: root.isScreenFrame || !Config.autoHideBar || root.autoHideProgress > 0.001
 
         MouseArea {
             anchors.fill: parent
@@ -736,21 +739,21 @@ PanelWindow {
                 anchors.fill: parent
                 visible: root.progress <= 0.005 && !root.isScreenFrame
 
-                readonly property real bX: root.isIsland 
+                readonly property real bX: (root.isIsland 
                     ? (root.isHorizontal ? root.islandX : (root.isRight ? (mainContainer.width - root.barH + root.halfB) : root.halfB))
-                    : (root.isRight ? (mainContainer.width - root.barH + root.halfB) : root.halfB)
+                    : (root.isRight ? (mainContainer.width - root.barH + root.halfB) : root.halfB)) + root.autoHideXOffset
 
-                readonly property real bY: root.isIsland
+                readonly property real bY: (root.isIsland
                     ? (root.isHorizontal ? (root.isBottom ? (mainContainer.height - root.barH + root.halfB) : root.halfB) : root.islandY)
-                    : (root.isBottom ? (mainContainer.height - root.barH + root.halfB) : root.halfB)
+                    : (root.isBottom ? (mainContainer.height - root.barH + root.halfB) : root.halfB)) + root.autoHideYOffset
 
-                readonly property real bW: root.isIsland
+                readonly property real bW: (root.isIsland
                     ? (root.isHorizontal ? (root.islandX + root.animatedIslandWidth) : (root.isRight ? (mainContainer.width - root.halfB) : (root.barH - root.halfB)))
-                    : (root.isHorizontal ? (mainContainer.width - root.halfB) : (root.isRight ? (mainContainer.width - root.halfB) : (root.barH - root.halfB)))
+                    : (root.isHorizontal ? (mainContainer.width - root.halfB) : (root.isRight ? (mainContainer.width - root.halfB) : (root.barH - root.halfB)))) + root.autoHideXOffset
 
-                readonly property real bH: root.isIsland
+                readonly property real bH: (root.isIsland
                     ? (root.isHorizontal ? (root.isBottom ? (mainContainer.height - root.halfB) : (root.barH - root.halfB)) : (root.islandY + root.animatedIslandHeight))
-                    : (root.isHorizontal ? (root.isBottom ? (mainContainer.height - root.halfB) : (root.barH - root.halfB)) : (mainContainer.height - root.halfB))
+                    : (root.isHorizontal ? (root.isBottom ? (mainContainer.height - root.halfB) : (root.barH - root.halfB)) : (mainContainer.height - root.halfB))) + root.autoHideYOffset
 
                 ShapePath {
                     fillColor: Config.bgPanel
@@ -1500,18 +1503,17 @@ PanelWindow {
 
             Item {
                 id: barContent
-                x: root.isIsland 
+                x: (root.isIsland 
                     ? (root.isHorizontal ? root.islandX : (root.isRight ? (mainContainer.width - root.barH + Math.floor(root.halfB)) : Math.floor(root.halfB)))
-                    : (root.isRight ? (mainContainer.width - root.barH + Math.floor(root.halfB)) : Math.floor(root.halfB))
+                    : (root.isRight ? (mainContainer.width - root.barH + Math.floor(root.halfB)) : Math.floor(root.halfB)))
+                    + (root.isScreenFrame ? (root.barPosition === "left" ? root.framePadding / 2 : (root.barPosition === "right" ? -root.framePadding / 2 : 0)) : 0)
+                    + root.autoHideXOffset
 
-                y: root.isIsland
+                y: (root.isIsland
                     ? (root.isHorizontal ? (root.isBottom ? (mainContainer.height - root.barH + Math.floor(root.halfB)) : Math.floor(root.halfB)) : root.islandY)
-                    : (root.isBottom ? (mainContainer.height - root.barH + Math.floor(root.halfB)) : Math.floor(root.halfB))
-
-                transform: Translate {
-                    x: root.isScreenFrame ? (root.barPosition === "left" ? root.framePadding / 2 : (root.barPosition === "right" ? -root.framePadding / 2 : 0)) : 0
-                    y: root.isScreenFrame ? (root.barPosition === "top" ? root.framePadding / 2 : (root.barPosition === "bottom" ? -root.framePadding / 2 : 0)) : 0
-                }
+                    : (root.isBottom ? (mainContainer.height - root.barH + Math.floor(root.halfB)) : Math.floor(root.halfB)))
+                    + (root.isScreenFrame ? (root.barPosition === "top" ? root.framePadding / 2 : (root.barPosition === "bottom" ? -root.framePadding / 2 : 0)) : 0)
+                    + root.autoHideYOffset
 
                 width: root.isHorizontal ? (root.isIsland ? root.animatedIslandWidth : (mainContainer.width - Math.ceil(root.borderWidth))) : (root.barH - Math.ceil(root.borderWidth))
                 height: root.isHorizontal ? (root.barH - Math.ceil(root.borderWidth)) : (root.isIsland ? root.animatedIslandHeight : (mainContainer.height - Math.ceil(root.borderWidth)))
