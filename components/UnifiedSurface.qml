@@ -52,10 +52,9 @@ PanelWindow {
     function updatePlayerPopoutPos() {
         if (root.activeView !== "player") return
 
-        let btn = leftCard ? leftCard.getButton("player") : null
-        let centerPos = btn 
-            ? (isHorizontal ? btn.mapToItem(mainContainer, btn.width / 2, 0).x : btn.mapToItem(mainContainer, 0, btn.height / 2).y) 
-            : (isHorizontal ? mainContainer.width / 2.0 : mainContainer.height / 2.0)
+        let barCenter = isHorizontal 
+            ? (inX + (inW / 2.0)) 
+            : (inY + (inH / 2.0))
 
         if (Config.playerAnchorPos === "top") {
             if (isHorizontal) root.popoutXOffset = inX + (rawChildWidth / 2.0) + 12
@@ -64,8 +63,8 @@ PanelWindow {
             if (isHorizontal) root.popoutXOffset = (inX + inW) - (rawChildWidth / 2.0) - 12
             else root.popoutYOffset = (inY + inH) - (rawChildHeight / 2.0) - 12
         } else {
-            if (isHorizontal) root.popoutXOffset = centerPos
-            else root.popoutYOffset = centerPos
+            if (isHorizontal) root.popoutXOffset = barCenter
+            else root.popoutYOffset = barCenter
         }
     }
 
@@ -510,9 +509,11 @@ PanelWindow {
         function onShowPlayerChanged() {
             if (Config.showPlayer) {
                 closeOthers("player")
-                updatePlayerPopoutPos()
             }
             updateActiveView()
+            if (Config.showPlayer) {
+                updatePlayerPopoutPos()
+            }
         }
         function onPlayerAnchorPosChanged() {
             if (activeView === "player") {

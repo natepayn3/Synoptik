@@ -60,17 +60,19 @@ QtObject {
     property real playerX: -1
     property real playerY: -1
 
-    // Inline Comment: Default position set to top/left ("top", "center", "bottom")
-    property string playerAnchorPos: "top"
+    // Inline Comment: Default position set to center matching mirrorAnchorPos ("top", "center", "bottom")
+    property string playerAnchorPos: "center"
 
     // Inline Comment: Clean 3-state cycle handler matching cycleMirrorAnchor
     function cyclePlayerAnchor(direction) {
         if (direction === "up" || direction === "left" || direction === "prev") {
             if (playerAnchorPos === "bottom") playerAnchorPos = "center"
             else if (playerAnchorPos === "center") playerAnchorPos = "top"
+            else playerAnchorPos = "bottom"
         } else if (direction === "down" || direction === "right" || direction === "next") {
             if (playerAnchorPos === "top") playerAnchorPos = "center"
             else if (playerAnchorPos === "center") playerAnchorPos = "bottom"
+            else playerAnchorPos = "top"
         }
     }
 

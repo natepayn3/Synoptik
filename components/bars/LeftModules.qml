@@ -359,7 +359,8 @@ Rectangle {
                 visible: !Config.leftCardCollapsed && Config.isPinned("player")
             }
 
-            TapHandler { onTapped: { popoutRequested(btnPlayer); Config.showPlayer = !Config.showPlayer; } }
+            // Direct in-memory toggle
+            TapHandler { onTapped: Config.showPlayer = !Config.showPlayer }
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("player") }
             HoverHandler { id: playerHover; cursorShape: Qt.PointingHandCursor }
         }
