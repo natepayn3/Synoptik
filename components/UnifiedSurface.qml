@@ -1471,9 +1471,6 @@ PanelWindow {
                     y: root.isHorizontal
                         ? (parent.height - activeWindowCard.height) / 2
                         : Math.max(leftCard.y + leftCard.height + 12, Math.min(rightCard.y - activeWindowCard.height - 12, (parent.height - activeWindowCard.height) / 2))
-
-                    Behavior on x { NumberAnimation { duration: 280; easing.type: Easing.OutCubic } }
-                    Behavior on y { NumberAnimation { duration: 280; easing.type: Easing.OutCubic } }
                 }
                 RightModules {
                     id: rightCard

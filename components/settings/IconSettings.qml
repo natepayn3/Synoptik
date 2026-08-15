@@ -18,7 +18,7 @@ ColumnLayout {
     // Inline Comment: Helper check to disable reordering for unselected or workspace icons
     readonly property bool canMoveSelected: {
         if (!iconSettingsRoot.selectedIconId) return false
-        if (iconSettingsRoot.selectedIconId === "batt" || iconSettingsRoot.selectedIconId === "clock" || iconSettingsRoot.selectedIconId === "cc") return false
+        if (iconSettingsRoot.selectedIconId === "batt" || iconSettingsRoot.selectedIconId === "cc") return false
         return Config.leftCardOrder.includes(iconSettingsRoot.selectedIconId) 
             || Config.rightCardOrder.includes(iconSettingsRoot.selectedIconId)
     }
@@ -173,9 +173,7 @@ ColumnLayout {
 
                         Repeater {
                             model: [
-                                { id: "clock", label: "Calendar / Clock" },
                                 { id: "cc", label: "Control Center" },
-                                { id: "apps", label: "Apps View" },
                                 { id: "overview", label: "Overview" },
                                 { id: "magic", label: "Magic" },
                                 { id: "magic_active", label: "Magic (Active)" },

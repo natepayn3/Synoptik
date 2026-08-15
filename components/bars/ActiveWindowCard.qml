@@ -47,9 +47,6 @@ Rectangle {
     width: isHoriz ? Math.max(36, Math.min(190, maxAvailableSpan)) : 36
     height: isHoriz ? 36 : Math.max(36, Math.min(190, maxAvailableSpan))
 
-    Behavior on width { enabled: !(rootRef && rootRef.isIsland); NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-    Behavior on height { enabled: !(rootRef && rootRef.isIsland); NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-
     radius: Config.cornerRadius / 2
     color: (Config.showTaskOverflow || cardHover.hovered) ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(255, 255, 255, 0.05)
     border.color: (Config.showTaskOverflow || cardHover.hovered) ? Config.accent : "transparent"
