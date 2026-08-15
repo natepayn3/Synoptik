@@ -124,7 +124,7 @@ Item {
                     id: pillSlot
                     property int wsId: modelData
                     property bool isSpecialAnyActive: root.activeSpecialName !== ""
-                    property bool isActive: root.activeWorkspace === wsId && !isSpecialAnyActive
+                    property bool isActive: root.activeWorkspace === wsId
                     property bool isOccupied: root.occupiedMap[wsId] === true
 
                     property int basePillW: root.isVertical ? (isActive ? 12 : 20) : (isActive ? 30 : 10)
@@ -301,8 +301,8 @@ Item {
 
                 Item {
                     anchors.centerIn: parent
-                    implicitWidth: magicIconText.implicitWidth
-                    implicitHeight: magicIconText.implicitHeight
+                    implicitWidth: 20
+                    implicitHeight: 20
                     scale: magicHover.hovered ? 1.25 : 1.0
 
                     Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
@@ -348,8 +348,8 @@ Item {
 
                 Item {
                     anchors.centerIn: parent
-                    implicitWidth: musicIconText.implicitWidth
-                    implicitHeight: musicIconText.implicitHeight
+                    implicitWidth: 20
+                    implicitHeight: 20
                     scale: musicHover.hovered ? 1.25 : 1.0
 
                     Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
@@ -395,8 +395,8 @@ Item {
 
                 Item {
                     anchors.centerIn: parent
-                    implicitWidth: privateIconText.implicitWidth
-                    implicitHeight: privateIconText.implicitHeight
+                    implicitWidth: 20
+                    implicitHeight: 20
                     scale: privateHover.hovered ? 1.25 : 1.0
 
                     Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }

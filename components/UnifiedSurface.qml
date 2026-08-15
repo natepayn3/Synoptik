@@ -1516,10 +1516,10 @@ PanelWindow {
                 width: root.isHorizontal ? (root.isIsland ? root.animatedIslandWidth : (mainContainer.width - Math.ceil(root.borderWidth))) : (root.barH - Math.ceil(root.borderWidth))
                 height: root.isHorizontal ? (root.barH - Math.ceil(root.borderWidth)) : (root.isIsland ? root.animatedIslandHeight : (mainContainer.height - Math.ceil(root.borderWidth)))
 
-                opacity: (root.isIsland && root.isIslandResizing) ? 0.0 : 1.0
+                opacity: 1.0
                 Behavior on opacity {
                     NumberAnimation {
-                        duration: (root.isIsland && root.isIslandResizing) ? 80 : 180
+                        duration: 180
                         easing.type: Easing.OutCubic
                     }
                 }

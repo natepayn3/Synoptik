@@ -155,7 +155,7 @@ Rectangle {
             // Calendar Button (Placed LAST in RightModules)
             Rectangle {
                 id: btnClockHoriz
-                implicitWidth: dateRow.implicitWidth + 12
+                implicitWidth: dateRow.implicitWidth + 20
                 implicitHeight: 32
                 radius: 10
                 color: Config.showCalendar ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
@@ -295,7 +295,7 @@ Rectangle {
             Rectangle {
                 id: btnClockVert
                 implicitWidth: 32
-                implicitHeight: dateColumn.implicitHeight + 10
+                implicitHeight: dateColumn.implicitHeight + 16
                 radius: 10
                 color: Config.showCalendar ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
                 Layout.alignment: Qt.AlignHCenter
