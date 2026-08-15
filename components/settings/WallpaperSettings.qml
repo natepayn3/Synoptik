@@ -39,14 +39,16 @@ Flickable {
         function applyWallpaper(filePath) {
             if (!filePath || filePath === "") return;
 
-            let cleanFilePath = filePath.replace(/^file:\/\//, "");
+            let cleanFilePath = (typeof filePath === "string" ? filePath : filePath.toString()).replace(/^file:\/\//, "");
             root.currentWallpaperPath = cleanFilePath;
             Config.activeWallpaperPath = cleanFilePath;
 
             let ext = cleanFilePath.split('.').pop().toLowerCase();
             let waylandDisplay = Quickshell.env("WAYLAND_DISPLAY") || "wayland-1";
             let sockPath = "/run/user/" + Quickshell.env("UID") + "/" + waylandDisplay + "-awww-daemon.sock";
-            let targets = Config.selectedWallpaperMonitors || [];
+            let targets = (Config.selectedWallpaperMonitors || []).filter(mon => {
+                return Quickshell.screens.some(s => s.name === mon);
+            });
             let transition = Config.wallpaperTransitionType || "fade";
 
             let script = "killall -q mpvpaper 2>/dev/null; ";
@@ -329,7 +331,7 @@ Flickable {
                     width: gridView.cellWidth
                     height: gridView.cellHeight
 
-                    readonly property string cleanPath: filePath.replace(/^file:\/\//, "")
+                    readonly property string cleanPath: (typeof filePath === "string" ? filePath : filePath.toString()).replace(/^file:\/\//, "")
                     readonly property bool isCurrent: root.currentWallpaperPath === cleanPath || root.currentWallpaperPath === filePath
                     readonly property bool isVideo: {
                         let ext = fileSuffix.toLowerCase();
@@ -355,9 +357,11 @@ Flickable {
                     }
 
                     Component.onCompleted: {
-                        let cmd = "if not test -f '" + thumbPath + "'; ffmpeg -y -i '" + filePath + "' -vf 'scale=300:-1' '" + thumbPath + "' >/dev/null 2>&1; end";
-                        delegateThumbGenerator.command = ["fish", "-c", cmd];
-                        delegateThumbGenerator.running = true;
+                        if (isVideo) {
+                            let cmd = "if not test -f '" + thumbPath + "'; ffmpeg -y -i '" + cleanPath + "' -vf 'scale=300:-1' '" + thumbPath + "' >/dev/null 2>&1; end";
+                            delegateThumbGenerator.command = ["fish", "-c", cmd];
+                            delegateThumbGenerator.running = true;
+                        }
                     }
 
                     Item {
@@ -372,7 +376,7 @@ Flickable {
                             Image {
                                 id: thumbImage
                                 anchors.fill: parent
-                                source: thumbUrl
+                                source: isVideo ? "" : filePath
                                 fillMode: Image.PreserveAspectCrop
                                 sourceSize.width: 320
                                 sourceSize.height: 180

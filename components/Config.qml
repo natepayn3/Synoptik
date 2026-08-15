@@ -967,6 +967,7 @@ QtObject {
         let ext = cleanFilePath.split('.').pop().toLowerCase()
         let waylandDisplay = Quickshell.env("WAYLAND_DISPLAY") || "wayland-1"
         let sockPath = "/run/user/" + Quickshell.env("UID") + "/" + waylandDisplay + "-awww-daemon.sock"
+        let targets = activeOnly ? [] : (root.selectedWallpaperMonitors || []).filter(mon => Quickshell.screens.some(s => s.name === mon));
         let transition = root.wallpaperTransitionType || "fade"
 
         let script = "killall -q mpvpaper 2>/dev/null; "
@@ -980,6 +981,18 @@ QtObject {
             } else {
                 script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; "
                 script += "awww img -o \"$TARGET_MON\" '" + cleanFilePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; "
+            }
+        } else if (targets.length > 0) {
+            for (let i = 0; i < targets.length; i++) {
+                let mon = targets[i];
+                if (ext === "mp4" || ext === "webm") {
+                    script += "awww clear -o \"" + mon + "\" 2>/dev/null; "
+                    script += "pkill -f 'mpvpaper' 2>/dev/null; "
+                    script += "nohup mpvpaper -vs -o 'input-terminal=no loop-file=inf no-audio panscan=1.0 video-unscaled=no' \"" + mon + "\" '" + cleanFilePath + "' < /dev/null >/dev/null 2>&1 & disown; "
+                } else {
+                    script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; "
+                    script += "awww img -o \"" + mon + "\" '" + cleanFilePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; "
+                }
             }
         } else {
             if (ext === "mp4" || ext === "webm") {

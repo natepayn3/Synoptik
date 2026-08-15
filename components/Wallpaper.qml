@@ -66,7 +66,7 @@ Item {
 
     Process {
         id: thumbPreGenProcess
-        command: ["python3", "-c", "import os, subprocess; cd = os.path.expanduser('~/.cache/wallpaper-thumbs'); os.makedirs(cd, exist_ok=True); wd = os.path.expanduser('~/Pictures/Wallpapers'); (os.path.isdir(wd) and [subprocess.run(['ffmpeg', '-y', '-i', os.path.join(wd, f), '-vf', 'scale=320:-1', os.path.join(cd, f.replace('.', '_') + '.jpg')], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) for f in os.listdir(wd) if f.lower().endswith(('.png', '.jpg', '.jpeg', '.webp', '.mp4', '.webm')) and not os.path.exists(os.path.join(cd, f.replace('.', '_') + '.jpg'))])"]
+        command: ["python3", "-c", "import os, subprocess; cd = os.path.expanduser('~/.cache/wallpaper-thumbs'); os.makedirs(cd, exist_ok=True); wd = os.path.expanduser('~/Pictures/Wallpapers'); (os.path.isdir(wd) and [subprocess.run(['ffmpeg', '-y', '-i', os.path.join(wd, f), '-vf', 'scale=320:-1', os.path.join(cd, f.replace('.', '_') + '.jpg')], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL) for f in os.listdir(wd) if f.lower().endswith(('.mp4', '.webm')) and not os.path.exists(os.path.join(cd, f.replace('.', '_') + '.jpg'))])"]
         running: true
     }
 
@@ -93,7 +93,9 @@ Item {
             let ext = cleanFilePath.split('.').pop().toLowerCase();
             let waylandDisplay = Quickshell.env("WAYLAND_DISPLAY") || "wayland-1";
             let sockPath = "/run/user/" + Quickshell.env("UID") + "/" + waylandDisplay + "-awww-daemon.sock";
-            let targets = activeOnly ? [] : (Config.selectedWallpaperMonitors || []);
+            let targets = activeOnly ? [] : (Config.selectedWallpaperMonitors || []).filter(mon => {
+                return Quickshell.screens.some(s => s.name === mon);
+            });
             let transition = Config.wallpaperTransitionType || "fade";
 
             let script = "killall -q mpvpaper 2>/dev/null; ";
@@ -419,9 +421,12 @@ Item {
                             }
 
                             Component.onCompleted: {
-                                let cmd = "if not test -f '" + thumbPath + "'; ffmpeg -y -i '" + filePath + "' -vf 'scale=320:-1' '" + thumbPath + "' >/dev/null 2>&1; end";
-                                delegateThumbGenerator.command = ["fish", "-c", cmd];
-                                delegateThumbGenerator.running = true;
+                                if (isVideo) {
+                                    let cleanPath = (typeof filePath === "string" ? filePath : filePath.toString()).replace(/^file:\/\//, "");
+                                    let cmd = "if not test -f '" + thumbPath + "'; ffmpeg -y -i '" + cleanPath + "' -vf 'scale=320:-1' '" + thumbPath + "' >/dev/null 2>&1; end";
+                                    delegateThumbGenerator.command = ["fish", "-c", cmd];
+                                    delegateThumbGenerator.running = true;
+                                }
                             }
 
                             Rectangle {
@@ -441,7 +446,7 @@ Item {
                                     Image {
                                         id: thumbImage
                                         anchors.fill: parent
-                                        source: thumbUrl
+                                        source: isVideo ? "" : filePath
                                         fillMode: Image.PreserveAspectCrop
                                         sourceSize.width: 320
                                         sourceSize.height: 180
