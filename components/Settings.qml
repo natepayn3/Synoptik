@@ -18,20 +18,66 @@ Item {
 
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
-
-
-    // Inline Comment: Initialize activeSection to match saved Config state
     property int activeSection: Config.lastSettingsSection
     property bool isMaximized: false
     property bool visualsExpanded: false
     property bool connectivityExpanded: false
     property bool widgetsExpanded: false
 
-    // Inline Comment: Expand parent accordion menu containing the selected tab
     function expandActiveCategory(sectionId) {
         if ([0, 1, 2, 3, 12].includes(sectionId)) visualsExpanded = true
         else if ([4, 5, 6, 7].includes(sectionId)) connectivityExpanded = true
         else if ([8, 9, 10, 13, 14, 15].includes(sectionId)) widgetsExpanded = true
+    }
+
+    function getSectionCategory(sectionId) {
+        if ([0, 1, 2, 3, 12].includes(sectionId)) return "VISUALS"
+        if ([4, 5, 6, 7].includes(sectionId)) return "CONNECTIVITY"
+        if ([8, 9, 10, 13, 15].includes(sectionId)) return "WIDGETS"
+        if (sectionId === 11) return "SYSTEM"
+        return "GENERAL"
+    }
+
+    function getSectionName(sectionId) {
+        switch (sectionId) {
+            case 0: return "Display"
+            case 1: return "Appearance"
+            case 2: return "Typography"
+            case 3: return "Wallpaper"
+            case 12: return "Icons"
+            case 4: return "Network"
+            case 5: return "Wi-Fi"
+            case 6: return "Bluetooth"
+            case 7: return "Weather"
+            case 8: return "Mascot"
+            case 9: return "Clock"
+            case 10: return "Keyboard"
+            case 13: return "System Sounds"
+            case 15: return "Lockscreen"
+            case 11: return "Shell"
+            default: return "Settings"
+        }
+    }
+
+    function getSectionIcon(sectionId) {
+        switch (sectionId) {
+            case 0: return "aspect_ratio"
+            case 1: return "palette"
+            case 2: return "match_case"
+            case 3: return "wallpaper"
+            case 12: return "account_circle"
+            case 4: return "lan"
+            case 5: return "wifi"
+            case 6: return "bluetooth"
+            case 7: return "thermostat"
+            case 8: return "smart_toy"
+            case 9: return "schedule"
+            case 10: return "keyboard"
+            case 13: return "volume_up"
+            case 15: return "lock"
+            case 11: return "terminal"
+            default: return "settings"
+        }
     }
 
     Component.onCompleted: {
@@ -61,29 +107,35 @@ Item {
         anchors.margins: settingsRoot.cardMargin
         spacing: settingsRoot.cardMargin / 2
 
-        // HEADER
+        // ================= HEADER & BREADCRUMB =================
         RowLayout {
             Layout.fillWidth: true
+            spacing: 12
 
-            Item {
-                implicitWidth: settingsTitleText.implicitWidth
-                implicitHeight: settingsTitleText.implicitHeight
-                Layout.fillWidth: true
+            // Title & Glowing Badge
+            RowLayout {
+                spacing: 10
+                Layout.alignment: Qt.AlignVCenter
 
-                Glow {
-                    anchors.fill: settingsTitleText
-                    source: settingsTitleText
+                Rectangle {
+                    implicitWidth: 32
+                    implicitHeight: 32
                     radius: 8
-                    samples: 16
-                    color: Config.accent
-                    spread: 0.2
-                    transparentBorder: true
-                    visible: Config.clockShowGlow
+                    color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.15)
+                    border.width: 1
+                    border.color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.3)
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "settings"
+                        color: Config.accent
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 18
+                    }
                 }
 
                 Text {
                     id: settingsTitleText
-                    anchors.fill: parent
                     text: "SETTINGS"
                     color: Config.textMain
                     font.family: Config.sysFont
@@ -93,14 +145,64 @@ Item {
                 }
             }
 
+            // Dynamic Breadcrumb Chip
             Rectangle {
-                implicitWidth: 28; implicitHeight: 28; radius: 14
-                color: closeHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                implicitHeight: 26
+                implicitWidth: breadcrumbRow.implicitWidth + 16
+                radius: 13
+                color: Qt.rgba(255, 255, 255, 0.05)
+                border.width: 1
+                border.color: Qt.rgba(255, 255, 255, 0.08)
+                Layout.alignment: Qt.AlignVCenter
+
+                RowLayout {
+                    id: breadcrumbRow
+                    anchors.centerIn: parent
+                    spacing: 6
+
+                    Text {
+                        text: settingsRoot.getSectionCategory(settingsRoot.activeSection)
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontCaption)
+                        font.bold: true
+                    }
+
+                    Text {
+                        text: "chevron_right"
+                        color: Config.textMuted
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 14
+                    }
+
+                    Text {
+                        text: settingsRoot.getSectionName(settingsRoot.activeSection)
+                        color: Config.accent
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontCaption)
+                        font.bold: true
+                    }
+                }
+            }
+
+            Item { Layout.fillWidth: true }
+
+            // Close Button
+            Rectangle {
+                implicitWidth: 32
+                implicitHeight: 32
+                radius: 16
+                color: closeHover.hovered ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(255, 255, 255, 0.04)
+                border.width: 1
+                border.color: closeHover.hovered ? Qt.rgba(255, 255, 255, 0.2) : Qt.rgba(255, 255, 255, 0.06)
+
+                Behavior on color { ColorAnimation { duration: 150 } }
+                Behavior on border.color { ColorAnimation { duration: 150 } }
 
                 Text {
                     anchors.centerIn: parent
                     text: "close"
-                    color: Config.textMain
+                    color: closeHover.hovered ? Config.textMain : Config.textMuted
                     font.family: "Material Symbols Outlined"
                     font.pixelSize: 18
                 }
@@ -117,42 +219,92 @@ Item {
             }
         }
 
-        // MASTER-DETAIL TWO-COLUMN LAYOUT
+        // ================= TWO-COLUMN MASTER / DETAIL =================
         RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
             spacing: settingsRoot.cardMargin / 2
 
-            // LEFT NAVIGATION CARD
+            // ================= LEFT SIDEBAR =================
             Rectangle {
-                Layout.preferredWidth: 250
-                Layout.maximumWidth: 250
+                Layout.preferredWidth: 260
+                Layout.maximumWidth: 260
                 Layout.fillHeight: true
                 color: Qt.rgba(255, 255, 255, 0.03)
                 radius: (Config.surfaceRadius || 18) * 0.75
+                border.width: 1
+                border.color: Qt.rgba(255, 255, 255, 0.06)
                 clip: true
 
                 Flickable {
+                    id: navFlickable
                     anchors.fill: parent
-                    anchors.margins: settingsRoot.cardMargin
+                    anchors.margins: 10
                     contentHeight: leftNavColumn.implicitHeight
                     clip: true
                     boundsBehavior: Flickable.StopAtBounds
 
+                    ScrollBar.vertical: ScrollBar {
+                        id: navScrollBar
+                        parent: navFlickable.parent
+                        anchors.top: parent.top
+                        anchors.topMargin: 6
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: 6
+                        anchors.right: parent.right
+                        anchors.rightMargin: 4
+                        width: 4
+                        policy: ScrollBar.AsNeeded
+                        
+                        contentItem: Rectangle {
+                            implicitWidth: 4
+                            radius: 2
+                            color: navScrollBar.pressed ? Config.accent : Qt.rgba(255, 255, 255, 0.2)
+                        }
+                    }
+
                     ColumnLayout {
                         id: leftNavColumn
-                        width: parent.width
-                        spacing: 6
+                        width: parent.width - 8
+                        spacing: 8
 
-                        // CATEGORY 1: VISUALS
+                        // ---------------- CATEGORY 1: VISUALS ----------------
                         Rectangle {
-                            Layout.fillWidth: true; implicitHeight: 32; radius: Config.cornerRadius / 2
-                            color: visualsCatHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : "transparent"
+                            Layout.fillWidth: true
+                            implicitHeight: 34
+                            radius: 8
+                            color: visualsCatHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent"
+
+                            Behavior on color { ColorAnimation { duration: 150 } }
 
                             RowLayout {
-                                anchors.fill: parent; anchors.leftMargin: 6; anchors.rightMargin: 6; spacing: 4
-                                Text { text: settingsRoot.visualsExpanded ? "expand_more" : "chevron_right"; color: Config.textMuted; font.family: "Material Symbols Outlined"; font.pixelSize: 18 }
-                                Text { text: "VISUALS"; color: Config.textMuted; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); font.bold: true; Layout.fillWidth: true }
+                                anchors.fill: parent
+                                anchors.leftMargin: 8
+                                anchors.rightMargin: 8
+                                spacing: 8
+
+                                Text {
+                                    text: "palette"
+                                    color: settingsRoot.visualsExpanded ? Config.accent : Config.textMuted
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 16
+                                }
+
+                                Text {
+                                    text: "VISUALS"
+                                    color: settingsRoot.visualsExpanded ? Config.textMain : Config.textMuted
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontCaption)
+                                    font.bold: true
+                                    Layout.fillWidth: true
+                                }
+
+                                Text {
+                                    text: settingsRoot.visualsExpanded ? "expand_more" : "chevron_right"
+                                    color: Config.textMuted
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 18
+                                }
                             }
 
                             MouseArea {
@@ -165,7 +317,9 @@ Item {
 
                         ColumnLayout {
                             visible: settingsRoot.visualsExpanded
-                            Layout.fillWidth: true; Layout.leftMargin: 6; spacing: 3
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 4
+                            spacing: 3
 
                             Repeater {
                                 model: [
@@ -178,37 +332,108 @@ Item {
 
                                 delegate: Rectangle {
                                     id: navDelegate1
-                                    Layout.fillWidth: true; implicitHeight: 34; radius: Config.cornerRadius / 2
+                                    Layout.fillWidth: true
+                                    implicitHeight: 36
+                                    radius: 8
                                     readonly property bool isSelected: settingsRoot.activeSection === modelData.id
-                                    color: navDelegate1.isSelected ? Qt.rgba(255, 255, 255, 0.12) : (navHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent")
+                                    color: navDelegate1.isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : (navHover1.hovered ? Qt.rgba(255, 255, 255, 0.05) : "transparent")
+                                    border.width: navDelegate1.isSelected ? 1 : 0
+                                    border.color: navDelegate1.isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.25) : "transparent"
+
+                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                    Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                                    // Glowing active pill
+                                    Rectangle {
+                                        anchors.left: parent.left
+                                        anchors.leftMargin: 2
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 3
+                                        height: 18
+                                        radius: 1.5
+                                        color: Config.accent
+                                        visible: navDelegate1.isSelected
+                                    }
 
                                     RowLayout {
-                                        anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8; spacing: 6
-                                        Text { text: modelData.icon; color: navDelegate1.isSelected ? Config.accent : Config.textMuted; font.family: "Material Symbols Outlined"; font.pixelSize: 16 }
-                                        Text { text: modelData.name; color: navDelegate1.isSelected ? Config.accent : Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); font.bold: navDelegate1.isSelected; Layout.fillWidth: true; elide: Text.ElideRight }
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 10
+                                        anchors.rightMargin: 8
+                                        spacing: 8
+
+                                        Rectangle {
+                                            implicitWidth: 24
+                                            implicitHeight: 24
+                                            radius: 6
+                                            color: navDelegate1.isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : (navHover1.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent")
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: modelData.icon
+                                                color: navDelegate1.isSelected ? Config.accent : Config.textMuted
+                                                font.family: "Material Symbols Outlined"
+                                                font.pixelSize: 15
+                                            }
+                                        }
+
+                                        Text {
+                                            text: modelData.name
+                                            color: navDelegate1.isSelected ? Config.accent : Config.textMain
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontCaption)
+                                            font.bold: navDelegate1.isSelected
+                                            Layout.fillWidth: true
+                                            elide: Text.ElideRight
+                                        }
                                     }
 
                                     MouseArea {
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: {
-                                            settingsRoot.activeSection = modelData.id
-                                        }
+                                        onClicked: settingsRoot.activeSection = modelData.id
                                     }
-                                    HoverHandler { id: navHover }
+                                    HoverHandler { id: navHover1 }
                                 }
                             }
                         }
 
-                        // CATEGORY 2: CONNECTIVITY
+                        // ---------------- CATEGORY 2: CONNECTIVITY ----------------
                         Rectangle {
-                            Layout.fillWidth: true; implicitHeight: 32; radius: Config.cornerRadius / 2
-                            color: connCatHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : "transparent"
+                            Layout.fillWidth: true
+                            implicitHeight: 34
+                            radius: 8
+                            color: connCatHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent"
+
+                            Behavior on color { ColorAnimation { duration: 150 } }
 
                             RowLayout {
-                                anchors.fill: parent; anchors.leftMargin: 6; anchors.rightMargin: 6; spacing: 4
-                                Text { text: settingsRoot.connectivityExpanded ? "expand_more" : "chevron_right"; color: Config.textMuted; font.family: "Material Symbols Outlined"; font.pixelSize: 18 }
-                                Text { text: "CONNECTIVITY"; color: Config.textMuted; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); font.bold: true; Layout.fillWidth: true }
+                                anchors.fill: parent
+                                anchors.leftMargin: 8
+                                anchors.rightMargin: 8
+                                spacing: 8
+
+                                Text {
+                                    text: "wifi_tethering"
+                                    color: settingsRoot.connectivityExpanded ? Config.accent : Config.textMuted
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 16
+                                }
+
+                                Text {
+                                    text: "CONNECTIVITY"
+                                    color: settingsRoot.connectivityExpanded ? Config.textMain : Config.textMuted
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontCaption)
+                                    font.bold: true
+                                    Layout.fillWidth: true
+                                }
+
+                                Text {
+                                    text: settingsRoot.connectivityExpanded ? "expand_more" : "chevron_right"
+                                    color: Config.textMuted
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 18
+                                }
                             }
 
                             MouseArea {
@@ -221,7 +446,9 @@ Item {
 
                         ColumnLayout {
                             visible: settingsRoot.connectivityExpanded
-                            Layout.fillWidth: true; Layout.leftMargin: 6; spacing: 3
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 4
+                            spacing: 3
 
                             Repeater {
                                 model: [
@@ -233,37 +460,108 @@ Item {
 
                                 delegate: Rectangle {
                                     id: navDelegate2
-                                    Layout.fillWidth: true; implicitHeight: 34; radius: Config.cornerRadius / 2
+                                    Layout.fillWidth: true
+                                    implicitHeight: 36
+                                    radius: 8
                                     readonly property bool isSelected: settingsRoot.activeSection === modelData.id
-                                    color: navDelegate2.isSelected ? Qt.rgba(255, 255, 255, 0.12) : (navConnHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent")
+                                    color: navDelegate2.isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : (navHover2.hovered ? Qt.rgba(255, 255, 255, 0.05) : "transparent")
+                                    border.width: navDelegate2.isSelected ? 1 : 0
+                                    border.color: navDelegate2.isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.25) : "transparent"
+
+                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                    Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                                    // Glowing active pill
+                                    Rectangle {
+                                        anchors.left: parent.left
+                                        anchors.leftMargin: 2
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 3
+                                        height: 18
+                                        radius: 1.5
+                                        color: Config.accent
+                                        visible: navDelegate2.isSelected
+                                    }
 
                                     RowLayout {
-                                        anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8; spacing: 6
-                                        Text { text: modelData.icon; color: navDelegate2.isSelected ? Config.accent : Config.textMuted; font.family: "Material Symbols Outlined"; font.pixelSize: 16 }
-                                        Text { text: modelData.name; color: navDelegate2.isSelected ? Config.accent : Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); font.bold: navDelegate2.isSelected; Layout.fillWidth: true; elide: Text.ElideRight }
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 10
+                                        anchors.rightMargin: 8
+                                        spacing: 8
+
+                                        Rectangle {
+                                            implicitWidth: 24
+                                            implicitHeight: 24
+                                            radius: 6
+                                            color: navDelegate2.isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : (navHover2.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent")
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: modelData.icon
+                                                color: navDelegate2.isSelected ? Config.accent : Config.textMuted
+                                                font.family: "Material Symbols Outlined"
+                                                font.pixelSize: 15
+                                            }
+                                        }
+
+                                        Text {
+                                            text: modelData.name
+                                            color: navDelegate2.isSelected ? Config.accent : Config.textMain
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontCaption)
+                                            font.bold: navDelegate2.isSelected
+                                            Layout.fillWidth: true
+                                            elide: Text.ElideRight
+                                        }
                                     }
 
                                     MouseArea {
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: {
-                                            settingsRoot.activeSection = modelData.id
-                                        }
+                                        onClicked: settingsRoot.activeSection = modelData.id
                                     }
-                                    HoverHandler { id: navConnHover }
+                                    HoverHandler { id: navHover2 }
                                 }
                             }
                         }
 
-                        // CATEGORY 3: WIDGETS
+                        // ---------------- CATEGORY 3: WIDGETS ----------------
                         Rectangle {
-                            Layout.fillWidth: true; implicitHeight: 32; radius: Config.cornerRadius / 2
-                            color: widgetsCatHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : "transparent"
+                            Layout.fillWidth: true
+                            implicitHeight: 34
+                            radius: 8
+                            color: widgetsCatHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent"
+
+                            Behavior on color { ColorAnimation { duration: 150 } }
 
                             RowLayout {
-                                anchors.fill: parent; anchors.leftMargin: 6; anchors.rightMargin: 6; spacing: 4
-                                Text { text: settingsRoot.widgetsExpanded ? "expand_more" : "chevron_right"; color: Config.textMuted; font.family: "Material Symbols Outlined"; font.pixelSize: 18 }
-                                Text { text: "WIDGETS"; color: Config.textMuted; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); font.bold: true; Layout.fillWidth: true }
+                                anchors.fill: parent
+                                anchors.leftMargin: 8
+                                anchors.rightMargin: 8
+                                spacing: 8
+
+                                Text {
+                                    text: "widgets"
+                                    color: settingsRoot.widgetsExpanded ? Config.accent : Config.textMuted
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 16
+                                }
+
+                                Text {
+                                    text: "WIDGETS"
+                                    color: settingsRoot.widgetsExpanded ? Config.textMain : Config.textMuted
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontCaption)
+                                    font.bold: true
+                                    Layout.fillWidth: true
+                                }
+
+                                Text {
+                                    text: settingsRoot.widgetsExpanded ? "expand_more" : "chevron_right"
+                                    color: Config.textMuted
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 18
+                                }
                             }
 
                             MouseArea {
@@ -276,74 +574,156 @@ Item {
 
                         ColumnLayout {
                             visible: settingsRoot.widgetsExpanded
-                            Layout.fillWidth: true; Layout.leftMargin: 6; spacing: 3
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 4
+                            spacing: 3
 
                             Repeater {
                                 model: [
-                                    { id: 8, name: "Mascot", icon: "smart_toy" },
-                                    { id: 9, name: "Clock", icon: "schedule" },
-                                    { id: 10, name: "Keyboard", icon: "keyboard" },
-                                    { id: 13, name: "Sounds", icon: "volume_up" },
-                                    { id: 15, name: "Lockscreen", icon: "lock" },
+                                    { id: 8, name: "Mascot",     icon: "smart_toy" },
+                                    { id: 9, name: "Clock",      icon: "schedule" },
+                                    { id: 10, name: "Keyboard",  icon: "keyboard" },
+                                    { id: 13, name: "Sounds",    icon: "volume_up" },
+                                    { id: 15, name: "Lockscreen", icon: "lock" }
                                 ]
 
                                 delegate: Rectangle {
                                     id: navDelegate3
-                                    Layout.fillWidth: true; implicitHeight: 34; radius: Config.cornerRadius / 2
+                                    Layout.fillWidth: true
+                                    implicitHeight: 36
+                                    radius: 8
                                     readonly property bool isSelected: settingsRoot.activeSection === modelData.id
-                                    color: navDelegate3.isSelected ? Qt.rgba(255, 255, 255, 0.12) : (navWidgetsHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent")
+                                    color: navDelegate3.isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : (navHover3.hovered ? Qt.rgba(255, 255, 255, 0.05) : "transparent")
+                                    border.width: navDelegate3.isSelected ? 1 : 0
+                                    border.color: navDelegate3.isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.25) : "transparent"
+
+                                    Behavior on color { ColorAnimation { duration: 150 } }
+                                    Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                                    // Glowing active pill
+                                    Rectangle {
+                                        anchors.left: parent.left
+                                        anchors.leftMargin: 2
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 3
+                                        height: 18
+                                        radius: 1.5
+                                        color: Config.accent
+                                        visible: navDelegate3.isSelected
+                                    }
 
                                     RowLayout {
-                                        anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8; spacing: 6
-                                        Text { text: modelData.icon; color: navDelegate3.isSelected ? Config.accent : Config.textMuted; font.family: "Material Symbols Outlined"; font.pixelSize: 16 }
-                                        Text { text: modelData.name; color: navDelegate3.isSelected ? Config.accent : Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); font.bold: navDelegate3.isSelected; Layout.fillWidth: true; elide: Text.ElideRight }
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 10
+                                        anchors.rightMargin: 8
+                                        spacing: 8
+
+                                        Rectangle {
+                                            implicitWidth: 24
+                                            implicitHeight: 24
+                                            radius: 6
+                                            color: navDelegate3.isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : (navHover3.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent")
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: modelData.icon
+                                                color: navDelegate3.isSelected ? Config.accent : Config.textMuted
+                                                font.family: "Material Symbols Outlined"
+                                                font.pixelSize: 15
+                                            }
+                                        }
+
+                                        Text {
+                                            text: modelData.name
+                                            color: navDelegate3.isSelected ? Config.accent : Config.textMain
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontCaption)
+                                            font.bold: navDelegate3.isSelected
+                                            Layout.fillWidth: true
+                                            elide: Text.ElideRight
+                                        }
                                     }
 
                                     MouseArea {
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: {
-                                            settingsRoot.activeSection = modelData.id
-                                        }
+                                        onClicked: settingsRoot.activeSection = modelData.id
                                     }
-                                    HoverHandler { id: navWidgetsHover }
+                                    HoverHandler { id: navHover3 }
                                 }
                             }
                         }
 
-                        // BOTTOM NAV ITEM: SHELL
+                        // Divider before Shell
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: 1
+                            color: Qt.rgba(255, 255, 255, 0.06)
+                            Layout.topMargin: 4
+                            Layout.bottomMargin: 4
+                        }
+
+                        // ---------------- CATEGORY 4: SHELL & SYSTEM ----------------
                         Rectangle {
                             id: shellBtn
-                            Layout.fillWidth: true; implicitHeight: 34; radius: Config.cornerRadius / 2
-                            Layout.topMargin: 6
+                            Layout.fillWidth: true
+                            implicitHeight: 36
+                            radius: 8
                             readonly property bool isSelected: settingsRoot.activeSection === 11
-                            color: shellBtn.isSelected ? Qt.rgba(255, 255, 255, 0.12) : (shellNavHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent")
+                            color: shellBtn.isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : (shellNavHover.hovered ? Qt.rgba(255, 255, 255, 0.05) : "transparent")
+                            border.width: shellBtn.isSelected ? 1 : 0
+                            border.color: shellBtn.isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.25) : "transparent"
+
+                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                            Rectangle {
+                                anchors.left: parent.left
+                                anchors.leftMargin: 2
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: 3
+                                height: 18
+                                radius: 1.5
+                                color: Config.accent
+                                visible: shellBtn.isSelected
+                            }
 
                             RowLayout {
-                                anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8; spacing: 6
-                                Text { 
-                                    text: "terminal"
-                                    color: shellBtn.isSelected ? Config.accent : Config.textMuted
-                                    font.family: "Material Symbols Outlined"
-                                    font.pixelSize: 16 
+                                anchors.fill: parent
+                                anchors.leftMargin: 10
+                                anchors.rightMargin: 8
+                                spacing: 8
+
+                                Rectangle {
+                                    implicitWidth: 24
+                                    implicitHeight: 24
+                                    radius: 6
+                                    color: shellBtn.isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : (shellNavHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent")
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "terminal"
+                                        color: shellBtn.isSelected ? Config.accent : Config.textMuted
+                                        font.family: "Material Symbols Outlined"
+                                        font.pixelSize: 15
+                                    }
                                 }
-                                Text { 
-                                    text: "Shell"
+
+                                Text {
+                                    text: "Shell & System"
                                     color: shellBtn.isSelected ? Config.accent : Config.textMain
                                     font.family: Config.sysFont
                                     font.pixelSize: Config.size(Config.fontCaption)
                                     font.bold: shellBtn.isSelected
                                     Layout.fillWidth: true
-                                    elide: Text.ElideRight 
+                                    elide: Text.ElideRight
                                 }
                             }
 
                             MouseArea {
                                 anchors.fill: parent
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    settingsRoot.activeSection = 11
-                                }
+                                onClicked: settingsRoot.activeSection = 11
                             }
                             HoverHandler { id: shellNavHover }
                         }
@@ -351,36 +731,40 @@ Item {
                 }
             }
 
-            // RIGHT CONTENT CONTAINER
+            // ================= RIGHT CONTENT CONTAINER =================
             Rectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 color: Qt.rgba(255, 255, 255, 0.03)
                 radius: (Config.surfaceRadius || 18) * 0.75
+                border.width: 1
+                border.color: Qt.rgba(255, 255, 255, 0.06)
                 clip: true
 
-                // GRAPHIC GEAR WATERMARK
+                // Subtle Gear Watermark
                 Item {
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
-                    anchors.rightMargin: -15
-                    anchors.bottomMargin: -20
-                    implicitWidth: 200
-                    implicitHeight: 200
+                    anchors.rightMargin: -25
+                    anchors.bottomMargin: -25
+                    implicitWidth: 180
+                    implicitHeight: 180
                     visible: Config.showWatermarks
 
                     Text {
                         anchors.centerIn: parent
                         text: Config.getIcon("settings")
                         font.family: "Material Symbols Outlined"
-                        font.pixelSize: 200
+                        font.pixelSize: 180
                         color: Config.accent
-                        opacity: 0.12
-                        rotation: 15
+                        opacity: 0.04
+                        rotation: 12
                     }
                 }
 
+                // Section Content Wrapper with Crossfade
                 Item {
+                    id: contentPane
                     anchors.fill: parent
                     anchors.margins: settingsRoot.cardMargin
 
@@ -391,13 +775,13 @@ Item {
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 4; visible: active; sourceComponent: NetworkSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 5; visible: active; sourceComponent: WifiSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 6; visible: active; sourceComponent: BluetoothSettings {} }
-
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 7; visible: active; sourceComponent: WeatherSettings {} }
 
                     Loader { id: mascotSettingsLoader; anchors.fill: parent; active: settingsRoot.activeSection === 8; visible: active; sourceComponent: MascotSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 9; visible: active; sourceComponent: ClockSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 10; visible: active; sourceComponent: OskSettings {} }
 
+                    // Shell View (Section 11)
                     Loader {
                         anchors.fill: parent
                         active: settingsRoot.activeSection === 11
@@ -422,12 +806,12 @@ Item {
                                     if (code === 0) {
                                         let output = checkOutput.text
                                         if (output.includes("behind")) {
-                                            shellView.statusText = "Downloading and applying latest files..."
+                                            shellView.statusText = "Updates available! Downloading..."
                                             gitPuller.command = ["fish", "-c", "cd '" + shellView.repoDir + "'; and git fetch origin main; and git reset --hard origin/main"]
                                             gitPuller.running = true
                                         } else {
                                             shellView.isBusy = false
-                                            shellView.statusText = "Your shell is already up to date."
+                                            shellView.statusText = "Your shell is fully up to date."
                                         }
                                     } else {
                                         shellView.isBusy = false
@@ -450,7 +834,7 @@ Item {
                                         Quickshell.execDetached(["fish", "-c", "killall quickshell; and quickshell"])
                                     } else {
                                         let err = pullError.text.trim()
-                                        shellView.statusText = err.length > 0 ? err : "Failed to force update files."
+                                        shellView.statusText = err.length > 0 ? err : "Failed to apply updates."
                                     }
                                 }
                             }
@@ -459,53 +843,83 @@ Item {
                                 anchors.fill: parent
                                 spacing: settingsRoot.cardMargin
 
-                                Text {
-                                    text: "SYNOPTIK SHELL"
-                                    color: Config.textMain
-                                    font.family: Config.sysFont
-                                    font.pixelSize: Config.size(Config.fontTitle)
-                                    font.bold: true
-                                }
-
-                                Text {
-                                    text: "A modular, hardware-accelerated desktop environment shell built for Hyprland on Arch Linux using Quickshell & QML."
-                                    color: Config.textMuted
-                                    font.family: Config.sysFont
-                                    font.pixelSize: Config.size(Config.fontCaption)
+                                // Header Row
+                                RowLayout {
                                     Layout.fillWidth: true
-                                    wrapMode: Text.WordWrap
+                                    spacing: 12
+
+                                    Rectangle {
+                                        implicitWidth: 44
+                                        implicitHeight: 44
+                                        radius: 10
+                                        color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.15)
+                                        border.width: 1
+                                        border.color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.3)
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: "terminal"
+                                            color: Config.accent
+                                            font.family: "Material Symbols Outlined"
+                                            font.pixelSize: 24
+                                        }
+                                    }
+
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 2
+
+                                        Text {
+                                            text: "SYNOPTIK SHELL"
+                                            color: Config.textMain
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontSubhead)
+                                            font.bold: true
+                                        }
+
+                                        Text {
+                                            text: "Modular, hardware-accelerated desktop shell for Hyprland"
+                                            color: Config.textMuted
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontCaption)
+                                        }
+                                    }
                                 }
 
+                                // Repository & Quick Link Card
                                 Rectangle {
                                     Layout.fillWidth: true
-                                    implicitHeight: 48
+                                    implicitHeight: 60
                                     radius: Config.cornerRadius / 2
-                                    color: gitHubHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2)
-                                    border.width: gitHubHover.hovered ? 2 : 0
-                                    border.color: gitHubHover.hovered ? Config.accent : "transparent"
+                                    color: Qt.rgba(255, 255, 255, 0.04)
+                                    border.width: 1
+                                    border.color: gitHubHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
 
                                     Behavior on border.color { ColorAnimation { duration: 150 } }
-                                    Behavior on color { ColorAnimation { duration: 150 } }
 
                                     RowLayout {
                                         anchors.fill: parent
-                                        anchors.leftMargin: 16
-                                        anchors.rightMargin: 16
-                                        spacing: settingsRoot.cardMargin
+                                        anchors.leftMargin: 14
+                                        anchors.rightMargin: 14
+                                        spacing: 12
 
-                                        Text {
-                                            text: "code"
-                                            color: Config.accent
-                                            font.family: "Material Symbols Outlined"
-                                            font.pixelSize: 20
-                                            Layout.preferredWidth: 24
-                                            horizontalAlignment: Text.AlignHCenter
-                                            Layout.alignment: Qt.AlignVCenter
+                                        Rectangle {
+                                            implicitWidth: 32
+                                            implicitHeight: 32
+                                            radius: 8
+                                            color: Qt.rgba(255, 255, 255, 0.06)
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: "code"
+                                                color: Config.accent
+                                                font.family: "Material Symbols Outlined"
+                                                font.pixelSize: 18
+                                            }
                                         }
 
                                         ColumnLayout {
-                                            Layout.fillWidth: false
-                                            Layout.alignment: Qt.AlignVCenter
+                                            Layout.fillWidth: true
                                             spacing: 1
 
                                             Text {
@@ -521,20 +935,14 @@ Item {
                                                 color: Config.textMuted
                                                 font.family: Config.sysFont
                                                 font.pixelSize: Config.size(Config.fontCaption)
-                                                elide: Text.ElideRight
                                             }
-                                        }
-
-                                        Item {
-                                            Layout.fillWidth: true
                                         }
 
                                         Text {
                                             text: "open_in_new"
-                                            color: Config.textMuted
+                                            color: gitHubHover.hovered ? Config.accent : Config.textMuted
                                             font.family: "Material Symbols Outlined"
                                             font.pixelSize: 18
-                                            Layout.alignment: Qt.AlignVCenter
                                         }
                                     }
 
@@ -546,39 +954,53 @@ Item {
                                     HoverHandler { id: gitHubHover }
                                 }
 
+                                // Status & Update Control Card
                                 Rectangle {
                                     Layout.fillWidth: true
-                                    implicitHeight: Math.max(48, statusRow.implicitHeight + 16)
+                                    implicitHeight: Math.max(68, statusRow.implicitHeight + 20)
                                     radius: Config.cornerRadius / 2
-                                    color: Qt.rgba(0, 0, 0, 0.2)
-                                    border.width: 0
+                                    color: Qt.rgba(255, 255, 255, 0.04)
+                                    border.width: 1
+                                    border.color: Qt.rgba(255, 255, 255, 0.08)
 
                                     RowLayout {
                                         id: statusRow
                                         anchors.fill: parent
-                                        anchors.leftMargin: 16
-                                        anchors.rightMargin: 16
-                                        anchors.topMargin: 8
-                                        anchors.bottomMargin: 8
-                                        spacing: settingsRoot.cardMargin
+                                        anchors.leftMargin: 14
+                                        anchors.rightMargin: 14
+                                        anchors.topMargin: 10
+                                        anchors.bottomMargin: 10
+                                        spacing: 12
 
-                                        Text {
-                                            text: shellView.isBusy ? "sync" : "system_update"
-                                            color: Config.accent
-                                            font.family: "Material Symbols Outlined"
-                                            font.pixelSize: 20
-                                            Layout.preferredWidth: 24
-                                            horizontalAlignment: Text.AlignHCenter
-                                            Layout.alignment: Qt.AlignVCenter
+                                        Rectangle {
+                                            implicitWidth: 32
+                                            implicitHeight: 32
+                                            radius: 8
+                                            color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.15)
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: shellView.isBusy ? "sync" : "system_update"
+                                                color: Config.accent
+                                                font.family: "Material Symbols Outlined"
+                                                font.pixelSize: 18
+
+                                                RotationAnimation on rotation {
+                                                    running: shellView.isBusy
+                                                    from: 0
+                                                    to: 360
+                                                    duration: 1000
+                                                    loops: Animation.Infinite
+                                                }
+                                            }
                                         }
 
                                         ColumnLayout {
                                             Layout.fillWidth: true
-                                            Layout.alignment: Qt.AlignVCenter
                                             spacing: 2
 
                                             Text {
-                                                text: shellView.isBusy ? "Updating Shell..." : "Repository Status"
+                                                text: shellView.isBusy ? "Checking Upstream..." : "Repository Status"
                                                 color: Config.textMain
                                                 font.family: Config.sysFont
                                                 font.pixelSize: Config.size(Config.fontBody)
@@ -599,53 +1021,49 @@ Item {
                                             spacing: 8
                                             Layout.alignment: Qt.AlignVCenter
 
+                                            // Reload Shell
                                             Rectangle {
-                                                implicitWidth: 100
-                                                implicitHeight: 30
+                                                implicitWidth: 110
+                                                implicitHeight: 32
                                                 radius: Config.cornerRadius / 2
-                                                color: reloadBtnHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : "transparent"
-                                                border.color: Config.textMuted
-                                                border.width: 2
+                                                color: reloadBtnHover.hovered ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(255, 255, 255, 0.05)
+                                                border.color: Qt.rgba(255, 255, 255, 0.15)
+                                                border.width: 1
 
-                                                Behavior on color { ColorAnimation { duration: 100 } }
+                                                Behavior on color { ColorAnimation { duration: 150 } }
 
-                                                Text {
+                                                RowLayout {
                                                     anchors.centerIn: parent
-                                                    text: "Reload Shell"
-                                                    color: Config.textMain
-                                                    font.family: Config.sysFont
-                                                    font.pixelSize: Config.size(Config.fontCaption)
-                                                    font.bold: true
+                                                    spacing: 4
+                                                    Text { text: "restart_alt"; color: Config.textMain; font.family: "Material Symbols Outlined"; font.pixelSize: 14 }
+                                                    Text { text: "Reload"; color: Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); font.bold: true }
                                                 }
 
                                                 MouseArea {
                                                     anchors.fill: parent
                                                     cursorShape: Qt.PointingHandCursor
                                                     enabled: !shellView.isBusy
-                                                    onClicked: {
-                                                        Quickshell.execDetached(["fish", "-c", "killall qs; and qs -c Synoptik & disown"])
-                                                    }
+                                                    onClicked: Quickshell.execDetached(["fish", "-c", "killall qs; and qs -c Synoptik & disown"])
                                                 }
                                                 HoverHandler { id: reloadBtnHover }
                                             }
 
+                                            // Check / Update Button
                                             Rectangle {
-                                                implicitWidth: 110
-                                                implicitHeight: 30
+                                                implicitWidth: 120
+                                                implicitHeight: 32
                                                 radius: Config.cornerRadius / 2
-                                                color: updateBtnHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : "transparent"
+                                                color: updateBtnHover.hovered ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.3) : Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.18)
                                                 border.color: Config.accent
-                                                border.width: 2
+                                                border.width: 1
 
-                                                Behavior on color { ColorAnimation { duration: 100 } }
+                                                Behavior on color { ColorAnimation { duration: 150 } }
 
-                                                Text {
+                                                RowLayout {
                                                     anchors.centerIn: parent
-                                                    text: shellView.isBusy ? "Updating..." : "Update Shell"
-                                                    color: Config.accent
-                                                    font.family: Config.sysFont
-                                                    font.pixelSize: Config.size(Config.fontCaption)
-                                                    font.bold: true
+                                                    spacing: 4
+                                                    Text { text: "sync"; color: Config.accent; font.family: "Material Symbols Outlined"; font.pixelSize: 14 }
+                                                    Text { text: shellView.isBusy ? "Updating..." : "Check Updates"; color: Config.accent; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); font.bold: true }
                                                 }
 
                                                 MouseArea {
@@ -654,7 +1072,7 @@ Item {
                                                     enabled: !shellView.isBusy
                                                     onClicked: {
                                                         shellView.isBusy = true
-                                                        shellView.statusText = "Checking for latest files..."
+                                                        shellView.statusText = "Checking for updates..."
                                                         gitChecker.command = ["fish", "-c", "cd '" + shellView.repoDir + "'; and git remote update; and git status -uno"]
                                                         gitChecker.running = true
                                                     }
