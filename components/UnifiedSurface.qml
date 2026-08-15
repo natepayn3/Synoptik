@@ -630,10 +630,10 @@ PanelWindow {
         z: 999
         visible: Config.autoHideBar && !root.isBarRevealed
 
-        x: root.shadowPadding + (barPosition === "right" ? (root.actualScreenWidth - 16) : 0)
-        y: root.shadowPadding + (barPosition === "bottom" ? (root.actualScreenHeight - 16) : 0)
-        width: !isHorizontal ? 16 : root.actualScreenWidth
-        height: isHorizontal ? 16 : root.actualScreenHeight
+        x: root.shadowPadding + (isHorizontal ? (root.isIsland ? root.islandX : 0) : (barPosition === "right" ? (root.actualScreenWidth - 16) : 0))
+        y: root.shadowPadding + (isHorizontal ? (barPosition === "bottom" ? (root.actualScreenHeight - 16) : 0) : (root.isIsland ? root.islandY : 0))
+        width: isHorizontal ? (root.isIsland ? root.animatedIslandWidth : root.actualScreenWidth) : 16
+        height: !isHorizontal ? (root.isIsland ? root.animatedIslandHeight : root.actualScreenHeight) : 16
 
         HoverHandler {
             id: edgeHover
