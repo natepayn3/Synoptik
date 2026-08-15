@@ -34,6 +34,9 @@ ShellRoot {
     // Recording State
     property bool isRecording: false
 
+    // Lockscreen State
+    property bool sessionLocked: Config.sessionLocked
+
     // Battery State
     property bool hasBattery: false
     property string battName: "BAT0"
@@ -399,6 +402,19 @@ ShellRoot {
         }
     }
 
+    IpcHandler {
+        target: "lockscreen"
+        function lock(): void {
+            Config.sessionLocked = true
+        }
+        function unlock(): void {
+            Config.sessionLocked = false
+        }
+        function toggle(): void {
+            Config.sessionLocked = !Config.sessionLocked
+        }
+    }
+
     // --- CLOCK & DATE FORMATTING ---
     property string vertHour: {
         var h = new Date().getHours() % 12
@@ -493,6 +509,7 @@ ShellRoot {
     NotificationOSD { id: notificationOsd }
     Mascot { id: mascotWidget }
     OSK { id: oskWidget }
+    Lockscreen { id: lockscreenWidget; sessionLocked: Config.sessionLocked; shellRef: shellRoot }
 
     VideoOutput {
         id: persistentVideoSink

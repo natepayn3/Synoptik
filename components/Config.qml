@@ -549,6 +549,29 @@ QtObject {
     onNotificationSoundPathChanged: { if (isLoaded) saveSettings() }
     onWindowSoundVolumeChanged: { if (isLoaded) saveSettings() }
 
+    // --- LOCKSCREEN CONFIGURATION ---
+    property bool sessionLocked: false
+    property real lockscreenBlurRadius: 36
+    property bool lockscreenShowMedia: true
+    property bool lockscreenShowPower: true
+    property string lockscreenShapePalette: "vibrant"
+    property bool lockscreenUse12Hour: true
+    property bool lockscreenShowSeconds: false
+    property bool lockscreenShowAmPm: true
+    property string lockscreenDateFormat: "long" // "long", "standard", "iso", "dayFirst"
+    property int lockscreenClockSize: 96 // 72, 96, 120
+
+    onLockscreenBlurRadiusChanged: { if (isLoaded) saveSettings() }
+    onLockscreenShowMediaChanged: { if (isLoaded) saveSettings() }
+    onLockscreenShowPowerChanged: { if (isLoaded) saveSettings() }
+    onLockscreenShapePaletteChanged: { if (isLoaded) saveSettings() }
+    onLockscreenUse12HourChanged: { if (isLoaded) saveSettings() }
+    onLockscreenShowSecondsChanged: { if (isLoaded) saveSettings() }
+    onLockscreenShowAmPmChanged: { if (isLoaded) saveSettings() }
+    onLockscreenDateFormatChanged: { if (isLoaded) saveSettings() }
+    onLockscreenClockSizeChanged: { if (isLoaded) saveSettings() }
+
+    // --- CAFFEINE / IDLE INHIBITION CONFIGURATION ---
     // --- MIRROR WIDGET CONFIGURATION ---
     property bool showMirror: false
     property bool mirrorShowPanel: true
@@ -1829,7 +1852,17 @@ QtObject {
                 "clockShowGlow": root.clockShowGlow,
                 "clockPositions": root.clockPositions,
                 "clockScales": root.clockScales,
-                "enabledClockScreens": root.enabledClockScreens
+                "enabledClockScreens": root.enabledClockScreens,
+
+                "lockscreenBlurRadius": root.lockscreenBlurRadius,
+                "lockscreenShowMedia": root.lockscreenShowMedia,
+                "lockscreenShowPower": root.lockscreenShowPower,
+                "lockscreenShapePalette": root.lockscreenShapePalette,
+                "lockscreenUse12Hour": root.lockscreenUse12Hour,
+                "lockscreenShowSeconds": root.lockscreenShowSeconds,
+                "lockscreenShowAmPm": root.lockscreenShowAmPm,
+                "lockscreenDateFormat": root.lockscreenDateFormat,
+                "lockscreenClockSize": root.lockscreenClockSize
             }
 
             // Formats with 2-space indentation
@@ -1864,6 +1897,8 @@ QtObject {
                             "enableXray", "enableIris", "showWatermarks", "surfaceRadius", "borderThickness", "cardMargin", "showDesktopClock", "clockStyle", "clockScale", 
                             "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", 
                             "clockShowBackground", "clockShowGlow", "clockPositions", "clockScales", "enabledClockScreens",
+                            "lockscreenBlurRadius", "lockscreenShowMedia", "lockscreenShowPower", "lockscreenShapePalette",
+                            "lockscreenUse12Hour", "lockscreenShowSeconds", "lockscreenShowAmPm", "lockscreenDateFormat", "lockscreenClockSize",
                             "leftCardOrder", "rightCardOrder", "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides",
                             "playWindowSounds", "playNotificationSounds", "windowSoundPath", "notificationSoundPath", "windowSoundVolume",
                             "showMirror", "mirrorShowPanel", "mirrorMirrored", "mirrorKeepAspect", "mirrorExpanded", "mirrorPinned", "mirrorAnchorPos",

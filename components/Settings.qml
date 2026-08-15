@@ -31,7 +31,7 @@ Item {
     function expandActiveCategory(sectionId) {
         if ([0, 1, 2, 3, 12].includes(sectionId)) visualsExpanded = true
         else if ([4, 5, 6, 7].includes(sectionId)) connectivityExpanded = true
-        else if ([8, 9, 10, 13, 14].includes(sectionId)) widgetsExpanded = true
+        else if ([8, 9, 10, 13, 14, 15].includes(sectionId)) widgetsExpanded = true
     }
 
     Component.onCompleted: {
@@ -284,6 +284,7 @@ Item {
                                     { id: 9, name: "Clock", icon: "schedule" },
                                     { id: 10, name: "Keyboard", icon: "keyboard" },
                                     { id: 13, name: "Sounds", icon: "volume_up" },
+                                    { id: 15, name: "Lockscreen", icon: "lock" },
                                 ]
 
                                 delegate: Rectangle {
@@ -747,6 +748,7 @@ Item {
 
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 12; visible: active; sourceComponent: IconSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 13; visible: active; sourceComponent: SystemSounds {} }
+                    Loader { anchors.fill: parent; active: settingsRoot.activeSection === 15; visible: active; sourceComponent: LockscreenSettings {} }
                 }
             }
         }

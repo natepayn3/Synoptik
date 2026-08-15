@@ -173,7 +173,11 @@ Item {
                             TapHandler {
                                 onTapped: {
                                     Config.showPower = false;
-                                    Quickshell.execDetached(modelData.cmd);
+                                    if (modelData.label === "Lock") {
+                                        Config.sessionLocked = true;
+                                    } else {
+                                        Quickshell.execDetached(modelData.cmd);
+                                    }
                                 }
                             }
                         }

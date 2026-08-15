@@ -312,7 +312,7 @@ PanelWindow {
     WlrLayershell.exclusiveZone: (Config.isBarEnabledForScreen(screen ? screen.name : "") && !Config.autoHideBar)
         ? (isScreenFrame ? (barH + (framePadding * 2)) : (barH + (currentMargin > 0 ? currentMargin : (Config.barMargin || 4))))
         : 0
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
+    WlrLayershell.keyboardFocus: root.isOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
     WlrLayershell.namespace: "synoptik-shell"
 
     Shortcut {
