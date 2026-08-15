@@ -42,9 +42,13 @@ Rectangle {
         return barPos === "left" ? 90 : -90
     }
 
-    // STATIC FIXED DIMENSIONS - NO RESIZING
-    width: isHoriz ? 190 : 36
-    height: isHoriz ? 36 : 190
+    // DYNAMIC DIMENSIONS - Shrinks when space between left & right cards is constrained
+    property real maxAvailableSpan: 190
+    width: isHoriz ? Math.max(36, Math.min(190, maxAvailableSpan)) : 36
+    height: isHoriz ? 36 : Math.max(36, Math.min(190, maxAvailableSpan))
+
+    Behavior on width { enabled: !(rootRef && rootRef.isIsland); NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+    Behavior on height { enabled: !(rootRef && rootRef.isIsland); NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
 
     radius: Config.cornerRadius / 2
     color: (Config.showTaskOverflow || cardHover.hovered) ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(255, 255, 255, 0.05)
@@ -69,15 +73,15 @@ Rectangle {
         id: contentRow
         visible: isHoriz
         anchors.fill: parent
-        anchors.leftMargin: 10
-        anchors.rightMargin: 10
-        spacing: 8
+        anchors.leftMargin: activeWinCard.width <= 44 ? 0 : 10
+        anchors.rightMargin: activeWinCard.width <= 44 ? 0 : 10
+        spacing: activeWinCard.width <= 44 ? 0 : 8
 
         IconImage {
             id: iconHoriz
             Layout.preferredWidth: 20
             Layout.preferredHeight: 20
-            Layout.alignment: Qt.AlignVCenter
+            Layout.alignment: activeWinCard.width <= 44 ? Qt.AlignCenter : Qt.AlignVCenter
             asynchronous: true
             source: {
                 if (!activeWinCard.appId) return Quickshell.iconPath("application-x-executable", true)
@@ -92,6 +96,7 @@ Rectangle {
 
         Item {
             id: tickerBoxHoriz
+            visible: activeWinCard.width > 50
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
@@ -112,7 +117,7 @@ Rectangle {
 
                 SequentialAnimation on x {
                     id: tickerAnimHoriz
-                    running: activeWinCard.isHoriz && tickerBoxHoriz.needsTicker && activeWinCard.visible
+                    running: activeWinCard.isHoriz && tickerBoxHoriz.needsTicker && activeWinCard.visible && tickerBoxHoriz.visible
                     loops: 1
 
                     PauseAnimation { duration: 1000 }
@@ -137,15 +142,15 @@ Rectangle {
         id: contentColumn
         visible: !isHoriz
         anchors.fill: parent
-        anchors.topMargin: 10
-        anchors.bottomMargin: 10
-        spacing: 8
+        anchors.topMargin: activeWinCard.height <= 44 ? 0 : 10
+        anchors.bottomMargin: activeWinCard.height <= 44 ? 0 : 10
+        spacing: activeWinCard.height <= 44 ? 0 : 8
 
         IconImage {
             id: iconVert
             Layout.preferredWidth: 20
             Layout.preferredHeight: 20
-            Layout.alignment: Qt.AlignHCenter
+            Layout.alignment: activeWinCard.height <= 44 ? Qt.AlignCenter : Qt.AlignHCenter
             asynchronous: true
             source: {
                 if (!activeWinCard.appId) return Quickshell.iconPath("application-x-executable", true)
@@ -160,6 +165,7 @@ Rectangle {
 
         Item {
             id: tickerBoxVert
+            visible: activeWinCard.height > 50
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true
@@ -170,7 +176,7 @@ Rectangle {
 
             SequentialAnimation on tickerOffset {
                 id: tickerAnimVert
-                running: !activeWinCard.isHoriz && tickerBoxVert.needsTicker && activeWinCard.visible
+                running: !activeWinCard.isHoriz && tickerBoxVert.needsTicker && activeWinCard.visible && tickerBoxVert.visible
                 loops: 1
 
                 PauseAnimation { duration: 1000 }

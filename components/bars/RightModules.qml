@@ -26,12 +26,12 @@ Rectangle {
     }
 
     width: (rootRef && rootRef.isHorizontal) 
-        ? Math.min(centerContentLayout.implicitWidth + 16, (rootRef.width || 1920) - 100) 
+        ? Math.min(centerContentLayout.implicitWidth + 8, (rootRef.width || 1920) - 100) 
         : 36
 
     height: (rootRef && rootRef.isHorizontal) 
         ? 36
-        : Math.min(centerContentLayout.implicitHeight + 16, (rootRef.height || 1080) - 100)
+        : Math.min(centerContentLayout.implicitHeight + 8, (rootRef.height || 1080) - 100)
     
     clip: true
     radius: Config.cornerRadius / 2
@@ -43,7 +43,7 @@ Rectangle {
     states: [
         State {
             name: "horizontal"
-            when: rootRef && rootRef.isHorizontal
+            when: rootRef.isHorizontal
             AnchorChanges {
                 target: rightCard
                 anchors.right: rightCard.parent.right
@@ -71,10 +71,10 @@ Rectangle {
     Loader {
         id: centerContentLayout
         anchors.fill: parent
-        anchors.leftMargin: (rootRef && rootRef.isHorizontal) ? 8 : 2
-        anchors.rightMargin: (rootRef && rootRef.isHorizontal) ? 8 : 2
-        anchors.topMargin: (rootRef && !rootRef.isHorizontal) ? 8 : 2
-        anchors.bottomMargin: (rootRef && !rootRef.isHorizontal) ? 8 : 2
+        anchors.leftMargin: (rootRef && rootRef.isHorizontal) ? 4 : 2
+        anchors.rightMargin: (rootRef && rootRef.isHorizontal) ? 4 : 2
+        anchors.topMargin: (rootRef && !rootRef.isHorizontal) ? 4 : 2
+        anchors.bottomMargin: (rootRef && !rootRef.isHorizontal) ? 4 : 2
 
         sourceComponent: (rootRef && rootRef.isHorizontal) ? horizRightComp : vertRightComp
     }
@@ -96,6 +96,7 @@ Rectangle {
                 id: wsHoriz
                 isVertical: false
                 Layout.alignment: Qt.AlignVCenter
+                Layout.leftMargin: 6
                 onPopoutRequested: item => rightCard.popoutRequested(item)
             }
 
@@ -154,7 +155,7 @@ Rectangle {
             // Calendar Button (Placed LAST in RightModules)
             Rectangle {
                 id: btnClockHoriz
-                implicitWidth: dateRow.implicitWidth + 20
+                implicitWidth: dateRow.implicitWidth + 12
                 implicitHeight: 32
                 radius: 10
                 color: Config.showCalendar ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
@@ -166,7 +167,7 @@ Rectangle {
                     anchors.centerIn: parent
                     implicitWidth: dateRow.implicitWidth
                     implicitHeight: dateRow.implicitHeight
-                    scale: clockHorizHover.hovered ? 1.15 : 1.0
+                    scale: clockHorizHover.hovered ? 1.08 : 1.0
 
                     Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
 
@@ -234,6 +235,7 @@ Rectangle {
                 id: wsVert
                 isVertical: true
                 Layout.alignment: Qt.AlignHCenter
+                Layout.topMargin: 6
                 onPopoutRequested: item => rightCard.popoutRequested(item)
             }
 
@@ -293,7 +295,7 @@ Rectangle {
             Rectangle {
                 id: btnClockVert
                 implicitWidth: 32
-                implicitHeight: dateColumn.implicitHeight + 12
+                implicitHeight: dateColumn.implicitHeight + 10
                 radius: 10
                 color: Config.showCalendar ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
                 Layout.alignment: Qt.AlignHCenter
@@ -304,7 +306,7 @@ Rectangle {
                     anchors.centerIn: parent
                     implicitWidth: dateColumn.implicitWidth
                     implicitHeight: dateColumn.implicitHeight
-                    scale: clockVertHover.hovered ? 1.15 : 1.0
+                    scale: clockVertHover.hovered ? 1.08 : 1.0
 
                     Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
 

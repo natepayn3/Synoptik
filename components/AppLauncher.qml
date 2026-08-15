@@ -394,9 +394,12 @@ print(json.dumps(icon_map))
                                     anchors.rightMargin: 10
                                     spacing: 12
 
-                                    IconImage { 
+                                    Image { 
                                         Layout.preferredWidth: 32 
                                         Layout.preferredHeight: 32
+                                        sourceSize.width: 32
+                                        sourceSize.height: 32
+                                        fillMode: Image.PreserveAspectFit
                                         source: appLauncherModule.getAppIcon(modelData.icon)
                                         asynchronous: true
                                     }

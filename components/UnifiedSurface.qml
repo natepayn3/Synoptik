@@ -286,42 +286,46 @@ PanelWindow {
 
     readonly property bool isIsland: Config.barFrameStyle === "island"
     readonly property bool isFloatingStyle: Config.barFrameStyle === "floating" || isIsland
+    readonly property real leftCardTargetWidth: leftCard ? (root.isHorizontal ? (leftCard.contentTargetWidth || leftCard.width) : 36) : 0
+    readonly property real leftCardTargetHeight: leftCard ? (!root.isHorizontal ? (leftCard.contentTargetHeight || leftCard.height) : 36) : 0
 
-    readonly property real islandContentWidth: (leftCard ? leftCard.width : 0) + (activeWindowCard && activeWindowCard.visible ? activeWindowCard.width : 0) + (rightCard ? rightCard.width : 0) + 44
+    readonly property real islandContentWidth: (root.isHorizontal ? leftCardTargetWidth : (leftCard ? leftCard.width : 0)) + (activeWindowCard && activeWindowCard.visible ? activeWindowCard.width : 0) + (rightCard ? rightCard.width : 0) + 44
     readonly property real islandTargetWidth: Math.min(mainContainer.width - (root.currentMargin * 2), Math.max(200, islandContentWidth))
 
     property real animatedIslandWidth: isIsland ? islandTargetWidth : (mainContainer.width - Math.ceil(root.borderWidth))
     Behavior on animatedIslandWidth {
-        NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
+        NumberAnimation { id: islandWidthAnim; duration: 250; easing.type: Easing.OutCubic }
     }
 
-    readonly property real islandContentHeight: (leftCard ? leftCard.height : 0) + (activeWindowCard && activeWindowCard.visible ? activeWindowCard.height : 0) + (rightCard ? rightCard.height : 0) + 44
+    readonly property real islandContentHeight: (!root.isHorizontal ? leftCardTargetHeight : (leftCard ? leftCard.height : 0)) + (activeWindowCard && activeWindowCard.visible ? activeWindowCard.height : 0) + (rightCard ? rightCard.height : 0) + 44
     readonly property real islandTargetHeight: Math.min(mainContainer.height - (root.currentMargin * 2), Math.max(200, islandContentHeight))
 
     property real animatedIslandHeight: isIsland ? islandTargetHeight : (mainContainer.height - Math.ceil(root.borderWidth))
     Behavior on animatedIslandHeight {
-        NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
+        NumberAnimation { id: islandHeightAnim; duration: 250; easing.type: Easing.OutCubic }
     }
+
+    readonly property bool isIslandResizing: isIsland && (islandWidthAnim.running || islandHeightAnim.running)
 
     readonly property real islandX: (mainContainer.width - animatedIslandWidth) / 2
     readonly property real islandY: (mainContainer.height - animatedIslandHeight) / 2
 
     readonly property bool isOsdView: activeView === "osd" || activeView === "notifOsd"
 
-    readonly property real islandBarL: root.isIsland ? Math.max(root.halfB, Math.min(root.islandX, isOsdView ? root.islandX : root.pLeft)) : root.halfB
-    readonly property real islandBarR: root.isIsland ? Math.min(mainContainer.width - root.halfB, Math.max(root.islandX + root.animatedIslandWidth, isOsdView ? (root.islandX + root.animatedIslandWidth) : root.pRight)) : (mainContainer.width - root.halfB)
-    readonly property real islandBarT: root.isIsland ? Math.max(root.halfB, Math.min(root.islandY, isOsdView ? root.islandY : root.pLeft)) : root.halfB
-    readonly property real islandBarB: root.isIsland ? Math.min(mainContainer.height - root.halfB, Math.max(root.islandY + root.animatedIslandHeight, isOsdView ? (root.islandY + root.animatedIslandHeight) : root.pRight)) : (mainContainer.height - root.halfB)
-
     readonly property real minPossibleLeft: isScreenFrame ? ((isHorizontal ? inX : inY) + halfB) : halfB
     readonly property real maxPossibleRight: isScreenFrame ? ((isHorizontal ? inX + inW : inY + inH) - halfB) : ((isHorizontal ? mainContainer.width : mainContainer.height) - halfB)
 
+    readonly property real islandBarL: root.isIsland ? Math.min(root.islandX, root.pLeft) : root.halfB
+    readonly property real islandBarR: root.isIsland ? Math.max(root.islandX + root.animatedIslandWidth, root.pRight) : (mainContainer.width - root.halfB)
+    readonly property real islandBarT: root.isIsland ? Math.min(root.islandY, root.pLeft) : root.halfB
+    readonly property real islandBarB: root.isIsland ? Math.max(root.islandY + root.animatedIslandHeight, root.pRight) : (mainContainer.height - root.halfB)
+
     readonly property bool isLeftFlush: root.isIsland
-        ? (root.isHorizontal ? (islandBarL >= pLeft - 4) : (islandBarT >= pLeft - 4))
+        ? (root.isHorizontal ? (pLeft <= (root.islandX + 8)) : (pLeft <= (root.islandY + 8)))
         : (!isCentered && ((isHorizontal ? (popoutXOffset - (targetWidth / 2.0)) : (popoutYOffset - (targetHeight / 2.0))) <= (minPossibleLeft + root.wingW)))
 
     readonly property bool isRightFlush: root.isIsland
-        ? (root.isHorizontal ? (islandBarR <= pRight + 4) : (islandBarB <= pRight + 4))
+        ? (root.isHorizontal ? (pRight >= (root.islandX + root.animatedIslandWidth - 8)) : (pRight >= (root.islandY + root.animatedIslandHeight - 8)))
         : (!isCentered && ((isHorizontal ? (popoutXOffset + (targetWidth / 2.0)) : (popoutYOffset + (targetHeight / 2.0))) >= (maxPossibleRight - root.wingW)))
 
     readonly property real targetCenteredLeft: Math.max(minPossibleLeft + 16, Math.min(maxPossibleRight - (isHorizontal ? targetWidth : targetHeight) - 16, ((isHorizontal ? mainContainer.width : mainContainer.height) - (isHorizontal ? targetWidth : targetHeight)) / 2.0))
@@ -330,8 +334,22 @@ PanelWindow {
         let span = isHorizontal ? targetWidth : targetHeight
         let offset = isHorizontal ? popoutXOffset : popoutYOffset
         if (isCentered) return targetCenteredLeft
-        if (!isIsland && isLeftFlush) return minPossibleLeft
-        if (!isIsland && isRightFlush) return maxPossibleRight - span
+        if (root.isIsland) {
+            let barOrigin = isHorizontal ? root.islandX : root.islandY
+            let barEnd = isHorizontal ? (root.islandX + root.animatedIslandWidth) : (root.islandY + root.animatedIslandHeight)
+            let barSpan = barEnd - barOrigin
+            let rawLeft = offset - (span / 2.0)
+            let rawRight = offset + (span / 2.0)
+
+            if (span >= barSpan - 8) {
+                return barOrigin
+            }
+            if (rawLeft <= barOrigin + 8) return barOrigin
+            if (rawRight >= barEnd - 8) return barEnd - span
+            return Math.max(barOrigin + root.barRadius + root.wingW, Math.min(barEnd - root.barRadius - root.wingW - span, rawLeft))
+        }
+        if (isLeftFlush) return minPossibleLeft
+        if (isRightFlush) return maxPossibleRight - span
         return Math.max(minPossibleLeft + 16, Math.min(maxPossibleRight - span - 16, offset - (span / 2.0)))
     }
 
@@ -1426,6 +1444,14 @@ PanelWindow {
                 width: root.isHorizontal ? (root.isIsland ? root.animatedIslandWidth : (mainContainer.width - Math.ceil(root.borderWidth))) : (root.barH - Math.ceil(root.borderWidth))
                 height: root.isHorizontal ? (root.barH - Math.ceil(root.borderWidth)) : (root.isIsland ? root.animatedIslandHeight : (mainContainer.height - Math.ceil(root.borderWidth)))
 
+                opacity: (root.isIsland && root.isIslandResizing) ? 0.0 : 1.0
+                Behavior on opacity {
+                    NumberAnimation {
+                        duration: (root.isIsland && root.isIslandResizing) ? 80 : 180
+                        easing.type: Easing.OutCubic
+                    }
+                }
+
                 LeftModules {
                     id: leftCard
                     rootRef: root
@@ -1434,6 +1460,10 @@ PanelWindow {
                 ActiveWindowCard {
                     id: activeWindowCard
                     rootRef: root
+                    maxAvailableSpan: root.isHorizontal
+                        ? Math.max(36, (rightCard ? rightCard.x : parent.width) - (leftCard ? (leftCard.x + leftCard.width) : 0) - 24)
+                        : Math.max(36, (rightCard ? rightCard.y : parent.height) - (leftCard ? (leftCard.y + leftCard.height) : 0) - 24)
+
                     x: root.isHorizontal
                         ? Math.max(leftCard.x + leftCard.width + 12, Math.min(rightCard.x - activeWindowCard.width - 12, (parent.width - activeWindowCard.width) / 2))
                         : (parent.width - activeWindowCard.width) / 2

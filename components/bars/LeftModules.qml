@@ -12,20 +12,24 @@ Rectangle {
 
     // Map instantiated child items by icon key for PanelWindow origin tracking
     function getButton(key) {
+        if (Config.leftCardCollapsed && !Config.isPinned(key)) return null
         for (let i = 0; i < repeater.count; i++) {
             let loader = repeater.itemAt(i)
-            if (loader && loader.itemKey === key && loader.item) {
+            if (loader && loader.itemKey === key && loader.item && loader.visible) {
                 return loader.item
             }
         }
-        return leftCard
+        return null
     }
 
     readonly property real maxAllowedWidth: parent ? Math.max(100, parent.width - 260) : 1920
     readonly property real maxAllowedHeight: parent ? Math.max(100, parent.height - 260) : 1080
 
-    width: rootRef.isHorizontal ? Math.min(leftModules.implicitWidth + 16, maxAllowedWidth) : 36
-    height: rootRef.isHorizontal ? 36 : Math.min(leftModules.implicitHeight + 16, maxAllowedHeight)
+    readonly property real contentTargetWidth: Math.min(leftModules.implicitWidth + 8, maxAllowedWidth)
+    readonly property real contentTargetHeight: Math.min(leftModules.implicitHeight + 8, maxAllowedHeight)
+
+    width: (rootRef && rootRef.isHorizontal) ? contentTargetWidth : 36
+    height: (rootRef && rootRef.isHorizontal) ? 36 : contentTargetHeight
     radius: Config.cornerRadius / 2
     color: Qt.rgba(255, 255, 255, 0.05)
     clip: true
@@ -97,16 +101,16 @@ Rectangle {
 
     GridLayout {
         id: leftModules
-        anchors.left: rootRef.isHorizontal ? parent.left : undefined
-        anchors.leftMargin: rootRef.isHorizontal ? 2 : 0
-        anchors.verticalCenter: rootRef.isHorizontal ? parent.verticalCenter : undefined
+        anchors.left: (rootRef && rootRef.isHorizontal) ? parent.left : undefined
+        anchors.leftMargin: (rootRef && rootRef.isHorizontal) ? 4 : 0
+        anchors.verticalCenter: (rootRef && rootRef.isHorizontal) ? parent.verticalCenter : undefined
 
-        anchors.top: !rootRef.isHorizontal ? parent.top : undefined
-        anchors.topMargin: !rootRef.isHorizontal ? 2 : 0
-        anchors.horizontalCenter: !rootRef.isHorizontal ? parent.horizontalCenter : undefined
+        anchors.top: (rootRef && !rootRef.isHorizontal) ? parent.top : undefined
+        anchors.topMargin: (rootRef && !rootRef.isHorizontal) ? 4 : 0
+        anchors.horizontalCenter: (rootRef && !rootRef.isHorizontal) ? parent.horizontalCenter : undefined
 
-        columns: rootRef.isHorizontal ? 99 : 1
-        rows: rootRef.isHorizontal ? 1 : 99
+        columns: (rootRef && rootRef.isHorizontal) ? 99 : 1
+        rows: (rootRef && rootRef.isHorizontal) ? 1 : 99
         columnSpacing: 8
         rowSpacing: 8
 
