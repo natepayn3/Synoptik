@@ -194,9 +194,15 @@ PanelWindow {
     onIsOpenChanged: {
         if (isOpen) {
             root.playOpenSound()
+            root.isBarRevealedByUser = true
+            autoHideTimer.stop()
         } else {
             lastOpenWidth = rawChildWidth
             lastOpenHeight = rawChildHeight
+            if (Config.autoHideBar) {
+                root.isBarRevealedByUser = true
+                autoHideTimer.restart()
+            }
         }
     }
 
@@ -255,13 +261,40 @@ PanelWindow {
     color: "transparent"
     visible: true
 
+    // --- AUTO-HIDE ENGINE ---
+    property bool isBarHovered: false
+    property bool isBarRevealedByUser: false
+    readonly property bool isBarRevealed: !Config.autoHideBar || root.isOpen || (root.progress > 0.005) || isBarHovered || isBarRevealedByUser || (root.activeView !== "none")
+
+    Timer {
+        id: autoHideTimer
+        interval: 2000
+        repeat: false
+        onTriggered: {
+            if (!barContentHover.hovered && !edgeHover.hovered && !root.isOpen && root.activeView === "none") {
+                root.isBarRevealedByUser = false
+                root.isBarHovered = false
+            }
+        }
+    }
+
+    property real autoHideProgress: isBarRevealed ? 1.0 : 0.0
+    Behavior on autoHideProgress {
+        NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+    }
+
+    readonly property real autoHideDist: barH + currentMargin + 32
+
     mask: Region {
-        Region { item: barContent }
+        Region { item: (isBarRevealed && autoHideProgress > 0.05) ? barContent : null }
         Region { item: root.progress > 0.01 ? contentContainer : null }
+        Region { item: (Config.autoHideBar && !isBarRevealed) ? edgeTrigger : null }
     }
 
     WlrLayershell.layer: WlrLayer.Top
-    WlrLayershell.exclusiveZone: Config.isBarEnabledForScreen(screen ? screen.name : "") ? (isScreenFrame ? (barH + (framePadding * 2)) : (barH + (currentMargin > 0 ? currentMargin : (Config.barMargin || 4)))) : 0
+    WlrLayershell.exclusiveZone: (Config.isBarEnabledForScreen(screen ? screen.name : "") && !Config.autoHideBar)
+        ? (isScreenFrame ? (barH + (framePadding * 2)) : (barH + (currentMargin > 0 ? currentMargin : (Config.barMargin || 4))))
+        : 0
     WlrLayershell.keyboardFocus: WlrKeyboardFocus.OnDemand
     WlrLayershell.namespace: "synoptik-shell"
 
@@ -387,24 +420,24 @@ PanelWindow {
 
         switch (activeView) {
             // Left Card Modules
-            case "settings":       btn = leftCard ? leftCard.getButton("settings") : null; break
-            case "appLauncher":    btn = leftCard ? leftCard.getButton("launcher") : null; break
-            case "power":          btn = leftCard ? leftCard.getButton("power") : null; break
-            case "wallpaper":      btn = leftCard ? leftCard.getButton("wallpaper") : null; break
-            case "notifications":  btn = leftCard ? leftCard.getButton("notifications") : null; break
-            case "screenRecorder": btn = leftCard ? leftCard.getButton("recorder") : null; break
-            case "mirror":         btn = leftCard ? leftCard.getButton("mirror") : null; break
-            case "audio":          btn = leftCard ? leftCard.getButton("audio") : null; break
-            case "network":        btn = leftCard ? leftCard.getButton("network") : null; break
-            case "battery":        btn = leftCard ? leftCard.getButton("batt") : null; break
-            case "clipboard":      btn = leftCard ? leftCard.getButton("clipboard") : null; break
-            case "player":         btn = leftCard ? leftCard.getButton("player") : null; break
+            case "settings":       btn = leftCard ? (leftCard.getButton("settings") || leftCard) : null; break
+            case "appLauncher":    btn = leftCard ? (leftCard.getButton("launcher") || leftCard) : null; break
+            case "power":          btn = leftCard ? (leftCard.getButton("power") || leftCard) : null; break
+            case "wallpaper":      btn = leftCard ? (leftCard.getButton("wallpaper") || leftCard) : null; break
+            case "notifications":  btn = leftCard ? (leftCard.getButton("notifications") || leftCard) : null; break
+            case "screenRecorder": btn = leftCard ? (leftCard.getButton("recorder") || leftCard) : null; break
+            case "mirror":         btn = leftCard ? (leftCard.getButton("mirror") || leftCard) : null; break
+            case "audio":          btn = leftCard ? (leftCard.getButton("audio") || leftCard) : null; break
+            case "network":        btn = leftCard ? (leftCard.getButton("network") || leftCard) : null; break
+            case "battery":        btn = leftCard ? (leftCard.getButton("batt") || leftCard) : null; break
+            case "clipboard":      btn = leftCard ? (leftCard.getButton("clipboard") || leftCard) : null; break
+            case "player":         btn = leftCard ? (leftCard.getButton("player") || leftCard) : null; break
 
             // Right Card & Center Modules
-            case "workspacePreview": btn = rightCard ? rightCard.getButton("overview") : null; break
+            case "workspacePreview": btn = rightCard ? (rightCard.getButton("overview") || rightCard) : null; break
             case "taskOverflow":     btn = activeWindowCard; break
-            case "controlCenter":    btn = rightCard ? rightCard.getButton("cc") : null; break
-            case "calendar":         btn = rightCard ? rightCard.getButton("clock") : null; break
+            case "controlCenter":    btn = rightCard ? (rightCard.getButton("cc") || rightCard) : null; break
+            case "calendar":         btn = rightCard ? (rightCard.getButton("clock") || rightCard) : null; break
         }
 
         // Snap popout offset to the active button position or anchor mode
@@ -574,10 +607,49 @@ PanelWindow {
         function onShowControlCenterChanged() { if (Config.showControlCenter) { closeOthers("controlCenter"); let btn = rightCard ? rightCard.getButton("cc") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
     }
 
+    // --- AUTO-HIDE EDGE TRIGGER ---
+    Item {
+        id: edgeTrigger
+        z: 999
+        visible: Config.autoHideBar
+
+        x: barPosition === "right" ? (root.width - 16) : 0
+        y: barPosition === "bottom" ? (root.height - 16) : 0
+        width: !isHorizontal ? 16 : root.width
+        height: isHorizontal ? 16 : root.height
+
+        HoverHandler {
+            id: edgeHover
+            onHoveredChanged: {
+                if (hovered) {
+                    root.isBarRevealedByUser = true
+                    autoHideTimer.restart()
+                }
+            }
+        }
+    }
+
     Item {
         id: mainContainer
         anchors.fill: parent
         anchors.margins: shadowPadding
+
+        transform: Translate {
+            x: {
+                if (root.isHorizontal) return 0
+                return root.barPosition === "left"
+                    ? ((1.0 - root.autoHideProgress) * -root.autoHideDist)
+                    : ((1.0 - root.autoHideProgress) * root.autoHideDist)
+            }
+            y: {
+                if (!root.isHorizontal) return 0
+                return root.barPosition === "top"
+                    ? ((1.0 - root.autoHideProgress) * -root.autoHideDist)
+                    : ((1.0 - root.autoHideProgress) * root.autoHideDist)
+            }
+        }
+        opacity: Config.autoHideBar ? root.autoHideProgress : 1.0
+        visible: !Config.autoHideBar || root.autoHideProgress > 0.001
 
         MouseArea {
             anchors.fill: parent
@@ -1461,8 +1533,8 @@ PanelWindow {
                     id: activeWindowCard
                     rootRef: root
                     maxAvailableSpan: root.isHorizontal
-                        ? Math.max(36, (rightCard ? rightCard.x : parent.width) - (leftCard ? (leftCard.x + leftCard.width) : 0) - 24)
-                        : Math.max(36, (rightCard ? rightCard.y : parent.height) - (leftCard ? (leftCard.y + leftCard.height) : 0) - 24)
+                        ? Math.max(36, Math.min(190, mainContainer.width - (leftCard ? leftCard.width : 0) - (rightCard ? rightCard.width : 0) - 48))
+                        : Math.max(36, Math.min(190, mainContainer.height - (leftCard ? leftCard.height : 0) - (rightCard ? rightCard.height : 0) - 48))
 
                     x: root.isHorizontal
                         ? Math.max(leftCard.x + leftCard.width + 12, Math.min(rightCard.x - activeWindowCard.width - 12, (parent.width - activeWindowCard.width) / 2))
@@ -1476,6 +1548,22 @@ PanelWindow {
                     id: rightCard
                     rootRef: root
                     onPopoutRequested: item => root.setPopoutPos(item)
+                }
+
+                HoverHandler {
+                    id: barContentHover
+                    onHoveredChanged: {
+                        if (hovered) {
+                            autoHideTimer.stop()
+                            root.isBarHovered = true
+                            root.isBarRevealedByUser = true
+                        } else {
+                            root.isBarHovered = false
+                            if (Config.autoHideBar && !root.isOpen) {
+                                autoHideTimer.restart()
+                            }
+                        }
+                    }
                 }
             }
 

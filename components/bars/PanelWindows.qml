@@ -390,8 +390,8 @@ PanelWindow {
                 id: activeWindowCard
                 rootRef: root
                 maxAvailableSpan: root.isHorizontal
-                    ? Math.max(36, (rightCard ? rightCard.x : parent.width) - (leftCard ? (leftCard.x + leftCard.width) : 0) - 24)
-                    : Math.max(36, (rightCard ? rightCard.y : parent.height) - (leftCard ? (leftCard.y + leftCard.height) : 0) - 24)
+                    ? Math.max(36, Math.min(190, mainContainer.width - (leftCard ? leftCard.width : 0) - (rightCard ? rightCard.width : 0) - 48))
+                    : Math.max(36, Math.min(190, mainContainer.height - (leftCard ? leftCard.height : 0) - (rightCard ? rightCard.height : 0) - 48))
 
                 x: root.isHorizontal
                     ? Math.max(leftCard.x + leftCard.width + 12, Math.min(rightCard.x - activeWindowCard.width - 12, (parent.width - activeWindowCard.width) / 2))

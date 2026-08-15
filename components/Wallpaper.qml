@@ -26,43 +26,9 @@ Item {
     // Inline Comment: Limit max height to 75% of screen height to keep popout gracefully floating
     readonly property int maxPanelHeight: Math.max(minPanelHeight, Math.round(screenHeight * 0.75))
     
-    // Available card geometry
-    readonly property int calcCardHeight: implicitHeight - (cardMargin * 4) - 40
-    readonly property int activeCardWidth: Math.round(calcCardHeight * (16 / 9))
-    
-    // Dynamic Content Width Calculation
-    readonly property int calculatedContentWidth: {
-        if (isVerticalLayout) return 460;
-        let count = folderModel.count;
-        if (count === 0) return minPanelWidth;
-        let unexpandedWidth = (count - 1) * (80 + 8);
-        let totalNeeded = unexpandedWidth + activeCardWidth + (cardMargin * 4);
-        return Math.min(maxPanelWidth, Math.max(minPanelWidth, totalNeeded));
-    }
-
-    // Dynamic Content Height Calculation (Clamped to 75% max screen height)
-    readonly property int calculatedContentHeight: {
-        if (isVerticalLayout) {
-            let count = folderModel.count;
-            if (count === 0) return 150;
-            let unexpandedHeight = (count - 1) * (70 + 8);
-            let activeCardHeight = Math.round((460 - cardMargin * 4) * (9 / 16));
-            let totalNeeded = unexpandedHeight + activeCardHeight + (cardMargin * 4) + 40;
-            return Math.min(maxPanelHeight, Math.max(minPanelHeight, totalNeeded));
-        }
-        return folderModel.count === 0 ? 150 : 320;
-    }
-
-    implicitWidth: calculatedContentWidth
-    implicitHeight: calculatedContentHeight
-
-    Behavior on implicitWidth {
-        NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
-    }
-
-    Behavior on implicitHeight {
-        NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
-    }
+    // Stable panel dimensions tailored to orientation (prevents FolderListModel re-measurement stutter)
+    implicitWidth: isVerticalLayout ? 460 : Math.min(maxPanelWidth, Math.max(minPanelWidth, Math.round(screenWidth * 0.55)))
+    implicitHeight: isVerticalLayout ? Math.min(maxPanelHeight, Math.max(minPanelHeight, Math.round(screenHeight * 0.65))) : 320
 
     Process {
         id: thumbPreGenProcess

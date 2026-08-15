@@ -230,6 +230,39 @@ Flickable {
             }
         }
 
+        // CHECKBOX: AUTO-HIDE BAR
+        RowLayout {
+            Layout.alignment: Qt.AlignHCenter
+            spacing: 8
+
+            Rectangle {
+                implicitWidth: 18; implicitHeight: 18; radius: 4
+                color: Config.autoHideBar ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "✓"
+                    color: Config.bgBase
+                    visible: Config.autoHideBar
+                    font.pixelSize: 11
+                    font.bold: true
+                }
+
+                TapHandler { onTapped: Config.autoHideBar = !Config.autoHideBar }
+                HoverHandler { cursorShape: Qt.PointingHandCursor }
+            }
+
+            Text {
+                text: "Auto-hide Bar (reveals on edge hover)"
+                color: Config.textMain
+                font.family: Config.sysFont
+                font.pixelSize: Config.size(Config.fontCaption)
+
+                TapHandler { onTapped: Config.autoHideBar = !Config.autoHideBar }
+                HoverHandler { cursorShape: Qt.PointingHandCursor }
+            }
+        }
+
         // Display Target Selection
         ColumnLayout {
             Layout.fillWidth: true

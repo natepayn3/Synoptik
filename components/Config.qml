@@ -1299,6 +1299,14 @@ QtObject {
 
     // --- BAR POSITION CONTROL ---
     property string barPosition: "top"
+    property bool autoHideBar: false
+
+    onAutoHideBarChanged: {
+        if (isLoaded) {
+            syncHyprlandBorders()
+            saveSettings()
+        }
+    }
 
     function syncScreenFrame() {
         let frameMargin = showScreenFrame ? 12 : 0
@@ -1761,6 +1769,7 @@ QtObject {
                 "quoteSource": root.quoteSource,
                 "barFrameStyle": root.barFrameStyle,
                 "barPosition": root.barPosition,
+                "autoHideBar": root.autoHideBar,
                 "showScreenFrame": root.showScreenFrame,
                 "sysFont": root.sysFont,
                 "fontScaleIndex": root.fontScaleIndex,
@@ -1849,7 +1858,7 @@ QtObject {
                             "lastSettingsSection", "savedUrls",
                             "monitorConfigs", "selectedWallpaperMonitors", "wallpaperTransitionType", "activeWallpaperPath", "slideshowActive", "slideshowMinutes", "showOsk", "oskLayout",
                             "showMascot", "mascotPath", "mascotPhrases", "fetchOnlineQuotes", "quoteSource",
-                            "barFrameStyle", "barPosition", "showScreenFrame", "sysFont", "fontScaleIndex", "locationQuery",
+                            "barFrameStyle", "barPosition", "autoHideBar", "showScreenFrame", "sysFont", "fontScaleIndex", "locationQuery",
                             "enabledBarScreens", "useCustomColors", "customBgBase", "customBgPanel",
                             "customAccent", "animateGradient", "shellOpacity", "enableBlur",
                             "enableXray", "enableIris", "showWatermarks", "surfaceRadius", "borderThickness", "cardMargin", "showDesktopClock", "clockStyle", "clockScale", 
