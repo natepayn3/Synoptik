@@ -1,131 +1,503 @@
 import QtQuick
+import QtQuick.Layouts
+import QtQuick.Controls
+import Qt5Compat.GraphicalEffects
 import Quickshell
-import Quickshell.Io
+import ".."
 
-QtObject {
-    id: weatherRoot
+Item {
+    id: root
 
-    // Keep zipcode as a simple property so Config.qml can assign it without crashing
-    property string zipcode: ""
+    readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
-    // Output properties
-    property string temp: "--"
-    property string feelsLike: "--"
-    property string desc: "Loading..."
-    property string glyph: "cloud"
-    property double lastFetchTime: 0
+    ScrollView {
+        anchors.fill: parent
+        contentWidth: availableWidth
+        clip: true
 
-    function getTargetUrl() {
-        // Read directly from zipcode OR Config.locationQuery
-        let loc = "";
-        if (zipcode && zipcode.toString().trim() !== "") {
-            loc = zipcode.toString().trim();
-        } else if (typeof Config !== "undefined" && Config.locationQuery) {
-            loc = Config.locationQuery.toString().trim();
-        }
+        ColumnLayout {
+            width: parent.width
+            spacing: root.cardMargin
 
-        if (loc !== "") {
-            let formattedLoc = loc.replace(/\s+/g, "+");
-            return "https://wttr.in/" + formattedLoc + "?format=j1";
-        }
-        return "https://wttr.in/?format=j1";
-    }
+            // ==========================================
+            // HEADER & DESCRIPTION
+            // ==========================================
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 4
 
-    function fetchWeather(force) {
-        let urlStr = getTargetUrl();
-        
-        weatherFetcher.running = false;
-        weatherFetcher.command = ["curl", "-s", "-L", "-H", "User-Agent: curl/7.68.0", urlStr];
-        weatherFetcher.running = true;
-    }
-
-    // React cleanly when zipcode is modified
-    onZipcodeChanged: {
-        if (typeof Config !== "undefined" && Config.isLoaded) {
-            lastFetchTime = 0;
-            fetchWeather(true);
-        }
-    }
-
-    property Process fetcherProcess: Process {
-        id: weatherFetcher
-        running: false
-        
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let trimmed = this.text ? this.text.trim() : "";
-                
-                if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
-                    weatherFetcher.running = false;
-                    return;
+                Text {
+                    text: "LOCATION & WEATHER"
+                    color: Config.textMain
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontSubhead)
+                    font.bold: true
                 }
 
-                try {
-                    let data = JSON.parse(trimmed);
-                    if (data.current_condition && data.current_condition.length > 0) {
-                        let current = data.current_condition[0];
-                        weatherRoot.temp = current.temp_F + "°F";
-                        weatherRoot.feelsLike = current.FeelsLikeF + "°F";
-                        
-                        let code = current.weatherCode ? current.weatherCode.toString() : "";
-                        let rawDesc = (current.weatherDesc && current.weatherDesc[0]) ? current.weatherDesc[0].value : "";
+                Text {
+                    text: "Configure geolocation override for meteorological forecast telemetry, manage weather refresh, and monitor live conditions."
+                    color: Config.textMuted
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontCaption)
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+            }
 
-                        let descMap = { 
-                            "113": "Clear Sky", "116": "Partly Cloudy", "119": "Cloudy", "122": "Overcast",
-                            "143": "Mist", "176": "Patchy Rain", "179": "Patchy Snow", "182": "Patchy Sleet",
-                            "200": "Thunderstorms", "248": "Foggy", "260": "Freezing Fog", "263": "Light Drizzle",
-                            "266": "Drizzle", "293": "Patchy Light Rain", "296": "Light Rain", "299": "Moderate Rain",
-                            "302": "Moderate Rain", "305": "Heavy Rain", "308": "Heavy Rain", "353": "Light Showers",
-                            "356": "Moderate / Heavy Rain", "359": "Torrential Rain", "386": "Rain with Thunder",
-                            "389": "Heavy Rain & Thunder", "395": "Heavy Snow & Thunder",
-                            // Fallback WMO codes
-                            "0": "Clear Sky", "1": "Mainly Clear", "2": "Partly Cloudy", "3": "Overcast", 
-                            "45": "Foggy", "48": "Rime Fog", "51": "Light Drizzle", "53": "Moderate Drizzle", 
-                            "55": "Dense Drizzle", "61": "Slight Rain", "63": "Moderate Rain", "65": "Heavy Rain", 
-                            "71": "Light Snow", "73": "Moderate Snow", "75": "Heavy Snow", "80": "Light Showers", 
-                            "85": "Light Snow Showers", "95": "Thunderstorm" 
-                        };
+            // ==========================================
+            // 1. HERO LIVE WEATHER CARD
+            // ==========================================
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: heroCol.implicitHeight + 28
+                radius: Config.cornerRadius
+                color: Qt.rgba(255, 255, 255, 0.05)
+                border.width: 1
+                border.color: Qt.rgba(255, 255, 255, 0.1)
+                clip: true
 
-                        let iconMap = { 
-                            // WWO codes (wttr.in)
-                            "113": "wb_sunny", "116": "partly_cloudy_day", "119": "cloud", "122": "cloud", 
-                            "143": "foggy", "176": "rainy", "179": "ac_unit", "182": "ac_unit", "185": "ac_unit", 
-                            "200": "thunderstorm", "227": "ac_unit", "230": "ac_unit", "248": "foggy", "260": "foggy", 
-                            "263": "rainy", "266": "rainy", "281": "ac_unit", "284": "ac_unit", "293": "rainy", 
-                            "296": "rainy", "299": "rainy", "302": "rainy", "305": "rainy", "308": "rainy", 
-                            "311": "ac_unit", "314": "ac_unit", "317": "ac_unit", "320": "ac_unit", "323": "ac_unit", 
-                            "326": "ac_unit", "329": "ac_unit", "332": "ac_unit", "335": "ac_unit", "338": "ac_unit", 
-                            "350": "ac_unit", "353": "rainy", "356": "rainy", "359": "rainy", "362": "ac_unit", 
-                            "365": "ac_unit", "368": "ac_unit", "371": "ac_unit", "374": "ac_unit", "377": "ac_unit", 
-                            "386": "thunderstorm", "389": "thunderstorm", "392": "thunderstorm", "395": "thunderstorm", 
-                            // WMO codes
-                            "0": "wb_sunny", "1": "partly_cloudy_day", "2": "partly_cloudy_day", "3": "cloud", 
-                            "45": "foggy", "48": "foggy", "51": "rainy", "53": "rainy", "55": "rainy", 
-                            "61": "rainy", "63": "rainy", "65": "rainy", "71": "ac_unit", "73": "ac_unit", 
-                            "75": "ac_unit", "80": "rainy", "85": "ac_unit", "95": "thunderstorm" 
-                        };
-                        
-                        weatherRoot.desc = rawDesc !== "" ? rawDesc : (descMap[code] || "Clear");
+                // Dynamic Graphic Watermark
+                Item {
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    anchors.rightMargin: -15
+                    anchors.bottomMargin: -20
+                    implicitWidth: 150
+                    implicitHeight: 150
+                    visible: Config.showWatermarks
 
-                        // Determine glyph: try exact code mapping first, then keyword fallback
-                        let targetGlyph = iconMap[code];
-                        if (!targetGlyph) {
-                            let lower = weatherRoot.desc.toLowerCase();
-                            if (lower.includes("thunder")) targetGlyph = "thunderstorm";
-                            else if (lower.includes("rain") || lower.includes("drizzle") || lower.includes("shower")) targetGlyph = "rainy";
-                            else if (lower.includes("snow") || lower.includes("sleet") || lower.includes("blizzard") || lower.includes("ice")) targetGlyph = "ac_unit";
-                            else if (lower.includes("fog") || lower.includes("mist") || lower.includes("haze")) targetGlyph = "foggy";
-                            else if (lower.includes("sunny") || lower.includes("clear")) targetGlyph = "wb_sunny";
-                            else if (lower.includes("cloud")) targetGlyph = "partly_cloudy_day";
-                            else targetGlyph = "cloud";
-                        }
-                        weatherRoot.glyph = targetGlyph;
-                        weatherRoot.lastFetchTime = Date.now();
+                    Text {
+                        anchors.centerIn: parent
+                        text: Config.weather.glyph
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 150
+                        color: Config.accent
+                        opacity: 0.1
+                        rotation: 12
                     }
-                } catch(e) {
-                    console.error("Failed to parse weather JSON:", e);
                 }
-                weatherFetcher.running = false;
+
+                ColumnLayout {
+                    id: heroCol
+                    anchors.fill: parent
+                    anchors.margins: 14
+                    spacing: 14
+
+                    // Hero Row
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 14
+
+                        // Weather Icon Badge
+                        Rectangle {
+                            implicitWidth: 44
+                            implicitHeight: 44
+                            radius: 22
+                            color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2)
+                            border.width: 1.5
+                            border.color: Config.accent
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: Config.weather.glyph
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 24
+                                color: Config.accent
+                            }
+                        }
+
+                        // Weather Details
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 2
+
+                            RowLayout {
+                                spacing: 8
+                                Text {
+                                    text: Config.weather.temp !== "--" ? `${Config.weather.temp} • ${Config.weather.desc}` : "Weather Forecast"
+                                    font.family: Config.sysFont
+                                    font.bold: true
+                                    color: Config.textMain
+                                    font.pixelSize: Config.size(Config.fontBody)
+                                }
+
+                                Rectangle {
+                                    implicitWidth: statusPillText.implicitWidth + 10
+                                    implicitHeight: 18
+                                    radius: 9
+                                    color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2)
+                                    border.width: 1
+                                    border.color: Config.accent
+
+                                    Text {
+                                        id: statusPillText
+                                        anchors.centerIn: parent
+                                        text: "LIVE FORECAST"
+                                        font.family: Config.sysFont
+                                        font.pixelSize: 9
+                                        font.bold: true
+                                        color: Config.accent
+                                    }
+                                }
+                            }
+
+                            Text {
+                                text: (Config.weather.areaName ? (Config.weather.areaName + " • ") : "") + (Config.locationQuery ? ("Custom: " + Config.locationQuery) : "Auto IP Geolocation")
+                                font.family: Config.sysFont
+                                color: Config.textMuted
+                                font.pixelSize: Config.size(Config.fontCaption)
+                                elide: Text.ElideRight
+                                Layout.fillWidth: true
+                            }
+                        }
+
+                        // Spacer to push refresh button to the right
+                        Item { Layout.fillWidth: true }
+
+                        // REFRESH BUTTON
+                        Rectangle {
+                            Layout.alignment: Qt.AlignRight
+                            implicitWidth: refreshRow.implicitWidth + 18
+                            implicitHeight: 32
+                            radius: 16
+                            color: refreshHover.hovered ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(255, 255, 255, 0.06)
+                            border.width: 1
+                            border.color: Qt.rgba(255, 255, 255, 0.12)
+
+                            Behavior on color { ColorAnimation { duration: 150 } }
+
+                            RowLayout {
+                                id: refreshRow
+                                anchors.centerIn: parent
+                                spacing: 6
+
+                                Text {
+                                    id: refreshIcon
+                                    text: "refresh"
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 16
+                                    color: refreshHover.hovered ? Config.accent : Config.textMain
+
+                                    NumberAnimation on rotation {
+                                        running: Config.weather.isFetching
+                                        from: 0
+                                        to: 360
+                                        duration: 800
+                                        loops: Animation.Infinite
+                                    }
+                                }
+
+                                Text {
+                                    text: "Sync"
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontCaption)
+                                    font.bold: true
+                                    color: refreshHover.hovered ? Config.accent : Config.textMain
+                                }
+                            }
+
+                            TapHandler {
+                                onTapped: {
+                                    Config.weather.fetchWeather(true)
+                                }
+                            }
+                            HoverHandler { id: refreshHover; cursorShape: Qt.PointingHandCursor }
+                        }
+                    }
+
+                    // Live Telemetry Badges Row
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        // Humidity Badge
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: 32
+                            radius: 8
+                            color: Qt.rgba(255, 255, 255, 0.04)
+                            border.width: 1
+                            border.color: Qt.rgba(255, 255, 255, 0.08)
+
+                            RowLayout {
+                                anchors.centerIn: parent
+                                spacing: 6
+                                Text { text: "water_drop"; font.family: "Material Symbols Outlined"; font.pixelSize: 14; color: Config.accent }
+                                Text { text: `Humidity: ${Config.weather.humidity}`; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); color: Config.textMain }
+                            }
+                        }
+
+                        // Wind Speed Badge
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: 32
+                            radius: 8
+                            color: Qt.rgba(255, 255, 255, 0.04)
+                            border.width: 1
+                            border.color: Qt.rgba(255, 255, 255, 0.08)
+
+                            RowLayout {
+                                anchors.centerIn: parent
+                                spacing: 6
+                                Text { text: "air"; font.family: "Material Symbols Outlined"; font.pixelSize: 14; color: Config.accent }
+                                Text { text: `Wind: ${Config.weather.windSpeed}`; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); color: Config.textMain }
+                            }
+                        }
+
+                        // UV Index Badge
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: 32
+                            radius: 8
+                            color: Qt.rgba(255, 255, 255, 0.04)
+                            border.width: 1
+                            border.color: Qt.rgba(255, 255, 255, 0.08)
+
+                            RowLayout {
+                                anchors.centerIn: parent
+                                spacing: 6
+                                Text { text: "wb_sunny"; font.family: "Material Symbols Outlined"; font.pixelSize: 14; color: Config.accent }
+                                Text { text: `UV Index: ${Config.weather.uvIndex}`; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); color: Config.textMain }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ==========================================
+            // 2. LOCATION & GEOLOCATION OVERRIDE CARD
+            // ==========================================
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: locCol.implicitHeight + 28
+                radius: Config.cornerRadius
+                color: Qt.rgba(255, 255, 255, 0.05)
+                border.width: 1
+                border.color: Qt.rgba(255, 255, 255, 0.1)
+
+                ColumnLayout {
+                    id: locCol
+                    anchors.fill: parent
+                    anchors.margins: 14
+                    spacing: 12
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+
+                        Text {
+                            text: "LOCATION QUERY & OVERRIDE"
+                            font.family: Config.sysFont
+                            font.bold: true
+                            font.pixelSize: Config.size(Config.fontBody)
+                            color: Config.textMain
+                        }
+
+                        Text {
+                            text: "Specify a city, zipcode (e.g. 90210), or airport code to override IP-based geolocation. Leave empty for automatic IP lookup."
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            color: Config.textMuted
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+                    }
+
+                    // Input Box with Search Icon and Clear Button
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: 42
+                        radius: 10
+                        color: Qt.rgba(0, 0, 0, 0.25)
+                        border.width: 1
+                        border.color: zipInput.activeFocus ? Config.accent : Qt.rgba(255, 255, 255, 0.12)
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 12
+                            anchors.rightMargin: 10
+                            spacing: 8
+
+                            Text {
+                                text: "search"
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 18
+                                color: zipInput.activeFocus ? Config.accent : Config.textMuted
+                            }
+
+                            TextInput {
+                                id: zipInput
+                                Layout.fillWidth: true
+                                verticalAlignment: Text.AlignVCenter
+                                color: Config.textMain
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontBody)
+                                text: Config.locationQuery
+                                selectByMouse: true
+
+                                Connections {
+                                    target: Config
+                                    function onLocationQueryChanged() {
+                                        if (zipInput.text !== Config.locationQuery) {
+                                            zipInput.text = Config.locationQuery
+                                        }
+                                    }
+                                }
+
+                                HoverHandler { cursorShape: Qt.IBeamCursor }
+
+                                Text {
+                                    anchors.fill: parent
+                                    verticalAlignment: Text.AlignVCenter
+                                    text: "e.g., 90210, London, Tokyo, or leave blank for Auto IP..."
+                                    color: Config.textMuted
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontBody)
+                                    visible: zipInput.text === ""
+                                }
+
+                                onEditingFinished: {
+                                    if (Config.isLoaded) {
+                                        Config.locationQuery = zipInput.text.trim()
+                                        Config.weather.fetchWeather(true)
+                                    }
+                                }
+                            }
+
+                            // Clear / Reset Button
+                            Rectangle {
+                                visible: zipInput.text !== ""
+                                implicitWidth: 24
+                                implicitHeight: 24
+                                radius: 12
+                                color: clearHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "close"
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 15
+                                    color: Config.textMuted
+                                }
+
+                                TapHandler {
+                                    onTapped: {
+                                        zipInput.text = ""
+                                        if (Config.isLoaded) {
+                                            Config.locationQuery = ""
+                                            Config.weather.fetchWeather(true)
+                                        }
+                                    }
+                                }
+                                HoverHandler { id: clearHover; cursorShape: Qt.PointingHandCursor }
+                            }
+                        }
+                    }
+
+                    // Quick Location Preset Chips
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
+
+                        Text {
+                            text: "Presets:"
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                            font.bold: true
+                            color: Config.textMuted
+                        }
+
+                        Repeater {
+                            model: [
+                                { label: "Auto (IP)", query: "" },
+                                { label: "New York", query: "New York" },
+                                { label: "London", query: "London" },
+                                { label: "Tokyo", query: "Tokyo" },
+                                { label: "Paris", query: "Paris" }
+                            ]
+
+                            delegate: Rectangle {
+                                implicitWidth: chipText.implicitWidth + 14
+                                implicitHeight: 24
+                                radius: 12
+                                color: (Config.locationQuery === modelData.query)
+                                    ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.25)
+                                    : (chipHover.hovered ? Qt.rgba(255, 255, 255, 0.1) : Qt.rgba(255, 255, 255, 0.05))
+                                border.width: 1
+                                border.color: (Config.locationQuery === modelData.query) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+
+                                Text {
+                                    id: chipText
+                                    anchors.centerIn: parent
+                                    text: modelData.label
+                                    font.family: Config.sysFont
+                                    font.pixelSize: 10
+                                    font.bold: true
+                                    color: (Config.locationQuery === modelData.query) ? Config.accent : Config.textMain
+                                }
+
+                                TapHandler {
+                                    onTapped: {
+                                        if (Config.isLoaded) {
+                                            Config.locationQuery = modelData.query
+                                            zipInput.text = modelData.query
+                                            Config.weather.fetchWeather(true)
+                                        }
+                                    }
+                                }
+                                HoverHandler { id: chipHover; cursorShape: Qt.PointingHandCursor }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ==========================================
+            // 3. SERVICE TELEMETRY & INFO CARD
+            // ==========================================
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: infoRow.implicitHeight + 20
+                radius: Config.cornerRadius
+                color: Qt.rgba(255, 255, 255, 0.03)
+                border.width: 1
+                border.color: Qt.rgba(255, 255, 255, 0.06)
+
+                RowLayout {
+                    id: infoRow
+                    anchors.fill: parent
+                    anchors.margins: 12
+                    spacing: 10
+
+                    Text {
+                        text: "info"
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 20
+                        color: Config.accent
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+
+                        Text {
+                            text: "AUTOMATIC TELEMETRY REFRESH"
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                            font.bold: true
+                            color: Config.textMain
+                        }
+
+                        Text {
+                            text: "Weather metrics automatically synchronize every 15 minutes via wttr.in and update the calendar, desktop widgets, and status bar."
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                            color: Config.textMuted
+                            wrapMode: Text.WordWrap
+                            Layout.fillWidth: true
+                        }
+                    }
+                }
             }
         }
     }

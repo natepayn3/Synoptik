@@ -1,14 +1,14 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import Qt5Compat.GraphicalEffects
 import Qt.labs.folderlistmodel
 import Quickshell
 import Quickshell.Io
 import ".."
 
-ColumnLayout {
+Item {
     id: root
-    spacing: 12
 
     property string activeVpnName: ""
     property bool showFileBrowser: false
@@ -38,6 +38,8 @@ ColumnLayout {
     // Interpolated peak to prevent jarring Y-axis snapping
     property real smoothPeakSpeed: 1024 * 1024
 
+    readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
+
     Behavior on smoothPeakSpeed {
         NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
     }
@@ -45,7 +47,6 @@ ColumnLayout {
     ListModel { id: vpnListModel }
     ListModel { id: graphHistoryModel }
 
-    // Seed history buffer with zeros to maintain fixed layout width from start
     function seedGraphModel() {
         graphHistoryModel.clear()
         for (let i = 0; i < root.maxGraphPoints; i++) {
@@ -57,7 +58,6 @@ ColumnLayout {
         seedGraphModel()
     }
 
-    // Frame-synchronized animation loop
     FrameAnimation {
         id: frameGraphSync
         running: root.visible
@@ -81,7 +81,6 @@ ColumnLayout {
         }
     }
 
-    // Graph Data Ticker
     Timer {
         interval: root.updateInterval
         running: true
@@ -119,24 +118,27 @@ ColumnLayout {
                 set conn (nmcli -g GENERAL.CONNECTION device show $dev 2>/dev/null)
                 set state (nmcli -g GENERAL.STATE device show $dev 2>/dev/null)
                 
-                # Fallback to last active connection profile if GENERAL.CONNECTION is unassigned while down
-                if test -z \"$conn\" -o \"$conn\" = \"--\"
-                    set conn (nmcli -g NAME,DEVICE connection show | awk -F: -v d=\"$dev\" '$2 == d {print $1; exit}')
-                end
-
                 if test -z \"$ip\"
-                    set ip \"Disconnected\"
+                    set ip 'Disconnected'
                 end
-                
+                if test -z \"$mac\"
+                    set mac '---'
+                end
+                if test -z \"$conn\"
+                    set conn '--'
+                end
+                if test -z \"$state\"
+                    set state 'disconnected'
+                end
                 echo \"$dev|$ip|$mac|$state|$conn\"
             else
-                echo \"none|Disconnected|---||\"
+                echo 'none|Disconnected|---|disconnected|--'
             end
         "]
         running: false
         stdout: StdioCollector {
-            onTextChanged: {
-                let clean = text.trim()
+            onStreamFinished: {
+                let clean = this.text.trim()
                 if (!clean) return
                 let parts = clean.split("|")
                 if (parts.length >= 5) {
@@ -235,398 +237,650 @@ ColumnLayout {
         }
     }
 
-    // MAIN CONTENT STACK
-    ColumnLayout {
-        Layout.fillWidth: true
-        spacing: 12
-        visible: !root.showFileBrowser
+    ScrollView {
+        anchors.fill: parent
+        contentWidth: availableWidth
+        clip: true
 
-        // BANDWIDTH MONITOR CARD
-        Rectangle {
-            Layout.fillWidth: true
-            implicitHeight: 110
-            color: Qt.rgba(255, 255, 255, 0.04)
-            radius: Config.cornerRadius / 2
+        ColumnLayout {
+            width: parent.width
+            spacing: root.cardMargin
 
+            // ==========================================
+            // HEADER & DESCRIPTION
+            // ==========================================
             ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 12
+                Layout.fillWidth: true
+                spacing: 4
+
+                Text {
+                    text: "NETWORK & TRAFFIC"
+                    color: Config.textMain
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontSubhead)
+                    font.bold: true
+                }
+
+                Text {
+                    text: "Monitor real-time network throughput, configure physical Ethernet interfaces, and manage WireGuard and OpenVPN tunnels."
+                    color: Config.textMuted
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontCaption)
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+            }
+
+            // ==========================================
+            // 1. REAL-TIME BANDWIDTH MONITOR CARD
+            // ==========================================
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: 140
+                radius: Config.cornerRadius
+                color: Qt.rgba(255, 255, 255, 0.05)
+                border.width: 1
+                border.color: Qt.rgba(255, 255, 255, 0.1)
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 14
+                    spacing: 10
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 20
+
+                        // Download Metric
+                        RowLayout {
+                            spacing: 8
+                            Rectangle {
+                                implicitWidth: 32; implicitHeight: 32; radius: 16
+                                color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.18)
+                                Text { anchors.centerIn: parent; text: "arrow_downward"; font.family: "Material Symbols Outlined"; font.pixelSize: 16; color: Config.accent }
+                            }
+                            ColumnLayout {
+                                spacing: 1
+                                Text { text: "DOWNLOAD"; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro); color: Config.textMuted; font.bold: true }
+                                Text { text: root.downloadSpeed; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontBody); font.bold: true; color: Config.textMain }
+                            }
+                        }
+
+                        // Upload Metric
+                        RowLayout {
+                            spacing: 8
+                            Rectangle {
+                                implicitWidth: 32; implicitHeight: 32; radius: 16
+                                color: Qt.rgba(255, 255, 255, 0.08)
+                                Text { anchors.centerIn: parent; text: "arrow_upward"; font.family: "Material Symbols Outlined"; font.pixelSize: 16; color: Config.textMuted }
+                            }
+                            ColumnLayout {
+                                spacing: 1
+                                Text { text: "UPLOAD"; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro); color: Config.textMuted; font.bold: true }
+                                Text { text: root.uploadSpeed; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontBody); font.bold: true; color: Config.textMain }
+                            }
+                        }
+
+                        Item { Layout.fillWidth: true }
+
+                        // Peak indicator badge
+                        Rectangle {
+                            implicitWidth: peakLabel.implicitWidth + 12
+                            implicitHeight: 22
+                            radius: 11
+                            color: Qt.rgba(255, 255, 255, 0.06)
+                            border.width: 1
+                            border.color: Qt.rgba(255, 255, 255, 0.1)
+
+                            Text {
+                                id: peakLabel
+                                anchors.centerIn: parent
+                                text: `Peak: ${(root.smoothPeakSpeed / (1024 * 1024)).toFixed(1)} MB/s`
+                                font.family: Config.sysFont
+                                font.pixelSize: 9
+                                font.bold: true
+                                color: Config.textMuted
+                            }
+                        }
+                    }
+
+                    // Canvas Sparkline Graph
+                    Item {
+                        id: canvasWrapper
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        clip: true
+
+                        Canvas {
+                            id: sparklineCanvas
+                            anchors.fill: parent
+                            renderTarget: Canvas.Image
+                            renderStrategy: Canvas.Threaded
+
+                            onPaint: {
+                                let ctx = getContext("2d")
+                                let w = width
+                                let h = height
+                                ctx.clearRect(0, 0, w, h)
+
+                                let totalPoints = graphHistoryModel.count
+                                if (totalPoints < 2) return
+
+                                let activePeak = root.smoothPeakSpeed
+                                let step = w / (root.maxGraphPoints - 1)
+                                let xOffset = root.scrollProgress * step
+
+                                // Fill region
+                                ctx.beginPath()
+                                ctx.moveTo(0, h)
+
+                                for (let i = 0; i < totalPoints; i++) {
+                                    let nodeValue = graphHistoryModel.get(i).speedValue
+                                    let scaleRatio = nodeValue / activePeak
+                                    let coordX = (i * step) - xOffset
+                                    let coordY = h - (scaleRatio * (h - 4))
+                                    ctx.lineTo(coordX, coordY)
+                                }
+
+                                ctx.lineTo(((totalPoints - 1) * step) - xOffset, h)
+                                ctx.closePath()
+                                ctx.fillStyle = Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.15)
+                                ctx.fill()
+
+                                // Line stroke
+                                ctx.beginPath()
+                                for (let j = 0; j < totalPoints; j++) {
+                                    let nodeValue = graphHistoryModel.get(j).speedValue
+                                    let scaleRatio = nodeValue / activePeak
+                                    let coordX = (j * step) - xOffset
+                                    let coordY = h - (scaleRatio * (h - 4))
+                                    if (j === 0) ctx.moveTo(coordX, coordY)
+                                    else ctx.lineTo(coordX, coordY)
+                                }
+                                ctx.strokeStyle = Config.accent
+                                ctx.lineWidth = 2
+                                ctx.lineCap = "round"
+                                ctx.lineJoin = "round"
+                                ctx.stroke()
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ==========================================
+            // 2. PHYSICAL INTERFACE CARD
+            // ==========================================
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: ifRow.implicitHeight + 24
+                radius: Config.cornerRadius
+                color: Qt.rgba(255, 255, 255, 0.05)
+                border.width: 1
+                border.color: Qt.rgba(255, 255, 255, 0.1)
+
+                RowLayout {
+                    id: ifRow
+                    anchors.fill: parent
+                    anchors.margins: 14
+                    spacing: 12
+
+                    // Icon & Toggle Switch
+                    Rectangle {
+                        implicitWidth: 40
+                        implicitHeight: 40
+                        radius: 20
+                        color: root.localConnected
+                            ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2)
+                            : Qt.rgba(255, 255, 255, 0.06)
+                        border.width: 1.5
+                        border.color: root.localConnected ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
+
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: root.localConnected ? "lan" : "cloud_off"
+                            font.family: "Material Symbols Outlined"
+                            font.pixelSize: 20
+                            color: root.localConnected ? Config.accent : Config.textMuted
+                        }
+                    }
+
+                    // Interface Details
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+
+                        RowLayout {
+                            spacing: 8
+                            Text {
+                                text: root.localIpAddress
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontBody)
+                                font.bold: true
+                                color: root.localConnected ? Config.textMain : Config.textMuted
+                            }
+
+                            Rectangle {
+                                implicitWidth: ifNameText.implicitWidth + 10
+                                implicitHeight: 18
+                                radius: 9
+                                color: Qt.rgba(255, 255, 255, 0.08)
+
+                                Text {
+                                    id: ifNameText
+                                    anchors.centerIn: parent
+                                    text: root.localIfName
+                                    font.family: Config.sysFont
+                                    font.pixelSize: 9
+                                    font.bold: true
+                                    color: Config.textMuted
+                                }
+                            }
+                        }
+
+                        Text {
+                            text: `${root.localConnected ? "Connected" : "Disconnected"} • MAC: ${root.localMacAddress}`
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            color: Config.textMuted
+                        }
+                    }
+
+                    // Spacer to push disconnect button to the right
+                    Item { Layout.fillWidth: true }
+
+                    // Interface Quick Toggle Action
+                    Rectangle {
+                        Layout.alignment: Qt.AlignRight
+                        implicitWidth: Math.max(ifToggleActionRow.implicitWidth + 24, 84)
+                        implicitHeight: 32
+                        radius: 16
+                        color: toggleHover.hovered
+                            ? (root.localConnected ? Qt.rgba(255, 80, 80, 0.2) : Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.85))
+                            : (root.localConnected ? Qt.rgba(255, 255, 255, 0.08) : Config.accent)
+                        border.width: root.localConnected ? 1 : 0
+                        border.color: toggleHover.hovered && root.localConnected ? "#ff5555" : Qt.rgba(255, 255, 255, 0.12)
+
+                        RowLayout {
+                            id: ifToggleActionRow
+                            anchors.centerIn: parent
+                            spacing: 4
+
+                            Text {
+                                text: root.localConnected ? "link_off" : "link"
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 14
+                                color: root.localConnected
+                                    ? (toggleHover.hovered ? "#ff6b6b" : Config.textMain)
+                                    : Config.bgBase
+                            }
+
+                            Text {
+                                id: toggleActionText
+                                text: root.localConnected ? "Disconnect" : "Connect"
+                                font.family: Config.sysFont
+                                font.bold: true
+                                font.pixelSize: 11
+                                color: root.localConnected
+                                    ? (toggleHover.hovered ? "#ff6b6b" : Config.textMain)
+                                    : Config.bgBase
+                            }
+                        }
+
+                        TapHandler {
+                            gesturePolicy: TapHandler.WithinBounds
+                            onTapped: root.toggleLocalNetwork()
+                        }
+                        HoverHandler { id: toggleHover; cursorShape: Qt.PointingHandCursor }
+                    }
+                }
+            }
+
+            // ==========================================
+            // 3. VPN PROFILES SECTION
+            // ==========================================
+            ColumnLayout {
+                Layout.fillWidth: true
                 spacing: 8
+                visible: !root.showFileBrowser
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 24
 
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 4
-                        Text { 
-                            text: "DOWNLOAD"
+                    Text {
+                        text: "VPN & TUNNEL PROFILES"
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        font.bold: true
+                    }
+
+                    Rectangle {
+                        implicitWidth: vpnCountText.implicitWidth + 10
+                        implicitHeight: 16
+                        radius: 8
+                        color: Qt.rgba(255, 255, 255, 0.08)
+
+                        Text {
+                            id: vpnCountText
+                            anchors.centerIn: parent
+                            text: vpnListModel.count.toString()
                             font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontMicro)
-                            color: Config.textMuted
-                            font.bold: true 
-                        }
-                        Text { 
-                            text: root.downloadSpeed
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
+                            font.pixelSize: 9
                             font.bold: true
-                            color: Config.textMain 
+                            color: Config.textMuted
                         }
                     }
 
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 4
-                        Text { 
-                            text: "UPLOAD"
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontMicro)
-                            color: Config.textMuted
-                            font.bold: true 
+                    Item { Layout.fillWidth: true }
+
+                    // IMPORT PROFILE BUTTON
+                    Rectangle {
+                        implicitWidth: impRow.implicitWidth + 14
+                        implicitHeight: 28
+                        radius: 14
+                        color: impHover.hovered ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.85) : Config.accent
+
+                        RowLayout {
+                            id: impRow
+                            anchors.centerIn: parent
+                            spacing: 4
+
+                            Text {
+                                text: "add"
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 15
+                                color: Config.bgBase
+                            }
+
+                            Text {
+                                text: "Import Profile"
+                                font.family: Config.sysFont
+                                font.pixelSize: 11
+                                font.bold: true
+                                color: Config.bgBase
+                            }
                         }
-                        Text { 
-                            text: root.uploadSpeed
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
-                            font.bold: true
-                            color: Config.textMain 
-                        }
+
+                        TapHandler { onTapped: root.showFileBrowser = true }
+                        HoverHandler { id: impHover; cursorShape: Qt.PointingHandCursor }
                     }
                 }
 
-                // Frame-Synchronized Smooth Viewport
-                Item {
-                    id: canvasWrapper
+                // VPN PROFILES LIST
+                ColumnLayout {
                     Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    clip: true
+                    spacing: 6
 
-                    Canvas {
-                        id: sparklineCanvas
-                        anchors.fill: parent
-                        renderTarget: Canvas.Image
-                        renderStrategy: Canvas.Threaded
+                    Repeater {
+                        model: vpnListModel
 
-                        onPaint: {
-                            let ctx = getContext("2d")
-                            let w = width
-                            let h = height
-                            ctx.clearRect(0, 0, w, h)
+                        delegate: Rectangle {
+                            id: vpnCard
+                            required property string profileName
+                            readonly property bool isActive: root.activeVpnName === profileName
 
-                            let totalPoints = graphHistoryModel.count
-                            if (totalPoints < 2) return
+                            Layout.fillWidth: true
+                            implicitHeight: vpnRow.implicitHeight + 20
+                            radius: Config.cornerRadius * 0.75
+                            color: isActive
+                                ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.12)
+                                : (vCardHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.04))
+                            border.width: 1
+                            border.color: isActive ? Config.accent : (vCardHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08))
+                            clip: true
 
-                            let activePeak = root.smoothPeakSpeed
-                            let step = w / (root.maxGraphPoints - 1)
-                            let xOffset = root.scrollProgress * step
+                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on border.color { ColorAnimation { duration: 150 } }
 
-                            // Fill region
-                            ctx.beginPath()
-                            ctx.moveTo(0, h)
+                            RowLayout {
+                                id: vpnRow
+                                anchors.fill: parent
+                                anchors.margins: 10
+                                spacing: 12
 
-                            for (let i = 0; i < totalPoints; i++) {
-                                let nodeValue = graphHistoryModel.get(i).speedValue
-                                let scaleRatio = nodeValue / activePeak
-                                let coordX = (i * step) - xOffset
-                                let coordY = h - (scaleRatio * (h - 4))
-                                ctx.lineTo(coordX, coordY)
+                                // VPN Key Icon Badge
+                                Rectangle {
+                                    implicitWidth: 36
+                                    implicitHeight: 36
+                                    radius: 18
+                                    color: isActive
+                                        ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.25)
+                                        : Qt.rgba(255, 255, 255, 0.06)
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: isActive ? "vpn_key" : "vpn_key_off"
+                                        font.family: "Material Symbols Outlined"
+                                        font.pixelSize: 18
+                                        color: isActive ? Config.accent : Config.textMain
+                                    }
+                                }
+
+                                // Profile Name & Status
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+
+                                    RowLayout {
+                                        spacing: 6
+
+                                        Text {
+                                            text: profileName
+                                            font.family: Config.sysFont
+                                            font.bold: true
+                                            font.pixelSize: Config.size(Config.fontBody)
+                                            color: isActive ? Config.accent : Config.textMain
+                                            elide: Text.ElideRight
+                                            Layout.maximumWidth: 320
+                                        }
+
+                                        // ACTIVE BADGE
+                                        Rectangle {
+                                            visible: isActive
+                                            implicitWidth: vpnActiveBadgeText.implicitWidth + 8
+                                            implicitHeight: 16
+                                            radius: 8
+                                            color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.25)
+                                            border.width: 1
+                                            border.color: Config.accent
+
+                                            Text {
+                                                id: vpnActiveBadgeText
+                                                anchors.centerIn: parent
+                                                text: "ACTIVE"
+                                                font.family: Config.sysFont
+                                                font.pixelSize: 9
+                                                font.bold: true
+                                                color: Config.accent
+                                            }
+                                        }
+                                    }
+
+                                    Text {
+                                        text: isActive ? "Encrypted tunnel connection active" : "WireGuard / OpenVPN Profile"
+                                        font.family: Config.sysFont
+                                        font.pixelSize: Config.size(Config.fontMicro)
+                                        color: Config.textMuted
+                                    }
+                                }
+
+                                // Spacer to push action buttons to the right
+                                Item { Layout.fillWidth: true }
+
+                                // Action Buttons
+                                RowLayout {
+                                    spacing: 6
+                                    Layout.alignment: Qt.AlignRight
+
+                                    // CONNECT / DISCONNECT BUTTON
+                                    Rectangle {
+                                        implicitWidth: Math.max(vpnActionRow.implicitWidth + 24, 76)
+                                        implicitHeight: 30
+                                        radius: 15
+                                        color: vpnActionHover.hovered
+                                            ? (isActive ? Qt.rgba(255, 80, 80, 0.2) : Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.85))
+                                            : (isActive ? Qt.rgba(255, 255, 255, 0.08) : Config.accent)
+                                        border.width: isActive ? 1 : 0
+                                        border.color: vpnActionHover.hovered && isActive ? "#ff5555" : Qt.rgba(255, 255, 255, 0.12)
+
+                                        RowLayout {
+                                            id: vpnActionRow
+                                            anchors.centerIn: parent
+                                            spacing: 4
+
+                                            Text {
+                                                text: isActive ? "link_off" : "login"
+                                                font.family: "Material Symbols Outlined"
+                                                font.pixelSize: 14
+                                                color: isActive
+                                                    ? (vpnActionHover.hovered ? "#ff6b6b" : Config.textMain)
+                                                    : Config.bgBase
+                                            }
+
+                                            Text {
+                                                id: vpnActionText
+                                                text: isActive ? "Disconnect" : "Connect"
+                                                font.family: Config.sysFont
+                                                font.bold: true
+                                                font.pixelSize: 11
+                                                color: isActive
+                                                    ? (vpnActionHover.hovered ? "#ff6b6b" : Config.textMain)
+                                                    : Config.bgBase
+                                            }
+                                        }
+
+                                        TapHandler {
+                                            gesturePolicy: TapHandler.WithinBounds
+                                            onTapped: root.toggleProfileState(profileName, !isActive)
+                                        }
+                                        HoverHandler { id: vpnActionHover; cursorShape: Qt.PointingHandCursor }
+                                    }
+
+                                    // DELETE PROFILE BUTTON
+                                    Rectangle {
+                                        implicitWidth: 30
+                                        implicitHeight: 30
+                                        radius: 15
+                                        color: delHover.hovered ? Qt.rgba(255, 80, 80, 0.2) : Qt.rgba(255, 255, 255, 0.06)
+                                        border.width: 1
+                                        border.color: delHover.hovered ? "#ff5555" : Qt.rgba(255, 255, 255, 0.1)
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: "delete_outline"
+                                            font.family: "Material Symbols Outlined"
+                                            font.pixelSize: 15
+                                            color: delHover.hovered ? "#ff6b6b" : Config.textMuted
+                                        }
+
+                                        TapHandler {
+                                            gesturePolicy: TapHandler.WithinBounds
+                                            onTapped: root.deleteProfile(profileName)
+                                        }
+                                        HoverHandler { id: delHover; cursorShape: Qt.PointingHandCursor }
+                                    }
+                                }
                             }
 
-                            ctx.lineTo(((totalPoints - 1) * step) - xOffset, h)
-                            ctx.closePath()
-                            ctx.fillStyle = "rgba(255, 255, 255, 0.05)"
-                            ctx.fill()
-
-                            // Line stroke
-                            ctx.beginPath()
-                            for (let j = 0; j < totalPoints; j++) {
-                                let nodeValue = graphHistoryModel.get(j).speedValue
-                                let scaleRatio = nodeValue / activePeak
-                                let coordX = (j * step) - xOffset
-                                let coordY = h - (scaleRatio * (h - 4))
-                                if (j === 0) ctx.moveTo(coordX, coordY)
-                                else ctx.lineTo(coordX, coordY)
-                            }
-                            ctx.strokeStyle = Config.accent
-                            ctx.lineWidth = 2
-                            ctx.lineCap = "round"
-                            ctx.lineJoin = "round"
-                            ctx.stroke()
+                            HoverHandler { id: vCardHover; cursorShape: Qt.PointingHandCursor }
                         }
                     }
                 }
             }
-        }
 
-        // LOCAL NETWORK SECTION
-        Text {
-            text: "LOCAL NETWORK"
-            font.family: Config.sysFont
-            font.pixelSize: Config.size(Config.fontCaption)
-            font.bold: true
-            color: Config.textMuted
-            Layout.fillWidth: true
-        }
+            // ==========================================
+            // 4. EMBEDDED FILE BROWSER FOR IMPORT
+            // ==========================================
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: 280
+                radius: Config.cornerRadius
+                color: Qt.rgba(255, 255, 255, 0.05)
+                border.width: 1
+                border.color: Qt.rgba(255, 255, 255, 0.1)
+                visible: root.showFileBrowser
 
-        Rectangle {
-            Layout.fillWidth: true
-            implicitHeight: 64
-            color: Qt.rgba(0, 0, 0, 0.25)
-            radius: Config.cornerRadius / 2
-
-            RowLayout {
-                anchors.left: parent.left
-                anchors.verticalCenter: parent.verticalCenter
-                anchors.leftMargin: 10
-                spacing: 8
-
-                // Icon & Toggle Switch
-                Rectangle {
-                    implicitWidth: 32
-                    implicitHeight: 32
-                    radius: Config.cornerRadius / 2
-                    color: toggleHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : (root.localConnected ? Config.accent : Qt.rgba(255, 255, 255, 0.08))
-
-                    Behavior on color { ColorAnimation { duration: 150 } }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: root.localConnected ? "lan" : "cloud_off"
-                        font.family: "Material Symbols Outlined"
-                        font.pixelSize: 18
-                        color: root.localConnected ? Config.bgBase : Config.textMuted
-                    }
-
-                    TapHandler {
-                        gesturePolicy: TapHandler.WithinBounds
-                        onTapped: root.toggleLocalNetwork()
-                    }
-                    HoverHandler { id: toggleHover; cursorShape: Qt.PointingHandCursor }
-                }
-
-                // Interface Details
                 ColumnLayout {
-                    spacing: 1
+                    anchors.fill: parent
+                    anchors.margins: 12
+                    spacing: 8
 
                     RowLayout {
-                        spacing: 6
+                        Layout.fillWidth: true
                         Text {
-                            text: root.localIpAddress
+                            text: "IMPORT CONFIG FILE (.conf, .ovpn)"
                             font.family: Config.sysFont
                             font.pixelSize: Config.size(Config.fontCaption)
                             font.bold: true
-                            color: root.localConnected ? Config.textMain : Config.textMuted
-                        }
-                        Text {
-                            text: "(" + root.localIfName + ")"
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontMicro)
-                            color: Config.textMuted
-                        }
-                    }
-
-                    Text {
-                        text: root.localConnected ? "Connected" : "Disconnected"
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                        color: Config.textMuted
-                    }
-
-                    Text {
-                        text: "MAC: " + root.localMacAddress
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                        color: Config.textMuted
-                    }
-                }
-            }
-        }
-
-        Item { Layout.fillHeight: false }
-
-        // PROFILES HEADER & LIST
-        RowLayout {
-            Layout.fillWidth: true
-            Text { text: "VPN PROFILES"; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); font.bold: true; color: Config.textMuted; Layout.fillWidth: true }
-            
-            Rectangle {
-                implicitWidth: 80; implicitHeight: 24; radius: Config.cornerRadius / 2
-                color: impHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
-
-                Text { anchors.centerIn: parent; text: "+ IMPORT"; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro); font.bold: true; color: impHover.hovered ? Config.bgBase : Config.textMain }
-                TapHandler { onTapped: root.showFileBrowser = true }
-                HoverHandler { id: impHover; cursorShape: Qt.PointingHandCursor }
-            }
-        }
-
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            color: Qt.rgba(0, 0, 0, 0.2)
-            radius: Config.cornerRadius / 2
-            clip: true
-
-            ListView {
-                anchors.fill: parent
-                anchors.margins: 6
-                spacing: 4
-                model: vpnListModel
-
-                delegate: Rectangle {
-                    required property string profileName
-                    readonly property bool isActive: root.activeVpnName === profileName
-
-                    width: ListView.view.width
-                    implicitHeight: 46
-                    radius: Config.cornerRadius / 2.5
-                    color: isActive ? Qt.rgba(255, 255, 255, 0.12) : (pHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.25))
-                    border.color: isActive ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                    border.width: 2
-
-                    Behavior on color { ColorAnimation { duration: 150 } }
-
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 10
-                        anchors.rightMargin: 10
-                        spacing: 8
-
-                        // Key Icon Action Button (Matches Network.qml)
-                        Rectangle {
-                            implicitWidth: 32
-                            implicitHeight: 32
-                            radius: Config.cornerRadius / 2
-                            color: btnHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : (isActive ? Config.accent : Qt.rgba(255, 255, 255, 0.08))
-
-                            Behavior on color { ColorAnimation { duration: 150 } }
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: isActive ? "vpn_key" : "vpn_key_off"
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 18
-                                color: isActive ? Config.bgBase : Config.textMuted
-                            }
-
-                            TapHandler {
-                                gesturePolicy: TapHandler.WithinBounds
-                                onTapped: root.toggleProfileState(profileName, !isActive)
-                            }
-                            HoverHandler { id: btnHover; cursorShape: Qt.PointingHandCursor }
-                        }
-
-                        ColumnLayout {
-                            spacing: 1
+                            color: Config.textMain
                             Layout.fillWidth: true
-
-                            Text { 
-                                text: profileName
-                                font.family: Config.sysFont
-                                font.bold: true
-                                font.pixelSize: Config.size(Config.fontCaption)
-                                color: isActive ? Config.accent : Config.textMain
-                                elide: Text.ElideRight
-                                Layout.fillWidth: true
-                            }
-                            
-                            Text { 
-                                text: isActive ? "Connected" : "Disconnected"
-                                font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro)
-                                color: Config.textMuted
-                                Layout.fillWidth: true
-                            }
                         }
 
                         Rectangle {
-                            implicitWidth: 32; implicitHeight: 32; radius: Config.cornerRadius / 2
-                            color: delHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : "transparent"
-                            
-                            Text { anchors.centerIn: parent; text: "delete"; font.family: "Material Symbols Outlined"; font.pixelSize: 18; color: delHover.hovered ? Config.accent : Config.textMuted }
-                            TapHandler {
-                                gesturePolicy: TapHandler.WithinBounds
-                                onTapped: root.deleteProfile(profileName) 
-                            }
-                            HoverHandler { id: delHover; cursorShape: Qt.PointingHandCursor }
+                            implicitWidth: 70; implicitHeight: 24; radius: 12
+                            color: cancelHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
+                            Text { anchors.centerIn: parent; text: "Cancel"; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro); font.bold: true; color: Config.textMain }
+                            TapHandler { onTapped: root.showFileBrowser = false }
+                            HoverHandler { id: cancelHover; cursorShape: Qt.PointingHandCursor }
                         }
                     }
 
-                    HoverHandler { id: pHover; cursorShape: Qt.PointingHandCursor }
-                }
-            }
-        }
-    }
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        color: Qt.rgba(0, 0, 0, 0.25)
+                        radius: 8
+                        clip: true
 
-    // FILE BROWSER
-    ColumnLayout {
-        Layout.fillWidth: true
-        Layout.fillHeight: true
-        spacing: 8
-        visible: root.showFileBrowser
+                        ListView {
+                            anchors.fill: parent
+                            anchors.margins: 6
+                            spacing: 2
+                            model: FolderListModel {
+                                folder: root.currentBrowserPath
+                                showDirsFirst: true
+                                showDotAndDotDot: true
+                                nameFilters: ["*.conf", "*.ovpn", "*.vpn"]
+                            }
 
-        RowLayout {
-            Layout.fillWidth: true
-            Text { text: "SELECT CONFIG"; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); font.bold: true; color: Config.textMain; Layout.fillWidth: true }
-            Rectangle {
-                implicitWidth: 70; implicitHeight: 24; radius: Config.cornerRadius / 2
-                color: cancelHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
-                Text { anchors.centerIn: parent; text: "CANCEL"; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro); font.bold: true; color: cancelHover.hovered ? Config.bgBase : Config.textMuted }
-                TapHandler { onTapped: root.showFileBrowser = false }
-                HoverHandler { id: cancelHover; cursorShape: Qt.PointingHandCursor }
-            }
-        }
+                            delegate: Rectangle {
+                                required property string fileName
+                                required property bool fileIsDir
+                                required property url fileUrl
 
-        Rectangle {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            color: Qt.rgba(0, 0, 0, 0.2)
-            radius: Config.cornerRadius / 2
-            clip: true
+                                width: ListView.view.width
+                                implicitHeight: fileName === "." ? 0 : 32
+                                visible: fileName !== "."
+                                radius: 6
+                                color: fHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : "transparent"
 
-            ListView {
-                anchors.fill: parent
-                anchors.margins: 6
-                spacing: 2
-                model: FolderListModel {
-                    folder: root.currentBrowserPath
-                    showDirsFirst: true
-                    showDotAndDotDot: true
-                    nameFilters: ["*.conf", "*.ovpn", "*.vpn"]
-                }
+                                RowLayout {
+                                    anchors.fill: parent; anchors.leftMargin: 8
+                                    spacing: 8
+                                    Text { text: fileIsDir ? "folder" : "description"; font.family: "Material Symbols Outlined"; font.pixelSize: 16; color: Config.accent }
+                                    Text { text: fileName; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); color: Config.textMain; Layout.fillWidth: true; elide: Text.ElideRight }
+                                }
 
-                delegate: Rectangle {
-                    required property string fileName
-                    required property bool fileIsDir
-                    required property url fileUrl
-
-                    width: ListView.view.width
-                    implicitHeight: fileName === "." ? 0 : 32
-                    visible: fileName !== "."
-                    radius: Config.cornerRadius / 2
-                    color: fHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent"
-
-                    RowLayout {
-                        anchors.fill: parent; anchors.leftMargin: 8
-                        spacing: 8
-                        Text { text: fileIsDir ? "folder" : "description"; font.family: "Material Symbols Outlined"; font.pixelSize: 16; color: Config.accent }
-                        Text { text: fileName; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); color: Config.textMain; Layout.fillWidth: true; elide: Text.ElideRight }
-                    }
-
-                    TapHandler {
-                        onTapped: {
-                            if (fileIsDir) {
-                                root.currentBrowserPath = fileUrl.toString()
-                            } else {
-                                let parsedPath = fileUrl.toString().replace("file://", "")
-                                let typeStr = parsedPath.endsWith(".conf") ? "wireguard" : "openvpn"
-                                vpnImporter.command = ["fish", "-c", `nmcli connection import type ${typeStr} file "${parsedPath}"`]
-                                vpnImporter.running = true
-                                root.showFileBrowser = false
+                                TapHandler {
+                                    onTapped: {
+                                        if (fileIsDir) {
+                                            root.currentBrowserPath = fileUrl.toString()
+                                        } else {
+                                            let parsedPath = fileUrl.toString().replace("file://", "")
+                                            let typeStr = parsedPath.endsWith(".conf") ? "wireguard" : "openvpn"
+                                            vpnImporter.command = ["fish", "-c", `nmcli connection import type ${typeStr} file "${parsedPath}"`]
+                                            vpnImporter.running = true
+                                            root.showFileBrowser = false
+                                        }
+                                    }
+                                }
+                                HoverHandler { id: fHover; cursorShape: Qt.PointingHandCursor }
                             }
                         }
                     }
-                    HoverHandler { id: fHover; cursorShape: Qt.PointingHandCursor }
                 }
             }
         }

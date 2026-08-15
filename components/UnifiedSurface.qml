@@ -370,19 +370,22 @@ PanelWindow {
     readonly property real islandBarT: root.isIsland ? Math.min(root.islandY, root.pLeft) : root.halfB
     readonly property real islandBarB: root.isIsland ? Math.max(root.islandY + root.animatedIslandHeight, root.pRight) : (mainContainer.height - root.halfB)
 
+    readonly property real safeCornerMargin: root.barRadius + root.wingW
+
     readonly property bool isLeftFlush: root.isIsland
         ? (root.isHorizontal ? (pLeft <= (root.islandX + 8)) : (pLeft <= (root.islandY + 8)))
-        : (!isCentered && ((isHorizontal ? (popoutXOffset - (targetWidth / 2.0)) : (popoutYOffset - (targetHeight / 2.0))) <= (minPossibleLeft + root.wingW)))
+        : (!isCentered && ((isHorizontal ? (popoutXOffset - (targetWidth / 2.0)) : (popoutYOffset - (targetHeight / 2.0))) <= (minPossibleLeft + safeCornerMargin)))
 
     readonly property bool isRightFlush: root.isIsland
         ? (root.isHorizontal ? (pRight >= (root.islandX + root.animatedIslandWidth - 8)) : (pRight >= (root.islandY + root.animatedIslandHeight - 8)))
-        : (!isCentered && ((isHorizontal ? (popoutXOffset + (targetWidth / 2.0)) : (popoutYOffset + (targetHeight / 2.0))) >= (maxPossibleRight - root.wingW)))
+        : (!isCentered && ((isHorizontal ? (popoutXOffset + (targetWidth / 2.0)) : (popoutYOffset + (targetHeight / 2.0))) >= (maxPossibleRight - safeCornerMargin)))
 
-    readonly property real targetCenteredLeft: Math.max(minPossibleLeft + 16, Math.min(maxPossibleRight - (isHorizontal ? targetWidth : targetHeight) - 16, ((isHorizontal ? mainContainer.width : mainContainer.height) - (isHorizontal ? targetWidth : targetHeight)) / 2.0))
+    readonly property real targetCenteredLeft: Math.max(minPossibleLeft + safeCornerMargin, Math.min(maxPossibleRight - (isHorizontal ? targetWidth : targetHeight) - safeCornerMargin, ((isHorizontal ? mainContainer.width : mainContainer.height) - (isHorizontal ? targetWidth : targetHeight)) / 2.0))
 
     readonly property real staticLeft: {
         let span = isHorizontal ? targetWidth : targetHeight
         let offset = isHorizontal ? popoutXOffset : popoutYOffset
+        let safeMargin = root.safeCornerMargin
         if (isCentered) return targetCenteredLeft
         if (root.isIsland) {
             let barOrigin = isHorizontal ? root.islandX : root.islandY
@@ -396,11 +399,11 @@ PanelWindow {
             }
             if (rawLeft <= barOrigin + 8) return barOrigin
             if (rawRight >= barEnd - 8) return barEnd - span
-            return Math.max(barOrigin + root.barRadius + root.wingW, Math.min(barEnd - root.barRadius - root.wingW - span, rawLeft))
+            return Math.max(barOrigin + safeMargin, Math.min(barEnd - safeMargin - span, rawLeft))
         }
         if (isLeftFlush) return minPossibleLeft
         if (isRightFlush) return maxPossibleRight - span
-        return Math.max(minPossibleLeft + 16, Math.min(maxPossibleRight - span - 16, offset - (span / 2.0)))
+        return Math.max(minPossibleLeft + safeMargin, Math.min(maxPossibleRight - span - safeMargin, offset - (span / 2.0)))
     }
 
     readonly property real staticRight: staticLeft + (isHorizontal ? targetWidth : targetHeight)

@@ -1,8 +1,6 @@
 import QtQuick
 import Qt5Compat.GraphicalEffects
 import QtQuick.Layouts
-import QtQuick.Controls
-import Qt.labs.folderlistmodel
 import Quickshell
 import Quickshell.Io
 
@@ -16,8 +14,9 @@ Item {
 
     // --- State Properties ---
     property string activeVpnName: ""
-    property bool showFileBrowser: false
-    property string currentBrowserPath: "file://" + Quickshell.env("HOME")
+    property string localIp: ""
+    property string interfaceName: ""
+    property string ssid: ""
 
     // --- Live Bandwidth Properties ---
     property string downloadSpeed: "0 B/s"
@@ -42,10 +41,14 @@ Item {
         NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
     }
 
-    ListModel { id: vpnListModel }
     ListModel { id: graphHistoryModel }
 
-    // Seed history buffer with zeros to maintain fixed layout width from start
+    function formatRate(bytesPerSec) {
+        if (bytesPerSec < 1024) return Math.max(0, bytesPerSec).toFixed(0) + " B/s"
+        if (bytesPerSec < 1048576) return (bytesPerSec / 1024).toFixed(1) + " KB/s"
+        return (bytesPerSec / 1048576).toFixed(1) + " MB/s"
+    }
+
     function seedGraphModel() {
         graphHistoryModel.clear()
         for (let i = 0; i < root.maxGraphPoints; i++) {
@@ -53,7 +56,11 @@ Item {
         }
     }
 
-    Component.onCompleted: seedGraphModel()
+    Component.onCompleted: {
+        seedGraphModel()
+        fetchNetInfoProc.running = false
+        fetchNetInfoProc.running = true
+    }
 
     // Frame-synchronized animation loop
     FrameAnimation {
@@ -67,14 +74,14 @@ Item {
     }
 
     Timer {
-        id: syncVpnTimer
-        interval: 3000
-        running: Config.showNetwork && !showFileBrowser
+        id: netInfoTimer
+        interval: 4000
+        running: Config.showNetwork
         repeat: true
         triggeredOnStart: true
         onTriggered: {
-            vpnListPopulator.running = false
-            vpnListPopulator.running = true
+            fetchNetInfoProc.running = false
+            fetchNetInfoProc.running = true
         }
     }
 
@@ -102,6 +109,7 @@ Item {
         }
     }
 
+    // Background Bandwidth Stream via /proc/net/dev
     Process {
         id: bandwidthStreamProc
         command: ["python3", "-u", "-c", `
@@ -125,11 +133,6 @@ while True:
         
         stdout: SplitParser {
             onRead: data => {
-                let formatBytes = function(bytes) {
-                    if (bytes < 1024) return bytes.toFixed(0) + " B/s"
-                    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB/s"
-                    return (bytes / 1048576).toFixed(1) + " MB/s"
-                }
                 let textStr = data.trim()
                 if (!textStr) return
                 
@@ -142,15 +145,16 @@ while True:
                 let rx = parseInt(parts[0]) 
                 let tx = parseInt(parts[8]) 
                 let now = Date.now()
+
                 if (root.lastTime > 0) {
                     let elapsed = (now - root.lastTime) / 1000
                     if (elapsed > 0) {
-                        let rxSpeed = (rx - root.lastRxBytes) / elapsed
-                        let txSpeed = (tx - root.lastTxBytes) / elapsed
+                        let rxSpeed = Math.max(0, (rx - root.lastRxBytes) / elapsed)
+                        let txSpeed = Math.max(0, (tx - root.lastTxBytes) / elapsed)
                         
-                        if (now - root.lastTextUpdateTime >= 1000) {
-                            root.downloadSpeed = formatBytes(rxSpeed)
-                            root.uploadSpeed = formatBytes(txSpeed)
+                        if (now - root.lastTextUpdateTime >= 400) {
+                            root.downloadSpeed = root.formatRate(rxSpeed)
+                            root.uploadSpeed = root.formatRate(txSpeed)
                             root.lastTextUpdateTime = now
                         }
 
@@ -165,368 +169,51 @@ while True:
         }
     }
 
+    // Info Process (SSID, Interface, IP, VPN)
+    Process {
+        id: fetchNetInfoProc
+        command: ["fish", "-c", `
+            set s (nmcli -t -f ACTIVE,SSID dev wifi 2>/dev/null | awk -F: '$1 ~ /yes|true/ {print $2; exit}')
+            set d (ip route show 2>/dev/null | awk '/default/ {print $5}' | head -n1)
+            set ip ""
+            if test -n "$d"
+                set ip (ip -4 addr show dev $d 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1)
+            end
+            set v (nmcli -t -f TYPE,NAME connection show --active 2>/dev/null | awk -F: '$1 ~ /wireguard|vpn|tun|overlay/ {print $2; exit}')
+            echo "$s|$d|$ip|$v"
+        `]
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let clean = this.text.trim()
+                if (!clean) return
+                let parts = clean.split("|")
+                if (parts.length >= 4) {
+                    root.ssid = parts[0] ? parts[0].trim() : ""
+                    root.interfaceName = parts[1] ? parts[1].trim() : ""
+                    root.localIp = parts[2] ? parts[2].trim() : ""
+                    root.activeVpnName = parts[3] ? parts[3].trim() : ""
+                }
+            }
+        }
+    }
+
     ColumnLayout {
         id: mainLayout
         anchors.fill: parent
         anchors.margins: root.cardMargin
-        spacing: root.cardMargin
-
-        // Dashboard Panel
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: root.cardMargin / 2
-            visible: !root.showFileBrowser
-
-            // ==========================================
-            // CARD 1: NETWORK SPEED & GRAPH
-            // ==========================================
-            Rectangle {
-                Layout.fillWidth: true
-                implicitWidth: 380
-                implicitHeight: speedCardLayout.implicitHeight + (root.cardMargin * 2)
-                color: Qt.rgba(255, 255, 255, 0.05)
-                radius: Config.cornerRadius
-                clip: true
-
-                // GRAPHIC WATERMARK
-                Item {
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    anchors.rightMargin: -15
-                    anchors.bottomMargin: -20
-                    implicitWidth: 150
-                    implicitHeight: 150
-                    visible: Config.showWatermarks
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: Config.getIcon("network")
-                        font.family: "Material Symbols Outlined"
-                        font.pixelSize: 150
-                        color: Config.accent
-                        opacity: 0.12
-                        rotation: 15
-                    }
-                }
-
-                ColumnLayout {
-                    id: speedCardLayout
-                    anchors.fill: parent
-                    anchors.margins: root.cardMargin
-                    spacing: root.cardMargin
-
-                    RowLayout {
-                        Layout.fillWidth: true
-
-                        Item {
-                            implicitWidth: netTitleText.implicitWidth
-                            implicitHeight: netTitleText.implicitHeight
-                            Layout.fillWidth: true
-
-                            Glow {
-                                anchors.fill: netTitleText
-                                source: netTitleText
-                                radius: 8
-                                samples: 16
-                                color: Config.accent
-                                spread: 0.2
-                                transparentBorder: true
-                                visible: Config.clockShowGlow
-                            }
-
-                            Text {
-                                id: netTitleText
-                                anchors.fill: parent
-                                text: "NETWORK"
-                                color: Config.textMain
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontTitle)
-                                font.bold: true
-                                font.italic: true
-                            }
-                        }
-                    }
-
-                    // Speeds
-                    RowLayout {
-                        Layout.fillWidth: true
-                        
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 2
-                            Text { text: "DOWNLOAD"; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro); color: Config.textMuted; font.bold: true; horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true }
-                            Text { text: root.downloadSpeed; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontBody); font.bold: true; color: Config.textMain; horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true }
-                        }
-                        
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 2
-                            Text { text: "UPLOAD"; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro); color: Config.textMuted; font.bold: true; horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true }
-                            Text { text: root.uploadSpeed; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontBody); font.bold: true; color: Config.textMain; horizontalAlignment: Text.AlignHCenter; Layout.fillWidth: true }
-                        }
-                    }
-
-                    // Frame-Synchronized Smooth Viewport
-                    Item {
-                        id: sparklineCanvasWrapper
-                        Layout.fillWidth: true
-                        height: 44
-                        clip: true
-
-                        Canvas {
-                            id: sparklineCanvas
-                            anchors.fill: parent
-                            renderTarget: Canvas.Image
-                            renderStrategy: Canvas.Threaded
-
-                            onPaint: {
-                                let ctx = getContext("2d")
-                                let w = width
-                                let h = height
-                                ctx.clearRect(0, 0, w, h)
-
-                                let totalPoints = graphHistoryModel.count
-                                if (totalPoints < 2) return
-
-                                let activePeak = root.smoothPeakSpeed
-                                let step = w / (root.maxGraphPoints - 1)
-                                let xOffset = root.scrollProgress * step
-
-                                // 1. Fill region
-                                ctx.beginPath()
-                                ctx.moveTo(0, h)
-
-                                for (let i = 0; i < totalPoints; i++) {
-                                    let nodeValue = graphHistoryModel.get(i).speedValue
-                                    let scaleRatio = nodeValue / activePeak
-                                    let coordX = (i * step) - xOffset
-                                    let coordY = h - (scaleRatio * (h - 4))
-                                    ctx.lineTo(coordX, coordY)
-                                }
-
-                                ctx.lineTo(((totalPoints - 1) * step) - xOffset, h)
-                                ctx.closePath()
-                                ctx.fillStyle = "rgba(255, 255, 255, 0.05)"
-                                ctx.fill()
-
-                                // Path helper for line rendering
-                                function buildLinePath() {
-                                    ctx.beginPath()
-                                    for (let j = 0; j < totalPoints; j++) {
-                                        let nodeValue = graphHistoryModel.get(j).speedValue
-                                        let scaleRatio = nodeValue / activePeak
-                                        let coordX = (j * step) - xOffset
-                                        let coordY = h - (scaleRatio * (h - 4))
-                                        if (j === 0) ctx.moveTo(coordX, coordY)
-                                        else ctx.lineTo(coordX, coordY)
-                                    }
-                                }
-
-                                // 2. Glow pass (blurred background line)
-                                buildLinePath()
-                                ctx.strokeStyle = Config.accent
-                                ctx.lineWidth = 2
-                                ctx.lineCap = "round"
-                                ctx.lineJoin = "round"
-                                ctx.shadowColor = Config.accent
-                                ctx.shadowBlur = 8
-                                ctx.stroke()
-
-                                // 3. Crisp foreground line pass (removes shadow blur so line retains sharp core)
-                                buildLinePath()
-                                ctx.shadowBlur = 0
-                                ctx.stroke()
-                            }
-                        }
-                    }
-                }
-            }
-
-            // ==========================================
-            // CARD 2: VPN PROFILES
-            // ==========================================
-            Rectangle {
-                Layout.fillWidth: true
-                implicitHeight: vpnCardLayout.implicitHeight + (root.cardMargin * 2)
-                color: Qt.rgba(255, 255, 255, 0.05)
-                radius: Config.cornerRadius
-                clip: true
-
-                // GRAPHIC WATERMARK
-                Item {
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    anchors.rightMargin: -15
-                    anchors.bottomMargin: -20
-                    implicitWidth: 150
-                    implicitHeight: 150
-                    visible: Config.showWatermarks
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: Config.getIcon("network")
-                        font.family: "Material Symbols Outlined"
-                        font.pixelSize: 150
-                        color: Config.accent
-                        opacity: 0.12
-                        rotation: 15
-                    }
-                }
-
-                ColumnLayout {
-                    id: vpnCardLayout
-                    anchors.fill: parent
-                    anchors.margins: root.cardMargin
-                    spacing: root.cardMargin
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        Text { text: "VPN PROFILES"; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro); font.bold: true; color: Config.textMuted; Layout.fillWidth: true }
-                        
-                        Rectangle {
-                            implicitWidth: importText.implicitWidth + 16
-                            implicitHeight: 22
-                            radius: Config.cornerRadius / 2
-                            color: importHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
-
-                            Text {
-                                id: importText
-                                anchors.centerIn: parent
-                                text: "+ IMPORT"
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontMicro)
-                                font.bold: true
-                                color: importHover.hovered ? Config.bgBase : Config.textMain
-                            }
-
-                            TapHandler {
-                                onTapped: root.showFileBrowser = true
-                            }
-                            HoverHandler { id: importHover; cursorShape: Qt.PointingHandCursor }
-                        }
-                    }
-
-                    ListView {
-                        id: profileListView
-                        Layout.fillWidth: true
-                        implicitHeight: Math.min(vpnListModel.count * 52, 160)
-                        spacing: 6
-                        model: vpnListModel
-
-                        delegate: Rectangle {
-                            id: profileItemDelegate
-                            property bool isActive: root.activeVpnName === profileName
-
-                            width: profileListView.width
-                            implicitHeight: 46
-                            radius: Config.cornerRadius / 2.5
-                            color: isActive ? Qt.rgba(255, 255, 255, 0.12) : (itemHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.25))
-                            border.color: isActive ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                            border.width: 2
-
-                            Behavior on color { ColorAnimation { duration: 150 } }
-
-                            TapHandler {
-                                gesturePolicy: TapHandler.WithinBounds
-                                onTapped: root.toggleProfileState(profileName, !profileItemDelegate.isActive)
-                            }
-
-                            HoverHandler { 
-                                id: itemHover
-                                cursorShape: Qt.PointingHandCursor 
-                            }
-
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.leftMargin: 10
-                                anchors.rightMargin: 10
-                                spacing: 8
-
-                                // Left Action Icon Frame
-                                Rectangle {
-                                    implicitWidth: 32
-                                    implicitHeight: 32
-                                    radius: Config.cornerRadius / 2
-                                    color: isActive ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
-
-                                    Behavior on color { ColorAnimation { duration: 150 } }
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: isActive ? "vpn_key" : "vpn_key_off"
-                                        font.family: "Material Symbols Outlined"
-                                        font.pixelSize: 18
-                                        color: isActive ? Config.bgBase : Config.textMuted
-                                    }
-                                }
-
-                                ColumnLayout {
-                                    spacing: 1
-                                    Layout.fillWidth: true
-                                    Layout.alignment: Qt.AlignLeft
-
-                                    Text { 
-                                        text: profileName
-                                        font.family: Config.sysFont
-                                        font.bold: true
-                                        font.pixelSize: Config.size(Config.fontCaption)
-                                        color: isActive ? Config.accent : Config.textMain
-                                        horizontalAlignment: Text.AlignLeft
-                                        elide: Text.ElideRight
-                                        Layout.fillWidth: true
-                                    }
-                                    
-                                    Text { 
-                                        text: isActive ? "Connected" : "Disconnected"
-                                        font.family: Config.sysFont
-                                        font.pixelSize: Config.size(Config.fontMicro)
-                                        color: Config.textMuted
-                                        horizontalAlignment: Text.AlignLeft
-                                        Layout.fillWidth: true
-                                    }
-                                }
-
-                                // Neutral Delete Icon aligned strictly to the right
-                                Rectangle {
-                                    implicitWidth: 32
-                                    implicitHeight: 32
-                                    radius: Config.cornerRadius / 2
-                                    color: delHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : "transparent"
-                                    Layout.alignment: Qt.AlignRight
-
-                                    Behavior on color { ColorAnimation { duration: 150 } }
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: "delete"
-                                        font.family: "Material Symbols Outlined"
-                                        font.pixelSize: 18
-                                        color: delHover.hovered ? Config.accent : Config.textMuted
-                                    }
-
-                                    TapHandler {
-                                        gesturePolicy: TapHandler.WithinBounds
-                                        onTapped: root.deleteProfile(profileName)
-                                    }
-                                    HoverHandler { id: delHover; cursorShape: Qt.PointingHandCursor }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
+        spacing: root.cardMargin / 2
 
         // ==========================================
-        // CARD 3: FILE BROWSER PANEL
+        // CARD 1: TITLE, STATUS & SPARKLINE GRAPH
         // ==========================================
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: browserLayout.implicitHeight + (root.cardMargin * 2)
-            color: Qt.rgba(255, 255, 255, 0.05)
+            implicitWidth: 360
+            implicitHeight: topCardContent.implicitHeight + (root.cardMargin * 2)
             radius: Config.cornerRadius
+            color: Qt.rgba(1, 1, 1, 0.05)
             clip: true
-            visible: root.showFileBrowser
 
             // GRAPHIC WATERMARK
             Item {
@@ -540,7 +227,7 @@ while True:
 
                 Text {
                     anchors.centerIn: parent
-                    text: Config.getIcon("network")
+                    text: root.activeVpnName !== "" ? "vpn_key" : Config.getIcon("network")
                     font.family: "Material Symbols Outlined"
                     font.pixelSize: 150
                     color: Config.accent
@@ -550,150 +237,290 @@ while True:
             }
 
             ColumnLayout {
-                id: browserLayout
+                id: topCardContent
                 anchors.fill: parent
                 anchors.margins: root.cardMargin
                 spacing: root.cardMargin
 
+                // Header Row
                 RowLayout {
                     Layout.fillWidth: true
-                    Text { text: "SELECT VPN CONFIG"; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontTitle); font.bold: true; color: Config.textMain; Layout.fillWidth: true }
-                    
-                    Rectangle {
-                        implicitWidth: cancelText.implicitWidth + 16
-                        implicitHeight: 22
-                        radius: Config.cornerRadius / 2
-                        color: cancelHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+                    spacing: 8
 
-                        Text {
-                            id: cancelText
-                            anchors.centerIn: parent
-                            text: "CANCEL"
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontMicro)
-                            font.bold: true
-                            color: cancelHover.hovered ? Config.bgBase : Config.textMuted
+                    Text {
+                        text: root.activeVpnName !== "" ? "vpn_key" : Config.getIcon("network")
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: Config.size(Config.fontTitle)
+                        color: Config.textMain
+                        Layout.alignment: Qt.AlignVCenter
+                    }
+
+                    Item {
+                        implicitWidth: netTitleText.implicitWidth
+                        implicitHeight: netTitleText.implicitHeight
+                        Layout.fillWidth: true
+
+                        Glow {
+                            anchors.fill: netTitleText
+                            source: netTitleText
+                            radius: 8
+                            samples: 16
+                            color: Config.accent
+                            spread: 0.2
+                            transparentBorder: true
+                            visible: Config.clockShowGlow
                         }
 
-                        TapHandler { onTapped: root.showFileBrowser = false }
-                        HoverHandler { id: cancelHover; cursorShape: Qt.PointingHandCursor }
+                        Text {
+                            id: netTitleText
+                            anchors.fill: parent
+                            text: "NETWORK"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontTitle)
+                            font.bold: true
+                            font.italic: true
+                        }
+                    }
+
+                    // VPN Active Key Badge
+                    Rectangle {
+                        visible: root.activeVpnName !== ""
+                        implicitWidth: vpnBadgeRow.implicitWidth + 12
+                        implicitHeight: 22
+                        radius: Config.cornerRadius / 2
+                        color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2)
+
+                        RowLayout {
+                            id: vpnBadgeRow
+                            anchors.centerIn: parent
+                            spacing: 4
+
+                            Text {
+                                text: "vpn_key"
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 12
+                                color: Config.accent
+                            }
+
+                            Text {
+                                text: root.activeVpnName
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontMicro)
+                                font.bold: true
+                                color: Config.accent
+                                elide: Text.ElideRight
+                                Layout.maximumWidth: 120
+                            }
+                        }
                     }
                 }
 
-                Text { text: root.currentBrowserPath.replace("file://", ""); font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); color: Config.textMuted; elide: Text.ElideLeft; Layout.fillWidth: true }
-
-                Rectangle {
+                // Connection Subtitle Track Row (similar to % Available in Battery)
+                Text {
+                    text: {
+                        if (root.ssid && root.localIp) return root.ssid + " • " + root.localIp
+                        if (root.ssid) return root.ssid
+                        if (root.localIp) return root.localIp + (root.interfaceName ? (" • " + root.interfaceName) : "")
+                        return "Connected"
+                    }
+                    color: Config.textMain
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontSubhead)
+                    font.bold: true
+                    elide: Text.ElideRight
                     Layout.fillWidth: true
-                    implicitHeight: Math.min(Math.max(fileListView.contentHeight + 12, 120), 320)
-                    color: Qt.rgba(0, 0, 0, 0.15)
-                    radius: Config.cornerRadius / 2
+                }
+
+                // Frame-Synchronized Smooth Canvas
+                Item {
+                    id: sparklineCanvasWrapper
+                    Layout.fillWidth: true
+                    implicitHeight: 44
                     clip: true
 
-                    ListView {
-                        id: fileListView
+                    Canvas {
+                        id: sparklineCanvas
                         anchors.fill: parent
-                        anchors.margins: 6
-                        spacing: 2
-                        clip: true
-                        model: FolderListModel {
-                            folder: root.currentBrowserPath
-                            showDirsFirst: true
-                            showDotAndDotDot: true
-                            nameFilters: ["*.conf", "*.ovpn", "*.vpn"] 
-                        }
+                        renderTarget: Canvas.Image
+                        renderStrategy: Canvas.Threaded
 
-                        delegate: Rectangle {
-                            width: fileListView.width
-                            implicitHeight: fileName === "." ? 0 : 34
-                            visible: fileName !== "."
-                            radius: Config.cornerRadius / 2
-                            color: fileHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : "transparent"
+                        onPaint: {
+                            let ctx = getContext("2d")
+                            let w = width
+                            let h = height
+                            ctx.clearRect(0, 0, w, h)
 
-                            RowLayout {
-                                spacing: 8
-                                anchors.fill: parent
-                                anchors.leftMargin: 8
+                            let totalPoints = graphHistoryModel.count
+                            if (totalPoints < 2) return
 
-                                Text { text: fileIsDir ? "folder" : "description"; font.family: "Material Symbols Outlined"; font.pixelSize: 16; color: Config.accent }
-                                Text { text: fileName; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); color: Config.textMain; Layout.fillWidth: true; elide: Text.ElideRight }
+                            let activePeak = root.smoothPeakSpeed
+                            let step = w / (root.maxGraphPoints - 1)
+                            let xOffset = root.scrollProgress * step
+
+                            // 1. Fill region
+                            ctx.beginPath()
+                            ctx.moveTo(0, h)
+
+                            for (let i = 0; i < totalPoints; i++) {
+                                let nodeValue = graphHistoryModel.get(i).speedValue
+                                let scaleRatio = nodeValue / activePeak
+                                let coordX = (i * step) - xOffset
+                                let coordY = h - (scaleRatio * (h - 4))
+                                ctx.lineTo(coordX, coordY)
                             }
 
-                            TapHandler {
-                                onTapped: {
-                                    if (fileIsDir) {
-                                        root.currentBrowserPath = fileUrl.toString()
-                                    } else {
-                                        let urlString = fileUrl.toString()
-                                        let parsedPath = urlString.startsWith("file:///") ? urlString.substring(7) : urlString.replace("file://", "")
-                                        let isWg = parsedPath.endsWith(".conf")
-                                        let typeStr = isWg ? "wireguard" : "openvpn"
+                            ctx.lineTo(((totalPoints - 1) * step) - xOffset, h)
+                            ctx.closePath()
+                            ctx.fillStyle = "rgba(255, 255, 255, 0.05)"
+                            ctx.fill()
 
-                                        vpnImporter.command = ["fish", "-c", `nmcli connection import type ${typeStr} file "${parsedPath}"`]
-                                        vpnImporter.running = true
-                                        root.showFileBrowser = false
-                                    }
+                            // Path helper for line rendering
+                            function buildLinePath() {
+                                ctx.beginPath()
+                                for (let j = 0; j < totalPoints; j++) {
+                                    let nodeValue = graphHistoryModel.get(j).speedValue
+                                    let scaleRatio = nodeValue / activePeak
+                                    let coordX = (j * step) - xOffset
+                                    let coordY = h - (scaleRatio * (h - 4))
+                                    if (j === 0) ctx.moveTo(coordX, coordY)
+                                    else ctx.lineTo(coordX, coordY)
                                 }
                             }
 
-                            HoverHandler { id: fileHover; cursorShape: Qt.PointingHandCursor }
+                            // 2. Glow pass (blurred background line)
+                            buildLinePath()
+                            ctx.strokeStyle = Config.accent
+                            ctx.lineWidth = 2
+                            ctx.lineCap = "round"
+                            ctx.lineJoin = "round"
+                            ctx.shadowColor = Config.accent
+                            ctx.shadowBlur = 8
+                            ctx.stroke()
+
+                            // 3. Crisp foreground line pass
+                            buildLinePath()
+                            ctx.shadowBlur = 0
+                            ctx.stroke()
                         }
                     }
                 }
             }
         }
-    }
 
-    // Backend Execution Processes
-    Process {
-        id: vpnListPopulator
-        command: ["nmcli", "-g", "TYPE,NAME,STATE", "connection", "show"]
-        running: false
-        
-        stdout: StdioCollector {
-            onTextChanged: {
-                let cleanText = text.trim()
-                if (!cleanText) { vpnListModel.clear(); root.activeVpnName = ""; return }
-                let lines = cleanText.split("\n")
-                let incomingProfiles = []
-                let currentActive = ""
+        // ==========================================
+        // SUB-STATS CARDS ROW (Matching Battery.qml)
+        // ==========================================
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: root.cardMargin / 2
 
-                for (let i = 0; i < lines.length; i++) {
-                    let parts = lines[i].trim().split(":")
-                    if (parts.length >= 2) {
-                        let type = parts[0], name = parts[1], state = parts[2] || ""
-                        if (type === "wireguard" || type === "vpn" || type === "tun" || type === "overlay" || type === "connection") {
-                            if (state.indexOf("activated") !== -1) currentActive = name
-                            if (incomingProfiles.indexOf(name) === -1) incomingProfiles.push(name)
-                        }
+            // Card 2: Download Stats Card
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: 64
+                radius: Config.cornerRadius
+                color: Qt.rgba(1, 1, 1, 0.05)
+                clip: true
+
+                // GRAPHIC WATERMARK
+                Item {
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    anchors.rightMargin: -10
+                    anchors.bottomMargin: -15
+                    implicitWidth: 80
+                    implicitHeight: 80
+                    visible: Config.showWatermarks
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "arrow_downward"
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 80
+                        color: Config.accent
+                        opacity: 0.12
+                        rotation: 15
                     }
                 }
 
-                root.activeVpnName = currentActive
-                for (let m = vpnListModel.count - 1; m >= 0; m--) {
-                    if (incomingProfiles.indexOf(vpnListModel.get(m).profileName) === -1) vpnListModel.remove(m)
+                ColumnLayout {
+                    anchors.centerIn: parent
+                    spacing: 2
+
+                    Text {
+                        text: "DOWNLOAD"
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        font.bold: true
+                        Layout.alignment: Qt.AlignHCenter
+                    }
+
+                    Text {
+                        text: root.downloadSpeed
+                        color: Config.textMain
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontCaption)
+                        font.bold: true
+                        Layout.alignment: Qt.AlignHCenter
+                    }
                 }
-                for (let p = 0; p < incomingProfiles.length; p++) {
-                    let pName = incomingProfiles[p], found = false
-                    for (let m = 0; m < vpnListModel.count; m++) { if (vpnListModel.get(m).profileName === pName) { found = true; break; } }
-                    if (!found) vpnListModel.append({ "profileName": pName })
+            }
+
+            // Card 3: Upload Stats Card
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: 64
+                radius: Config.cornerRadius
+                color: Qt.rgba(1, 1, 1, 0.05)
+                clip: true
+
+                // GRAPHIC WATERMARK
+                Item {
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    anchors.rightMargin: -10
+                    anchors.bottomMargin: -15
+                    implicitWidth: 80
+                    implicitHeight: 80
+                    visible: Config.showWatermarks
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "arrow_upward"
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 80
+                        color: Config.accent
+                        opacity: 0.12
+                        rotation: 15
+                    }
+                }
+
+                ColumnLayout {
+                    anchors.centerIn: parent
+                    spacing: 2
+
+                    Text {
+                        text: "UPLOAD"
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        font.bold: true
+                        Layout.alignment: Qt.AlignHCenter
+                    }
+
+                    Text {
+                        text: root.uploadSpeed
+                        color: Config.textMain
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontCaption)
+                        font.bold: true
+                        Layout.alignment: Qt.AlignHCenter
+                    }
                 }
             }
         }
-    }
-
-    Process { id: vpnStateExecutor; running: false; onExited: vpnListPopulator.running = true }
-    Process { id: vpnImporter; running: false; onExited: vpnListPopulator.running = true }
-
-    function toggleProfileState(profileName, itemChecked) {
-        vpnStateExecutor.command = itemChecked 
-            ? ["nmcli", "connection", "up", "id", profileName]
-            : ["nmcli", "connection", "down", "id", profileName]
-        vpnStateExecutor.running = true
-    }
-
-    function deleteProfile(profileName) {
-        vpnStateExecutor.command = ["nmcli", "connection", "delete", "id", profileName]
-        vpnStateExecutor.running = true
     }
 
     Connections {
@@ -701,7 +528,8 @@ while True:
         function onShowNetworkChanged() {
             if (Config.showNetwork) {
                 seedGraphModel()
-                vpnListPopulator.running = true
+                fetchNetInfoProc.running = false
+                fetchNetInfoProc.running = true
             }
         }
     }

@@ -4,9 +4,15 @@ import QtMultimedia
 import Quickshell
 import Quickshell.Io
 import "settings"
+import "services"
 
 QtObject {
     id: root
+
+    // --- EXTRACTED BACKGROUND SERVICES ---
+    property WallpaperService wallpaperService: WallpaperService { configRef: root }
+    property QuoteService quoteService: QuoteService { configRef: root }
+    property IrisColorService irisService: IrisColorService { configRef: root }
 
     property bool showTaskOverflow: false
 
@@ -947,109 +953,24 @@ QtObject {
     onSlideshowActiveChanged: { if (isLoaded) saveSettings() }
     onSlideshowMinutesChanged: { if (isLoaded) saveSettings() }
 
-    property Process slideshowRunner: Process {
-        id: bgSlideshowProc
-        running: false
-
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let path = this.text ? this.text.trim() : ""
-                if (path.length > 0) {
-                    root.applyWallpaperBackend(path, false)
-                }
-            }
-        }
-    }
-
-    property Timer bgSlideshowTimer: Timer {
-        id: bgTimer
-        interval: Math.max(1, root.slideshowMinutes) * 60000
-        running: root.isLoaded && root.slideshowActive
-        repeat: true
-        onTriggered: root.triggerRandomWallpaperBackground()
-    }
+    property alias slideshowRunner: root.wallpaperService.slideshowRunner
+    property alias bgSlideshowTimer: root.wallpaperService.bgSlideshowTimer
+    property alias wallpaperApplyRunner: root.wallpaperService.wallpaperApplyRunner
 
     function triggerRandomWallpaperBackground() {
-        bgSlideshowProc.command = [
-            "python3", "-c",
-            "import os, random; d=os.path.expanduser('~/Pictures/Wallpapers'); files=[os.path.join(d, f) for f in os.listdir(d) if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp', '.mp4', '.webm'))] if os.path.isdir(d) else []; print(random.choice(files) if files else '')"
-        ]
-        bgSlideshowProc.running = false
-        bgSlideshowProc.running = true
-    }
-
-    property Process wallpaperApplyRunner: Process {
-        id: wpApplyProc
-        running: false
+        wallpaperService.triggerRandomWallpaperBackground()
     }
 
     function applyWallpaperBackend(filePath, activeOnly) {
-        if (!filePath) return;
-
-        let cleanFilePath = (typeof filePath === "string" ? filePath : filePath.toString()).replace(/^file:\/\//, "");
-        root.activeWallpaperPath = cleanFilePath;
-
-        let ext = cleanFilePath.split('.').pop().toLowerCase()
-        let waylandDisplay = Quickshell.env("WAYLAND_DISPLAY") || "wayland-1"
-        let sockPath = "/run/user/" + Quickshell.env("UID") + "/" + waylandDisplay + "-awww-daemon.sock"
-        let targets = activeOnly ? [] : (root.selectedWallpaperMonitors || []).filter(mon => Quickshell.screens.some(s => s.name === mon));
-        let transition = root.wallpaperTransitionType || "fade"
-
-        let script = "killall -q mpvpaper 2>/dev/null; "
-
-        if (activeOnly) {
-            script += "set TARGET_MON (hyprctl monitors -j | jq -r '.[] | select(.focused) | .name'); "
-            if (ext === "mp4" || ext === "webm") {
-                script += "awww clear -o \"$TARGET_MON\" 2>/dev/null; "
-                script += "pkill -f 'mpvpaper' 2>/dev/null; "
-                script += "nohup mpvpaper -vs -o 'input-terminal=no loop-file=inf no-audio panscan=1.0 video-unscaled=no' \"$TARGET_MON\" '" + cleanFilePath + "' < /dev/null >/dev/null 2>&1 & disown; "
-            } else {
-                script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; "
-                script += "awww img -o \"$TARGET_MON\" '" + cleanFilePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; "
-            }
-        } else if (targets.length > 0) {
-            for (let i = 0; i < targets.length; i++) {
-                let mon = targets[i];
-                if (ext === "mp4" || ext === "webm") {
-                    script += "awww clear -o \"" + mon + "\" 2>/dev/null; "
-                    script += "pkill -f 'mpvpaper' 2>/dev/null; "
-                    script += "nohup mpvpaper -vs -o 'input-terminal=no loop-file=inf no-audio panscan=1.0 video-unscaled=no' \"" + mon + "\" '" + cleanFilePath + "' < /dev/null >/dev/null 2>&1 & disown; "
-                } else {
-                    script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; "
-                    script += "awww img -o \"" + mon + "\" '" + cleanFilePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; "
-                }
-            }
-        } else {
-            if (ext === "mp4" || ext === "webm") {
-                script += "awww kill 2>/dev/null; killall -9 -q awww-daemon 2>/dev/null; rm -f " + sockPath + "; "
-                script += "nohup mpvpaper -vs -o 'input-terminal=no loop-file=inf no-audio panscan=1.0 video-unscaled=no' '*' '" + cleanFilePath + "' < /dev/null >/dev/null 2>&1 & disown; "
-            } else {
-                script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; "
-                script += "awww img '" + cleanFilePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; "
-            }
-        }
-
-        wpApplyProc.command = ["fish", "-c", script]
-        wpApplyProc.running = false
-        wpApplyProc.running = true
+        wallpaperService.applyWallpaperBackend(filePath, activeOnly)
     }
 
     function toggleWallpaperMonitor(screenName) {
-        let current = selectedWallpaperMonitors ? selectedWallpaperMonitors.slice() : []
-        let idx = current.indexOf(screenName)
-
-        if (idx >= 0) {
-            current.splice(idx, 1)
-        } else {
-            current.push(screenName)
-        }
-
-        selectedWallpaperMonitors = current
-        saveSettings()
+        wallpaperService.toggleWallpaperMonitor(screenName)
     }
 
     // --- GLOBAL WEATHER SERVICE ---
-    property WeatherSettings weather: WeatherSettings {
+    property WeatherService weather: WeatherService {
         id: globalWeather
         zipcode: root.locationQuery
     }
@@ -1087,44 +1008,7 @@ QtObject {
     property bool enableIris: false
     property bool showWatermarks: true
 
-    property Process irisRunner: Process {
-        id: runner
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    let text = this.text ? this.text.trim() : ""
-                    if (text.length > 0) {
-                        let match = text.match(/\{[\s\S]*\}/)
-                        if (match) {
-                            let jsonStr = match[0]
-
-                            if (jsonStr.includes('"bg"') || jsonStr.includes('"surface"') || jsonStr.includes('"accent"')) {
-                                let parsed = JSON.parse(jsonStr)
-
-                                // Inline Comment: Neutral slate/monochrome fallbacks replacing bright pink
-                                let baseCol = parsed.bg || "#12131a"
-                                let panelCol = parsed.surface || "#1e202b"
-                                let accentCol = parsed.accent || "#94a3b8"
-
-                                root.customBgBase = baseCol
-                                root.customBgPanel = panelCol
-                                root.customAccent = accentCol
-
-                                root.bgBase = Qt.rgba(Qt.color(baseCol).r, Qt.color(baseCol).g, Qt.color(baseCol).b, root.shellOpacity)
-                                root.bgPanel = Qt.rgba(Qt.color(panelCol).r, Qt.color(panelCol).g, Qt.color(panelCol).b, root.shellOpacity)
-                                root.accent = accentCol
-
-                                root.syncHyprlandBorders()
-                            }
-                        }
-                    }
-                } catch (e) {
-                    console.error("Failed to parse Iris JSON colors:", e)
-                }
-            }
-        }
-    }
+    property alias irisRunner: root.irisService.irisRunner
 
     onEnableIrisChanged: {
         if (!isLoaded) return
@@ -1143,34 +1027,7 @@ QtObject {
     }
 
     function applyIrisColors(filePath) {
-        if (!enableIris) return
-
-        let rawPath = filePath || root.activeWallpaperPath
-
-        if (!rawPath && root.wallpapers && root.wallpapers.length > 0) {
-            rawPath = root.wallpapers[0]
-        }
-
-        if (!rawPath || rawPath === "") return
-
-        let cleanPath = rawPath.replace(/^file:\/\//, "")
-        let ext = cleanPath.split('.').pop().toLowerCase()
-        let targetPath = cleanPath
-
-        // Inline Comment: Convert video path to its cached thumbnail PNG path before calling iris
-        if (ext === "mp4" || ext === "webm") {
-            let fileName = cleanPath.split('/').pop()
-            let thumbName = fileName.replace(/[^a-zA-Z0-9]/g, "_") + ".png"
-            targetPath = Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + thumbName
-        }
-
-        // Inline Comment: Guarantee thumbnail exists via ffmpeg before feeding path to iris
-        let cmd = "if not test -f '" + targetPath + "'; ffmpeg -y -ss 00:00:00 -i '" + cleanPath + "' -vframes 1 -vf 'scale=600:-1' '" + targetPath + "' >/dev/null 2>&1; end; "
-        cmd += "if test -f '" + targetPath + "'; iris --json-only '" + targetPath + "' 2>/dev/null; end"
-
-        runner.command = ["fish", "-c", cmd]
-        runner.running = false
-        runner.running = true
+        irisService.applyIrisColors(filePath)
     }
 
     readonly property bool isFloatingBar: barFrameStyle === "floating"
@@ -1206,118 +1063,16 @@ QtObject {
     }
 
     property string rssFeedUrl: ""
-    property var quoteFetchQueue: []
-
-    property Process quoteFetcher: Process {
-        id: qFetcher
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    let text = this.text.trim()
-                    if (text.length > 0) {
-                        let fetchedQuote = ""
-
-                        if (text.startsWith("{") || text.startsWith("[")) {
-                            let json = JSON.parse(text)
-                            if (Array.isArray(json) && json.length > 0 && json[0].q) {
-                                fetchedQuote = json[0].q + " — " + json[0].a
-                            } else if (json.setup && json.punchline) {
-                                fetchedQuote = json.setup + " " + json.punchline
-                            } else if (json.quote) {
-                                fetchedQuote = json.quote + " — " + json.author
-                            }
-                        } else {
-                            fetchedQuote = text
-                        }
-
-                        if (fetchedQuote.length > 0) {
-                            root.addMascotPhrase(fetchedQuote)
-                        }
-                    }
-                } catch (e) {
-                    console.error("Failed to parse quote feed output:", e)
-                }
-
-                root.processQuoteQueue()
-            }
-        }
-    }
+    property alias quoteFetchQueue: root.quoteService.quoteFetchQueue
+    property alias quoteFetcher: root.quoteService.quoteFetcher
+    property alias quoteFetchTimer: root.quoteService.quoteFetchTimer
 
     function processQuoteQueue() {
-        let queue = quoteFetchQueue ? quoteFetchQueue.slice() : []
-        if (queue.length === 0 || qFetcher.running || (mascotPhrases && mascotPhrases.length >= 20)) {
-            quoteFetchQueue = []
-            return
-        }
-
-        let nextSource = queue.shift()
-        quoteFetchQueue = queue
-        let cmd = ""
-
-        if (nextSource === "zenquotes") {
-            cmd = "curl -sS --max-time 5 'https://zenquotes.io/api/random'"
-        } else if (nextSource === "jokeapi") {
-            cmd = "curl -sS --max-time 5 'https://official-joke-api.appspot.com/random_joke'"
-        } else if (nextSource === "rss" && rssFeedUrl !== "") {
-            let pyParse = "import sys, xml.etree.ElementTree as ET, random; " +
-                          "root = ET.fromstring(sys.stdin.read()); " +
-                          "items = root.findall('.//item'); " +
-                          "item = random.choice(items) if items else None; " +
-                          "desc = item.find('description').text if item is not None and item.find('description') is not None else ''; " +
-                          "title = item.find('title').text if item is not None and item.find('title') is not None else ''; " +
-                          "print(f'{desc} — {title}' if desc and title else (desc or title))"
-            
-            cmd = "curl -sS -L --max-time 5 '" + rssFeedUrl + "' | python3 -c \"" + pyParse + "\""
-        }
-
-        if (cmd !== "") {
-            qFetcher.command = ["fish", "-c", cmd]
-            qFetcher.running = true
-        } else {
-            processQuoteQueue()
-        }
+        quoteService.processQuoteQueue()
     }
 
     function triggerQuoteFetch() {
-        if (!fetchOnlineQuotes) return
-
-        let currentCount = mascotPhrases ? mascotPhrases.length : 0
-        let needed = 20 - currentCount
-        if (needed <= 0) return
-
-        let activeSources = []
-        if (quoteSource === "both" || quoteSource === "zenquotes") activeSources.push("zenquotes")
-        if (quoteSource === "both" || quoteSource === "jokeapi") activeSources.push("jokeapi")
-        if (quoteSource === "rss" && rssFeedUrl !== "") activeSources.push("rss")
-
-        if (activeSources.length === 0) return
-
-        let newQueue = []
-        if (activeSources.length > 1) {
-            let share = Math.floor(needed / activeSources.length)
-            let remainder = needed % activeSources.length
-
-            for (let s = 0; s < activeSources.length; s++) {
-                let count = share + (s < remainder ? 1 : 0)
-                for (let c = 0; c < count; c++) {
-                    newQueue.push(activeSources[s])
-                }
-            }
-        } else {
-            let src = activeSources[0]
-            for (let k = 0; k < needed; k++) newQueue.push(src)
-        }
-
-        quoteFetchQueue = newQueue
-        processQuoteQueue()
-    }
-
-    property Timer quoteFetchTimer: Timer {
-        interval: 900000
-        running: root.fetchOnlineQuotes && (!root.mascotPhrases || root.mascotPhrases.length < 20)
-        repeat: true
-        onTriggered: root.triggerQuoteFetch()
+        quoteService.triggerQuoteFetch()
     }
 
     // --- BAR POSITION CONTROL ---

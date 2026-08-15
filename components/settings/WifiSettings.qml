@@ -1,16 +1,17 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import Qt5Compat.GraphicalEffects
 import Quickshell
 import Quickshell.Io
 import ".."
 
-ColumnLayout {
+Item {
     id: root
-    spacing: 12
 
-    property bool hasAdapter: false
-    property bool wifiPowered: false
+    property bool hasPolledOnce: false
+    property bool hasAdapter: true
+    property bool wifiPowered: true
     property bool wifiScanning: false
     property string activeSsid: ""
     property string expandedSsid: ""
@@ -20,260 +21,760 @@ ColumnLayout {
     property string connectionError: ""
     property var savedSsids: ([])
 
-    opacity: root.hasAdapter ? 1.0 : 0.4
-    enabled: root.hasAdapter
+    readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
     ListModel { id: wifiModel }
 
     Component.onCompleted: {
-        detectWifiAdapterProc.running = true
+        fetchWifiStatusProc.running = false
+        fetchWifiStatusProc.running = true
     }
 
-    RowLayout {
-        Layout.fillWidth: true
-        spacing: 10
-
-        Rectangle {
-            implicitWidth: 36; implicitHeight: 36; radius: Config.cornerRadius / 2
-            color: root.wifiPowered && root.hasAdapter ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
-
-            Text {
-                anchors.centerIn: parent
-                text: !root.hasAdapter ? "signal_wifi_off" : (root.wifiPowered ? "wifi" : "signal_wifi_off")
-                font.family: "Material Symbols Outlined"
-                font.pixelSize: 20
-                color: root.wifiPowered && root.hasAdapter ? Config.bgBase : Config.textMuted
-            }
-
-            TapHandler {
-                enabled: root.hasAdapter
-                onTapped: {
-                    let nextState = root.wifiPowered ? "off" : "on"
-                    toggleWifiProc.command = ["fish", "-c", "nmcli radio wifi " + nextState]
-                    toggleWifiProc.running = true
-                }
-            }
-            HoverHandler { cursorShape: Qt.PointingHandCursor }
-        }
-
-        ColumnLayout {
-            Layout.fillWidth: true
-            spacing: 1
-            Text { text: "Wi-Fi Network"; font.family: Config.sysFont; font.bold: true; color: Config.textMain; font.pixelSize: Config.size(Config.fontCaption) }
-            Text { 
-                text: !root.hasAdapter ? "No Adapter" : (!root.wifiPowered ? "Disabled" : (root.activeSsid !== "" ? root.activeSsid : "Disconnected"))
-                font.family: Config.sysFont
-                font.bold: root.activeSsid !== "" && root.wifiPowered && root.hasAdapter
-                color: root.activeSsid !== "" && root.wifiPowered && root.hasAdapter ? Config.accent : Config.textMuted
-                font.pixelSize: Config.size(Config.fontMicro)
-            }
-        }
-
-        Rectangle {
-            implicitWidth: 28; implicitHeight: 28; radius: 14
-            visible: root.wifiPowered && root.hasAdapter
-            color: scanHover.hovered ? Qt.rgba(255, 255, 255, 0.1) : "transparent"
-
-            Text {
-                id: scanIcon
-                anchors.centerIn: parent
-                text: "refresh"
-                font.family: "Material Symbols Outlined"
-                font.pixelSize: 16
-                color: scanHover.hovered ? Config.textMain : Config.textMuted
-
-                NumberAnimation on rotation {
-                    from: 0
-                    to: 360
-                    duration: 1000
-                    loops: Animation.Infinite
-                    running: root.wifiScanning
-                }
-            }
-
-            TapHandler { onTapped: root.triggerScan() }
-            HoverHandler { id: scanHover; cursorShape: Qt.PointingHandCursor }
-        }
-    }
-
-    Rectangle {
-        Layout.fillWidth: true
-        Layout.fillHeight: true
-        color: Qt.rgba(0, 0, 0, 0.2)
-        radius: Config.cornerRadius / 2
+    ScrollView {
+        anchors.fill: parent
+        contentWidth: availableWidth
         clip: true
 
-        ListView {
-            id: wifiListView
-            anchors.fill: parent
-            anchors.margins: 6
-            spacing: 4
-            model: wifiModel
+        ColumnLayout {
+            width: parent.width
+            spacing: root.cardMargin
 
-            delegate: Rectangle {
-                required property string ssid
-                required property bool connected
-                required property bool isSecure
-                required property bool isSaved
-                readonly property bool isExpanded: root.expandedSsid === ssid
-                readonly property bool isConnecting: root.connectingSsid === ssid
-                readonly property bool isDisconnecting: root.disconnectingSsid === ssid
-                readonly property bool hasError: root.errorSsid === ssid
+            // ==========================================
+            // HEADER & DESCRIPTION
+            // ==========================================
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 4
 
-                width: wifiListView.width
-                implicitHeight: isExpanded ? (hasError ? 96 : 76) : 36
-                radius: Config.cornerRadius / 2
-                color: hasError ? Qt.rgba(255, 80, 80, 0.15) : (connected ? Qt.rgba(255, 255, 255, 0.12) : (wHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent"))
-                border.color: hasError ? "#ff5555" : "transparent"
-                border.width: hasError ? 1 : 0
-                clip: true
-                Behavior on implicitHeight { NumberAnimation { duration: 150 } }
+                Text {
+                    text: "WI-FI CONFIGURATION"
+                    color: Config.textMain
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontSubhead)
+                    font.bold: true
+                }
 
-                ColumnLayout {
+                Text {
+                    text: "Manage wireless radio interfaces, scan nearby access points, authenticate with secured networks, and configure saved profiles."
+                    color: Config.textMuted
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontCaption)
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+            }
+
+            // ==========================================
+            // 1. HERO INTERFACE & STATUS CARD
+            // ==========================================
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: heroRow.implicitHeight + 28
+                radius: Config.cornerRadius
+                color: Qt.rgba(255, 255, 255, 0.05)
+                border.width: 1
+                border.color: Qt.rgba(255, 255, 255, 0.1)
+
+                RowLayout {
+                    id: heroRow
                     anchors.fill: parent
-                    anchors.margins: 6
-                    spacing: 4
+                    anchors.margins: 14
+                    spacing: 14
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        Text { text: ssid; color: connected ? Config.accent : Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); font.bold: connected; Layout.fillWidth: true; elide: Text.ElideRight }
-                        Text { text: isSecure ? "lock" : "wifi"; font.family: "Material Symbols Outlined"; font.pixelSize: 14; color: Config.textMuted }
-                    }
+                    // Hero Status Icon Badge
+                    Rectangle {
+                        implicitWidth: 44
+                        implicitHeight: 44
+                        radius: 22
+                        color: (root.wifiPowered && root.hasAdapter)
+                            ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2)
+                            : Qt.rgba(255, 255, 255, 0.06)
+                        border.width: 1.5
+                        border.color: (root.wifiPowered && root.hasAdapter) ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
 
-                    ColumnLayout {
-                        visible: isExpanded
-                        Layout.fillWidth: true
-                        spacing: 4
+                        Behavior on color { ColorAnimation { duration: 200 } }
+                        Behavior on border.color { ColorAnimation { duration: 200 } }
 
                         Text {
-                            visible: hasError
-                            text: root.connectionError
-                            color: "#ff6b6b"
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontMicro)
-                            font.bold: true
+                            anchors.centerIn: parent
+                            text: !root.hasAdapter ? "signal_wifi_off" : (root.wifiPowered ? (root.activeSsid !== "" ? "wifi" : "wifi_find") : "signal_wifi_off")
+                            font.family: "Material Symbols Outlined"
+                            font.pixelSize: 22
+                            color: (root.wifiPowered && root.hasAdapter) ? Config.accent : Config.textMuted
                         }
+                    }
 
-                        // Password Panel
+                    // Status Text
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+
                         RowLayout {
-                            visible: !connected && isSecure && (!isSaved || hasError)
-                            Layout.fillWidth: true
-
-                            Rectangle {
-                                Layout.fillWidth: true; implicitHeight: 26; radius: Config.cornerRadius / 2
-                                color: Qt.rgba(0, 0, 0, 0.4)
-                                border.color: passInput.activeFocus ? Config.accent : (hasError ? "#ff5555" : "transparent")
-                                border.width: 1
-
-                                TextInput {
-                                    id: passInput
-                                    anchors.fill: parent; anchors.margins: 4
-                                    color: Config.textMain; font.family: Config.sysFont; font.pixelSize: 11
-                                    echoMode: TextInput.Password
-                                    enabled: !isConnecting && !isDisconnecting
-                                    selectByMouse: true
-                                    onAccepted: {
-                                        if (isSecure && passInput.text.trim() === "" && (!isSaved || hasError)) {
-                                            root.errorSsid = ssid
-                                            root.connectionError = "Password Required"
-                                            return
-                                        }
-                                        root.connectWifi(ssid, passInput.text)
-                                    }
-                                    onTextChanged: {
-                                        if (hasError && passInput.activeFocus) {
-                                            root.errorSsid = ""
-                                            root.connectionError = ""
-                                        }
-                                    }
-                                }
+                            spacing: 8
+                            Text {
+                                text: "Wireless Radio"
+                                font.family: Config.sysFont
+                                font.bold: true
+                                color: Config.textMain
+                                font.pixelSize: Config.size(Config.fontBody)
                             }
 
                             Rectangle {
-                                implicitWidth: 60; implicitHeight: 26; radius: Config.cornerRadius / 2
-                                color: joinHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Config.accent
+                                implicitWidth: statusPillText.implicitWidth + 10
+                                implicitHeight: 18
+                                radius: 9
+                                color: !root.hasAdapter
+                                    ? Qt.rgba(255, 80, 80, 0.2)
+                                    : (root.wifiPowered ? (root.activeSsid !== "" ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(255, 255, 255, 0.1)) : Qt.rgba(255, 255, 255, 0.08))
+                                border.width: 1
+                                border.color: !root.hasAdapter
+                                    ? "#ff5555"
+                                    : (root.wifiPowered && root.activeSsid !== "" ? Config.accent : Qt.rgba(255, 255, 255, 0.15))
 
                                 Text {
+                                    id: statusPillText
                                     anchors.centerIn: parent
-                                    text: isConnecting ? "..." : "JOIN"
-                                    font.family: Config.sysFont; font.bold: true; font.pixelSize: Config.size(Config.fontMicro)
-                                    color: joinHover.hovered ? Config.accent : Config.bgBase
+                                    text: !root.hasAdapter ? "NO ADAPTER" : (!root.wifiPowered ? "DISABLED" : (root.activeSsid !== "" ? "CONNECTED" : "DISCONNECTED"))
+                                    font.family: Config.sysFont
+                                    font.pixelSize: 9
+                                    font.bold: true
+                                    color: !root.hasAdapter
+                                        ? "#ff6b6b"
+                                        : (root.wifiPowered && root.activeSsid !== "" ? Config.accent : Config.textMuted)
                                 }
+                            }
+                        }
 
-                                TapHandler {
-                                    enabled: !isConnecting && !isDisconnecting
-                                    onTapped: {
-                                        if (isSecure && passInput.text.trim() === "" && (!isSaved || hasError)) {
-                                            root.errorSsid = ssid
-                                            root.connectionError = "Password Required"
-                                            return
-                                        }
-                                        root.connectWifi(ssid, passInput.text)
+                        Text {
+                            text: !root.hasAdapter
+                                ? "No wireless network hardware interface detected"
+                                : (!root.wifiPowered
+                                    ? "Wi-Fi radio is currently powered off to save power"
+                                    : (root.activeSsid !== "" ? ("Connected to " + root.activeSsid) : "Wi-Fi enabled • Scanning for access points"))
+                            font.family: Config.sysFont
+                            color: (root.wifiPowered && root.activeSsid !== "") ? Config.accent : Config.textMuted
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            elide: Text.ElideRight
+                            Layout.fillWidth: true
+                        }
+                    }
+
+                    // Spacer to push action buttons to the right
+                    Item { Layout.fillWidth: true }
+
+                    // Action Buttons (Rescan & Power Toggle)
+                    RowLayout {
+                        spacing: 8
+                        Layout.alignment: Qt.AlignRight
+
+                        // RESCAN BUTTON
+                        Rectangle {
+                            implicitWidth: rescanRow.implicitWidth + 16
+                            implicitHeight: 32
+                            radius: 16
+                            visible: root.wifiPowered && root.hasAdapter
+                            color: rescanHover.hovered ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(255, 255, 255, 0.06)
+                            border.width: 1
+                            border.color: Qt.rgba(255, 255, 255, 0.12)
+
+                            Behavior on color { ColorAnimation { duration: 150 } }
+
+                            RowLayout {
+                                id: rescanRow
+                                anchors.centerIn: parent
+                                spacing: 6
+
+                                Text {
+                                    id: scanIconText
+                                    text: "refresh"
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 16
+                                    color: rescanHover.hovered ? Config.accent : Config.textMain
+
+                                    NumberAnimation on rotation {
+                                        from: 0; to: 360; duration: 1000; loops: Animation.Infinite
+                                        running: root.wifiScanning
                                     }
                                 }
-                                HoverHandler { id: joinHover; cursorShape: Qt.PointingHandCursor }
+
+                                Text {
+                                    text: root.wifiScanning ? "Scanning..." : "Rescan"
+                                    font.family: Config.sysFont
+                                    font.pixelSize: 11
+                                    font.bold: true
+                                    color: rescanHover.hovered ? Config.accent : Config.textMain
+                                }
                             }
+
+                            TapHandler { onTapped: root.triggerScan() }
+                            HoverHandler { id: rescanHover; cursorShape: Qt.PointingHandCursor }
                         }
 
-                        // Controls Panel
-                        RowLayout {
-                            visible: connected || (isSaved && !hasError) || !isSecure
+                        // POWER TOGGLE BUTTON
+                        Rectangle {
+                            id: pwrBtn
+                            implicitWidth: pwrRow.implicitWidth + 18
+                            implicitHeight: 32
+                            radius: 16
+                            enabled: root.hasAdapter
+                            color: (root.wifiPowered && root.hasAdapter)
+                                ? (pwrHover.hovered ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.85) : Config.accent)
+                                : (pwrHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08))
+
+                            Behavior on color { ColorAnimation { duration: 180 } }
+
+                            RowLayout {
+                                id: pwrRow
+                                anchors.centerIn: parent
+                                spacing: 6
+
+                                Text {
+                                    text: root.wifiPowered ? "power_settings_new" : "power_off"
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 16
+                                    color: (root.wifiPowered && root.hasAdapter) ? Config.bgBase : Config.textMuted
+                                }
+
+                                Text {
+                                    text: root.wifiPowered ? "ON" : "OFF"
+                                    font.family: Config.sysFont
+                                    font.pixelSize: 11
+                                    font.bold: true
+                                    color: (root.wifiPowered && root.hasAdapter) ? Config.bgBase : Config.textMuted
+                                }
+                            }
+
+                            TapHandler {
+                                enabled: root.hasAdapter
+                                onTapped: {
+                                    let nextState = root.wifiPowered ? "off" : "on"
+                                    toggleWifiProc.command = ["fish", "-c", "nmcli radio wifi " + nextState]
+                                    toggleWifiProc.running = true
+                                }
+                            }
+                            HoverHandler { id: pwrHover; cursorShape: Qt.PointingHandCursor }
+                        }
+                    }
+                }
+            }
+
+            // ==========================================
+            // 2. DETECTED NETWORKS SECTION
+            // ==========================================
+            ColumnLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                visible: root.hasAdapter && root.wifiPowered
+
+                RowLayout {
+                    Layout.fillWidth: true
+
+                    Text {
+                        text: "AVAILABLE ACCESS POINTS"
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        font.bold: true
+                    }
+
+                    Rectangle {
+                        implicitWidth: countText.implicitWidth + 10
+                        implicitHeight: 16
+                        radius: 8
+                        color: Qt.rgba(255, 255, 255, 0.08)
+
+                        Text {
+                            id: countText
+                            anchors.centerIn: parent
+                            text: wifiModel.count.toString()
+                            font.family: Config.sysFont
+                            font.pixelSize: 9
+                            font.bold: true
+                            color: Config.textMuted
+                        }
+                    }
+
+                    Item { Layout.fillWidth: true }
+                }
+
+                // NETWORKS LIST VIEW
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+
+                    Repeater {
+                        model: wifiModel
+
+                        delegate: Rectangle {
+                            id: netCard
+                            required property string ssid
+                            required property bool connected
+                            required property bool isSecure
+                            required property bool isSaved
+                            readonly property bool isExpanded: root.expandedSsid === ssid
+                            readonly property bool isConnecting: root.connectingSsid === ssid
+                            readonly property bool isDisconnecting: root.disconnectingSsid === ssid
+                            readonly property bool hasError: root.errorSsid === ssid
+
                             Layout.fillWidth: true
-                            spacing: 6
+                            implicitHeight: netCol.implicitHeight + 16
+                            radius: Config.cornerRadius * 0.75
+                            color: connected
+                                ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.12)
+                                : (hasError
+                                    ? Qt.rgba(255, 80, 80, 0.15)
+                                    : (netHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.04)))
+                            border.width: 1
+                            border.color: connected
+                                ? Config.accent
+                                : (hasError ? "#ff5555" : (netHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)))
+                            clip: true
 
-                            Rectangle {
-                                visible: connected
-                                Layout.fillWidth: true; implicitHeight: 26; radius: Config.cornerRadius / 2
-                                color: discHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
-                                Text { anchors.centerIn: parent; text: isDisconnecting ? "..." : "DISCONNECT"; font.family: Config.sysFont; font.bold: true; font.pixelSize: Config.size(Config.fontMicro); color: discHover.hovered ? Config.accent : Config.textMain }
-                                TapHandler {
-                                    enabled: !isDisconnecting && !isConnecting
-                                    onTapped: root.disconnectWifi(ssid)
-                                }
-                                HoverHandler { id: discHover; cursorShape: Qt.PointingHandCursor }
-                            }
+                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on border.color { ColorAnimation { duration: 150 } }
 
-                            Rectangle {
-                                visible: !connected && isSaved
-                                Layout.fillWidth: true; implicitHeight: 26; radius: Config.cornerRadius / 2
-                                color: connHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Config.accent
-                                Text { anchors.centerIn: parent; text: isConnecting ? "..." : "CONNECT"; font.family: Config.sysFont; font.bold: true; font.pixelSize: Config.size(Config.fontMicro); color: connHover.hovered ? Config.accent : Config.bgBase }
-                                TapHandler {
-                                    enabled: !isConnecting && !isDisconnecting
-                                    onTapped: root.connectWifi(ssid, "")
-                                }
-                                HoverHandler { id: connHover; cursorShape: Qt.PointingHandCursor }
-                            }
+                            ColumnLayout {
+                                id: netCol
+                                anchors.fill: parent
+                                anchors.margins: 10
+                                spacing: 8
 
-                            Rectangle {
-                                visible: isSaved
-                                Layout.fillWidth: true; implicitHeight: 26; radius: Config.cornerRadius / 2
-                                color: forgetHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
-                                Text { anchors.centerIn: parent; text: "FORGET"; font.family: Config.sysFont; font.bold: true; font.pixelSize: Config.size(Config.fontMicro); color: forgetHover.hovered ? Config.accent : Config.textMuted }
-                                TapHandler {
-                                    enabled: !isConnecting && !isDisconnecting
-                                    onTapped: root.forgetWifi(ssid)
+                                // Main Row
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 10
+
+                                    // Signal / Lock Icon
+                                    Rectangle {
+                                        implicitWidth: 32
+                                        implicitHeight: 32
+                                        radius: 16
+                                        color: connected
+                                            ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.25)
+                                            : Qt.rgba(255, 255, 255, 0.06)
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: isSecure ? "wifi_password" : "wifi"
+                                            font.family: "Material Symbols Outlined"
+                                            font.pixelSize: 17
+                                            color: connected ? Config.accent : Config.textMain
+                                        }
+                                    }
+
+                                    // SSID Name & Badges
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 2
+
+                                        TapHandler {
+                                            onTapped: {
+                                                root.expandedSsid = (root.expandedSsid === ssid) ? "" : ssid
+                                            }
+                                        }
+
+                                        RowLayout {
+                                            spacing: 6
+                                            Text {
+                                                text: ssid
+                                                color: connected ? Config.accent : Config.textMain
+                                                font.family: Config.sysFont
+                                                font.pixelSize: Config.size(Config.fontBody)
+                                                font.bold: true
+                                                elide: Text.ElideRight
+                                                Layout.maximumWidth: 300
+                                            }
+
+                                            // SAVED BADGE
+                                            Rectangle {
+                                                visible: isSaved && !connected
+                                                implicitWidth: savedBadgeText.implicitWidth + 8
+                                                implicitHeight: 16
+                                                radius: 8
+                                                color: Qt.rgba(255, 255, 255, 0.1)
+
+                                                Text {
+                                                    id: savedBadgeText
+                                                    anchors.centerIn: parent
+                                                    text: "SAVED"
+                                                    font.family: Config.sysFont
+                                                    font.pixelSize: 9
+                                                    font.bold: true
+                                                    color: Config.textMuted
+                                                }
+                                            }
+
+                                            // CONNECTED BADGE
+                                            Rectangle {
+                                                visible: connected
+                                                implicitWidth: connBadgeText.implicitWidth + 8
+                                                implicitHeight: 16
+                                                radius: 8
+                                                color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.25)
+                                                border.width: 1
+                                                border.color: Config.accent
+
+                                                Text {
+                                                    id: connBadgeText
+                                                    anchors.centerIn: parent
+                                                    text: "ACTIVE"
+                                                    font.family: Config.sysFont
+                                                    font.pixelSize: 9
+                                                    font.bold: true
+                                                    color: Config.accent
+                                                }
+                                            }
+                                        }
+
+                                        Text {
+                                            text: isSecure ? "WPA/WPA2 Personal" : "Open Access Point (Unsecured)"
+                                            color: Config.textMuted
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontMicro)
+                                        }
+                                    }
+
+                                    // Spacer to push quick actions to the right
+                                    Item { Layout.fillWidth: true }
+
+                                    // Direct Quick Actions
+                                    RowLayout {
+                                        spacing: 6
+                                        Layout.alignment: Qt.AlignRight
+
+                                        // Connect Button for Saved Networks
+                                        Rectangle {
+                                            visible: !connected && isSaved && !isExpanded
+                                            implicitWidth: Math.max(connBtnText.implicitWidth + 24, 76)
+                                            implicitHeight: 28
+                                            radius: 14
+                                            color: qConnHover.hovered ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.85) : Config.accent
+
+                                            Text {
+                                                id: connBtnText
+                                                anchors.centerIn: parent
+                                                text: isConnecting ? "..." : "Connect"
+                                                font.family: Config.sysFont
+                                                font.bold: true
+                                                font.pixelSize: 11
+                                                color: Config.bgBase
+                                            }
+
+                                            TapHandler {
+                                                enabled: !isConnecting && !isDisconnecting
+                                                onTapped: root.connectWifi(ssid, "")
+                                            }
+                                            HoverHandler { id: qConnHover; cursorShape: Qt.PointingHandCursor }
+                                        }
+
+                                        // Expand Arrow / Join Button
+                                        Rectangle {
+                                            implicitWidth: 30
+                                            implicitHeight: 30
+                                            radius: 15
+                                            color: expHover.hovered ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(255, 255, 255, 0.05)
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: isExpanded ? "expand_less" : "chevron_right"
+                                                font.family: "Material Symbols Outlined"
+                                                font.pixelSize: 18
+                                                color: expHover.hovered ? Config.textMain : Config.textMuted
+                                            }
+
+                                            TapHandler {
+                                                onTapped: {
+                                                    root.expandedSsid = (root.expandedSsid === ssid) ? "" : ssid
+                                                }
+                                            }
+                                            HoverHandler { id: expHover; cursorShape: Qt.PointingHandCursor }
+                                        }
+                                    }
                                 }
-                                HoverHandler { id: forgetHover; cursorShape: Qt.PointingHandCursor }
+
+                                // EXPANDED ACTION & AUTHENTICATION DRAWER
+                                ColumnLayout {
+                                    visible: isExpanded
+                                    Layout.fillWidth: true
+                                    spacing: 8
+
+                                    // ERROR BANNER
+                                    Rectangle {
+                                        visible: hasError
+                                        Layout.fillWidth: true
+                                        implicitHeight: errText.implicitHeight + 12
+                                        radius: 6
+                                        color: Qt.rgba(255, 80, 80, 0.2)
+                                        border.width: 1
+                                        border.color: "#ff5555"
+
+                                        RowLayout {
+                                            anchors.fill: parent
+                                            anchors.margins: 6
+                                            spacing: 6
+                                            Text { text: "error"; font.family: "Material Symbols Outlined"; font.pixelSize: 16; color: "#ff6b6b" }
+                                            Text { id: errText; text: root.connectionError; font.family: Config.sysFont; font.pixelSize: 11; font.bold: true; color: "#ff6b6b"; Layout.fillWidth: true }
+                                        }
+                                    }
+
+                                    // PASSWORD INPUT ROW
+                                    RowLayout {
+                                        visible: !connected && isSecure && (!isSaved || hasError)
+                                        Layout.fillWidth: true
+                                        spacing: 8
+
+                                        Rectangle {
+                                            Layout.fillWidth: true
+                                            implicitHeight: 32
+                                            radius: 8
+                                            color: Qt.rgba(0, 0, 0, 0.35)
+                                            border.width: 1
+                                            border.color: passInput.activeFocus ? Config.accent : (hasError ? "#ff5555" : Qt.rgba(255, 255, 255, 0.15))
+
+                                            RowLayout {
+                                                anchors.fill: parent
+                                                anchors.leftMargin: 10
+                                                anchors.rightMargin: 6
+                                                spacing: 6
+
+                                                Text {
+                                                    text: "key"
+                                                    font.family: "Material Symbols Outlined"
+                                                    font.pixelSize: 15
+                                                    color: Config.textMuted
+                                                }
+
+                                                TextInput {
+                                                    id: passInput
+                                                    Layout.fillWidth: true
+                                                    color: Config.textMain
+                                                    font.family: Config.sysFont
+                                                    font.pixelSize: 12
+                                                    echoMode: showPassToggle.showPassword ? TextInput.Normal : TextInput.Password
+                                                    enabled: !isConnecting && !isDisconnecting
+                                                    selectByMouse: true
+                                                    clip: true
+
+                                                    Text {
+                                                        anchors.fill: parent
+                                                        text: "Enter Wi-Fi network password..."
+                                                        color: Qt.rgba(255, 255, 255, 0.3)
+                                                        font.family: Config.sysFont
+                                                        font.pixelSize: 12
+                                                        visible: !passInput.text && !passInput.activeFocus
+                                                    }
+
+                                                    onAccepted: {
+                                                        if (isSecure && passInput.text.trim() === "" && (!isSaved || hasError)) {
+                                                            root.errorSsid = ssid
+                                                            root.connectionError = "Password Required"
+                                                            return
+                                                        }
+                                                        root.connectWifi(ssid, passInput.text)
+                                                    }
+                                                    onTextChanged: {
+                                                        if (hasError && passInput.activeFocus) {
+                                                            root.errorSsid = ""
+                                                            root.connectionError = ""
+                                                        }
+                                                    }
+                                                }
+
+                                                // Eye Toggle Button
+                                                Rectangle {
+                                                    id: showPassToggle
+                                                    property bool showPassword: false
+                                                    implicitWidth: 24
+                                                    implicitHeight: 24
+                                                    radius: 12
+                                                    color: eyeHover.hovered ? Qt.rgba(255, 255, 255, 0.12) : "transparent"
+
+                                                    Text {
+                                                        anchors.centerIn: parent
+                                                        text: showPassToggle.showPassword ? "visibility" : "visibility_off"
+                                                        font.family: "Material Symbols Outlined"
+                                                        font.pixelSize: 15
+                                                        color: eyeHover.hovered ? Config.textMain : Config.textMuted
+                                                    }
+
+                                                    TapHandler { onTapped: showPassToggle.showPassword = !showPassToggle.showPassword }
+                                                    HoverHandler { id: eyeHover; cursorShape: Qt.PointingHandCursor }
+                                                }
+                                            }
+                                        }
+
+                                        // JOIN ACTION BUTTON
+                                        Rectangle {
+                                            implicitWidth: joinLabel.implicitWidth + 20
+                                            implicitHeight: 32
+                                            radius: 8
+                                            color: joinActionHover.hovered ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.85) : Config.accent
+
+                                            Text {
+                                                id: joinLabel
+                                                anchors.centerIn: parent
+                                                text: isConnecting ? "Connecting..." : "Join Network"
+                                                font.family: Config.sysFont
+                                                font.bold: true
+                                                font.pixelSize: 11
+                                                color: Config.bgBase
+                                            }
+
+                                            TapHandler {
+                                                enabled: !isConnecting && !isDisconnecting
+                                                onTapped: {
+                                                    if (isSecure && passInput.text.trim() === "" && (!isSaved || hasError)) {
+                                                        root.errorSsid = ssid
+                                                        root.connectionError = "Password Required"
+                                                        return
+                                                    }
+                                                    root.connectWifi(ssid, passInput.text)
+                                                }
+                                            }
+                                            HoverHandler { id: joinActionHover; cursorShape: Qt.PointingHandCursor }
+                                        }
+                                    }
+
+                                    // CONTROLS & FORGET ROW
+                                    RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 8
+
+                                        // Disconnect Button
+                                        Rectangle {
+                                            visible: connected
+                                            Layout.fillWidth: true
+                                            implicitHeight: 30
+                                            radius: 8
+                                            color: discActionHover.hovered ? Qt.rgba(255, 80, 80, 0.2) : Qt.rgba(255, 255, 255, 0.08)
+                                            border.width: 1
+                                            border.color: discActionHover.hovered ? "#ff5555" : Qt.rgba(255, 255, 255, 0.12)
+
+                                            RowLayout {
+                                                anchors.centerIn: parent
+                                                spacing: 6
+                                                Text { text: "link_off"; font.family: "Material Symbols Outlined"; font.pixelSize: 14; color: discActionHover.hovered ? "#ff6b6b" : Config.textMain }
+                                                Text { text: isDisconnecting ? "Disconnecting..." : "Disconnect"; font.family: Config.sysFont; font.bold: true; font.pixelSize: 11; color: discActionHover.hovered ? "#ff6b6b" : Config.textMain }
+                                            }
+
+                                            TapHandler {
+                                                enabled: !isDisconnecting && !isConnecting
+                                                onTapped: root.disconnectWifi(ssid)
+                                            }
+                                            HoverHandler { id: discActionHover; cursorShape: Qt.PointingHandCursor }
+                                        }
+
+                                        // Connect Button for Saved Networks inside drawer
+                                        Rectangle {
+                                            visible: !connected && isSaved
+                                            Layout.fillWidth: true
+                                            implicitHeight: 30
+                                            radius: 8
+                                            color: connActionHover.hovered ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.85) : Config.accent
+
+                                            RowLayout {
+                                                anchors.centerIn: parent
+                                                spacing: 6
+                                                Text { text: "login"; font.family: "Material Symbols Outlined"; font.pixelSize: 14; color: Config.bgBase }
+                                                Text { text: isConnecting ? "Connecting..." : "Connect"; font.family: Config.sysFont; font.bold: true; font.pixelSize: 11; color: Config.bgBase }
+                                            }
+
+                                            TapHandler {
+                                                enabled: !isConnecting && !isDisconnecting
+                                                onTapped: root.connectWifi(ssid, "")
+                                            }
+                                            HoverHandler { id: connActionHover; cursorShape: Qt.PointingHandCursor }
+                                        }
+
+                                        // Forget Network Profile Button
+                                        Rectangle {
+                                            visible: isSaved
+                                            Layout.fillWidth: true
+                                            implicitHeight: 30
+                                            radius: 8
+                                            color: forgetActionHover.hovered ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(255, 255, 255, 0.05)
+                                            border.width: 1
+                                            border.color: Qt.rgba(255, 255, 255, 0.1)
+
+                                            RowLayout {
+                                                anchors.centerIn: parent
+                                                spacing: 6
+                                                Text { text: "delete_outline"; font.family: "Material Symbols Outlined"; font.pixelSize: 14; color: forgetActionHover.hovered ? Config.accent : Config.textMuted }
+                                                Text { text: "Forget Profile"; font.family: Config.sysFont; font.bold: true; font.pixelSize: 11; color: forgetActionHover.hovered ? Config.accent : Config.textMuted }
+                                            }
+
+                                            TapHandler {
+                                                enabled: !isConnecting && !isDisconnecting
+                                                onTapped: root.forgetWifi(ssid)
+                                            }
+                                            HoverHandler { id: forgetActionHover; cursorShape: Qt.PointingHandCursor }
+                                        }
+                                    }
+                                }
                             }
+                            HoverHandler { id: netHover; cursorShape: Qt.PointingHandCursor }
                         }
                     }
                 }
+            }
 
-                TapHandler {
-                    onTapped: (point) => {
-                        if (root.expandedSsid !== ssid) root.expandedSsid = ssid
+            // ==========================================
+            // 3. EMPTY / DISABLED STATE CARD
+            // ==========================================
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: 160
+                radius: Config.cornerRadius
+                color: Qt.rgba(255, 255, 255, 0.03)
+                border.width: 1
+                border.color: Qt.rgba(255, 255, 255, 0.06)
+                visible: root.hasPolledOnce && (!root.hasAdapter || !root.wifiPowered || (wifiModel.count === 0 && !root.wifiScanning))
+
+                ColumnLayout {
+                    anchors.centerIn: parent
+                    spacing: 10
+
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: !root.hasAdapter ? "phonelink_erase" : (!root.wifiPowered ? "wifi_off" : "wifi_find")
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 36
+                        color: Config.textMuted
+                    }
+
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: !root.hasAdapter
+                            ? "No Wi-Fi interface detected"
+                            : (!root.wifiPowered ? "Wi-Fi is currently disabled" : "No nearby wireless networks detected")
+                        font.family: Config.sysFont
+                        font.bold: true
+                        font.pixelSize: Config.size(Config.fontBody)
+                        color: Config.textMain
+                    }
+
+                    Text {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: !root.hasAdapter
+                            ? "Check your network adapter hardware or kernel modules"
+                            : (!root.wifiPowered ? "Toggle the power switch above to scan for networks" : "Click Rescan to probe for 2.4GHz and 5GHz access points")
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontCaption)
+                        color: Config.textMuted
                     }
                 }
-                HoverHandler { id: wHover; cursorShape: Qt.PointingHandCursor }
             }
         }
     }
 
+    // ==========================================
+    // BACKEND IPC PROCESSES & TIMERS
+    // ==========================================
     Timer {
         interval: 4000; running: root.visible && root.hasAdapter; repeat: true; triggeredOnStart: true
         onTriggered: {
             if (!root.hasActiveInputFocus()) {
+                fetchWifiStatusProc.running = false
                 fetchWifiStatusProc.running = true
             }
         }
@@ -285,6 +786,7 @@ ColumnLayout {
         repeat: false
         onTriggered: {
             root.wifiScanning = false
+            fetchWifiStatusProc.running = false
             fetchWifiStatusProc.running = true
         }
     }
@@ -294,42 +796,28 @@ ColumnLayout {
     }
 
     Process {
-        id: detectWifiAdapterProc
-        command: ["fish", "-c", "nmcli -t -f TYPE device | grep -q '^wifi$' && echo 'YES' || echo 'NO'"]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                root.hasAdapter = this.text.trim() === "YES"
-                if (root.hasAdapter) fetchWifiStatusProc.running = true
-            }
-        }
-    }
-
-    Process {
         id: toggleWifiProc
         running: false
         onExited: {
+            fetchWifiStatusProc.running = false
             fetchWifiStatusProc.running = true
         }
     }
 
     Process {
         id: fetchWifiStatusProc
-        command: ["fish", "-c", "
-            nmcli -t -f WIFI g; echo '---'; 
-            nmcli -t -f TYPE,NAME connection show --active | awk -F: '$1 == \"802-11-wireless\" {print $2; exit}'; echo '---'; 
-            nmcli -t -f TYPE,NAME connection show | awk -F: '$1 == \"802-11-wireless\" {print $2}'; echo '---';
-            nmcli -t -f ACTIVE,SSID,SECURITY device wifi
-        "]
+        command: ["fish", "-c", "nmcli -t -f TYPE device | grep -q '^wifi$' && echo 'YES' || echo 'NO'; echo '---'; nmcli -t -f WIFI g; echo '---'; nmcli -t -f TYPE,NAME connection show --active | awk -F: '$1 ~ /802-11-wireless|wifi/ {print $2; exit}'; echo '---'; nmcli -t -f TYPE,NAME connection show | awk -F: '$1 ~ /802-11-wireless|wifi/ {print $2}'; echo '---'; nmcli -t -f ACTIVE,SSID,SECURITY device wifi"]
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
                 let parts = this.text.split("---")
-                if (parts.length < 4) return
-                root.wifiPowered = parts[0].trim().includes("enabled")
+                if (parts.length < 5) return
+                root.hasAdapter = parts[0].trim() === "YES"
+                root.wifiPowered = parts[1].trim().includes("enabled")
+                root.hasPolledOnce = true
                 
-                let activeConnSsid = parts[1].trim()
-                let savedList = parts[2].trim().split("\n").map(s => s.trim()).filter(s => s.length > 0)
+                let activeConnSsid = parts[2].trim()
+                let savedList = parts[3].trim().split("\n").map(s => s.trim()).filter(s => s.length > 0)
                 root.savedSsids = savedList
 
                 if (root.hasActiveInputFocus()) return
@@ -337,7 +825,7 @@ ColumnLayout {
                 wifiModel.clear()
                 if (!root.wifiPowered || !root.hasAdapter) return
 
-                let lines = parts[3].trim().split("\n")
+                let lines = parts[4].trim().split("\n")
                 let seen = {}, active = activeConnSsid
                 
                 if (activeConnSsid.length > 0) {
@@ -425,14 +913,11 @@ ColumnLayout {
         let escapedSsid = ssid.replace(/'/g, "'\"'\"'")
         
         discProc.command = ["fish", "-c", `
-            # Retrieve active UUID utilizing regex for both 'wifi' and '802-11-wireless' nmcli types
             set active_uuid (nmcli -t -f UUID,TYPE,NAME connection show --active | awk -F: -v target='${escapedSsid}' '($2 ~ /802-11-wireless|wifi/) && $3 == target {print $1; exit}')
             
             if test -n "$active_uuid"
-                # Drop the specific connection directly by its UUID
                 nmcli connection down "$active_uuid"
             else
-                # Aggressive fallback: Disconnect the Wi-Fi hardware device if profile targeting fails
                 set dev (nmcli -t -f DEVICE,TYPE device | awk -F: '$2 ~ /802-11-wireless|wifi/ {print $1; exit}')
                 if test -n "$dev"
                     nmcli device disconnect "$dev"
@@ -450,10 +935,7 @@ ColumnLayout {
         let escapedSsid = ssid.replace(/'/g, "'\"'\"'")
         
         forgetProc.command = ["fish", "-c", `
-            # Extract all matching UUIDs for the given SSID
             set uuids (nmcli -t -f UUID,TYPE,NAME connection show | awk -F: -v target='${escapedSsid}' '$2 ~ /802-11-wireless/ && $3 == target {print $1}')
-            
-            # Iterate directly to bypass test -n list expansion crashes
             for u in $uuids
                 nmcli connection delete uuid "$u"
             end
