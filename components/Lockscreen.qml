@@ -272,7 +272,7 @@ Scope {
                                         let cap = lockscreenScope.shellRef.battCapacity
                                         let status = lockscreenScope.shellRef.battStatus
                                         if (status === "Charging") return "battery_android_frame_bolt"
-                                        if (cap <= 10) return "battery_android_frame_0"
+                                        if (cap <= 10) return "battery_android_0"
                                         if (cap <= 25) return "battery_android_frame_1"
                                         if (cap <= 40) return "battery_android_frame_2"
                                         if (cap <= 60) return "battery_android_frame_3"
