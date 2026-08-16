@@ -470,7 +470,7 @@ Flickable {
 
                         delegate: Rectangle {
                             required property var modelData
-                            implicitWidth: 92
+                            implicitWidth: orientContent.implicitWidth + 16 // Dynamically fit content with 8px padding per side
                             implicitHeight: 26
                             radius: Config.cornerRadius / 2
                             readonly property bool isOrient: inspectorLayout.activeCfg.transform === modelData.transform
@@ -479,6 +479,7 @@ Flickable {
                             border.color: Config.accent
 
                             RowLayout {
+                                id: orientContent
                                 anchors.centerIn: parent
                                 spacing: 4
 

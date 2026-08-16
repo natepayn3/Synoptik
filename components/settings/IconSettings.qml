@@ -15,7 +15,7 @@ ColumnLayout {
     property var allIconsList: []
     property bool isLoadingIcons: true
 
-    // Inline Comment: Helper check to disable reordering for unselected or workspace icons
+    // Helper check to disable reordering for unselected or workspace icons
     readonly property bool canMoveSelected: {
         if (!iconSettingsRoot.selectedIconId) return false
         if (iconSettingsRoot.selectedIconId === "batt" || iconSettingsRoot.selectedIconId === "cc") return false
@@ -88,29 +88,34 @@ ColumnLayout {
             anchors.margins: 6
             spacing: 6
 
+            // Dynamic label width matching the longest text string automatically
+            readonly property real labelWidth: Math.max(leftLabel.implicitWidth, rightLabel.implicitWidth)
+
             // ROW 1: LEFT MODULES
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
 
                 Text {
+                    id: leftLabel
                     text: "Left/Top Icons:"
                     color: Config.textMuted
                     font.family: Config.sysFont
                     font.pixelSize: Config.size(Config.fontCaption)
                     font.bold: true
-                    Layout.preferredWidth: 120
-                    horizontalAlignment: Text.AlignHCenter
+                    Layout.preferredWidth: mockupColumn.labelWidth
                     verticalAlignment: Text.AlignVCenter
                 }
 
+                // Dynamic Pill Capsule (snug to icon content)
                 Rectangle {
-                    Layout.fillWidth: true
+                    implicitWidth: leftIconsRow.implicitWidth + 12
                     implicitHeight: 30
                     radius: Config.cornerRadius / 2
                     color: Qt.rgba(255, 255, 255, 0.05)
 
                     RowLayout {
+                        id: leftIconsRow
                         anchors.centerIn: parent
                         spacing: 4
 
@@ -143,6 +148,9 @@ ColumnLayout {
                         }
                     }
                 }
+
+                // Absorbs leftover row width
+                Item { Layout.fillWidth: true }
             }
 
             // ROW 2: RIGHT MODULES & WORKSPACES
@@ -151,23 +159,25 @@ ColumnLayout {
                 spacing: 8
 
                 Text {
+                    id: rightLabel
                     text: "Right/Bottom Icons:"
                     color: Config.textMuted
                     font.family: Config.sysFont
                     font.pixelSize: Config.size(Config.fontCaption)
                     font.bold: true
-                    Layout.preferredWidth: 120
-                    horizontalAlignment: Text.AlignHCenter
+                    Layout.preferredWidth: mockupColumn.labelWidth
                     verticalAlignment: Text.AlignVCenter
                 }
 
+                // Dynamic Pill Capsule (snug to icon content)
                 Rectangle {
-                    Layout.fillWidth: true
+                    implicitWidth: rightIconsRow.implicitWidth + 12
                     implicitHeight: 30
                     radius: Config.cornerRadius / 2
                     color: Qt.rgba(255, 255, 255, 0.05)
 
                     RowLayout {
+                        id: rightIconsRow
                         anchors.centerIn: parent
                         spacing: 4
 
@@ -209,22 +219,21 @@ ColumnLayout {
                         }
                     }
                 }
+
+                // Absorbs leftover row width
+                Item { Layout.fillWidth: true }
             }
-
-
         }
     }
 
     // --- CENTERED REORDER CONTROLS ---
     RowLayout {
-        // Inline Comment: Centered horizontally beneath the mockup box
         Layout.alignment: Qt.AlignHCenter
         spacing: 4
 
         // Shift Left
         Rectangle {
             implicitWidth: 28; implicitHeight: 28; radius: 6
-            // Inline Comment: Greys out when middle row or no icon is selected
             opacity: canMoveSelected ? 1.0 : 0.35
             color: (canMoveSelected && moveLeftHover.hovered) ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(0, 0, 0, 0.2)
 

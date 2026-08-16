@@ -34,26 +34,33 @@ Flickable {
 
     ColumnLayout {
         id: contentColumn
-        width: parent.width
+        // Constrain width strictly to Flickable viewport minus outer margins
+        width: Math.min(flickable.width - (flickable.cardMargin * 2), 620)
+        anchors.horizontalCenter: parent.horizontalCenter
         spacing: flickable.cardMargin
 
         // Header Title
         ColumnLayout {
+            Layout.fillWidth: true
             spacing: 2
 
             Text {
+                Layout.fillWidth: true
                 text: "WORKSPACE INDICATORS"
                 color: Config.textMain
                 font.family: Config.sysFont
                 font.pixelSize: Config.size(Config.fontSubhead)
                 font.bold: true
+                wrapMode: Text.WordWrap
             }
 
             Text {
+                Layout.fillWidth: true
                 text: "Customize desktop switcher styles, animations, mini window pips, and capsule layouts"
                 color: Config.textMuted
                 font.family: Config.sysFont
                 font.pixelSize: Config.size(Config.fontCaption)
+                wrapMode: Text.WordWrap
             }
         }
 
@@ -377,6 +384,7 @@ Flickable {
                         delegate: Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredWidth: 1
+                            Layout.minimumWidth: 0
                             implicitHeight: 82
                             radius: Config.cornerRadius / 2
 
@@ -397,6 +405,7 @@ Flickable {
                                 spacing: 3
 
                                 RowLayout {
+                                    Layout.fillWidth: true
                                     Layout.alignment: Qt.AlignHCenter
                                     spacing: 6
 
@@ -408,11 +417,13 @@ Flickable {
                                     }
 
                                     Text {
+                                        Layout.fillWidth: true
                                         text: modelData.label
                                         font.family: Config.sysFont
                                         font.pixelSize: Config.size(Config.fontCaption)
                                         font.bold: true
                                         color: isSelected ? Config.accent : Config.textMain
+                                        elide: Text.ElideRight
                                     }
                                 }
 
@@ -490,6 +501,7 @@ Flickable {
                         delegate: Rectangle {
                             Layout.fillWidth: true
                             Layout.preferredWidth: 1
+                            Layout.minimumWidth: 0
                             implicitHeight: 68
                             radius: Config.cornerRadius / 2
 
@@ -510,6 +522,7 @@ Flickable {
                                 spacing: 3
 
                                 RowLayout {
+                                    Layout.fillWidth: true
                                     Layout.alignment: Qt.AlignHCenter
                                     spacing: 6
 
@@ -521,11 +534,13 @@ Flickable {
                                     }
 
                                     Text {
+                                        Layout.fillWidth: true
                                         text: modelData.label
                                         font.family: Config.sysFont
                                         font.pixelSize: Config.size(Config.fontCaption)
                                         font.bold: true
                                         color: isSelected ? Config.accent : Config.textMain
+                                        elide: Text.ElideRight
                                     }
                                 }
 
@@ -586,6 +601,7 @@ Flickable {
                     ColumnLayout {
                         Layout.fillWidth: true
                         Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
                         spacing: 2
 
                         Text {
@@ -637,6 +653,7 @@ Flickable {
                     ColumnLayout {
                         Layout.fillWidth: true
                         Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
                         spacing: 2
 
                         Text {
@@ -688,6 +705,7 @@ Flickable {
                     ColumnLayout {
                         Layout.fillWidth: true
                         Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
                         spacing: 2
 
                         Text {
@@ -766,6 +784,7 @@ Flickable {
                     ColumnLayout {
                         Layout.fillWidth: true
                         Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
                         spacing: 2
 
                         Text {
@@ -817,6 +836,7 @@ Flickable {
                     ColumnLayout {
                         Layout.fillWidth: true
                         Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
                         spacing: 2
 
                         Text {
@@ -868,6 +888,7 @@ Flickable {
                     ColumnLayout {
                         Layout.fillWidth: true
                         Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
                         spacing: 2
 
                         Text {
