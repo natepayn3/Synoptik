@@ -786,7 +786,7 @@ Rectangle {
                     anchors.centerIn: parent
                     text: {
                         if (shellRoot.battStatus === "Charging") return "battery_android_frame_bolt"
-                        if (shellRoot.battCapacity <= 10) return "battery_android_frame_0"
+                        if (shellRoot.battCapacity <= 10) return "battery_android_0"
                         if (shellRoot.battCapacity <= 25) return "battery_android_frame_1"
                         if (shellRoot.battCapacity <= 40) return "battery_android_frame_2"
                         if (shellRoot.battCapacity <= 60) return "battery_android_frame_3"
