@@ -415,6 +415,19 @@ ShellRoot {
         }
     }
 
+    IpcHandler {
+        target: "screensaver"
+        function toggle(): void {
+            Config.showScreensaver = !Config.showScreensaver
+        }
+        function start(): void {
+            Config.showScreensaver = true
+        }
+        function stop(): void {
+            Config.showScreensaver = false
+        }
+    }
+
     // --- CLOCK & DATE FORMATTING ---
     property string vertHour: {
         var h = new Date().getHours() % 12
@@ -509,6 +522,7 @@ ShellRoot {
     NotificationOSD { id: notificationOsd }
     Mascot { id: mascotWidget }
     OSK { id: oskWidget }
+    Screensaver { id: screensaverWidget }
     Lockscreen { id: lockscreenWidget; sessionLocked: Config.sessionLocked; shellRef: shellRoot }
 
     VideoOutput {

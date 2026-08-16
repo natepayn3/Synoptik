@@ -25,15 +25,15 @@ Item {
     property bool widgetsExpanded: false
 
     function expandActiveCategory(sectionId) {
-        if ([0, 16, 1, 2, 3, 12].includes(sectionId)) visualsExpanded = true
+        if ([0, 16, 17, 1, 2, 3, 12].includes(sectionId)) visualsExpanded = true
         else if ([4, 5, 6, 7].includes(sectionId)) connectivityExpanded = true
-        else if ([8, 9, 10, 13, 14, 15].includes(sectionId)) widgetsExpanded = true
+        else if ([8, 9, 10, 13, 14, 15, 18].includes(sectionId)) widgetsExpanded = true
     }
 
     function getSectionCategory(sectionId) {
-        if ([0, 16, 1, 2, 3, 12].includes(sectionId)) return "VISUALS"
+        if ([0, 16, 17, 1, 2, 3, 12].includes(sectionId)) return "VISUALS"
         if ([4, 5, 6, 7].includes(sectionId)) return "CONNECTIVITY"
-        if ([8, 9, 10, 13, 15].includes(sectionId)) return "WIDGETS"
+        if ([8, 9, 10, 13, 15, 18].includes(sectionId)) return "WIDGETS"
         if (sectionId === 11) return "SYSTEM"
         return "GENERAL"
     }
@@ -42,6 +42,7 @@ Item {
         switch (sectionId) {
             case 0: return "Display"
             case 16: return "Bar"
+            case 17: return "Workspaces"
             case 1: return "Appearance"
             case 2: return "Typography"
             case 3: return "Wallpaper"
@@ -55,6 +56,7 @@ Item {
             case 10: return "Keyboard"
             case 13: return "System Sounds"
             case 15: return "Lockscreen"
+            case 18: return "Screensaver"
             case 11: return "Shell"
             default: return "Settings"
         }
@@ -64,6 +66,7 @@ Item {
         switch (sectionId) {
             case 0: return "aspect_ratio"
             case 16: return "dock"
+            case 17: return "view_carousel"
             case 1: return "palette"
             case 2: return "match_case"
             case 3: return "wallpaper"
@@ -77,6 +80,7 @@ Item {
             case 10: return "keyboard"
             case 13: return "volume_up"
             case 15: return "lock"
+            case 18: return "tv"
             case 11: return "terminal"
             default: return "settings"
         }
@@ -601,11 +605,12 @@ Item {
 
                             Repeater {
                                 model: [
-                                    { id: 8, name: "Mascot",     icon: "smart_toy" },
-                                    { id: 9, name: "Clock",      icon: "schedule" },
-                                    { id: 10, name: "Keyboard",  icon: "keyboard" },
-                                    { id: 13, name: "Sounds",    icon: "volume_up" },
-                                    { id: 15, name: "Lockscreen", icon: "lock" }
+                                    { id: 8, name: "Mascot",      icon: "smart_toy" },
+                                    { id: 9, name: "Clock",       icon: "schedule" },
+                                    { id: 10, name: "Keyboard",   icon: "keyboard" },
+                                    { id: 13, name: "Sounds",     icon: "volume_up" },
+                                    { id: 15, name: "Lockscreen",  icon: "lock" },
+                                    { id: 18, name: "Screensaver", icon: "tv" }
                                 ]
 
                                 delegate: Rectangle {
@@ -1156,6 +1161,7 @@ Item {
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 12; visible: active; sourceComponent: IconSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 13; visible: active; sourceComponent: SystemSounds {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 15; visible: active; sourceComponent: LockscreenSettings {} }
+                    Loader { anchors.fill: parent; active: settingsRoot.activeSection === 18; visible: active; sourceComponent: ScreensaverSettings {} }
                 }
 
                 // Bottom Edge Soft Gradient Vignette

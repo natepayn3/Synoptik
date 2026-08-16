@@ -1053,6 +1053,14 @@ QtObject {
 
     readonly property bool isFloatingBar: barFrameStyle === "floating"
 
+    // --- DESKTOP SCREENSAVER STATE & PERSISTENCE ---
+    property bool showScreensaver: false
+    property string screensaverText: "SYNOPTIK"
+    property string screensaverMode: "text" // "text", "dvd", "clock"
+    property int screensaverFontSize: 54
+    property real screensaverSpeed: 3.5
+    property bool screensaverCornerCounter: true
+
     // --- DESKTOP MASCOT STATE & PERSISTENCE ---
     property bool showMascot: false
     property string mascotPath: ""
@@ -1177,6 +1185,12 @@ QtObject {
     property string windowStyle: "rounded"
 
     onWindowStyleChanged: { if (isLoaded) saveSettings() }
+    onShowScreensaverChanged: { if (isLoaded) saveSettings() }
+    onScreensaverTextChanged: { if (isLoaded) saveSettings() }
+    onScreensaverModeChanged: { if (isLoaded) saveSettings() }
+    onScreensaverFontSizeChanged: { if (isLoaded) saveSettings() }
+    onScreensaverSpeedChanged: { if (isLoaded) saveSettings() }
+    onScreensaverCornerCounterChanged: { if (isLoaded) saveSettings() }
     onShowOskChanged: { if (isLoaded) saveSettings() }
     onOskLayoutChanged: { if (isLoaded) saveSettings() }
     onShowMascotChanged: { if (isLoaded) saveSettings() }
@@ -1559,6 +1573,12 @@ QtObject {
                 "activeWallpaperPath": root.activeWallpaperPath,
                 "slideshowActive": root.slideshowActive,
                 "slideshowMinutes": root.slideshowMinutes,
+                "showScreensaver": root.showScreensaver,
+                "screensaverText": root.screensaverText,
+                "screensaverMode": root.screensaverMode,
+                "screensaverFontSize": root.screensaverFontSize,
+                "screensaverSpeed": root.screensaverSpeed,
+                "screensaverCornerCounter": root.screensaverCornerCounter,
                 "showOsk": root.showOsk,
                 "oskLayout": root.oskLayout,
                 "showMascot": root.showMascot,
@@ -1675,7 +1695,9 @@ QtObject {
 
                         let props = [
                             "lastSettingsSection", "savedUrls",
-                            "monitorConfigs", "selectedWallpaperMonitors", "wallpaperTransitionType", "activeWallpaperPath", "slideshowActive", "slideshowMinutes", "showOsk", "oskLayout",
+                            "monitorConfigs", "selectedWallpaperMonitors", "wallpaperTransitionType", "activeWallpaperPath", "slideshowActive", "slideshowMinutes",
+                            "showScreensaver", "screensaverText", "screensaverMode", "screensaverFontSize", "screensaverSpeed", "screensaverCornerCounter",
+                            "showOsk", "oskLayout",
                             "showMascot", "mascotPath", "mascotPhrases", "fetchOnlineQuotes", "quoteSource",
                             "barFrameStyle", "barPosition", "autoHideBar", "showScreenFrame", "sysFont", "fontScaleIndex", "locationQuery",
                             "enabledBarScreens", "useCustomColors", "customBgBase", "customBgPanel",
