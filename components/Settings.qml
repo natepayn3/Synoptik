@@ -327,6 +327,7 @@ Item {
                                 model: [
                                     { id: 0,  name: "Display",    icon: "aspect_ratio" },
                                     { id: 16, name: "Bar",        icon: "sliders" },
+                                    { id: 17, name: "Workspaces", icon: "view_carousel" },
                                     { id: 1,  name: "Appearance", icon: "palette" },
                                     { id: 2,  name: "Typography", icon: "match_case" },
                                     { id: 3,  name: "Wallpaper",  icon: "wallpaper" },
@@ -815,6 +816,7 @@ Item {
 
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 0; visible: active; sourceComponent: DisplaySettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 16; visible: active; sourceComponent: BarSettings {} }
+                    Loader { anchors.fill: parent; active: settingsRoot.activeSection === 17; visible: active; sourceComponent: WorkspaceSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 1; visible: active; sourceComponent: AppearanceSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 2; visible: active; sourceComponent: TypographySettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 3; visible: active; sourceComponent: WallpaperSettings {} }

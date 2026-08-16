@@ -579,6 +579,25 @@ QtObject {
     onLockscreenDateFormatChanged: { if (isLoaded) saveSettings() }
     onLockscreenClockSizeChanged: { if (isLoaded) saveSettings() }
 
+    // --- WORKSPACES CONFIGURATION ---
+    property string workspaceStyle: "pill" // "pill", "sliding", "numeric", "window_pips", "app_icons", "geometric"
+    property bool workspaceGlow: true
+    property bool workspaceScroll: true
+    property bool workspaceTooltips: true
+    property bool workspaceShowAddBtn: true
+    property bool workspaceShowOverviewBtn: true
+    property bool workspaceShowSpecial: true
+    property string workspaceContainerStyle: "plain" // "plain", "capsule", "bordered"
+
+    onWorkspaceStyleChanged: { if (isLoaded) saveSettings() }
+    onWorkspaceGlowChanged: { if (isLoaded) saveSettings() }
+    onWorkspaceScrollChanged: { if (isLoaded) saveSettings() }
+    onWorkspaceTooltipsChanged: { if (isLoaded) saveSettings() }
+    onWorkspaceShowAddBtnChanged: { if (isLoaded) saveSettings() }
+    onWorkspaceShowOverviewBtnChanged: { if (isLoaded) saveSettings() }
+    onWorkspaceShowSpecialChanged: { if (isLoaded) saveSettings() }
+    onWorkspaceContainerStyleChanged: { if (isLoaded) saveSettings() }
+
     // --- CAFFEINE / IDLE INHIBITION CONFIGURATION ---
     // --- MIRROR WIDGET CONFIGURATION ---
     property bool showMirror: false
@@ -1620,7 +1639,16 @@ QtObject {
                 "lockscreenShowSeconds": root.lockscreenShowSeconds,
                 "lockscreenShowAmPm": root.lockscreenShowAmPm,
                 "lockscreenDateFormat": root.lockscreenDateFormat,
-                "lockscreenClockSize": root.lockscreenClockSize
+                "lockscreenClockSize": root.lockscreenClockSize,
+
+                "workspaceStyle": root.workspaceStyle,
+                "workspaceGlow": root.workspaceGlow,
+                "workspaceScroll": root.workspaceScroll,
+                "workspaceTooltips": root.workspaceTooltips,
+                "workspaceShowAddBtn": root.workspaceShowAddBtn,
+                "workspaceShowOverviewBtn": root.workspaceShowOverviewBtn,
+                "workspaceShowSpecial": root.workspaceShowSpecial,
+                "workspaceContainerStyle": root.workspaceContainerStyle
             }
 
             // Formats with 2-space indentation
@@ -1657,6 +1685,7 @@ QtObject {
                             "clockShowBackground", "clockShowGlow", "clockPositions", "clockScales", "enabledClockScreens",
                             "lockscreenBlurRadius", "lockscreenShowMedia", "lockscreenShowPower", "lockscreenMaskStyle", "lockscreenShapePalette",
                             "lockscreenUse12Hour", "lockscreenShowSeconds", "lockscreenShowAmPm", "lockscreenDateFormat", "lockscreenClockSize",
+                            "workspaceStyle", "workspaceGlow", "workspaceScroll", "workspaceTooltips", "workspaceShowAddBtn", "workspaceShowOverviewBtn", "workspaceShowSpecial", "workspaceContainerStyle",
                             "leftCardOrder", "rightCardOrder", "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides",
                             "playWindowSounds", "playNotificationSounds", "windowSoundPath", "notificationSoundPath", "windowSoundVolume",
                             "showMirror", "mirrorShowPanel", "mirrorMirrored", "mirrorKeepAspect", "mirrorExpanded", "mirrorPinned", "mirrorAnchorPos",
