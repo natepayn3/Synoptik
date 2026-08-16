@@ -560,6 +560,7 @@ QtObject {
     property real lockscreenBlurRadius: 36
     property bool lockscreenShowMedia: true
     property bool lockscreenShowPower: true
+    property string lockscreenMaskStyle: "shapes" // "shapes", "dots", "asterisks", "special"
     property string lockscreenShapePalette: "vibrant"
     property bool lockscreenUse12Hour: true
     property bool lockscreenShowSeconds: false
@@ -570,6 +571,7 @@ QtObject {
     onLockscreenBlurRadiusChanged: { if (isLoaded) saveSettings() }
     onLockscreenShowMediaChanged: { if (isLoaded) saveSettings() }
     onLockscreenShowPowerChanged: { if (isLoaded) saveSettings() }
+    onLockscreenMaskStyleChanged: { if (isLoaded) saveSettings() }
     onLockscreenShapePaletteChanged: { if (isLoaded) saveSettings() }
     onLockscreenUse12HourChanged: { if (isLoaded) saveSettings() }
     onLockscreenShowSecondsChanged: { if (isLoaded) saveSettings() }
@@ -1612,6 +1614,7 @@ QtObject {
                 "lockscreenBlurRadius": root.lockscreenBlurRadius,
                 "lockscreenShowMedia": root.lockscreenShowMedia,
                 "lockscreenShowPower": root.lockscreenShowPower,
+                "lockscreenMaskStyle": root.lockscreenMaskStyle,
                 "lockscreenShapePalette": root.lockscreenShapePalette,
                 "lockscreenUse12Hour": root.lockscreenUse12Hour,
                 "lockscreenShowSeconds": root.lockscreenShowSeconds,
@@ -1652,7 +1655,7 @@ QtObject {
                             "enableXray", "enableIris", "showWatermarks", "surfaceRadius", "borderThickness", "cardMargin", "showDesktopClock", "clockStyle", "clockScale", 
                             "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", 
                             "clockShowBackground", "clockShowGlow", "clockPositions", "clockScales", "enabledClockScreens",
-                            "lockscreenBlurRadius", "lockscreenShowMedia", "lockscreenShowPower", "lockscreenShapePalette",
+                            "lockscreenBlurRadius", "lockscreenShowMedia", "lockscreenShowPower", "lockscreenMaskStyle", "lockscreenShapePalette",
                             "lockscreenUse12Hour", "lockscreenShowSeconds", "lockscreenShowAmPm", "lockscreenDateFormat", "lockscreenClockSize",
                             "leftCardOrder", "rightCardOrder", "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides",
                             "playWindowSounds", "playNotificationSounds", "windowSoundPath", "notificationSoundPath", "windowSoundVolume",

@@ -326,7 +326,7 @@ Item {
                             Repeater {
                                 model: [
                                     { id: 0,  name: "Display",    icon: "aspect_ratio" },
-                                    { id: 16, name: "Bar",        icon: "dock" },
+                                    { id: 16, name: "Bar",        icon: "sliders" },
                                     { id: 1,  name: "Appearance", icon: "palette" },
                                     { id: 2,  name: "Typography", icon: "match_case" },
                                     { id: 3,  name: "Wallpaper",  icon: "wallpaper" },
@@ -736,6 +736,7 @@ Item {
 
             // ================= RIGHT CONTENT CONTAINER =================
             Rectangle {
+                id: rightPaneRoot
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 color: Qt.rgba(255, 255, 255, 0.03)
@@ -743,6 +744,47 @@ Item {
                 border.width: 1
                 border.color: Qt.rgba(255, 255, 255, 0.06)
                 clip: true
+
+                property var currentFlickable: null
+                readonly property bool canScrollDown: currentFlickable && (currentFlickable.contentHeight > (currentFlickable.height + 24)) && !currentFlickable.atYEnd && (currentFlickable.contentY < (currentFlickable.contentHeight - currentFlickable.height - 16))
+
+                function findFlickable(item) {
+                    if (!item) return null
+                    if (item.contentHeight !== undefined && item.contentY !== undefined && item.height !== undefined) {
+                        return item
+                    }
+                    if (item.children) {
+                        for (let i = 0; i < item.children.length; i++) {
+                            let child = item.children[i]
+                            if (child && child.contentHeight !== undefined && child.contentY !== undefined && child.height !== undefined) {
+                                return child
+                            }
+                        }
+                    }
+                    return null
+                }
+
+                function refreshActiveFlickable() {
+                    for (let i = 0; i < contentPane.children.length; i++) {
+                        let ch = contentPane.children[i]
+                        if (ch && ch.active && ch.item) {
+                            let f = findFlickable(ch.item)
+                            if (f) {
+                                currentFlickable = f
+                                return
+                            }
+                        }
+                    }
+                    currentFlickable = null
+                }
+
+                Timer {
+                    id: flickableSyncTimer
+                    interval: 120
+                    running: true
+                    repeat: true
+                    onTriggered: rightPaneRoot.refreshActiveFlickable()
+                }
 
                 // Subtle Gear Watermark
                 Item {
@@ -1095,6 +1137,99 @@ Item {
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 12; visible: active; sourceComponent: IconSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 13; visible: active; sourceComponent: SystemSounds {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 15; visible: active; sourceComponent: LockscreenSettings {} }
+                }
+
+                // Bottom Edge Soft Gradient Vignette
+                Rectangle {
+                    anchors.bottom: parent.bottom
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    height: 64
+                    radius: parent.radius
+                    visible: opacity > 0
+                    opacity: rightPaneRoot.canScrollDown ? 1.0 : 0.0
+                    Behavior on opacity { NumberAnimation { duration: 220 } }
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: "transparent" }
+                        GradientStop { position: 0.65; color: Qt.rgba(Config.bgPanel.r, Config.bgPanel.g, Config.bgPanel.b, 0.85) }
+                        GradientStop { position: 1.0; color: Qt.rgba(Config.bgPanel.r, Config.bgPanel.g, Config.bgPanel.b, 0.98) }
+                    }
+                }
+
+                // Interactive Floating "More Content Below" Indicator Pill
+                Rectangle {
+                    id: scrollCuePill
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: 14
+                    z: 100
+                    implicitWidth: scrollCueRow.implicitWidth + 24
+                    implicitHeight: 32
+                    radius: 16
+                    visible: opacity > 0
+                    opacity: rightPaneRoot.canScrollDown ? (scrollCueMouse.containsMouse ? 1.0 : 0.92) : 0.0
+                    color: scrollCueMouse.containsMouse ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.25) : Qt.rgba(Config.bgBase.r, Config.bgBase.g, Config.bgBase.b, 0.92)
+                    border.width: 1.5
+                    border.color: scrollCueMouse.containsMouse ? Config.accent : Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.45)
+
+                    Behavior on opacity { NumberAnimation { duration: 220 } }
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                    Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                    // Subtle Vertical Floating / Bouncing Animation
+                    SequentialAnimation on anchors.bottomMargin {
+                        running: rightPaneRoot.canScrollDown
+                        loops: Animation.Infinite
+                        NumberAnimation { from: 14; to: 18; duration: 700; easing.type: Easing.InOutSine }
+                        NumberAnimation { from: 18; to: 14; duration: 700; easing.type: Easing.InOutSine }
+                    }
+
+                    RowLayout {
+                        id: scrollCueRow
+                        anchors.centerIn: parent
+                        spacing: 6
+
+                        Text {
+                            text: "keyboard_double_arrow_down"
+                            font.family: "Material Symbols Outlined"
+                            font.pixelSize: 17
+                            color: Config.accent
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        Text {
+                            text: "More"
+                            font.family: Config.sysFont
+                            font.pixelSize: 11
+                            font.bold: true
+                            font.letterSpacing: 0.5
+                            color: Config.textMain
+                            verticalAlignment: Text.AlignVCenter
+                        }
+                    }
+
+                    MouseArea {
+                        id: scrollCueMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (rightPaneRoot.currentFlickable) {
+                                let f = rightPaneRoot.currentFlickable
+                                let targetY = Math.min(f.contentHeight - f.height, f.contentY + f.height * 0.75)
+                                scrollAnim.target = f
+                                scrollAnim.to = targetY
+                                scrollAnim.restart()
+                            }
+                        }
+                    }
+                }
+
+                NumberAnimation {
+                    id: scrollAnim
+                    property: "contentY"
+                    duration: 320
+                    easing.type: Easing.OutCubic
                 }
             }
         }

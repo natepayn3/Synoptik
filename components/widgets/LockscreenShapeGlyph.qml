@@ -14,6 +14,8 @@ Item {
     property bool isSuccess: false
     property bool isAuthenticating: false
     property int animIndex: 0
+    property string maskStyle: "shapes" // "shapes", "dots", "asterisks", "special"
+    property string charGlyph: "*"
 
     implicitWidth: 26
     implicitHeight: 26
@@ -70,7 +72,7 @@ Item {
         id: transformContainer
         anchors.fill: parent
         scale: 0.0
-        rotation: targetRotation - 60
+        rotation: (glyphRoot.maskStyle === "shapes") ? (glyphRoot.targetRotation - 60) : 0
         opacity: 0.0
 
         // Entrance Spring Animation
@@ -83,7 +85,7 @@ Item {
                 property: "scale"
                 from: 0.0
                 to: 1.0
-                duration: 320
+                duration: 300
                 easing.type: Easing.OutBack
                 easing.overshoot: 1.8
             }
@@ -91,9 +93,9 @@ Item {
             NumberAnimation {
                 target: transformContainer
                 property: "rotation"
-                from: glyphRoot.targetRotation - 60
-                to: glyphRoot.targetRotation
-                duration: 350
+                from: (glyphRoot.maskStyle === "shapes") ? (glyphRoot.targetRotation - 60) : 0
+                to: (glyphRoot.maskStyle === "shapes") ? glyphRoot.targetRotation : 0
+                duration: 340
                 easing.type: Easing.OutCubic
             }
 
@@ -102,7 +104,7 @@ Item {
                 property: "opacity"
                 from: 0.0
                 to: 1.0
-                duration: 200
+                duration: 180
                 easing.type: Easing.OutQuad
             }
         }
@@ -141,7 +143,7 @@ Item {
 
         // Soft Glowing Aura
         RectangularGlow {
-            anchors.fill: shapeItem
+            anchors.fill: visualContainer
             glowRadius: 6
             spread: 0.2
             color: Qt.rgba(effectiveColor.r, effectiveColor.g, effectiveColor.b, 0.45)
@@ -149,32 +151,74 @@ Item {
             visible: Config.clockShowGlow !== false
         }
 
-        // Shape Renderer
-        Shape {
-            id: shapeItem
+        Item {
+            id: visualContainer
             anchors.centerIn: parent
             width: 20
             height: 20
-            scale: width / 24.0
-            smooth: true
-            asynchronous: false
-            layer.enabled: true
-            layer.samples: 4
 
-            ShapePath {
-                fillColor: glyphRoot.isOutline ? "transparent" : glyphRoot.effectiveColor
-                strokeColor: glyphRoot.isOutline ? glyphRoot.effectiveColor : "transparent"
-                strokeWidth: glyphRoot.isOutline ? 2.5 : 0
-                joinStyle: ShapePath.RoundJoin
-                capStyle: ShapePath.RoundCap
+            // 1. RANDOM GEOMETRIC SHAPES
+            Shape {
+                id: shapeItem
+                anchors.centerIn: parent
+                width: 20
+                height: 20
+                scale: width / 24.0
+                visible: glyphRoot.maskStyle === "shapes"
+                smooth: true
+                asynchronous: false
+                layer.enabled: true
+                layer.samples: 4
 
-                PathSvg {
-                    path: glyphRoot.currentSvgPath
+                ShapePath {
+                    fillColor: glyphRoot.isOutline ? "transparent" : glyphRoot.effectiveColor
+                    strokeColor: glyphRoot.isOutline ? glyphRoot.effectiveColor : "transparent"
+                    strokeWidth: glyphRoot.isOutline ? 2.5 : 0
+                    joinStyle: ShapePath.RoundJoin
+                    capStyle: ShapePath.RoundCap
+
+                    PathSvg {
+                        path: glyphRoot.currentSvgPath
+                    }
                 }
             }
 
-            Behavior on scale {
-                NumberAnimation { duration: 180; easing.type: Easing.OutQuad }
+            // 2. DOTS (Bullet Discs)
+            Rectangle {
+                anchors.centerIn: parent
+                width: glyphRoot.isOutline ? 12 : 10
+                height: width
+                radius: width / 2
+                visible: glyphRoot.maskStyle === "dots"
+                color: glyphRoot.isOutline ? "transparent" : glyphRoot.effectiveColor
+                border.width: glyphRoot.isOutline ? 2 : 0
+                border.color: glyphRoot.effectiveColor
+            }
+
+            // 3. ASTERISKS (*)
+            Text {
+                anchors.centerIn: parent
+                visible: glyphRoot.maskStyle === "asterisks"
+                text: "✱"
+                font.family: Config.sysFont
+                font.pixelSize: 18
+                font.bold: true
+                color: glyphRoot.effectiveColor
+                verticalAlignment: Text.AlignVCenter
+                horizontalAlignment: Text.AlignHCenter
+            }
+
+            // 4. RANDOM SPECIAL CHARACTERS (!@#$%^&*)
+            Text {
+                anchors.centerIn: parent
+                visible: glyphRoot.maskStyle === "special"
+                text: glyphRoot.charGlyph !== "" ? glyphRoot.charGlyph : "*"
+                font.family: Config.sysFont
+                font.pixelSize: 16
+                font.bold: true
+                color: glyphRoot.effectiveColor
+                verticalAlignment: Text.AlignVCenter
+                horizontalAlignment: Text.AlignHCenter
             }
         }
     }

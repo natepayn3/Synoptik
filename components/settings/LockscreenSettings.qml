@@ -6,22 +6,29 @@ import Quickshell
 import "../widgets"
 import ".."
 
-Item {
-    id: root
+Flickable {
+    id: flickable
+    Layout.fillWidth: true
+    Layout.fillHeight: true
+    contentWidth: width
+    contentHeight: contentColumn.implicitHeight + 32
+    clip: true
+    boundsBehavior: Flickable.StopAtBounds
+
+    ScrollBar.vertical: ScrollBar {
+        policy: ScrollBar.AsNeeded
+        active: flickable.moving || flickable.flicking
+    }
 
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
-    ScrollView {
-        anchors.fill: parent
-        contentWidth: availableWidth
-        clip: true
+    ColumnLayout {
+        id: contentColumn
+        width: parent.width
+        spacing: flickable.cardMargin
 
-        ColumnLayout {
-            width: parent.width
-            spacing: root.cardMargin
-
-            Text {
-                text: "LOCKSCREEN CONFIGURATION"
+        Text {
+            text: "LOCKSCREEN CONFIGURATION"
                 color: Config.textMain
                 font.family: Config.sysFont
                 font.pixelSize: Config.size(Config.fontSubhead)
@@ -58,7 +65,7 @@ Item {
                         Layout.fillWidth: true
 
                         Text {
-                            text: "LIVE SHAPE PASSWORD BAR PREVIEW"
+                            text: "LIVE PASSWORD BAR PREVIEW"
                             color: Config.textMuted
                             font.family: Config.sysFont
                             font.pixelSize: Config.size(Config.fontMicro)
@@ -112,7 +119,7 @@ Item {
                     }
 
                     Text {
-                        text: "Type below to test live randomized vector shapes, animations, and clearing mechanics:"
+                        text: "Type below to test live glyphs, animations, and clearing mechanics:"
                         color: Config.textMuted
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontCaption)
@@ -123,8 +130,9 @@ Item {
                         id: previewPassBar
                         Layout.fillWidth: true
                         Layout.alignment: Qt.AlignHCenter
+                        maskStyle: Config.lockscreenMaskStyle || "shapes"
                         paletteMode: Config.lockscreenShapePalette || "vibrant"
-                        placeholderText: "Type to preview randomized shapes..."
+                        placeholderText: "Type to test password bar..."
 
                         onSubmitPassword: (pass) => {
                             previewPassBar.isAuthenticating = true
@@ -154,7 +162,212 @@ Item {
             }
 
             // ==========================================
-            // 2. TIME & DATE FORMAT CONFIGURATION
+            // 2. PASSWORD MASK STYLE SELECTOR
+            // ==========================================
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: maskStyleCol.implicitHeight + 28
+                radius: Config.cornerRadius
+                color: Qt.rgba(255, 255, 255, 0.05)
+                border.width: 1
+                border.color: Qt.rgba(255, 255, 255, 0.1)
+
+                ColumnLayout {
+                    id: maskStyleCol
+                    anchors.fill: parent
+                    anchors.margins: 14
+                    spacing: 12
+
+                    Text {
+                        text: "PASSWORD MASK STYLE"
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        font.bold: true
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        Repeater {
+                            model: [
+                                { id: "shapes",    label: "Shapes",        icon: "category",            desc: "16 vector shapes", preview: "◆ ▲ ■" },
+                                { id: "dots",      label: "Dots",          icon: "fiber_manual_record", desc: "Bullet discs",     preview: "● ● ●" },
+                                { id: "asterisks", label: "Asterisks",     icon: "emergency",           desc: "Classic asterisks", preview: "✱ ✱ ✱" },
+                                { id: "special",   label: "Special Chars", icon: "code",                desc: "Random symbols",   preview: "! @ # ★" }
+                            ]
+
+                            delegate: Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredWidth: 1
+                                implicitHeight: 68
+                                radius: Config.cornerRadius / 2
+
+                                readonly property bool isSelected: (Config.lockscreenMaskStyle || "shapes") === modelData.id
+
+                                color: isSelected 
+                                    ? Qt.rgba(255, 255, 255, 0.14) 
+                                    : (maskHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
+                                border.width: isSelected ? 1.5 : 1
+                                border.color: isSelected ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+
+                                Behavior on color { ColorAnimation { duration: 150 } }
+
+                                ColumnLayout {
+                                    anchors.centerIn: parent
+                                    spacing: 4
+
+                                    RowLayout {
+                                        Layout.alignment: Qt.AlignHCenter
+                                        spacing: 6
+
+                                        Text {
+                                            text: modelData.icon
+                                            font.family: "Material Symbols Outlined"
+                                            font.pixelSize: 16
+                                            color: isSelected ? Config.accent : Config.textMuted
+                                        }
+
+                                        Text {
+                                            text: modelData.label
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontCaption)
+                                            font.bold: true
+                                            color: isSelected ? Config.accent : Config.textMain
+                                        }
+                                    }
+
+                                    Text {
+                                        text: modelData.preview
+                                        font.family: Config.sysFont
+                                        font.pixelSize: 11
+                                        font.bold: true
+                                        color: isSelected ? Config.accent : Qt.rgba(255, 255, 255, 0.5)
+                                        Layout.alignment: Qt.AlignHCenter
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: maskHover
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        Config.lockscreenMaskStyle = modelData.id
+                                        previewPassBar.maskStyle = modelData.id
+                                        previewPassBar.shuffleShapes()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ==========================================
+            // 3. PALETTE & COLOR THEME
+            // ==========================================
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: paletteCol.implicitHeight + 28
+                radius: Config.cornerRadius
+                color: Qt.rgba(255, 255, 255, 0.05)
+                border.width: 1
+                border.color: Qt.rgba(255, 255, 255, 0.1)
+
+                ColumnLayout {
+                    id: paletteCol
+                    anchors.fill: parent
+                    anchors.margins: 14
+                    spacing: 12
+
+                    Text {
+                        text: "RANDOMIZED SHAPE PALETTE"
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        font.bold: true
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        Repeater {
+                            model: [
+                                { id: "vibrant", label: "Vibrant", desc: "Multicolor cyber tones", previewColor: "#00f0ff" },
+                                { id: "accent", label: "Accent Flow", desc: "Active theme colors", previewColor: Config.accent },
+                                { id: "neon", label: "Neon High", desc: "High-contrast neon", previewColor: "#ff0055" },
+                                { id: "pastel", label: "Pastel Dream", desc: "Soft pastel hues", previewColor: "#c4b5fd" },
+                                { id: "monochrome", label: "Monochrome", desc: "Platinum & silver", previewColor: "#ffffff" }
+                            ]
+
+                            delegate: Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredWidth: 1
+                                implicitHeight: 64
+                                radius: Config.cornerRadius / 2
+
+                                readonly property bool isSelected: (Config.lockscreenShapePalette || "vibrant") === modelData.id
+
+                                color: isSelected 
+                                    ? Qt.rgba(255, 255, 255, 0.14) 
+                                    : (palHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
+                                border.width: isSelected ? 1.5 : 1
+                                border.color: isSelected ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+
+                                Behavior on color { ColorAnimation { duration: 150 } }
+
+                                ColumnLayout {
+                                    anchors.centerIn: parent
+                                    spacing: 4
+
+                                    RowLayout {
+                                        Layout.alignment: Qt.AlignHCenter
+                                        spacing: 6
+
+                                        Rectangle {
+                                            implicitWidth: 12; implicitHeight: 12; radius: 6
+                                            color: modelData.previewColor
+                                        }
+
+                                        Text {
+                                            text: modelData.label
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontCaption)
+                                            font.bold: true
+                                            color: isSelected ? Config.accent : Config.textMain
+                                        }
+                                    }
+
+                                    Text {
+                                        text: modelData.desc
+                                        font.family: Config.sysFont
+                                        font.pixelSize: 10
+                                        color: Config.textMuted
+                                        Layout.alignment: Qt.AlignHCenter
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: palHover
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        Config.lockscreenShapePalette = modelData.id
+                                        previewPassBar.shuffleShapes()
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // ==========================================
+            // 4. TIME & DATE FORMAT CONFIGURATION
             // ==========================================
             Rectangle {
                 Layout.fillWidth: true
@@ -473,108 +686,7 @@ Item {
             }
 
             // ==========================================
-            // 3. SHAPE PALETTE SELECTOR
-            // ==========================================
-            Rectangle {
-                Layout.fillWidth: true
-                implicitHeight: paletteCol.implicitHeight + 28
-                radius: Config.cornerRadius
-                color: Qt.rgba(255, 255, 255, 0.05)
-                border.width: 1
-                border.color: Qt.rgba(255, 255, 255, 0.1)
-
-                ColumnLayout {
-                    id: paletteCol
-                    anchors.fill: parent
-                    anchors.margins: 14
-                    spacing: 12
-
-                    Text {
-                        text: "RANDOMIZED SHAPE PALETTE"
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                        font.bold: true
-                    }
-
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 8
-
-                        Repeater {
-                            model: [
-                                { id: "vibrant", label: "Vibrant", desc: "Multicolor cyber tones", previewColor: "#00f0ff" },
-                                { id: "accent", label: "Accent Flow", desc: "Active theme colors", previewColor: Config.accent },
-                                { id: "neon", label: "Neon High", desc: "High-contrast neon", previewColor: "#ff0055" },
-                                { id: "pastel", label: "Pastel Dream", desc: "Soft pastel hues", previewColor: "#c4b5fd" },
-                                { id: "monochrome", label: "Monochrome", desc: "Platinum & silver", previewColor: "#ffffff" }
-                            ]
-
-                            delegate: Rectangle {
-                                Layout.fillWidth: true
-                                Layout.preferredWidth: 1
-                                implicitHeight: 64
-                                radius: Config.cornerRadius / 2
-
-                                readonly property bool isSelected: (Config.lockscreenShapePalette || "vibrant") === modelData.id
-
-                                color: isSelected 
-                                    ? Qt.rgba(255, 255, 255, 0.14) 
-                                    : (palHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
-                                border.width: isSelected ? 1.5 : 1
-                                border.color: isSelected ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
-
-                                Behavior on color { ColorAnimation { duration: 150 } }
-
-                                ColumnLayout {
-                                    anchors.centerIn: parent
-                                    spacing: 4
-
-                                    RowLayout {
-                                        Layout.alignment: Qt.AlignHCenter
-                                        spacing: 6
-
-                                        Rectangle {
-                                            implicitWidth: 12; implicitHeight: 12; radius: 6
-                                            color: modelData.previewColor
-                                        }
-
-                                        Text {
-                                            text: modelData.label
-                                            font.family: Config.sysFont
-                                            font.pixelSize: Config.size(Config.fontCaption)
-                                            font.bold: true
-                                            color: isSelected ? Config.accent : Config.textMain
-                                        }
-                                    }
-
-                                    Text {
-                                        text: modelData.desc
-                                        font.family: Config.sysFont
-                                        font.pixelSize: 10
-                                        color: Config.textMuted
-                                        Layout.alignment: Qt.AlignHCenter
-                                    }
-                                }
-
-                                MouseArea {
-                                    id: palHover
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: {
-                                        Config.lockscreenShapePalette = modelData.id
-                                        previewPassBar.shuffleShapes()
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // ==========================================
-            // 4. LOCKSCREEN VISUALS & TOGGLES
+            // 5. LOCKSCREEN VISUALS & TOGGLES
             // ==========================================
             Rectangle {
                 Layout.fillWidth: true
@@ -742,4 +854,3 @@ Item {
             Item { Layout.fillHeight: true; implicitHeight: 20 }
         }
     }
-}

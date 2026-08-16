@@ -537,11 +537,12 @@ Scope {
                         }
                     }
 
-                    // 4. THE PASSWORD INPUT BAR WITH RANDOMIZED SHAPES
+                    // 4. THE PASSWORD INPUT BAR WITH RANDOMIZED SHAPES / GLYPHS
                     LockscreenPasswordBar {
                         id: passBar
                         Layout.alignment: Qt.AlignHCenter
                         Layout.fillWidth: true
+                        maskStyle: Config.lockscreenMaskStyle || "shapes"
                         paletteMode: Config.lockscreenShapePalette || "vibrant"
 
                         onSubmitPassword: (pass) => {

@@ -15,6 +15,10 @@ Item {
     property bool capsLockActive: false
     property string placeholderText: "Enter password..."
     property string paletteMode: Config.lockscreenShapePalette || "vibrant"
+    property string maskStyle: Config.lockscreenMaskStyle || "shapes"
+
+    onMaskStyleChanged: shuffleShapes()
+    onPaletteModeChanged: shuffleShapes()
 
     signal submitPassword(string pass)
     signal clearRequested()
@@ -24,6 +28,14 @@ Item {
 
     // Internal Shape Data Model
     property var shapeItems: []
+
+    // Curated Special Characters Bank
+    readonly property var specialChars: [
+        "!", "@", "#", "$", "%", "^", "&", "*", "~", "?",
+        "+", "=", "<", ">", "/", "§", "★", "◆", "▲", "■",
+        "✦", "❖", "◈", "⚡", "λ", "π", "Ω", "¥", "€", "∞",
+        "∆", "∑", "√", "⬡", "⌘"
+    ]
 
     // Curated Palette Banks
     readonly property var vibrantPalette: [
@@ -73,12 +85,15 @@ Item {
 
     function generateShapeToken(charIndex) {
         let rotations = [0, 45, 90, 135, 180, 225, 270, 315]
+        let pickedChar = specialChars[Math.floor(Math.random() * specialChars.length)]
         return {
             id: Date.now() + "_" + Math.random(),
             shapeIndex: Math.floor(Math.random() * 16),
             color: getRandomColor(),
             rotation: rotations[Math.floor(Math.random() * rotations.length)],
             isOutline: Math.random() < 0.22,
+            charGlyph: pickedChar,
+            maskStyle: barRoot.maskStyle,
             animIndex: charIndex
         }
     }
@@ -249,23 +264,16 @@ Item {
                         onClicked: barRoot.forceFocus()
                     }
 
-                    // Placeholder Text & Cursor
-                    RowLayout {
-                        anchors.fill: parent
+                    // Placeholder Text & Leading Cursor
+                    Row {
+                        anchors.verticalCenter: parent.verticalCenter
+                        anchors.left: parent.left
                         visible: barRoot.password.length === 0
-                        spacing: 6
+                        spacing: 8
 
-                        Text {
-                            text: barRoot.placeholderText
-                            color: Config.textMuted
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
-                            font.italic: true
-                            opacity: 0.7
-                        }
-
-                        // Soft Blinking Cursor
+                        // Soft Blinking Cursor (All the way to the left)
                         Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
                             implicitWidth: 2
                             implicitHeight: 20
                             radius: 1
@@ -278,6 +286,16 @@ Item {
                                 NumberAnimation { from: 1.0; to: 0.0; duration: 530; easing.type: Easing.InOutQuad }
                                 NumberAnimation { from: 0.0; to: 1.0; duration: 530; easing.type: Easing.InOutQuad }
                             }
+                        }
+
+                        Text {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: barRoot.placeholderText
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
+                            font.italic: true
+                            opacity: 0.7
                         }
                     }
 
@@ -308,10 +326,12 @@ Item {
 
                                 delegate: LockscreenShapeGlyph {
                                     id: glyphItem
-                                    shapeIndex: modelData.shapeIndex
-                                    shapeColor: modelData.color
-                                    targetRotation: modelData.rotation
-                                    isOutline: modelData.isOutline
+                                    shapeIndex: modelData.shapeIndex !== undefined ? modelData.shapeIndex : 0
+                                    shapeColor: modelData.color !== undefined ? modelData.color : Config.accent
+                                    targetRotation: modelData.rotation !== undefined ? modelData.rotation : 0
+                                    isOutline: modelData.isOutline !== undefined ? modelData.isOutline : false
+                                    charGlyph: modelData.charGlyph !== undefined ? modelData.charGlyph : "*"
+                                    maskStyle: modelData.maskStyle !== undefined ? modelData.maskStyle : barRoot.maskStyle
                                     isError: barRoot.isError
                                     isSuccess: barRoot.isSuccess
                                     isAuthenticating: barRoot.isAuthenticating
