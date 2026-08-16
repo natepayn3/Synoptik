@@ -38,7 +38,7 @@ Flickable {
         }
 
         Text {
-            text: "Configure the Wayland session lockscreen, randomized shape password bar, clock typography, and privacy settings."
+            text: "Configure the Wayland session lockscreen, active monitor destination, randomized shape password bar, clock typography, and display toggles."
             color: Config.textMuted
             font.family: Config.sysFont
             font.pixelSize: Config.size(Config.fontCaption)
@@ -170,7 +170,154 @@ Flickable {
         }
 
         // ==========================================
-        // 2. PASSWORD MASK STYLE SELECTOR
+        // 2. TARGET MONITOR SELECTION CARD
+        // ==========================================
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: monitorCol.implicitHeight + 28
+            radius: Config.cornerRadius
+            color: Qt.rgba(255, 255, 255, 0.05)
+            border.width: 1
+            border.color: Qt.rgba(255, 255, 255, 0.1)
+
+            ColumnLayout {
+                id: monitorCol
+                anchors.fill: parent
+                anchors.margins: 14
+                spacing: 12
+
+                Text {
+                    text: "ACTIVE LOCKSCREEN DISPLAY"
+                    color: Config.textMuted
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontMicro)
+                    font.bold: true
+                }
+
+                Text {
+                    text: "Select which display renders the active unlock UI. All other displays will remain solid black."
+                    color: Config.textMuted
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontCaption)
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    // Option: Hyprland Focused Monitor
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
+                        implicitHeight: 36
+                        radius: Config.cornerRadius / 2
+
+                        readonly property bool isSelected: (Config.lockscreenTargetMonitor || "focused") === "focused"
+
+                        color: isSelected 
+                            ? Config.accent 
+                            : (focusedMonHover.containsMouse ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(0, 0, 0, 0.2))
+                        border.width: isSelected ? 1.5 : 1
+                        border.color: isSelected ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        RowLayout {
+                            anchors.centerIn: parent
+                            spacing: 6
+
+                            Text {
+                                text: "center_focus_strong"
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 16
+                                color: parent.parent.isSelected ? Config.bgBase : Config.accent
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            Text {
+                                text: "Focused Screen"
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontCaption)
+                                font.bold: true
+                                color: parent.parent.isSelected ? Config.bgBase : Config.textMain
+                                verticalAlignment: Text.AlignVCenter
+                            }
+                        }
+
+                        MouseArea {
+                            id: focusedMonHover
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                Config.lockscreenTargetMonitor = "focused"
+                            }
+                        }
+                    }
+
+                    // Dynamic attached monitor pills from Quickshell
+                    Repeater {
+                        model: Quickshell.screens
+
+                        delegate: Rectangle {
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 1
+                            Layout.minimumWidth: 0
+                            implicitHeight: 36
+                            radius: Config.cornerRadius / 2
+
+                            readonly property bool isSelected: Config.lockscreenTargetMonitor === modelData.name
+
+                            color: isSelected 
+                                ? Config.accent 
+                                : (scrHover.containsMouse ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(0, 0, 0, 0.2))
+                            border.width: isSelected ? 1.5 : 1
+                            border.color: isSelected ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+
+                            Behavior on color { ColorAnimation { duration: 150 } }
+
+                            RowLayout {
+                                anchors.centerIn: parent
+                                spacing: 6
+
+                                Text {
+                                    text: "desktop_windows"
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 16
+                                    color: parent.parent.isSelected ? Config.bgBase : Config.accent
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+
+                                Text {
+                                    text: modelData.name
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontCaption)
+                                    font.bold: true
+                                    color: parent.parent.isSelected ? Config.bgBase : Config.textMain
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                            }
+
+                            MouseArea {
+                                id: scrHover
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    Config.lockscreenTargetMonitor = modelData.name
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ==========================================
+        // 3. PASSWORD MASK STYLE SELECTOR
         // ==========================================
         Rectangle {
             Layout.fillWidth: true
@@ -279,7 +426,7 @@ Flickable {
         }
 
         // ==========================================
-        // 3. PALETTE & COLOR THEME
+        // 4. PALETTE & COLOR THEME
         // ==========================================
         Rectangle {
             Layout.fillWidth: true
@@ -385,7 +532,7 @@ Flickable {
         }
 
         // ==========================================
-        // 4. TIME & DATE FORMAT CONFIGURATION
+        // 5. TIME & DATE FORMAT CONFIGURATION
         // ==========================================
         Rectangle {
             Layout.fillWidth: true
@@ -720,7 +867,7 @@ Flickable {
         }
 
         // ==========================================
-        // 5. LOCKSCREEN VISUALS & TOGGLES
+        // 6. LOCKSCREEN VISUALS & TOGGLES
         // ==========================================
         Rectangle {
             Layout.fillWidth: true
