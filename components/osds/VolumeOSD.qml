@@ -129,7 +129,7 @@ Item {
 
         Rectangle {
             Layout.fillWidth: true
-            implicitWidth: 400
+            implicitWidth: 500
             implicitHeight: cardContent.implicitHeight + (osdRoot.cardMargin * 2)
             color: Qt.rgba(255, 255, 255, 0.05)
             radius: Config.cornerRadius

@@ -13,7 +13,7 @@ Item {
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
     // Static bounds to prevent UnifiedSurface evaluation loops
-    implicitWidth: 460
+    implicitWidth: 500
     implicitHeight: Math.max(80, contentColumn.implicitHeight + (cardMargin * 4))
 
     property string notifTitle: ""
