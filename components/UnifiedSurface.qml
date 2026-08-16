@@ -352,7 +352,10 @@ PanelWindow {
     readonly property real leftCardTargetHeight: leftCard ? (!root.isHorizontal ? (leftCard.contentTargetHeight || leftCard.height) : 36) : 0
 
     readonly property real islandContentWidth: (root.isHorizontal ? leftCardTargetWidth : (leftCard ? leftCard.width : 0)) + (activeWindowCard && activeWindowCard.visible ? activeWindowCard.width : 0) + (rightCard ? rightCard.width : 0) + 44
-    readonly property real islandTargetWidth: Math.min(mainContainer.width - (root.currentMargin * 2), Math.max(200, islandContentWidth))
+    readonly property real islandTargetWidth: Math.min(
+        mainContainer.width - (root.currentMargin * 2),
+        Math.max(200, root.isOpen ? Math.max(islandContentWidth, root.targetWidth) : islandContentWidth)
+    )
 
     property real animatedIslandWidth: isIsland ? islandTargetWidth : (mainContainer.width - Math.ceil(root.borderWidth))
     Behavior on animatedIslandWidth {
@@ -360,8 +363,10 @@ PanelWindow {
     }
 
     readonly property real islandContentHeight: (!root.isHorizontal ? leftCardTargetHeight : (leftCard ? leftCard.height : 0)) + (activeWindowCard && activeWindowCard.visible ? activeWindowCard.height : 0) + (rightCard ? rightCard.height : 0) + 44
-    readonly property real islandTargetHeight: Math.min(mainContainer.height - (root.currentMargin * 2), Math.max(200, islandContentHeight))
-
+    readonly property real islandTargetHeight: Math.min(
+        mainContainer.height - (root.currentMargin * 2),
+        Math.max(200, (root.isOpen && !root.isHorizontal) ? Math.max(islandContentHeight, root.targetHeight) : islandContentHeight)
+    )
     property real animatedIslandHeight: isIsland ? islandTargetHeight : (mainContainer.height - Math.ceil(root.borderWidth))
     Behavior on animatedIslandHeight {
         NumberAnimation { id: islandHeightAnim; duration: 250; easing.type: Easing.OutCubic }
@@ -407,7 +412,7 @@ PanelWindow {
             let rawRight = offset + (span / 2.0)
 
             if (span >= barSpan - 8) {
-                return barOrigin
+                return barOrigin + ((barSpan - span) / 2.0)
             }
             if (rawLeft <= barOrigin + 8) return barOrigin
             if (rawRight >= barEnd - 8) return barEnd - span
