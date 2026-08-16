@@ -567,6 +567,7 @@ QtObject {
     property bool lockscreenShowAmPm: true
     property string lockscreenDateFormat: "long" // "long", "standard", "iso", "dayFirst"
     property int lockscreenClockSize: 96 // 72, 96, 120
+    property string lockscreenTargetMonitor: "focused"
 
     onLockscreenBlurRadiusChanged: { if (isLoaded) saveSettings() }
     onLockscreenShowMediaChanged: { if (isLoaded) saveSettings() }
@@ -578,6 +579,7 @@ QtObject {
     onLockscreenShowAmPmChanged: { if (isLoaded) saveSettings() }
     onLockscreenDateFormatChanged: { if (isLoaded) saveSettings() }
     onLockscreenClockSizeChanged: { if (isLoaded) saveSettings() }
+    onLockscreenTargetMonitorChanged: { if (isLoaded) saveSettings() }
 
     // --- WORKSPACES CONFIGURATION ---
     property string workspaceStyle: "pill" // "pill", "sliding", "numeric", "window_pips", "app_icons", "geometric"
@@ -1720,6 +1722,7 @@ QtObject {
                 "lockscreenShowAmPm": root.lockscreenShowAmPm,
                 "lockscreenDateFormat": root.lockscreenDateFormat,
                 "lockscreenClockSize": root.lockscreenClockSize,
+                "lockscreenTargetMonitor": root.lockscreenTargetMonitor,
 
                 "workspaceStyle": root.workspaceStyle,
                 "workspaceGlow": root.workspaceGlow,
@@ -1768,7 +1771,7 @@ QtObject {
                             "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", 
                             "clockShowBackground", "clockShowGlow", "clockPositions", "clockScales", "enabledClockScreens",
                             "lockscreenBlurRadius", "lockscreenShowMedia", "lockscreenShowPower", "lockscreenMaskStyle", "lockscreenShapePalette",
-                            "lockscreenUse12Hour", "lockscreenShowSeconds", "lockscreenShowAmPm", "lockscreenDateFormat", "lockscreenClockSize",
+                            "lockscreenUse12Hour", "lockscreenShowSeconds", "lockscreenShowAmPm", "lockscreenDateFormat", "lockscreenClockSize", "lockscreenTargetMonitor",
                             "workspaceStyle", "workspaceGlow", "workspaceScroll", "workspaceTooltips", "workspaceShowAddBtn", "workspaceShowOverviewBtn", "workspaceShowSpecial", "workspaceContainerStyle",
                             "leftCardOrder", "rightCardOrder", "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides",
                             "playWindowSounds", "playNotificationSounds", "windowSoundPath", "notificationSoundPath", "windowSoundVolume",
