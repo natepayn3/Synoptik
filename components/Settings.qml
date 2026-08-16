@@ -825,7 +825,7 @@ Item {
                         font.family: "Material Symbols Outlined"
                         font.pixelSize: 180
                         color: Config.accent
-                        opacity: 0.04
+                        opacity: 0.12
                         rotation: 12
                     }
                 }
