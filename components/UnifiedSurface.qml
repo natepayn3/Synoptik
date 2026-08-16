@@ -382,6 +382,10 @@ PanelWindow {
     readonly property real minPossibleLeft: isScreenFrame ? ((isHorizontal ? inX : inY) + halfB) : halfB
     readonly property real maxPossibleRight: isScreenFrame ? ((isHorizontal ? inX + inW : inY + inH) - halfB) : ((isHorizontal ? mainContainer.width : mainContainer.height) - halfB)
 
+    readonly property bool isIslandBothFlush: root.isIsland && root.isOpen && (
+        (root.isHorizontal ? root.targetWidth : root.targetHeight) >= (root.isHorizontal ? (root.islandContentWidth - 16) : (root.islandContentHeight - 16))
+    )
+    
     readonly property real islandBarL: root.isIsland ? Math.min(root.islandX, root.pLeft) : root.halfB
     readonly property real islandBarR: root.isIsland ? Math.max(root.islandX + root.animatedIslandWidth, root.pRight) : (mainContainer.width - root.halfB)
     readonly property real islandBarT: root.isIsland ? Math.min(root.islandY, root.pLeft) : root.halfB
@@ -1652,7 +1656,7 @@ PanelWindow {
 
                 Behavior on opacity {
                     NumberAnimation {
-                        duration: (root.isOpen && root.progress >= 0.95) ? 200 : 80
+                        duration: 150
                         easing.type: Easing.OutCubic
                     }
                 }
