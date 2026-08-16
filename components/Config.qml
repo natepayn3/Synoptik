@@ -1060,8 +1060,10 @@ QtObject {
     property bool enableXray: true
     property bool enableIris: false
     property bool showWatermarks: true
+    property bool bounceWatermarks: true
 
-    property alias irisRunner: root.irisService.irisRunner
+    onShowWatermarksChanged: saveSettings()
+    onBounceWatermarksChanged: saveSettings()
 
     onEnableIrisChanged: {
         if (!isLoaded) return
@@ -1649,6 +1651,7 @@ QtObject {
                 "enableXray": root.enableXray,
                 "enableIris": root.enableIris,
                 "showWatermarks": root.showWatermarks,
+                "bounceWatermarks": root.bounceWatermarks,
                 "customThemes": customPalettes,
                 "windowStyle": root.windowStyle,
                 "playWindowSounds": root.playWindowSounds,
@@ -1746,7 +1749,7 @@ QtObject {
                             "barFrameStyle", "barPosition", "autoHideBar", "showScreenFrame", "sysFont", "nativeFontRendering", "fontScaleIndex", "locationQuery",
                             "enabledBarScreens", "useCustomColors", "customBgBase", "customBgPanel",
                             "customAccent", "animateGradient", "shellOpacity", "enableBlur",
-                            "enableXray", "enableIris", "showWatermarks", "surfaceRadius", "borderThickness", "cardMargin", "showDesktopClock", "clockStyle", "clockScale", 
+                            "enableXray", "enableIris", "showWatermarks", "bounceWatermarks", "surfaceRadius", "borderThickness", "cardMargin", "showDesktopClock", "clockStyle", "clockScale", 
                             "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", 
                             "clockShowBackground", "clockShowGlow", "clockPositions", "clockScales", "enabledClockScreens",
                             "lockscreenBlurRadius", "lockscreenShowMedia", "lockscreenShowPower", "lockscreenMaskStyle", "lockscreenShapePalette",

@@ -62,24 +62,10 @@ Item {
             clip: true
 
             // GRAPHIC WATERMARK
-            Item {
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                anchors.rightMargin: -15
-                anchors.bottomMargin: -20
-                implicitWidth: 150
-                implicitHeight: 150
-                visible: Config.showWatermarks
-
-                Text {
-                    anchors.centerIn: parent
-                    text: Config.getIcon("batt")
-                    font.family: "Material Symbols Outlined"
-                    font.pixelSize: 150
-                    color: Config.accent
-                    opacity: 0.12
-                    rotation: 15
-                }
+            Watermark {
+                icon: Config.getIcon("batt")
+                iconSize: 150
+                seed: 22
             }
 
             ColumnLayout {
@@ -239,24 +225,10 @@ Item {
                 clip: true
 
                 // GRAPHIC WATERMARK
-                Item {
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    anchors.rightMargin: -10
-                    anchors.bottomMargin: -15
-                    implicitWidth: 80
-                    implicitHeight: 80
-                    visible: Config.showWatermarks
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: Config.getIcon("batt")
-                        font.family: "Material Symbols Outlined"
-                        font.pixelSize: 80
-                        color: Config.accent
-                        opacity: 0.12
-                        rotation: 15
-                    }
+                Watermark {
+                    icon: "devices"
+                    iconSize: 80
+                    seed: 23
                 }
 
                 ColumnLayout {
@@ -292,24 +264,10 @@ Item {
                 clip: true
 
                 // GRAPHIC WATERMARK
-                Item {
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    anchors.rightMargin: -10
-                    anchors.bottomMargin: -15
-                    implicitWidth: 80
-                    implicitHeight: 80
-                    visible: Config.showWatermarks
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: Config.getIcon("batt")
-                        font.family: "Material Symbols Outlined"
-                        font.pixelSize: 80
-                        color: Config.accent
-                        opacity: 0.12
-                        rotation: 15
-                    }
+                Watermark {
+                    icon: "bolt"
+                    iconSize: 80
+                    seed: 24
                 }
 
                 ColumnLayout {

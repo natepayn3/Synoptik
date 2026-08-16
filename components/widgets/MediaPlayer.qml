@@ -41,25 +41,10 @@ Item {
             clip: true
 
             // GRAPHIC WATERMARK
-            Item {
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                anchors.rightMargin: -15
-                anchors.bottomMargin: -20
-                implicitWidth: 150
-                implicitHeight: 150
-                visible: Config.showWatermarks
-
-                Text {
-                    anchors.centerIn: parent
-                    text: Config.getIcon("player")
-                    font.family: "Material Symbols Outlined"
-                    font.pixelSize: 150
-                    font.bold: true
-                    color: Config.accent
-                    opacity: 0.12
-                    rotation: 15
-                }
+            Watermark {
+                icon: Config.getIcon("player")
+                iconSize: 150
+                seed: 27
             }
 
             ColumnLayout {

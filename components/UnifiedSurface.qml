@@ -37,6 +37,18 @@ PanelWindow {
         }
     }
 
+    property Timer barLayoutReopenTimer: Timer {
+        id: barLayoutReopenTimer
+        interval: 220
+        repeat: false
+        onTriggered: {
+            if (root.activeView !== "none") {
+                root.refreshPopoutPos()
+                root.isOpen = true
+            }
+        }
+    }
+
     property Timer playerReopenTimer: Timer {
         id: playerReopenTimer
         interval: 120
@@ -413,8 +425,7 @@ PanelWindow {
 
     property string activeView: "none"
 
-    // Unified popout re-anchoring engine for ALL views
-    onActiveViewChanged: {
+    function refreshPopoutPos() {
         if (activeView === "none" || activeView === "workspacePreview") return
 
         // 1. Edge OSDs: Snap coordinates to screen boundaries or center on Island bar
@@ -468,6 +479,11 @@ PanelWindow {
         } else if (btn) {
             setPopoutPos(btn)
         }
+    }
+
+    // Unified popout re-anchoring engine for ALL views
+    onActiveViewChanged: {
+        refreshPopoutPos()
     }
 
     function updateActiveView() {
@@ -552,6 +568,20 @@ PanelWindow {
     Connections {
         target: Config
         ignoreUnknownSignals: true
+
+        function onBarPositionChanged() {
+            if (root.isOpen && root.activeView !== "none") {
+                root.isOpen = false
+                barLayoutReopenTimer.restart()
+            }
+        }
+
+        function onBarFrameStyleChanged() {
+            if (root.isOpen && root.activeView !== "none") {
+                root.isOpen = false
+                barLayoutReopenTimer.restart()
+            }
+        }
 
         function onShowOSDChanged() {
             updateActiveView()

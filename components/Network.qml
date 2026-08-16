@@ -216,24 +216,10 @@ while True:
             clip: true
 
             // GRAPHIC WATERMARK
-            Item {
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                anchors.rightMargin: -15
-                anchors.bottomMargin: -20
-                implicitWidth: 150
-                implicitHeight: 150
-                visible: Config.showWatermarks
-
-                Text {
-                    anchors.centerIn: parent
-                    text: root.activeVpnName !== "" ? "vpn_key" : Config.getIcon("network")
-                    font.family: "Material Symbols Outlined"
-                    font.pixelSize: 150
-                    color: Config.accent
-                    opacity: 0.12
-                    rotation: 15
-                }
+            Watermark {
+                icon: root.activeVpnName !== "" ? "vpn_key" : Config.getIcon("network")
+                iconSize: 150
+                seed: 19
             }
 
             ColumnLayout {
@@ -424,24 +410,10 @@ while True:
                 clip: true
 
                 // GRAPHIC WATERMARK
-                Item {
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    anchors.rightMargin: -10
-                    anchors.bottomMargin: -15
-                    implicitWidth: 80
-                    implicitHeight: 80
-                    visible: Config.showWatermarks
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "arrow_downward"
-                        font.family: "Material Symbols Outlined"
-                        font.pixelSize: 80
-                        color: Config.accent
-                        opacity: 0.12
-                        rotation: 15
-                    }
+                Watermark {
+                    icon: "arrow_downward"
+                    iconSize: 80
+                    seed: 20
                 }
 
                 ColumnLayout {
@@ -477,24 +449,10 @@ while True:
                 clip: true
 
                 // GRAPHIC WATERMARK
-                Item {
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    anchors.rightMargin: -10
-                    anchors.bottomMargin: -15
-                    implicitWidth: 80
-                    implicitHeight: 80
-                    visible: Config.showWatermarks
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "arrow_upward"
-                        font.family: "Material Symbols Outlined"
-                        font.pixelSize: 80
-                        color: Config.accent
-                        opacity: 0.12
-                        rotation: 15
-                    }
+                Watermark {
+                    icon: "arrow_upward"
+                    iconSize: 80
+                    seed: 21
                 }
 
                 ColumnLayout {

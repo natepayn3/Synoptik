@@ -86,24 +86,10 @@ Item {
             clip: true
 
             // GRAPHIC WATERMARK
-            Item {
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                anchors.rightMargin: -15
-                anchors.bottomMargin: -20
-                implicitWidth: 120
-                implicitHeight: 120
-                visible: Config.showWatermarks
-
-                Text {
-                    anchors.centerIn: parent
-                    text: Config.getIcon("recorder")
-                    font.family: "Material Symbols Outlined"
-                    font.pixelSize: 120
-                    color: Config.accent
-                    opacity: 0.12
-                    rotation: 15
-                }
+            Watermark {
+                icon: Config.getIcon("recorder")
+                iconSize: 120
+                seed: 11
             }
 
             Behavior on color { ColorAnimation { duration: 150 } }

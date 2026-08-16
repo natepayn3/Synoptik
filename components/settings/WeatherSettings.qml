@@ -57,24 +57,11 @@ Item {
                 clip: true
 
                 // Dynamic Graphic Watermark
-                Item {
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    anchors.rightMargin: -15
-                    anchors.bottomMargin: -20
-                    implicitWidth: 150
-                    implicitHeight: 150
-                    visible: Config.showWatermarks
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: Config.weather.glyph
-                        font.family: "Material Symbols Outlined"
-                        font.pixelSize: 150
-                        color: Config.accent
-                        opacity: 0.1
-                        rotation: 12
-                    }
+                Watermark {
+                    icon: Config.weather.glyph
+                    iconSize: 150
+                    baseRotation: 12
+                    seed: 26
                 }
 
                 ColumnLayout {

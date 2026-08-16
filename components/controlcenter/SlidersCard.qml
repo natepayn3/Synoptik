@@ -16,24 +16,11 @@ Rectangle {
     clip: true
 
     // GRAPHIC WATERMARK
-    Item {
-        anchors.right: parent.right
-        anchors.bottom: parent.bottom
-        anchors.rightMargin: -15
-        anchors.bottomMargin: -20
-        implicitWidth: 150
-        implicitHeight: 150
-        visible: Config.showWatermarks
-
-        Text {
-            anchors.centerIn: parent
-            text: Config.getIcon("cc")
-            font.family: "Material Symbols Outlined"
-            font.pixelSize: 150
-            color: Config.accent
-            opacity: 0.12
-            rotation: 15
-        }
+    Watermark {
+        icon: "tune"
+        iconSize: 150
+        baseRotation: -15
+        seed: 2
     }
 
     color: cardHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.04)

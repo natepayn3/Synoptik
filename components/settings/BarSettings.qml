@@ -207,7 +207,7 @@ Flickable {
                         border.width: (Config.barFrameStyle === "screen" || Config.showScreenFrame) ? 3 : 0
                         border.color: Config.accent
                         visible: Config.barFrameStyle === "screen" || Config.showScreenFrame
-                        Behavior on border.width { NumberAnimation { duration: 150 } }
+                        Behavior on border.width { enabled: miniBar.allowAnimation; NumberAnimation { duration: 150 } }
                     }
 
                     // Simulated Interactive Status Bar
@@ -217,6 +217,29 @@ Flickable {
                         readonly property bool isVertical: Config.barPosition === "left" || Config.barPosition === "right"
                         readonly property bool isIslandStyle: Config.barFrameStyle === "island"
                         readonly property bool isFloatingStyle: Config.barFrameStyle === "floating" || isIslandStyle
+
+                        property bool allowAnimation: false
+
+                        Timer {
+                            id: animDisableTimer
+                            interval: 300
+                            onTriggered: miniBar.allowAnimation = false
+                        }
+
+                        function triggerAnimation() {
+                            miniBar.allowAnimation = true
+                            animDisableTimer.restart()
+                        }
+
+                        Connections {
+                            target: Config
+                            function onBarPositionChanged() {
+                                if (miniBar.Component.isCompleted) miniBar.triggerAnimation()
+                            }
+                            function onBarFrameStyleChanged() {
+                                if (miniBar.Component.isCompleted) miniBar.triggerAnimation()
+                            }
+                        }
 
                         // Position & Dimensions Animation
                         x: {
@@ -247,11 +270,11 @@ Flickable {
                         border.width: isFloatingStyle ? 1 : 0
                         border.color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.4)
 
-                        Behavior on x { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-                        Behavior on y { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-                        Behavior on width { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-                        Behavior on height { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-                        Behavior on radius { NumberAnimation { duration: 150 } }
+                        Behavior on x { enabled: miniBar.allowAnimation; NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                        Behavior on y { enabled: miniBar.allowAnimation; NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                        Behavior on width { enabled: miniBar.allowAnimation; NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                        Behavior on height { enabled: miniBar.allowAnimation; NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                        Behavior on radius { enabled: miniBar.allowAnimation; NumberAnimation { duration: 150 } }
 
                         // Bar Modules Layout inside simulated bar
                         Item {

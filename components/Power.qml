@@ -54,24 +54,10 @@ Item {
             clip: true
 
             // GRAPHIC WATERMARK
-            Item {
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                anchors.rightMargin: -15
-                anchors.bottomMargin: -20
-                implicitWidth: 150
-                implicitHeight: 150
-                visible: Config.showWatermarks
-
-                Text {
-                    anchors.centerIn: parent
-                    text: Config.getIcon("power")
-                    font.family: "Material Symbols Outlined"
-                    font.pixelSize: 150
-                    color: Config.accent
-                    opacity: 0.12
-                    rotation: 15
-                }
+            Watermark {
+                icon: Config.getIcon("power")
+                iconSize: 150
+                seed: 17
             }
 
             ColumnLayout {
@@ -197,24 +183,10 @@ Item {
             clip: true
 
             // GRAPHIC WATERMARK
-            Item {
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                anchors.rightMargin: -15
-                anchors.bottomMargin: -20
-                implicitWidth: 150
-                implicitHeight: 150
-                visible: Config.showWatermarks
-
-                Text {
-                    anchors.centerIn: parent
-                    text: Config.getIcon("power")
-                    font.family: "Material Symbols Outlined"
-                    font.pixelSize: 150
-                    color: Config.accent
-                    opacity: 0.12
-                    rotation: 15
-                }
+            Watermark {
+                icon: "speed"
+                iconSize: 150
+                seed: 18
             }
 
             ColumnLayout {

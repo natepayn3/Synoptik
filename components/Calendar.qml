@@ -152,24 +152,10 @@ Item {
                 clip: true
 
                 // MASSIVE GRAPHIC WEATHER WATERMARK
-                Item {
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    anchors.rightMargin: -15
-                    anchors.bottomMargin: -25
-                    implicitWidth: 150
-                    implicitHeight: 150
-                    visible: Config.showWatermarks
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: Config.weather.glyph
-                        font.family: "Material Symbols Outlined"
-                        font.pixelSize: 150
-                        color: Config.accent
-                        opacity: 0.12
-                        rotation: 15
-                    }
+                Watermark {
+                    icon: Config.weather.glyph
+                    iconSize: 150
+                    seed: 6
                 }
 
                 ColumnLayout {
@@ -302,24 +288,11 @@ Item {
                 clip: true
 
                 // GRAPHIC NOTES WATERMARK
-                Item {
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    anchors.rightMargin: -12
-                    anchors.bottomMargin: -16
-                    implicitWidth: 110
-                    implicitHeight: 110
-                    visible: Config.showWatermarks
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "edit_note"
-                        font.family: "Material Symbols Outlined"
-                        font.pixelSize: 110
-                        color: Config.accent
-                        opacity: 0.12
-                        rotation: 10
-                    }
+                Watermark {
+                    icon: "edit_note"
+                    iconSize: 110
+                    baseRotation: 10
+                    seed: 7
                 }
 
                 ColumnLayout {
@@ -470,24 +443,10 @@ Item {
             clip: true
 
             // GRAPHIC CALENDAR WATERMARK
-            Item {
-                anchors.right: parent.right
-                anchors.bottom: parent.bottom
-                anchors.rightMargin: -15
-                anchors.bottomMargin: -20
-                implicitWidth: 150
-                implicitHeight: 150
-                visible: Config.showWatermarks
-
-                Text {
-                    anchors.centerIn: parent
-                    text: "calendar_month"
-                    font.family: "Material Symbols Outlined"
-                    font.pixelSize: 150
-                    color: Config.accent
-                    opacity: 0.12
-                    rotation: 15
-                }
+            Watermark {
+                icon: "calendar_month"
+                iconSize: 150
+                seed: 8
             }
 
             ColumnLayout {

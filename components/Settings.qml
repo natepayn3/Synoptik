@@ -810,24 +810,11 @@ Item {
                 }
 
                 // Subtle Gear Watermark
-                Item {
-                    anchors.right: parent.right
-                    anchors.bottom: parent.bottom
-                    anchors.rightMargin: -25
-                    anchors.bottomMargin: -25
-                    implicitWidth: 180
-                    implicitHeight: 180
-                    visible: Config.showWatermarks
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: Config.getIcon("settings")
-                        font.family: "Material Symbols Outlined"
-                        font.pixelSize: 180
-                        color: Config.accent
-                        opacity: 0.12
-                        rotation: 12
-                    }
+                Watermark {
+                    icon: Config.getIcon("settings")
+                    iconSize: 180
+                    baseRotation: 12
+                    seed: 16
                 }
 
                 // Section Content Wrapper with Crossfade
