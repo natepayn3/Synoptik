@@ -1516,7 +1516,7 @@ QtObject {
             : '"' + colorStart + '"'
 
         let borderSize = root.borderThickness
-        let gapsOut = (barFrameStyle === "screen") ? 32 : 12
+        let gapsOut = (barFrameStyle === "screen") ? 32 : 20
         let roundingVal = Math.round(surfaceRadius)
 
         let pyScript = "import os, re\n" +
