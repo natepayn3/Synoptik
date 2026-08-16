@@ -47,6 +47,11 @@ Item {
     // Local override guard
     property bool isSettingVolume: false
 
+    readonly property bool isAnyPanelExpanded: (wifiCard && (wifiCard.panelExpanded || wifiCard.shouldExpand)) ||
+                                               (btCard && (btCard.panelExpanded || btCard.shouldExpand)) ||
+                                               (caffeineCard && caffeineCard.panelExpanded) ||
+                                               (sysMonitorCard && sysMonitorCard.panelExpanded)
+
     ListModel { id: wifiModel }
 
     Component.onCompleted: {
@@ -65,6 +70,8 @@ Item {
         anchors.topMargin: root.cardMargin
         anchors.leftMargin: root.cardMargin
         spacing: root.cardMargin / 2
+
+        enabled: !root.isAnyPanelExpanded
 
         // TOP HEADER & TOGGLES CONTAINER CARD
         Rectangle {

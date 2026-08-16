@@ -390,6 +390,24 @@ Item {
             enabled: !cardRoot.panelExpanded
         }
 
+        // Shield overlay: Eat all click and mouse events when panel is expanded
+        MouseArea {
+            anchors.fill: parent
+            enabled: cardRoot.panelExpanded
+            preventStealing: true
+            hoverEnabled: true
+            acceptedButtons: Qt.AllButtons
+            onPressed: (mouse) => mouse.accepted = true
+            onReleased: (mouse) => mouse.accepted = true
+            onClicked: (mouse) => mouse.accepted = true
+        }
+
+        TapHandler {
+            enabled: cardRoot.panelExpanded
+            gesturePolicy: TapHandler.WithinBounds
+            onTapped: {}
+        }
+
         // Tap on card to expand when collapsed
         TapHandler {
             enabled: !cardRoot.panelExpanded
@@ -426,6 +444,7 @@ Item {
             anchors.right: parent.right
             height: 116
             visible: opacity > 0
+            enabled: !cardRoot.panelExpanded
             opacity: cardRoot.panelExpanded ? 0.0 : 1.0
             Behavior on opacity { NumberAnimation { duration: 150 } }
 
@@ -455,6 +474,7 @@ Item {
             anchors.margins: cardRoot.cardMargin
             
             visible: opacity > 0
+            enabled: cardRoot.panelExpanded
             opacity: cardRoot.panelExpanded ? 1.0 : 0.0
             Behavior on opacity { NumberAnimation { duration: 200 } }
 

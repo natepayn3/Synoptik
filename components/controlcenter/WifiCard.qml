@@ -177,7 +177,17 @@ Item {
             anchors.fill: parent
             enabled: cardRoot.panelExpanded
             preventStealing: true
-            onClicked: {}
+            hoverEnabled: true
+            acceptedButtons: Qt.AllButtons
+            onPressed: (mouse) => mouse.accepted = true
+            onReleased: (mouse) => mouse.accepted = true
+            onClicked: (mouse) => mouse.accepted = true
+        }
+
+        TapHandler {
+            enabled: cardRoot.panelExpanded
+            gesturePolicy: TapHandler.WithinBounds
+            onTapped: {}
         }
 
         // --- 1. COLLAPSED CARD HEADER VIEW ---
@@ -188,6 +198,7 @@ Item {
             anchors.right: parent.right
             height: 64
             visible: opacity > 0
+            enabled: !cardRoot.panelExpanded
             opacity: cardRoot.panelExpanded ? 0.0 : 1.0
             Behavior on opacity { NumberAnimation { duration: 150 } }
 
@@ -252,7 +263,8 @@ Item {
                             font.family: Config.sysFont
                             font.pixelSize: Config.size(Config.fontMicro)
                             font.bold: cardRoot.hasAdapter && (cardRoot.isTogglingPower || cardRoot.connectionError !== "" || (cardRoot.wifiPowered && cardRoot.displaySsid !== ""))
-                            color: cardRoot.hasAdapter && (cardRoot.isTogglingPower || (cardRoot.wifiPowered && (cardRoot.displaySsid !== "" || cardRoot.connectionError !== ""))) ? (cardRoot.connectionError !== "" ? "#ff6b6b" : Config.accent) : Config.textMuted
+                            color: cardRoot.hasAdapter && (cardRoot.isTogglingPower || (cardRoot.wifiPowered && (cardRoot.displaySsid !== "" || cardRoot.connectionError !== ""))) ? Config.accent : Config.textMuted
+                            verticalAlignment: Text.AlignVCenter
                             elide: Text.ElideRight
                             Layout.fillWidth: true
                         }
@@ -285,6 +297,7 @@ Item {
             anchors.fill: parent
             anchors.margins: 14
             visible: opacity > 0
+            enabled: cardRoot.panelExpanded
             opacity: cardRoot.panelExpanded ? 1.0 : 0.0
             Behavior on opacity { NumberAnimation { duration: 180 } }
 
@@ -302,14 +315,19 @@ Item {
                     radius: 18
                     Layout.alignment: Qt.AlignVCenter
                     color: backHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
+                    border.width: 2
+                    border.color: backHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.12)
                     Behavior on color { ColorAnimation { duration: 150 } }
+                    Behavior on border.color { ColorAnimation { duration: 150 } }
 
                     Text {
                         anchors.centerIn: parent
                         text: "arrow_back"
                         font.family: "Material Symbols Outlined"
                         font.pixelSize: 20
-                        color: Config.textMain
+                        verticalAlignment: Text.AlignVCenter
+                        horizontalAlignment: Text.AlignHCenter
+                        color: backHover.hovered ? Config.accent : Config.textMain
                     }
 
                     MouseArea {
@@ -365,7 +383,7 @@ Item {
                                         : (cardRoot.displaySsid !== "" ? cardRoot.displaySsid : "Disconnected"))))
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontMicro)
-                        color: cardRoot.hasAdapter && (cardRoot.isTogglingPower || (cardRoot.wifiPowered && (cardRoot.displaySsid !== "" || cardRoot.connectionError !== ""))) ? (cardRoot.connectionError !== "" ? "#ff6b6b" : Config.accent) : Config.textMuted
+                        color: cardRoot.hasAdapter && (cardRoot.isTogglingPower || (cardRoot.wifiPowered && (cardRoot.displaySsid !== "" || cardRoot.connectionError !== ""))) ? Config.accent : Config.textMuted
                         elide: Text.ElideRight
                         Layout.fillWidth: true
                     }
@@ -375,9 +393,13 @@ Item {
                     implicitWidth: 36
                     implicitHeight: 36
                     radius: 18
+                    Layout.alignment: Qt.AlignVCenter
                     visible: cardRoot.wifiPowered && cardRoot.hasAdapter
                     color: scanHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
+                    border.width: 2
+                    border.color: scanHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.12)
                     Behavior on color { ColorAnimation { duration: 150 } }
+                    Behavior on border.color { ColorAnimation { duration: 150 } }
 
                     Text {
                         id: scanIconText
@@ -385,7 +407,9 @@ Item {
                         text: "refresh"
                         font.family: "Material Symbols Outlined"
                         font.pixelSize: 18
-                        color: scanHover.hovered ? Config.textMain : Config.textMuted
+                        verticalAlignment: Text.AlignVCenter
+                        horizontalAlignment: Text.AlignHCenter
+                        color: scanHover.hovered ? Config.accent : Config.textMuted
 
                         RotationAnimator {
                             target: scanIconText
@@ -413,17 +437,25 @@ Item {
                     implicitWidth: 36
                     implicitHeight: 36
                     radius: 18
+                    Layout.alignment: Qt.AlignVCenter
                     visible: cardRoot.hasAdapter
                     color: (cardRoot.wifiPowered || cardRoot.isTogglingPower) 
                         ? (pwrHover.hovered ? Qt.lighter(Config.accent, 1.1) : Config.accent)
                         : (pwrHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08))
+                    border.width: 2
+                    border.color: (cardRoot.wifiPowered || cardRoot.isTogglingPower)
+                        ? (pwrHover.hovered ? Qt.lighter(Config.accent, 1.1) : Config.accent)
+                        : Qt.rgba(255, 255, 255, 0.12)
                     Behavior on color { ColorAnimation { duration: 150 } }
+                    Behavior on border.color { ColorAnimation { duration: 150 } }
 
                     Text {
                         anchors.centerIn: parent
                         text: (cardRoot.wifiPowered || cardRoot.isTogglingPower) ? "wifi" : "signal_wifi_off"
                         font.family: "Material Symbols Outlined"
                         font.pixelSize: 18
+                        verticalAlignment: Text.AlignVCenter
+                        horizontalAlignment: Text.AlignHCenter
                         color: (cardRoot.wifiPowered || cardRoot.isTogglingPower) ? Config.bgBase : Config.textMuted
                     }
 
@@ -510,28 +542,29 @@ Item {
                             }
 
                             width: fullWifiListView.width
-                            implicitHeight: isExpanded ? wifiItemColumn.implicitHeight + 16 : 48
-                            radius: Config.cornerRadius / 2
+                            implicitHeight: isExpanded ? wifiItemColumn.implicitHeight + 18 : 50
+                            radius: Config.cornerRadius * 0.5
                             clip: true
 
                             color: hasError 
-                                ? Qt.rgba(255, 80, 80, 0.15) 
+                                ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.15) 
                                 : (isCurrentActive 
                                     ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.15) 
                                     : (wifiItemHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2)))
 
-                            border.width: (isCurrentActive || hasError) ? 1 : 0
-                            border.color: hasError ? "#ff5555" : (isCurrentActive ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.6) : "transparent")
+                            border.width: (isCurrentActive || hasError) ? 2 : 0
+                            border.color: hasError ? Config.accent : (isCurrentActive ? Config.accent : "transparent")
 
                             Behavior on implicitHeight { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
                             Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on border.color { ColorAnimation { duration: 150 } }
 
                             ColumnLayout {
                                 id: wifiItemColumn
                                 anchors.top: parent.top
                                 anchors.left: parent.left
                                 anchors.right: parent.right
-                                anchors.topMargin: 8
+                                anchors.topMargin: 9
                                 anchors.leftMargin: 10
                                 anchors.rightMargin: 10
                                 spacing: 8
@@ -542,35 +575,41 @@ Item {
 
                                     RowLayout {
                                         anchors.fill: parent
-                                        spacing: 8
+                                        Layout.alignment: Qt.AlignVCenter
+                                        spacing: 10
 
                                         Rectangle {
-                                            implicitWidth: 28
-                                            implicitHeight: 28
-                                            radius: 14
+                                            implicitWidth: 32
+                                            implicitHeight: 32
+                                            radius: 16
                                             Layout.alignment: Qt.AlignVCenter
-                                            color: hasError ? Qt.rgba(255, 80, 80, 0.2) : (isCurrentActive ? Config.accent : Qt.rgba(255, 255, 255, 0.06))
+                                            color: hasError
+                                                ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.25)
+                                                : (isCurrentActive ? Config.accent : Qt.rgba(255, 255, 255, 0.06))
 
                                             Text {
                                                 anchors.centerIn: parent
                                                 text: model.isSecure ? "wifi_lock" : "wifi"
                                                 font.family: "Material Symbols Outlined"
-                                                font.pixelSize: 16
-                                                color: hasError ? "#ff5555" : (isCurrentActive ? Config.bgBase : Config.textMuted)
+                                                font.pixelSize: 17
+                                                verticalAlignment: Text.AlignVCenter
+                                                horizontalAlignment: Text.AlignHCenter
+                                                color: hasError ? Config.accent : (isCurrentActive ? Config.bgBase : Config.textMuted)
                                             }
                                         }
 
                                         ColumnLayout {
                                             Layout.fillWidth: true
                                             Layout.alignment: Qt.AlignVCenter
-                                            spacing: 1
+                                            spacing: 2
 
                                             Text {
                                                 text: model.ssid !== "" ? model.ssid : "Hidden Network"
-                                                color: hasError ? "#ff6b6b" : (isCurrentActive ? Config.accent : Config.textMain)
+                                                color: hasError ? Config.accent : (isCurrentActive ? Config.accent : Config.textMain)
                                                 font.family: Config.sysFont
                                                 font.pixelSize: Config.size(Config.fontCaption)
                                                 font.bold: isCurrentActive || hasError
+                                                verticalAlignment: Text.AlignVCenter
                                                 elide: Text.ElideRight
                                                 Layout.fillWidth: true
                                             }
@@ -585,10 +624,11 @@ Item {
                                                             : (isCurrentActive 
                                                                 ? "Connected" 
                                                                 : (isKnown ? "Saved Network" : (model.isSecure ? "Secured" : "Open Network")))))
-                                                color: hasError ? "#ff6b6b" : (isCurrentActive ? Config.accent : Config.textMuted)
+                                                color: hasError ? Config.accent : (isCurrentActive ? Config.accent : Config.textMuted)
                                                 font.family: Config.sysFont
                                                 font.pixelSize: Config.size(Config.fontMicro)
                                                 font.bold: hasError
+                                                verticalAlignment: Text.AlignVCenter
                                                 elide: Text.ElideRight
                                                 Layout.fillWidth: true
                                             }
@@ -598,6 +638,8 @@ Item {
                                             text: isExpanded ? "expand_less" : "expand_more"
                                             font.family: "Material Symbols Outlined"
                                             font.pixelSize: 18
+                                            verticalAlignment: Text.AlignVCenter
+                                            horizontalAlignment: Text.AlignHCenter
                                             color: Config.textMuted
                                             Layout.alignment: Qt.AlignVCenter
                                         }
@@ -623,10 +665,11 @@ Item {
                                     Text {
                                         visible: hasError && cardRoot.connectionError !== ""
                                         text: cardRoot.connectionError
-                                        color: "#ff6b6b"
+                                        color: Config.accent
                                         font.family: Config.sysFont
                                         font.pixelSize: Config.size(Config.fontMicro)
                                         font.bold: true
+                                        verticalAlignment: Text.AlignVCenter
                                         Layout.fillWidth: true
                                     }
 
@@ -638,61 +681,115 @@ Item {
                                         Rectangle {
                                             Layout.fillWidth: true
                                             implicitHeight: 32
-                                            radius: Config.cornerRadius / 2
+                                            radius: 8
                                             color: Qt.rgba(0, 0, 0, 0.4)
-                                            border.width: passInput.activeFocus ? 2 : 1
-                                            border.color: passInput.activeFocus ? Config.accent : (hasError ? "#ff5555" : Qt.rgba(255, 255, 255, 0.12))
+                                            border.width: 2
+                                            border.color: passInput.activeFocus ? Config.accent : (hasError ? Config.accent : Qt.rgba(255, 255, 255, 0.15))
 
-                                            TextInput {
-                                                id: passInput
+                                            RowLayout {
                                                 anchors.fill: parent
                                                 anchors.leftMargin: 10
-                                                anchors.rightMargin: 10
-                                                verticalAlignment: TextInput.AlignVCenter
-                                                color: Config.textMain
-                                                font.family: Config.sysFont
-                                                font.pixelSize: Config.size(Config.fontMicro)
-                                                echoMode: TextInput.Password
-                                                selectByMouse: true
+                                                anchors.rightMargin: 6
+                                                spacing: 6
 
-                                                Text {
-                                                    text: "Enter Wi-Fi password..."
-                                                    color: Config.textMuted
+                                                TextInput {
+                                                    id: passInput
+                                                    property bool showPassword: false
+                                                    Layout.fillWidth: true
+                                                    verticalAlignment: TextInput.AlignVCenter
+                                                    color: Config.textMain
                                                     font.family: Config.sysFont
                                                     font.pixelSize: Config.size(Config.fontMicro)
-                                                    visible: passInput.text === "" && !passInput.activeFocus
-                                                    anchors.verticalCenter: parent.verticalCenter
+                                                    echoMode: showPassword ? TextInput.Normal : TextInput.Password
+                                                    selectByMouse: true
+                                                    clip: true
+
+                                                    Text {
+                                                        anchors.fill: parent
+                                                        text: "Enter Wi-Fi password..."
+                                                        color: Config.textMuted
+                                                        font.family: Config.sysFont
+                                                        font.pixelSize: Config.size(Config.fontMicro)
+                                                        verticalAlignment: Text.AlignVCenter
+                                                        visible: passInput.text === "" && !passInput.activeFocus
+                                                    }
+
+                                                    onAccepted: {
+                                                        if (!isConnecting && !isDisconnecting && cardRoot.hasAdapter) {
+                                                            if (model.isSecure && passInput.text.trim() === "") {
+                                                                cardRoot.errorSsid = model.ssid
+                                                                cardRoot.connectionError = "Password Required"
+                                                                return
+                                                            }
+                                                            
+                                                            cardRoot.connectingSsid = model.ssid
+                                                            cardRoot.connectTo(model.ssid, passInput.text, false)
+                                                        }
+                                                    }
+                                                    onTextChanged: {
+                                                        if (hasError && passInput.activeFocus) {
+                                                            cardRoot.errorSsid = ""
+                                                            cardRoot.connectionError = ""
+                                                        }
+                                                    }
                                                 }
 
-                                                onAccepted: {
-                                                    if (!isConnecting && !isDisconnecting && cardRoot.hasAdapter) {
-                                                        if (model.isSecure && passInput.text.trim() === "") {
-                                                            cardRoot.errorSsid = model.ssid
-                                                            cardRoot.connectionError = "Password Required"
-                                                            return
-                                                        }
-                                                        
-                                                        cardRoot.connectingSsid = model.ssid
-                                                        cardRoot.connectTo(model.ssid, passInput.text, false)
+                                                // Eye Toggle Button
+                                                Rectangle {
+                                                    implicitWidth: 24
+                                                    implicitHeight: 24
+                                                    radius: 12
+                                                    color: eyeHover.hovered ? Qt.rgba(255, 255, 255, 0.12) : "transparent"
+
+                                                    Text {
+                                                        anchors.centerIn: parent
+                                                        text: passInput.showPassword ? "visibility" : "visibility_off"
+                                                        font.family: "Material Symbols Outlined"
+                                                        font.pixelSize: 15
+                                                        verticalAlignment: Text.AlignVCenter
+                                                        horizontalAlignment: Text.AlignHCenter
+                                                        color: eyeHover.hovered ? Config.textMain : Config.textMuted
                                                     }
+
+                                                    TapHandler { onTapped: passInput.showPassword = !passInput.showPassword }
+                                                    HoverHandler { id: eyeHover; cursorShape: Qt.PointingHandCursor }
                                                 }
                                             }
                                         }
 
+                                        // JOIN ACTION BUTTON
                                         Rectangle {
-                                            implicitWidth: 70
+                                            implicitWidth: Math.max(joinRow.implicitWidth + 18, 72)
                                             implicitHeight: 32
-                                            radius: Config.cornerRadius / 2
-                                            color: joinHover.hovered ? Qt.lighter(Config.accent, 1.1) : Config.accent
+                                            radius: 8
+                                            color: joinHover.hovered ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.85) : Config.accent
+                                            border.width: 2
+                                            border.color: Config.accent
                                             Behavior on color { ColorAnimation { duration: 150 } }
 
-                                            Text {
+                                            RowLayout {
+                                                id: joinRow
                                                 anchors.centerIn: parent
-                                                text: isConnecting ? "..." : "JOIN"
-                                                font.family: Config.sysFont
-                                                font.bold: true
-                                                font.pixelSize: Config.size(Config.fontMicro)
-                                                color: Config.bgBase
+                                                spacing: 4
+
+                                                Text {
+                                                    text: "login"
+                                                    font.family: "Material Symbols Outlined"
+                                                    font.pixelSize: 14
+                                                    verticalAlignment: Text.AlignVCenter
+                                                    horizontalAlignment: Text.AlignHCenter
+                                                    color: Config.bgBase
+                                                    visible: !isConnecting
+                                                }
+
+                                                Text {
+                                                    text: isConnecting ? "..." : "Join"
+                                                    font.family: Config.sysFont
+                                                    font.bold: true
+                                                    font.pixelSize: Config.size(Config.fontMicro)
+                                                    verticalAlignment: Text.AlignVCenter
+                                                    color: Config.bgBase
+                                                }
                                             }
 
                                             TapHandler {
@@ -717,21 +814,37 @@ Item {
                                         Layout.fillWidth: true
                                         spacing: 8
 
+                                        // Disconnect Button
                                         Rectangle {
                                             visible: isCurrentActive
                                             Layout.fillWidth: true
                                             implicitHeight: 32
-                                            radius: Config.cornerRadius / 2
-                                            color: discHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
+                                            radius: 8
+                                            color: discHover.hovered ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(255, 255, 255, 0.08)
+                                            border.width: 2
+                                            border.color: discHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.12)
                                             Behavior on color { ColorAnimation { duration: 150 } }
+                                            Behavior on border.color { ColorAnimation { duration: 150 } }
 
-                                            Text {
+                                            RowLayout {
                                                 anchors.centerIn: parent
-                                                text: isDisconnecting ? "DISCONNECTING..." : "DISCONNECT"
-                                                font.family: Config.sysFont
-                                                font.bold: true
-                                                font.pixelSize: Config.size(Config.fontMicro)
-                                                color: discHover.hovered ? Config.accent : Config.textMain
+                                                spacing: 5
+                                                Text {
+                                                    text: "link_off"
+                                                    font.family: "Material Symbols Outlined"
+                                                    font.pixelSize: 14
+                                                    verticalAlignment: Text.AlignVCenter
+                                                    horizontalAlignment: Text.AlignHCenter
+                                                    color: discHover.hovered ? Config.accent : Config.textMain
+                                                }
+                                                Text {
+                                                    text: isDisconnecting ? "Disconnecting..." : "Disconnect"
+                                                    font.family: Config.sysFont
+                                                    font.bold: true
+                                                    font.pixelSize: Config.size(Config.fontMicro)
+                                                    verticalAlignment: Text.AlignVCenter
+                                                    color: discHover.hovered ? Config.accent : Config.textMain
+                                                }
                                             }
 
                                             TapHandler {
@@ -741,21 +854,37 @@ Item {
                                             HoverHandler { id: discHover; cursorShape: Qt.PointingHandCursor }
                                         }
 
+                                        // Connect Button
                                         Rectangle {
                                             visible: !isCurrentActive && (isKnown && !hasError || !model.isSecure)
                                             Layout.fillWidth: true
                                             implicitHeight: 32
-                                            radius: Config.cornerRadius / 2
-                                            color: connHover.hovered ? Qt.lighter(Config.accent, 1.1) : Config.accent
+                                            radius: 8
+                                            color: connHover.hovered ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.85) : Config.accent
+                                            border.width: 2
+                                            border.color: Config.accent
                                             Behavior on color { ColorAnimation { duration: 150 } }
 
-                                            Text {
+                                            RowLayout {
                                                 anchors.centerIn: parent
-                                                text: isConnecting ? "CONNECTING..." : "CONNECT"
-                                                font.family: Config.sysFont
-                                                font.bold: true
-                                                font.pixelSize: Config.size(Config.fontMicro)
-                                                color: Config.bgBase
+                                                spacing: 5
+                                                Text {
+                                                    text: "login"
+                                                    font.family: "Material Symbols Outlined"
+                                                    font.pixelSize: 14
+                                                    verticalAlignment: Text.AlignVCenter
+                                                    horizontalAlignment: Text.AlignHCenter
+                                                    color: Config.bgBase
+                                                    visible: !isConnecting
+                                                }
+                                                Text {
+                                                    text: isConnecting ? "Connecting..." : "Connect"
+                                                    font.family: Config.sysFont
+                                                    font.bold: true
+                                                    font.pixelSize: Config.size(Config.fontMicro)
+                                                    verticalAlignment: Text.AlignVCenter
+                                                    color: Config.bgBase
+                                                }
                                             }
 
                                             TapHandler {
@@ -768,21 +897,37 @@ Item {
                                             HoverHandler { id: connHover; cursorShape: Qt.PointingHandCursor }
                                         }
 
+                                        // Forget Button
                                         Rectangle {
                                             visible: isKnown || isCurrentActive 
                                             Layout.fillWidth: true
                                             implicitHeight: 32
-                                            radius: Config.cornerRadius / 2
-                                            color: forgetWifiHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.06)
+                                            radius: 8
+                                            color: forgetWifiHover.hovered ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(255, 255, 255, 0.06)
+                                            border.width: 2
+                                            border.color: forgetWifiHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
                                             Behavior on color { ColorAnimation { duration: 150 } }
+                                            Behavior on border.color { ColorAnimation { duration: 150 } }
 
-                                            Text {
+                                            RowLayout {
                                                 anchors.centerIn: parent
-                                                text: "FORGET"
-                                                font.family: Config.sysFont
-                                                font.bold: true
-                                                font.pixelSize: Config.size(Config.fontMicro)
-                                                color: forgetWifiHover.hovered ? Config.accent : Config.textMuted
+                                                spacing: 5
+                                                Text {
+                                                    text: "delete_outline"
+                                                    font.family: "Material Symbols Outlined"
+                                                    font.pixelSize: 14
+                                                    verticalAlignment: Text.AlignVCenter
+                                                    horizontalAlignment: Text.AlignHCenter
+                                                    color: forgetWifiHover.hovered ? Config.accent : Config.textMuted
+                                                }
+                                                Text {
+                                                    text: "Forget"
+                                                    font.family: Config.sysFont
+                                                    font.bold: true
+                                                    font.pixelSize: Config.size(Config.fontMicro)
+                                                    verticalAlignment: Text.AlignVCenter
+                                                    color: forgetWifiHover.hovered ? Config.accent : Config.textMuted
+                                                }
                                             }
 
                                             TapHandler {
@@ -834,19 +979,34 @@ Item {
                     }
 
                     Rectangle {
-                        implicitWidth: 140
+                        implicitWidth: 150
                         implicitHeight: 34
                         radius: 17
-                        color: scanEmptyHover.hovered ? Qt.lighter(Config.accent, 1.1) : Config.accent
+                        color: scanEmptyHover.hovered ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.85) : Config.accent
+                        border.width: 2
+                        border.color: Config.accent
                         Layout.alignment: Qt.AlignHCenter
+                        Behavior on color { ColorAnimation { duration: 150 } }
 
-                        Text {
+                        RowLayout {
                             anchors.centerIn: parent
-                            text: cardRoot.wifiScanning ? "Scanning..." : "Scan for Networks"
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontMicro)
-                            font.bold: true
-                            color: Config.bgBase
+                            spacing: 6
+                            Text {
+                                text: "refresh"
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 16
+                                verticalAlignment: Text.AlignVCenter
+                                horizontalAlignment: Text.AlignHCenter
+                                color: Config.bgBase
+                            }
+                            Text {
+                                text: cardRoot.wifiScanning ? "Scanning..." : "Scan Networks"
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontMicro)
+                                font.bold: true
+                                verticalAlignment: Text.AlignVCenter
+                                color: Config.bgBase
+                            }
                         }
 
                         MouseArea {
@@ -899,19 +1059,34 @@ Item {
                     }
 
                     Rectangle {
-                        implicitWidth: 140
+                        implicitWidth: 150
                         implicitHeight: 34
                         radius: 17
-                        color: pwrOffHover.hovered ? Qt.lighter(Config.accent, 1.1) : Config.accent
+                        color: pwrOffHover.hovered ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.85) : Config.accent
+                        border.width: 2
+                        border.color: Config.accent
                         Layout.alignment: Qt.AlignHCenter
+                        Behavior on color { ColorAnimation { duration: 150 } }
 
-                        Text {
+                        RowLayout {
                             anchors.centerIn: parent
-                            text: "Turn On Wi-Fi"
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontMicro)
-                            font.bold: true
-                            color: Config.bgBase
+                            spacing: 6
+                            Text {
+                                text: "power_settings_new"
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 16
+                                verticalAlignment: Text.AlignVCenter
+                                horizontalAlignment: Text.AlignHCenter
+                                color: Config.bgBase
+                            }
+                            Text {
+                                text: "Turn On Wi-Fi"
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontMicro)
+                                font.bold: true
+                                verticalAlignment: Text.AlignVCenter
+                                color: Config.bgBase
+                            }
                         }
 
                         MouseArea {

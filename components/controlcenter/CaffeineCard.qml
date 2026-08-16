@@ -109,7 +109,17 @@ Item {
             anchors.fill: parent
             enabled: cardRoot.panelExpanded
             preventStealing: true
-            onClicked: {}
+            hoverEnabled: true
+            acceptedButtons: Qt.AllButtons
+            onPressed: (mouse) => mouse.accepted = true
+            onReleased: (mouse) => mouse.accepted = true
+            onClicked: (mouse) => mouse.accepted = true
+        }
+
+        TapHandler {
+            enabled: cardRoot.panelExpanded
+            gesturePolicy: TapHandler.WithinBounds
+            onTapped: {}
         }
 
         // --- 1. COLLAPSED CARD HEADER VIEW ---
@@ -120,6 +130,7 @@ Item {
             anchors.right: parent.right
             height: 64
             visible: opacity > 0
+            enabled: !cardRoot.panelExpanded
             opacity: cardRoot.panelExpanded ? 0.0 : 1.0
             Behavior on opacity { NumberAnimation { duration: 150 } }
 
@@ -152,7 +163,7 @@ Item {
                             text: cardRoot.caffeineState === 2 ? "schedule" : "coffee"
                             font.family: "Material Symbols Outlined"
                             font.pixelSize: 22
-                            color: (!cardRoot.hasHypridle || cardRoot.caffeineState === 0) ? Config.textMuted : Config.bgBase
+                            color: cardRoot.caffeineState !== 0 ? Config.bgBase : Config.textMuted
                         }
 
                         MouseArea {
@@ -212,6 +223,7 @@ Item {
                         font.pixelSize: 20
                         color: cardHover.hovered ? Config.textMain : Config.textMuted
                         opacity: cardRoot.hasHypridle ? 0.7 : 0.2
+                        Behavior on color { ColorAnimation { duration: 150 } }
                     }
                 }
 
@@ -233,6 +245,7 @@ Item {
             anchors.fill: parent
             anchors.margins: 14
             visible: opacity > 0
+            enabled: cardRoot.panelExpanded
             opacity: cardRoot.panelExpanded ? 1.0 : 0.0
             Behavior on opacity { NumberAnimation { duration: 180 } }
 
