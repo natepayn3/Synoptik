@@ -96,7 +96,7 @@ Item {
                     Text {
                         text: {
                             if (root.battStatus === "Charging") return "battery_android_frame_bolt"
-                            if (root.battCapacity <= 10) return "battery_android_frame_0"
+                            if (root.battCapacity <= 10) return "battery_android_0"
                             if (root.battCapacity <= 25) return "battery_android_frame_1"
                             if (root.battCapacity <= 40) return "battery_android_frame_2"
                             if (root.battCapacity <= 60) return "battery_android_frame_3"
