@@ -18,6 +18,15 @@ Scope {
     property bool sessionLocked: Config.sessionLocked
     property var shellRef: null
 
+    // Shared global password state across ALL monitor surfaces
+    property string currentPassword: ""
+    property bool isAuthenticating: false
+    property bool isError: false
+    property bool isSuccess: false
+    property bool capsLockActive: false
+    property string authStatus: "System Locked"
+    property var shapeItems: []
+
     // Active User Information
     readonly property string currentUsername: Quickshell.env("USER") || "user"
     property string realName: Quickshell.env("USER") || "User"
@@ -75,6 +84,7 @@ Scope {
                     lockscreenScope.currentTrackTitle = parts[0] || ""
                     lockscreenScope.currentTrackArtist = parts[1] || ""
                     lockscreenScope.currentTrackStatus = parts[2] || "Stopped"
+                    lockscreenScope.hasActiveMedia = (lockscreenScope.currentTrackStatus === "Playing" || lockscreenScope.currentTrackStatus === "Paused")
                 } else {
                     lockscreenScope.hasActiveMedia = false
                 }
@@ -84,12 +94,51 @@ Scope {
 
     Timer {
         id: mediaPollTimer
-        interval: 3000
+        interval: 2500
         running: lockscreenScope.sessionLocked
         repeat: true
+        onTriggered: lockscreenScope.refreshMedia()
+    }
+
+    function refreshMedia() {
+        mediaInfoProc.running = false
+        mediaInfoProc.running = true
+    }
+
+    function mediaPlayPause() {
+        // Instant optimistic toggle for immediate 0ms UI feedback
+        if (lockscreenScope.currentTrackStatus === "Playing") {
+            lockscreenScope.currentTrackStatus = "Paused"
+        } else if (lockscreenScope.currentTrackStatus === "Paused") {
+            lockscreenScope.currentTrackStatus = "Playing"
+        }
+
+        // Pause polling timer during transition to avoid stale DBus bounceback
+        mediaPollTimer.stop()
+        Quickshell.execDetached(["playerctl", "play-pause"])
+        mediaSyncTimer.restart()
+    }
+
+    function mediaPrevious() {
+        mediaPollTimer.stop()
+        Quickshell.execDetached(["playerctl", "previous"])
+        mediaSyncTimer.restart()
+    }
+
+    function mediaNext() {
+        mediaPollTimer.stop()
+        Quickshell.execDetached(["playerctl", "next"])
+        mediaSyncTimer.restart()
+    }
+
+    // Debounce sync so DBus finishes updating before re-checking true status
+    Timer {
+        id: mediaSyncTimer
+        interval: 650
+        repeat: false
         onTriggered: {
-            mediaInfoProc.running = false
-            mediaInfoProc.running = true
+            lockscreenScope.refreshMedia()
+            mediaPollTimer.restart()
         }
     }
 
@@ -98,8 +147,6 @@ Scope {
         id: pam
         user: lockscreenScope.currentUsername
         property string pendingPassword: ""
-        property var activeBar: null
-        property var activeSurface: null
 
         onResponseRequiredChanged: {
             if (responseRequired && pendingPassword !== "") {
@@ -110,10 +157,10 @@ Scope {
 
         onCompleted: (result) => {
             if (result === PamResult.Success) {
-                if (activeSurface) activeSurface.authStatus = "Unlocked!"
-                if (activeBar) activeBar.isSuccess = true
+                lockscreenScope.authStatus = "Unlocked!"
+                lockscreenScope.isSuccess = true
+                lockscreenScope.isAuthenticating = false
 
-                // Hyprland session lock restore fix
                 if (Quickshell.env("XDG_CURRENT_DESKTOP") === "Hyprland" || Quickshell.env("HYPRLAND_INSTANCE_SIGNATURE") !== "") {
                     Quickshell.execDetached(["hyprctl", "keyword", "misc:allow_session_lock_restore", "1"])
                 }
@@ -121,15 +168,22 @@ Scope {
 
                 unlockTimer.start()
             } else {
-                if (activeBar) {
-                    activeBar.isAuthenticating = false
-                    activeBar.triggerErrorFeedback()
-                }
-                if (activeSurface) {
-                    activeSurface.authStatus = "Incorrect password. Try again."
-                }
+                lockscreenScope.isAuthenticating = false
+                lockscreenScope.isError = true
+                lockscreenScope.authStatus = "Incorrect password. Try again."
+                errorResetTimer.restart()
                 pendingPassword = ""
             }
+        }
+    }
+
+    Timer {
+        id: errorResetTimer
+        interval: 650
+        repeat: false
+        onTriggered: {
+            lockscreenScope.clearInput()
+            lockscreenScope.isError = false
         }
     }
 
@@ -140,16 +194,72 @@ Scope {
         onTriggered: {
             Config.sessionLocked = false
             if (lockscreenScope.shellRef) lockscreenScope.shellRef.sessionLocked = false
+            lockscreenScope.clearInput()
         }
     }
 
-    function authenticate(password, barItem, surfaceItem) {
-        pam.activeBar = barItem
-        pam.activeSurface = surfaceItem
+    function authenticate(password) {
+        if (password.length === 0 || lockscreenScope.isAuthenticating) return
         pam.pendingPassword = password
-        if (barItem) barItem.isAuthenticating = true
-        if (surfaceItem) surfaceItem.authStatus = "Verifying..."
+        lockscreenScope.isAuthenticating = true
+        lockscreenScope.authStatus = "Verifying..."
         pam.start()
+    }
+
+    function clearInput() {
+        lockscreenScope.currentPassword = ""
+        lockscreenScope.shapeItems = []
+        lockscreenScope.authStatus = "System Locked"
+    }
+
+    // Shape Generation Logic Shared Across All Screens
+    readonly property var specialChars: [
+        "!", "@", "#", "$", "%", "^", "&", "*", "~", "?",
+        "+", "=", "<", ">", "/", "§", "★", "◆", "▲", "■",
+        "✦", "❖", "◈", "⚡", "λ", "π", "Ω", "¥", "€", "∞",
+        "∆", "∑", "√", "⬡", "⌘"
+    ]
+
+    function getRandomColor() {
+        let paletteMode = Config.lockscreenShapePalette || "vibrant"
+        if (paletteMode === "accent") return Config.accent
+        let vibrant = ["#00f0ff", "#a855f7", "#f59e0b", "#10b981", "#ec4899", "#38bdf8", "#f43f5e", "#84cc16", "#06b6d4", "#e879f9"]
+        return vibrant[Math.floor(Math.random() * vibrant.length)]
+    }
+
+    function generateShapeToken(charIndex) {
+        let rotations = [0, 45, 90, 135, 180, 225, 270, 315]
+        let pickedChar = specialChars[Math.floor(Math.random() * specialChars.length)]
+        return {
+            id: Date.now() + "_" + Math.random(),
+            shapeIndex: Math.floor(Math.random() * 16),
+            color: getRandomColor(),
+            rotation: rotations[Math.floor(Math.random() * rotations.length)],
+            isOutline: Math.random() < 0.22,
+            charGlyph: pickedChar,
+            maskStyle: Config.lockscreenMaskStyle || "shapes",
+            animIndex: charIndex
+        }
+    }
+
+    function updateShapes(newPass) {
+        let currentLen = lockscreenScope.shapeItems.length
+        let targetLen = newPass.length
+
+        if (targetLen === 0) {
+            lockscreenScope.shapeItems = []
+            return
+        }
+
+        if (targetLen > currentLen) {
+            let updated = lockscreenScope.shapeItems.slice()
+            for (let i = currentLen; i < targetLen; i++) {
+                updated.push(generateShapeToken(i))
+            }
+            lockscreenScope.shapeItems = updated
+        } else if (targetLen < currentLen) {
+            lockscreenScope.shapeItems = lockscreenScope.shapeItems.slice(0, targetLen)
+        }
     }
 
     // ==========================================
@@ -163,10 +273,8 @@ Scope {
             WlSessionLockSurface {
                 id: surfaceRoot
 
-                property string authStatus: "System Locked"
                 property var currentTime: new Date()
 
-                // Resolve whether this surface is the selected lockscreen display
                 readonly property bool isTargetScreen: {
                     let target = Config.lockscreenTargetMonitor || "focused"
                     if (target === "focused") {
@@ -186,29 +294,90 @@ Scope {
                     onTriggered: surfaceRoot.currentTime = new Date()
                 }
 
-                // Default blackout canvas for all surfaces
                 color: "#000000"
 
-                // Absorb unhandled touch/gestures
                 PinchHandler { target: null }
                 WheelHandler { target: null }
 
-                MouseArea {
+                // Universal Hidden Input (z: -1 allows click events to reach buttons on top)
+                TextInput {
+                    id: globalScreenInput
                     anchors.fill: parent
-                    acceptedButtons: Qt.AllButtons
-                    hoverEnabled: true
-                    onWheel: (wheel) => { wheel.accepted = true }
-                    onClicked: {
-                        if (surfaceRoot.isTargetScreen && passBar) passBar.forceFocus()
+                    opacity: 0.001
+                    color: "transparent"
+                    z: -1
+                    focus: true
+                    echoMode: TextInput.NoEcho
+                    clip: true
+                    cursorVisible: false
+                    selectByMouse: false
+
+                    text: lockscreenScope.currentPassword
+
+                    onTextChanged: {
+                        if (lockscreenScope.currentPassword !== text) {
+                            lockscreenScope.currentPassword = text
+                            lockscreenScope.updateShapes(text)
+                        }
+                    }
+
+                    Keys.onPressed: (event) => {
+                        if (event.key === Qt.Key_CapsLock) {
+                            if (!event.isAutoRepeat) {
+                                lockscreenScope.capsLockActive = !lockscreenScope.capsLockActive
+                            }
+                            event.accepted = true
+                            return
+                        }
+
+                        // Media keys
+                        if (event.key === Qt.Key_MediaPlay || event.key === Qt.Key_MediaTogglePlayPause) {
+                            event.accepted = true
+                            lockscreenScope.mediaPlayPause()
+                            return
+                        } else if (event.key === Qt.Key_MediaNext) {
+                            event.accepted = true
+                            lockscreenScope.mediaNext()
+                            return
+                        } else if (event.key === Qt.Key_MediaPrevious) {
+                            event.accepted = true
+                            lockscreenScope.mediaPrevious()
+                            return
+                        }
+
+                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+                            event.accepted = true
+                            lockscreenScope.authenticate(lockscreenScope.currentPassword)
+                        } else if (event.key === Qt.Key_Escape) {
+                            event.accepted = true
+                            lockscreenScope.clearInput()
+                        } else if (event.modifiers & Qt.ControlModifier) {
+                            if (event.key === Qt.Key_U || event.key === Qt.Key_Backspace) {
+                                event.accepted = true
+                                lockscreenScope.clearInput()
+                            }
+                        }
                     }
                 }
 
-                // UI Container (Only visible and active on the designated display)
+                // Background click catcher (Only active on secondary blackout displays)
+                MouseArea {
+                    anchors.fill: parent
+                    visible: !surfaceRoot.isTargetScreen
+                    acceptedButtons: Qt.AllButtons
+                    hoverEnabled: true
+                    onPressed: globalScreenInput.forceActiveFocus()
+                    onClicked: globalScreenInput.forceActiveFocus()
+                }
+
+                // ========================================================
+                // UI Container (Only visible on the designated target monitor)
+                // ========================================================
                 Item {
                     anchors.fill: parent
                     visible: surfaceRoot.isTargetScreen
 
-                    // 1. WALLPAPER BACKGROUND + GAUSSIAN BLUR
+                    // 1. WALLPAPER BACKGROUND + BLUR
                     Item {
                         anchors.fill: parent
 
@@ -230,7 +399,6 @@ Scope {
                             visible: bgImage.status === Image.Ready
                         }
 
-                        // Fallback gradient if no wallpaper loaded
                         Rectangle {
                             anchors.fill: parent
                             visible: bgImage.status !== Image.Ready
@@ -240,13 +408,11 @@ Scope {
                             }
                         }
 
-                        // Darkening / Vignette Overlay
                         Rectangle {
                             anchors.fill: parent
                             color: Qt.rgba(0, 0, 0, 0.58)
                         }
 
-                        // Subtle Radial Ambient Accent Glow
                         RadialGradient {
                             anchors.centerIn: parent
                             width: parent.width * 1.2
@@ -259,7 +425,7 @@ Scope {
                         }
                     }
 
-                    // 2. TOP STATUS BAR (Battery, Time, Host)
+                    // 2. TOP STATUS BAR
                     Rectangle {
                         anchors.top: parent.top
                         anchors.left: parent.left
@@ -272,11 +438,9 @@ Scope {
                             anchors.leftMargin: 24
                             anchors.rightMargin: 24
 
-                            // Left: Battery Indicator
                             RowLayout {
                                 spacing: 16
 
-                                // Battery Pill
                                 RowLayout {
                                     spacing: 6
                                     visible: lockscreenScope.shellRef ? lockscreenScope.shellRef.hasBattery : false
@@ -313,7 +477,6 @@ Scope {
 
                             Item { Layout.fillWidth: true }
 
-                            // Right: Hostname & Session Badge
                             RowLayout {
                                 spacing: 12
 
@@ -355,12 +518,11 @@ Scope {
                         spacing: 24
                         width: Math.min(520, surfaceRoot.width - 48)
 
-                        // CLOCK & DATE SECTION
+                        // CLOCK SECTION
                         ColumnLayout {
                             Layout.alignment: Qt.AlignHCenter
                             spacing: 6
 
-                            // Large Digital Clock + AM/PM Row
                             RowLayout {
                                 Layout.alignment: Qt.AlignHCenter
                                 spacing: 8
@@ -400,13 +562,12 @@ Scope {
                                         }
                                         color: Config.textMain
                                         font.family: Config.sysFont
-                                        font.pixelSize: (Config.size(Config.fontDisplay) * 2) || 96
+                                        font.pixelSize: Config.lockscreenClockSize || 96
                                         font.weight: Font.DemiBold
                                         font.letterSpacing: -2
                                     }
                                 }
 
-                                // AM / PM Pill Badge
                                 Rectangle {
                                     visible: (Config.lockscreenUse12Hour !== false) && (Config.lockscreenShowAmPm !== false)
                                     implicitWidth: amPmText.implicitWidth + 14
@@ -430,7 +591,6 @@ Scope {
                                 }
                             }
 
-                            // Formatted Date
                             Text {
                                 id: lockDateText
                                 Layout.alignment: Qt.AlignHCenter
@@ -449,18 +609,16 @@ Scope {
                             }
                         }
 
-                        // USER AVATAR & IDENTITY
+                        // USER AVATAR (200px)
                         ColumnLayout {
                             Layout.alignment: Qt.AlignHCenter
                             spacing: 14
 
-                            // Avatar Circle with Glowing Ring (200px)
                             Item {
                                 Layout.alignment: Qt.AlignHCenter
                                 implicitWidth: 200
                                 implicitHeight: 200
 
-                                // Outer Glowing Ring
                                 RectangularGlow {
                                     anchors.fill: avatarRing
                                     glowRadius: 16
@@ -478,7 +636,6 @@ Scope {
                                     border.width: 3
                                     border.color: Config.accent
 
-                                    // Avatar Image or Fallback Icon
                                     Image {
                                         id: avatarImg
                                         anchors.fill: parent
@@ -507,7 +664,6 @@ Scope {
                                 }
                             }
 
-                            // User Display Name
                             Text {
                                 Layout.alignment: Qt.AlignHCenter
                                 text: lockscreenScope.realName
@@ -517,14 +673,13 @@ Scope {
                                 font.bold: true
                             }
 
-                            // Auth Status Label
                             Text {
                                 id: statusLabel
                                 Layout.alignment: Qt.AlignHCenter
-                                text: surfaceRoot.authStatus
-                                color: surfaceRoot.authStatus.includes("Incorrect") 
+                                text: lockscreenScope.authStatus
+                                color: lockscreenScope.authStatus.includes("Incorrect") 
                                     ? "#ef4444" 
-                                    : (surfaceRoot.authStatus.includes("Unlocked") ? "#10b981" : Config.textMuted)
+                                    : (lockscreenScope.authStatus.includes("Unlocked") ? "#10b981" : Config.textMuted)
                                 font.family: Config.sysFont
                                 font.pixelSize: Config.size(Config.fontCaption)
                                 font.italic: true
@@ -533,24 +688,30 @@ Scope {
                             }
                         }
 
-                        // 4. THE PASSWORD INPUT BAR WITH RANDOMIZED SHAPES / GLYPHS
+                        // 4. THE PASSWORD BAR
                         LockscreenPasswordBar {
                             id: passBar
                             Layout.alignment: Qt.AlignHCenter
                             Layout.fillWidth: true
+                            password: lockscreenScope.currentPassword
+                            shapeItems: lockscreenScope.shapeItems
+                            isAuthenticating: lockscreenScope.isAuthenticating
+                            isError: lockscreenScope.isError
+                            isSuccess: lockscreenScope.isSuccess
+                            capsLockActive: lockscreenScope.capsLockActive
                             maskStyle: Config.lockscreenMaskStyle || "shapes"
                             paletteMode: Config.lockscreenShapePalette || "vibrant"
 
                             onSubmitPassword: (pass) => {
-                                lockscreenScope.authenticate(pass, passBar, surfaceRoot)
+                                lockscreenScope.authenticate(pass)
                             }
 
                             onClearRequested: {
-                                surfaceRoot.authStatus = "System Locked"
+                                lockscreenScope.clearInput()
                             }
                         }
 
-                        // 5. MPRIS MEDIA MINI CONTROLLER (Optional / When Playing)
+                        // 5. MPRIS MINI CONTROLLER
                         Rectangle {
                             id: mediaCard
                             visible: (Config.lockscreenShowMedia !== false) && lockscreenScope.hasActiveMedia
@@ -568,7 +729,6 @@ Scope {
                                 anchors.rightMargin: 14
                                 spacing: 10
 
-                                // Music Icon
                                 Rectangle {
                                     implicitWidth: 32
                                     implicitHeight: 32
@@ -584,7 +744,6 @@ Scope {
                                     }
                                 }
 
-                                // Track Info
                                 ColumnLayout {
                                     Layout.fillWidth: true
                                     spacing: 2
@@ -609,7 +768,6 @@ Scope {
                                     }
                                 }
 
-                                // Controls (Prev, Play/Pause, Next)
                                 RowLayout {
                                     spacing: 4
 
@@ -618,7 +776,7 @@ Scope {
                                         color: prevHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
                                         Text { anchors.centerIn: parent; text: "skip_previous"; font.family: "Material Symbols Outlined"; font.pixelSize: 18; color: Config.textMain }
                                         HoverHandler { id: prevHover; cursorShape: Qt.PointingHandCursor }
-                                        TapHandler { onTapped: Quickshell.execDetached(["playerctl", "previous"]) }
+                                        TapHandler { onTapped: lockscreenScope.mediaPrevious() }
                                     }
 
                                     Rectangle {
@@ -632,7 +790,7 @@ Scope {
                                             color: playHover.hovered ? Config.bgBase : Config.textMain
                                         }
                                         HoverHandler { id: playHover; cursorShape: Qt.PointingHandCursor }
-                                        TapHandler { onTapped: Quickshell.execDetached(["playerctl", "play-pause"]) }
+                                        TapHandler { onTapped: lockscreenScope.mediaPlayPause() }
                                     }
 
                                     Rectangle {
@@ -640,7 +798,7 @@ Scope {
                                         color: nextHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
                                         Text { anchors.centerIn: parent; text: "skip_next"; font.family: "Material Symbols Outlined"; font.pixelSize: 18; color: Config.textMain }
                                         HoverHandler { id: nextHover; cursorShape: Qt.PointingHandCursor }
-                                        TapHandler { onTapped: Quickshell.execDetached(["playerctl", "next"]) }
+                                        TapHandler { onTapped: lockscreenScope.mediaNext() }
                                     }
                                 }
                             }
@@ -697,9 +855,7 @@ Scope {
                 }
 
                 Component.onCompleted: {
-                    if (surfaceRoot.isTargetScreen && passBar) {
-                        passBar.forceFocus()
-                    }
+                    globalScreenInput.forceActiveFocus()
                 }
             }
         }
