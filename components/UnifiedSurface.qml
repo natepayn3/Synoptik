@@ -725,7 +725,7 @@ PanelWindow {
                         startX: root.inX; startY: root.inY + root.inH
                         PathLine { x: root.inX + root.inRadi; y: root.inY + root.inH }
                         PathArc { x: root.inX; y: root.inY + root.inH - root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
-                        PathLine { x: root.inX; y: root.inY + root.inH }
+                        PathLine { x: root.inX; y: root.inY }
                     }
                     ShapePath {
                         fillColor: hideBR ? "transparent" : Config.bgPanel; strokeWidth: 0

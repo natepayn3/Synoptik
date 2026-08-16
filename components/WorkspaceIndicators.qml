@@ -151,9 +151,15 @@ Item {
     // Outer Capsule / Frame Container
     Rectangle {
         id: containerBox
-        anchors.verticalCenter: parent.verticalCenter
-        implicitWidth: mainLayout.implicitWidth + (Config.workspaceContainerStyle === "plain" ? 0 : 16)
-        implicitHeight: root.isVertical ? (mainLayout.implicitHeight + (Config.workspaceContainerStyle === "plain" ? 0 : 12)) : 32
+        anchors.horizontalCenter: root.isVertical ? parent.horizontalCenter : undefined
+        anchors.verticalCenter: root.isVertical ? undefined : parent.verticalCenter
+        implicitWidth: root.isVertical
+            ? (mainLayout.implicitWidth + (Config.workspaceContainerStyle === "plain" ? 0 : 8))
+            : (mainLayout.implicitWidth + (Config.workspaceContainerStyle === "plain" ? 0 : 16))
+        implicitHeight: root.isVertical
+            ? (mainLayout.implicitHeight + (Config.workspaceContainerStyle === "plain" ? 0 : 16))
+            : 32
+        width: root.isVertical ? Math.min(32, implicitWidth) : implicitWidth
         height: root.isVertical ? implicitHeight : 32
         radius: (Config.workspaceContainerStyle === "bordered") ? 8 : 10
 

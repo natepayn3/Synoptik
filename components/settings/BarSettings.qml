@@ -1,301 +1,858 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import Qt5Compat.GraphicalEffects
 import Quickshell
 import ".."
 
 Flickable {
-    id: flickable
+    id: flickableRoot
     Layout.fillWidth: true
     Layout.fillHeight: true
     contentWidth: width
-    contentHeight: contentColumn.implicitHeight + 32
+    contentHeight: contentColumn.implicitHeight + 40
     clip: true
+    boundsBehavior: Flickable.StopAtBounds
 
     ScrollBar.vertical: ScrollBar {
         policy: ScrollBar.AsNeeded
-        active: flickable.moving || flickable.flicking
+        active: flickableRoot.moving || flickableRoot.flicking
+    }
+
+    readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
+
+    // Reusable Sleek Toggle Switch Component (Matching AppearanceSettings)
+    component ToggleSwitch : Rectangle {
+        id: sw
+        property bool checked: false
+        implicitWidth: 38
+        implicitHeight: 22
+        radius: 11
+        color: checked ? Config.accent : Qt.rgba(255, 255, 255, 0.12)
+        border.width: 1
+        border.color: checked ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
+
+        Behavior on color { ColorAnimation { duration: 150 } }
+        Behavior on border.color { ColorAnimation { duration: 150 } }
+
+        Rectangle {
+            x: sw.checked ? (sw.width - width - 3) : 3
+            anchors.verticalCenter: parent.verticalCenter
+            width: 16
+            height: 16
+            radius: 8
+            color: sw.checked ? Config.bgBase : Config.textMain
+            border.width: sw.checked ? 0 : 1
+            border.color: Qt.rgba(255, 255, 255, 0.2)
+
+            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutQuad } }
+            Behavior on color { ColorAnimation { duration: 150 } }
+        }
     }
 
     ColumnLayout {
         id: contentColumn
+        width: Math.min(flickableRoot.width - (flickableRoot.cardMargin * 2), 620)
         anchors.horizontalCenter: parent.horizontalCenter
-        width: Math.min(flickable.width - 32, 620)
-        spacing: 16
+        spacing: flickableRoot.cardMargin
 
-        Text {
-            text: "BAR ORIENTATION"
-            color: Config.textMuted
-            font.family: Config.sysFont
-            font.pixelSize: Config.size(Config.fontCaption)
-            font.bold: true
-        }
-
-        // Interactive Wireframe Monitor Preview
-        Rectangle {
-            id: monitorFrame
-            Layout.alignment: Qt.AlignHCenter
-            implicitWidth: 180
-            implicitHeight: 108
-            color: "transparent"
-            border.color: Config.textMain
-            border.width: 2
-            radius: 12
-
-            Rectangle { anchors.centerIn: parent; width: 24; height: 1; color: Config.textMain; opacity: 0.2 }
-            Rectangle { anchors.centerIn: parent; width: 1; height: 24; color: Config.textMain; opacity: 0.2 }
-
-            Rectangle {
-                anchors.fill: parent
-                anchors.margins: Config.barFrameStyle === "screen" ? 2 : 0
-                color: "transparent"
-                border.color: Config.accent
-                border.width: Config.barFrameStyle === "screen" ? 3 : 0
-                radius: Config.barFrameStyle === "screen" ? 10 : 0
-                visible: Config.barFrameStyle === "screen"
-                opacity: 1.0
-            }
-
-            Item {
-                id: containerItem
-                anchors.fill: parent
-                anchors.margins: Config.barFrameStyle === "screen" ? 5 : 6
-
-                Rectangle {
-                    id: miniActiveBar
-                    color: Config.accent
-                    opacity: 1.0
-                    radius: (Config.barFrameStyle === "floating" || Config.barFrameStyle === "island") ? 4 : 0
-
-                    states: [
-                        State {
-                            name: "top"
-                            when: Config.barPosition === "top"
-                            PropertyChanges {
-                                target: miniActiveBar
-                                x: Config.barFrameStyle === "island" ? (containerItem.width * 0.2) : 0
-                                y: 0
-                                width: Config.barFrameStyle === "island" ? (containerItem.width * 0.6) : containerItem.width
-                                height: 8
-                            }
-                        },
-                        State {
-                            name: "bottom"
-                            when: Config.barPosition === "bottom"
-                            PropertyChanges {
-                                target: miniActiveBar
-                                x: Config.barFrameStyle === "island" ? (containerItem.width * 0.2) : 0
-                                y: containerItem.height - 8
-                                width: Config.barFrameStyle === "island" ? (containerItem.width * 0.6) : containerItem.width
-                                height: 8
-                            }
-                        },
-                        State {
-                            name: "left"
-                            when: Config.barPosition === "left"
-                            PropertyChanges {
-                                target: miniActiveBar
-                                x: 0
-                                y: Config.barFrameStyle === "island" ? (containerItem.height * 0.2) : 0
-                                width: 8
-                                height: Config.barFrameStyle === "island" ? (containerItem.height * 0.6) : containerItem.height
-                            }
-                        },
-                        State {
-                            name: "right"
-                            when: Config.barPosition === "right"
-                            PropertyChanges {
-                                target: miniActiveBar
-                                x: containerItem.width - 8
-                                y: Config.barFrameStyle === "island" ? (containerItem.height * 0.2) : 0
-                                width: 8
-                                height: Config.barFrameStyle === "island" ? (containerItem.height * 0.6) : containerItem.height
-                            }
-                        }
-                    ]
-
-                    transitions: [
-                        Transition {
-                            from: "*"; to: "*"
-                            ParallelAnimation {
-                                NumberAnimation { properties: "x,y,width,height"; duration: 150; easing.type: Easing.OutCubic }
-                            }
-                        }
-                    ]
-                }
-            }
-
-            TapHandler {
-                onTapped: (point) => {
-                    let localX = point.position.x
-                    let localY = point.position.y
-                    let xPct = Math.max(0.0, Math.min(1.0, localX / monitorFrame.width))
-                    let yPct = Math.max(0.0, Math.min(1.0, localY / monitorFrame.height))
-                    let dists = [yPct, 1.0 - yPct, xPct, 1.0 - xPct]
-                    let minIdx = dists.indexOf(Math.min(...dists))
-                    let edges = ["top", "bottom", "left", "right"]
-                    Config.barPosition = edges[minIdx]
-                }
-            }
-            HoverHandler { cursorShape: Qt.PointingHandCursor }
-        }
-
-        // Frame Style Buttons
+        // ==========================================
+        // HEADER TITLE BLOCK
+        // ==========================================
         ColumnLayout {
             Layout.fillWidth: true
-            Layout.alignment: Qt.AlignHCenter
-            spacing: 8
+            spacing: 2
 
             Text {
-                text: "Bar Frame Style:"
+                Layout.fillWidth: true
+                text: "BAR CONFIGURATION"
                 color: Config.textMain
                 font.family: Config.sysFont
-                font.pixelSize: Config.size(Config.fontBody)
+                font.pixelSize: Config.size(Config.fontSubhead)
                 font.bold: true
-                Layout.alignment: Qt.AlignHCenter
+                wrapMode: Text.WordWrap
             }
 
-            RowLayout {
-                Layout.alignment: Qt.AlignHCenter
-                spacing: 8
+            Text {
+                Layout.fillWidth: true
+                text: "Configure panel edge orientation, floating geometry frame styles, multi-monitor display targeting, and auto-hide behaviors."
+                color: Config.textMuted
+                font.family: Config.sysFont
+                font.pixelSize: Config.size(Config.fontCaption)
+                wrapMode: Text.WordWrap
+            }
+        }
 
-                Repeater {
-                    model: [
-                        { name: "Floating", style: "floating", icon: "crop_21_9" },
-                        { name: "Island", style: "island", icon: "crop_16_9" },
-                        { name: "Edge", style: "edge", icon: "border_left" },
-                        { name: "Frame", style: "screen", icon: "web_asset" }
-                    ]
+        // ==========================================
+        // 1. LIVE INTERACTIVE SHOWCASE CARD
+        // ==========================================
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: previewCol.implicitHeight + 28
+            radius: Config.cornerRadius
+            color: Qt.rgba(255, 255, 255, 0.05)
+            border.width: 1
+            border.color: Qt.rgba(255, 255, 255, 0.1)
 
-                    delegate: Rectangle {
-                        required property var modelData
-                        implicitWidth: 95
-                        implicitHeight: 36
-                        radius: Config.cornerRadius / 2
+            ColumnLayout {
+                id: previewCol
+                anchors.fill: parent
+                anchors.margins: 14
+                spacing: 14
 
-                        readonly property bool isSelected: Config.barFrameStyle === modelData.style
-                        color: isSelected ? Qt.rgba(255, 255, 255, 0.12) : (modeHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : Qt.rgba(255, 255, 255, 0.03))
-                        border.width: isSelected ? 1 : 0
-                        border.color: Config.accent
+                // Header Row
+                RowLayout {
+                    Layout.fillWidth: true
+
+                    ColumnLayout {
+                        spacing: 2
+                        Text {
+                            text: "LIVE BAR PREVIEW & DOCK CONTROLS"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
+                            font.bold: true
+                        }
+                        Text {
+                            text: "Click edge buttons to position bar or switch frame styles below."
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                        }
+                    }
+
+                    Item { Layout.fillWidth: true }
+
+                    // Interactive Hint Badge
+                    Rectangle {
+                        implicitWidth: hintRow.implicitWidth + 14
+                        implicitHeight: 24
+                        radius: 12
+                        color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.18)
+                        border.width: 1
+                        border.color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.4)
 
                         RowLayout {
+                            id: hintRow
                             anchors.centerIn: parent
-                            spacing: 6
-
+                            spacing: 4
                             Text {
-                                text: modelData.icon
-                                color: isSelected ? Config.accent : Config.textMuted
+                                text: "touch_app"
                                 font.family: "Material Symbols Outlined"
-                                font.pixelSize: 16
+                                font.pixelSize: 13
+                                color: Config.accent
+                            }
+                            Text {
+                                text: "Live Docking Controls"
+                                font.family: Config.sysFont
+                                font.pixelSize: 10
+                                font.bold: true
+                                color: Config.accent
+                            }
+                        }
+                    }
+                }
+
+                // Interactive Monitor Display Canvas
+                Rectangle {
+                    id: monitorCanvas
+                    Layout.fillWidth: true
+                    implicitHeight: 240
+                    radius: Config.cornerRadius - 2
+                    color: Qt.rgba(255, 255, 255, 0.03)
+                    border.width: 1
+                    border.color: Qt.rgba(255, 255, 255, 0.12)
+                    clip: true
+
+                    // Ambient Background Gradient Representation
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: parent.radius
+                        gradient: Gradient {
+                            GradientStop { position: 0.0; color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.12) }
+                            GradientStop { position: 1.0; color: Qt.rgba(255, 255, 255, 0.02) }
+                        }
+                    }
+
+                    // Clean Desktop Watermark Badge
+                    ColumnLayout {
+                        anchors.centerIn: parent
+                        spacing: 4
+                        opacity: 0.3
+
+                        Text {
+                            text: "desktop_windows"
+                            font.family: "Material Symbols Outlined"
+                            font.pixelSize: 32
+                            color: Config.accent
+                            Layout.alignment: Qt.AlignHCenter
+                        }
+
+                        Text {
+                            text: "SYNOPTIK DESKTOP VIEWPORT"
+                            font.family: Config.sysFont
+                            font.pixelSize: 10
+                            font.bold: true
+                            color: Config.textMain
+                            Layout.alignment: Qt.AlignHCenter
+                        }
+                    }
+
+                    // Screen Frame Highlight Overlay (when screen frame mode is active)
+                    Rectangle {
+                        anchors.fill: parent
+                        anchors.margins: 4
+                        color: "transparent"
+                        radius: 8
+                        border.width: (Config.barFrameStyle === "screen" || Config.showScreenFrame) ? 3 : 0
+                        border.color: Config.accent
+                        visible: Config.barFrameStyle === "screen" || Config.showScreenFrame
+                        Behavior on border.width { NumberAnimation { duration: 150 } }
+                    }
+
+                    // Simulated Interactive Status Bar
+                    Rectangle {
+                        id: miniBar
+                        z: 5
+                        readonly property bool isVertical: Config.barPosition === "left" || Config.barPosition === "right"
+                        readonly property bool isIslandStyle: Config.barFrameStyle === "island"
+                        readonly property bool isFloatingStyle: Config.barFrameStyle === "floating" || isIslandStyle
+
+                        // Position & Dimensions Animation
+                        x: {
+                            if (Config.barPosition === "left") return isFloatingStyle ? 36 : 0
+                            if (Config.barPosition === "right") return monitorCanvas.width - width - (isFloatingStyle ? 36 : 0)
+                            if (isIslandStyle) return (monitorCanvas.width - width) / 2
+                            return isFloatingStyle ? 12 : 0
+                        }
+                        y: {
+                            if (Config.barPosition === "top") return isFloatingStyle ? 36 : 0
+                            if (Config.barPosition === "bottom") return monitorCanvas.height - height - (isFloatingStyle ? 36 : 0)
+                            if (isIslandStyle) return (monitorCanvas.height - height) / 2
+                            return isFloatingStyle ? 12 : 0
+                        }
+                        width: {
+                            if (isVertical) return 36
+                            if (isIslandStyle) return monitorCanvas.width * 0.6
+                            return isFloatingStyle ? (monitorCanvas.width - 24) : monitorCanvas.width
+                        }
+                        height: {
+                            if (!isVertical) return 32
+                            if (isIslandStyle) return monitorCanvas.height * 0.55
+                            return isFloatingStyle ? (monitorCanvas.height - 24) : monitorCanvas.height
+                        }
+                        radius: isIslandStyle ? 16 : (isFloatingStyle ? 10 : (Config.barFrameStyle === "screen" ? 6 : 0))
+
+                        color: Qt.rgba(18, 20, 29, 0.92)
+                        border.width: isFloatingStyle ? 1 : 0
+                        border.color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.4)
+
+                        Behavior on x { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                        Behavior on y { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                        Behavior on width { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                        Behavior on height { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
+                        Behavior on radius { NumberAnimation { duration: 150 } }
+
+                        // Bar Modules Layout inside simulated bar
+                        Item {
+                            anchors.fill: parent
+                            anchors.margins: 6
+
+                            // Horizontal Layout (Top / Bottom)
+                            RowLayout {
+                                anchors.fill: parent
+                                visible: !miniBar.isVertical
+                                spacing: 8
+
+                                // Left Modules
+                                RowLayout {
+                                    spacing: 6
+                                    Text { text: "grid_view"; font.family: "Material Symbols Outlined"; font.pixelSize: 13; color: Config.accent }
+                                    Rectangle { implicitWidth: 20; implicitHeight: 14; radius: 7; color: Config.accent }
+                                    Rectangle { implicitWidth: 14; implicitHeight: 14; radius: 7; color: Qt.rgba(255, 255, 255, 0.15) }
+                                    Rectangle { implicitWidth: 14; implicitHeight: 14; radius: 7; color: Qt.rgba(255, 255, 255, 0.15) }
+                                }
+
+                                Item { Layout.fillWidth: true }
+
+                                // Center Clock
+                                Text {
+                                    text: "09:49 AM"
+                                    font.family: Config.sysFont
+                                    font.pixelSize: 10
+                                    font.bold: true
+                                    color: Config.textMain
+                                    visible: miniBar.width > 220
+                                }
+
+                                Item { Layout.fillWidth: true }
+
+                                // Right Modules
+                                RowLayout {
+                                    spacing: 6
+                                    Text { text: "wifi"; font.family: "Material Symbols Outlined"; font.pixelSize: 12; color: Config.textMain }
+                                    Text { text: "volume_up"; font.family: "Material Symbols Outlined"; font.pixelSize: 12; color: Config.textMain }
+                                    Rectangle {
+                                        implicitWidth: 32; implicitHeight: 16; radius: 8
+                                        color: Qt.rgba(255, 255, 255, 0.1)
+                                        Text { anchors.centerIn: parent; text: "85%"; font.family: Config.sysFont; font.pixelSize: 9; font.bold: true; color: Config.textMain }
+                                    }
+                                    Text { text: "power_settings_new"; font.family: "Material Symbols Outlined"; font.pixelSize: 12; color: Config.accent }
+                                }
                             }
 
+                            // Vertical Layout (Left / Right)
+                            ColumnLayout {
+                                anchors.fill: parent
+                                visible: miniBar.isVertical
+                                spacing: 8
+
+                                ColumnLayout {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    spacing: 6
+                                    Text { text: "grid_view"; font.family: "Material Symbols Outlined"; font.pixelSize: 14; color: Config.accent; Layout.alignment: Qt.AlignHCenter }
+                                    Rectangle { implicitWidth: 16; implicitHeight: 22; radius: 6; color: Config.accent; Layout.alignment: Qt.AlignHCenter }
+                                    Rectangle { implicitWidth: 16; implicitHeight: 16; radius: 6; color: Qt.rgba(255, 255, 255, 0.15); Layout.alignment: Qt.AlignHCenter }
+                                }
+
+                                Item { Layout.fillHeight: true }
+
+                                ColumnLayout {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    spacing: 6
+                                    Text { text: "wifi"; font.family: "Material Symbols Outlined"; font.pixelSize: 13; color: Config.textMain; Layout.alignment: Qt.AlignHCenter }
+                                    Text { text: "volume_up"; font.family: "Material Symbols Outlined"; font.pixelSize: 13; color: Config.textMain; Layout.alignment: Qt.AlignHCenter }
+                                    Text { text: "power_settings_new"; font.family: "Material Symbols Outlined"; font.pixelSize: 13; color: Config.accent; Layout.alignment: Qt.AlignHCenter }
+                                }
+                            }
+                        }
+                    }
+
+                    // ==========================================
+                    // FLUSH ROTATED EDGE DOCK BUTTONS
+                    // ==========================================
+
+                    // 1. TOP DOCK BUTTON (Flush Top)
+                    Rectangle {
+                        anchors.top: parent.top
+                        anchors.topMargin: 6
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        z: 10
+                        implicitWidth: topDockRow.implicitWidth + 20
+                        implicitHeight: 24
+                        radius: 12
+                        color: Config.barPosition === "top"
+                            ? Config.accent
+                            : (topDockMouse.containsMouse ? Qt.rgba(255, 255, 255, 0.22) : Qt.rgba(255, 255, 255, 0.08))
+                        border.width: 1
+                        border.color: Config.barPosition === "top" ? Config.accent : Qt.rgba(255, 255, 255, 0.25)
+
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        RowLayout {
+                            id: topDockRow
+                            anchors.centerIn: parent
+                            spacing: 5
                             Text {
-                                text: modelData.name
-                                color: isSelected ? Config.accent : Config.textMain
+                                text: "north"
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 13
+                                color: Config.barPosition === "top" ? Config.bgBase : Config.textMain
+                            }
+                            Text {
+                                text: Config.barPosition === "top" ? "DOCK TOP (ACTIVE)" : "DOCK TOP"
                                 font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontCaption)
-                                font.bold: isSelected
-                                elide: Text.ElideRight
+                                font.pixelSize: 10
+                                font.bold: true
+                                color: Config.barPosition === "top" ? Config.bgBase : Config.textMain
                             }
                         }
 
-                        TapHandler { onTapped: Config.barFrameStyle = modelData.style }
-                        HoverHandler { id: modeHover; cursorShape: Qt.PointingHandCursor }
+                        MouseArea {
+                            id: topDockMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: Config.barPosition = "top"
+                        }
+                    }
+
+                    // 2. BOTTOM DOCK BUTTON (Flush Bottom)
+                    Rectangle {
+                        anchors.bottom: parent.bottom
+                        anchors.bottomMargin: 6
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        z: 10
+                        implicitWidth: bottomDockRow.implicitWidth + 20
+                        implicitHeight: 24
+                        radius: 12
+                        color: Config.barPosition === "bottom"
+                            ? Config.accent
+                            : (bottomDockMouse.containsMouse ? Qt.rgba(255, 255, 255, 0.22) : Qt.rgba(255, 255, 255, 0.08))
+                        border.width: 1
+                        border.color: Config.barPosition === "bottom" ? Config.accent : Qt.rgba(255, 255, 255, 0.25)
+
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        RowLayout {
+                            id: bottomDockRow
+                            anchors.centerIn: parent
+                            spacing: 5
+                            Text {
+                                text: "south"
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 13
+                                color: Config.barPosition === "bottom" ? Config.bgBase : Config.textMain
+                            }
+                            Text {
+                                text: Config.barPosition === "bottom" ? "DOCK BOTTOM (ACTIVE)" : "DOCK BOTTOM"
+                                font.family: Config.sysFont
+                                font.pixelSize: 10
+                                font.bold: true
+                                color: Config.barPosition === "bottom" ? Config.bgBase : Config.textMain
+                            }
+                        }
+
+                        MouseArea {
+                            id: bottomDockMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: Config.barPosition = "bottom"
+                        }
+                    }
+
+                    // 3. LEFT DOCK BUTTON (Rotated -90° Flush Left)
+                    Item {
+                        anchors.left: parent.left
+                        anchors.leftMargin: 6
+                        anchors.verticalCenter: parent.verticalCenter
+                        z: 10
+                        implicitWidth: 24
+                        implicitHeight: leftDockRow.implicitWidth + 20
+
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: leftDockRow.implicitWidth + 20
+                            height: 24
+                            radius: 12
+                            rotation: -90
+                            color: Config.barPosition === "left"
+                                ? Config.accent
+                                : (leftDockMouse.containsMouse ? Qt.rgba(255, 255, 255, 0.22) : Qt.rgba(255, 255, 255, 0.08))
+                            border.width: 1
+                            border.color: Config.barPosition === "left" ? Config.accent : Qt.rgba(255, 255, 255, 0.25)
+
+                            Behavior on color { ColorAnimation { duration: 150 } }
+
+                            RowLayout {
+                                id: leftDockRow
+                                anchors.centerIn: parent
+                                spacing: 5
+                                Text {
+                                    text: "north"
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 13
+                                    color: Config.barPosition === "left" ? Config.bgBase : Config.textMain
+                                }
+                                Text {
+                                    text: Config.barPosition === "left" ? "DOCK LEFT (ACTIVE)" : "DOCK LEFT"
+                                    font.family: Config.sysFont
+                                    font.pixelSize: 10
+                                    font.bold: true
+                                    color: Config.barPosition === "left" ? Config.bgBase : Config.textMain
+                                }
+                            }
+                        }
+
+                        MouseArea {
+                            id: leftDockMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: Config.barPosition = "left"
+                        }
+                    }
+
+                    // 4. RIGHT DOCK BUTTON (Rotated 90° Flush Right)
+                    Item {
+                        anchors.right: parent.right
+                        anchors.rightMargin: 6
+                        anchors.verticalCenter: parent.verticalCenter
+                        z: 10
+                        implicitWidth: 24
+                        implicitHeight: rightDockRow.implicitWidth + 20
+
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: rightDockRow.implicitWidth + 20
+                            height: 24
+                            radius: 12
+                            rotation: 90
+                            color: Config.barPosition === "right"
+                                ? Config.accent
+                                : (rightDockMouse.containsMouse ? Qt.rgba(255, 255, 255, 0.22) : Qt.rgba(255, 255, 255, 0.08))
+                            border.width: 1
+                            border.color: Config.barPosition === "right" ? Config.accent : Qt.rgba(255, 255, 255, 0.25)
+
+                            Behavior on color { ColorAnimation { duration: 150 } }
+
+                            RowLayout {
+                                id: rightDockRow
+                                anchors.centerIn: parent
+                                spacing: 5
+                                Text {
+                                    text: Config.barPosition === "right" ? "DOCK RIGHT (ACTIVE)" : "DOCK RIGHT"
+                                    font.family: Config.sysFont
+                                    font.pixelSize: 10
+                                    font.bold: true
+                                    color: Config.barPosition === "right" ? Config.bgBase : Config.textMain
+                                }
+                                Text {
+                                    text: "north"
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 13
+                                    color: Config.barPosition === "right" ? Config.bgBase : Config.textMain
+                                }
+                            }
+                        }
+
+                        MouseArea {
+                            id: rightDockMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: Config.barPosition = "right"
+                        }
+                    }
+                }
+
+                // ==========================================
+                // FRAME STYLE SELECTOR SEGMENT BAR
+                // ==========================================
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+
+                    Text {
+                        text: "FRAME & GEOMETRY STYLE:"
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        font.bold: true
+                    }
+
+                    GridLayout {
+                        Layout.fillWidth: true
+                        columns: 2
+                        rowSpacing: 8
+                        columnSpacing: 8
+
+                        Repeater {
+                            model: [
+                                { id: "floating", name: "Floating Capsule", icon: "crop_21_9", desc: "Elevated bar with rounded corners & gaps" },
+                                { id: "island",   name: "Compact Island",  icon: "crop_16_9", desc: "Centered pill bar detached from sides" },
+                                { id: "edge",     name: "Flush Edge",      icon: "border_left", desc: "Full-width panel flush with display" },
+                                { id: "screen",   name: "Screen Frame",    icon: "web_asset",  desc: "Continuous outer frame around viewport" }
+                            ]
+
+                            delegate: Rectangle {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                implicitHeight: 48
+                                radius: Config.cornerRadius / 2
+
+                                readonly property bool isSelected: Config.barFrameStyle === modelData.id
+
+                                color: isSelected 
+                                    ? Qt.rgba(255, 255, 255, 0.14) 
+                                    : (qStyleHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.03))
+                                border.width: isSelected ? 1.5 : 1
+                                border.color: isSelected ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+
+                                Behavior on color { ColorAnimation { duration: 150 } }
+                                Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 10
+                                    anchors.rightMargin: 10
+                                    spacing: 8
+
+                                    Text {
+                                        text: modelData.icon
+                                        font.family: "Material Symbols Outlined"
+                                        font.pixelSize: 18
+                                        color: isSelected ? Config.accent : Config.textMuted
+                                    }
+
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 1
+
+                                        Text {
+                                            text: modelData.name
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontCaption)
+                                            font.bold: true
+                                            color: isSelected ? Config.accent : Config.textMain
+                                            elide: Text.ElideRight
+                                        }
+
+                                        Text {
+                                            text: modelData.desc
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontMicro)
+                                            color: Config.textMuted
+                                            elide: Text.ElideRight
+                                            Layout.fillWidth: true
+                                        }
+                                    }
+
+                                    Text {
+                                        text: "check_circle"
+                                        font.family: "Material Symbols Outlined"
+                                        font.pixelSize: 15
+                                        color: Config.accent
+                                        visible: isSelected
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: qStyleHover
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: Config.barFrameStyle = modelData.id
+                                }
+                            }
+                        }
+                    }
+
+                    // Auto-hide Status Bar Toggle Row
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: autoHideRow.implicitHeight + 16
+                        radius: Config.cornerRadius / 2
+                        color: autoHideHover.containsMouse ? Qt.rgba(255, 255, 255, 0.06) : Qt.rgba(255, 255, 255, 0.03)
+                        border.width: 1
+                        border.color: Qt.rgba(255, 255, 255, 0.08)
+
+                        RowLayout {
+                            id: autoHideRow
+                            anchors.fill: parent
+                            anchors.margins: 12
+                            spacing: 12
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 2
+
+                                Text {
+                                    text: "Auto-hide Status Bar"
+                                    color: Config.textMain
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontBody)
+                                    font.bold: true
+                                }
+
+                                Text {
+                                    text: "Automatically slide the bar out of view when not hovered to maximize screen real estate."
+                                    color: Config.textMuted
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontCaption)
+                                    wrapMode: Text.WordWrap
+                                    Layout.fillWidth: true
+                                }
+                            }
+
+                            ToggleSwitch {
+                                checked: Config.autoHideBar
+                            }
+                        }
+
+                        MouseArea {
+                            id: autoHideHover
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: Config.autoHideBar = !Config.autoHideBar
+                        }
                     }
                 }
             }
         }
 
-        // CHECKBOX: AUTO-HIDE BAR
-        RowLayout {
-            Layout.alignment: Qt.AlignHCenter
-            spacing: 8
+        // ==========================================
+        // 2. DISPLAY TARGET ASSIGNMENT CARD
+        // ==========================================
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: dispCol.implicitHeight + 28
+            radius: Config.cornerRadius
+            color: Qt.rgba(255, 255, 255, 0.05)
+            border.width: 1
+            border.color: Qt.rgba(255, 255, 255, 0.1)
 
-            Rectangle {
-                implicitWidth: 18; implicitHeight: 18; radius: 4
-                color: Config.autoHideBar ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+            ColumnLayout {
+                id: dispCol
+                anchors.fill: parent
+                anchors.margins: 14
+                spacing: 12
 
                 Text {
-                    anchors.centerIn: parent
-                    text: "✓"
-                    color: Config.bgBase
-                    visible: Config.autoHideBar
-                    font.pixelSize: 11
+                    text: "DISPLAY TARGET ASSIGNMENT"
+                    color: Config.textMuted
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontMicro)
                     font.bold: true
                 }
 
-                TapHandler { onTapped: Config.autoHideBar = !Config.autoHideBar }
-                HoverHandler { cursorShape: Qt.PointingHandCursor }
-            }
+                RowLayout {
+                    Layout.fillWidth: true
 
-            Text {
-                text: "Auto-hide Bar"
-                color: Config.textMain
-                font.family: Config.sysFont
-                font.pixelSize: Config.size(Config.fontCaption)
+                    Text {
+                        text: "Select which connected monitors render the status bar."
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontCaption)
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                    }
 
-                TapHandler { onTapped: Config.autoHideBar = !Config.autoHideBar }
-                HoverHandler { cursorShape: Qt.PointingHandCursor }
-            }
-        }
-
-        // Display Target Selection
-        ColumnLayout {
-            Layout.fillWidth: true
-            Layout.alignment: Qt.AlignHCenter
-            spacing: 8
-
-            Text {
-                text: "Show Bar On These Displays:"
-                color: Config.textMain
-                font.family: Config.sysFont
-                font.pixelSize: Config.size(Config.fontBody)
-                font.bold: true
-                Layout.alignment: Qt.AlignHCenter
-            }
-
-            RowLayout {
-                Layout.alignment: Qt.AlignHCenter
-                spacing: 8
-
-                Repeater {
-                    model: Quickshell.screens
-
-                    delegate: Rectangle {
-                        required property var modelData
-                        implicitWidth: 90
-                        implicitHeight: 32
-                        radius: Config.cornerRadius / 2
-
-                        readonly property bool isSelected: Config.enabledBarScreens.length === 0 || Config.enabledBarScreens.includes(modelData.name)
-                        color: isSelected ? Qt.rgba(255, 255, 255, 0.12) : (dispHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : Qt.rgba(255, 255, 255, 0.03))
-                        border.width: isSelected ? 1 : 0
-                        border.color: Config.accent
+                    // Reset / Enable All Button
+                    Rectangle {
+                        implicitWidth: enableAllRow.implicitWidth + 16
+                        implicitHeight: 28
+                        radius: 14
+                        color: enableAllMouse.containsMouse ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(255, 255, 255, 0.06)
+                        border.width: 1
+                        border.color: Qt.rgba(255, 255, 255, 0.15)
 
                         RowLayout {
+                            id: enableAllRow
                             anchors.centerIn: parent
-                            spacing: 6
-
+                            spacing: 4
                             Text {
-                                text: modelData.name
-                                color: isSelected ? Config.accent : Config.textMain
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontCaption)
-                                font.bold: isSelected
-                                elide: Text.ElideRight
+                                text: "desktop_windows"
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 14
+                                color: Config.textMain
                             }
-
                             Text {
-                                text: isSelected ? "✓" : "+"
-                                color: isSelected ? Config.accent : Config.textMuted
+                                text: "Enable All Displays"
                                 font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontMicro)
-                                font.bold: isSelected
+                                font.pixelSize: 10
+                                font.bold: true
+                                color: Config.textMain
                             }
                         }
 
-                        TapHandler { onTapped: Config.toggleBarScreen(modelData.name) }
-                        HoverHandler { id: dispHover; cursorShape: Qt.PointingHandCursor }
+                        MouseArea {
+                            id: enableAllMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: Config.enabledBarScreens = []
+                        }
+                    }
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    Repeater {
+                        model: Quickshell.screens
+
+                        delegate: Rectangle {
+                            required property var modelData
+                            Layout.fillWidth: true
+                            implicitHeight: 56
+                            radius: Config.cornerRadius / 2
+
+                            readonly property bool isSelected: Config.enabledBarScreens.length === 0 || Config.enabledBarScreens.includes(modelData.name)
+
+                            color: isSelected 
+                                ? Qt.rgba(255, 255, 255, 0.1) 
+                                : (dispHover.containsMouse ? Qt.rgba(255, 255, 255, 0.06) : Qt.rgba(255, 255, 255, 0.03))
+                            border.width: 1
+                            border.color: isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.5) : Qt.rgba(255, 255, 255, 0.08)
+
+                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 12
+                                anchors.rightMargin: 12
+                                spacing: 12
+
+                                Rectangle {
+                                    implicitWidth: 34; implicitHeight: 34; radius: 17
+                                    color: isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(255, 255, 255, 0.06)
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: "desktop_windows"
+                                        font.family: "Material Symbols Outlined"
+                                        font.pixelSize: 18
+                                        color: isSelected ? Config.accent : Config.textMuted
+                                    }
+                                }
+
+                                ColumnLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 2
+
+                                    Text {
+                                        text: modelData.name
+                                        color: Config.textMain
+                                        font.family: Config.sysFont
+                                        font.pixelSize: Config.size(Config.fontBody)
+                                        font.bold: true
+                                    }
+
+                                    Text {
+                                        text: (modelData.width && modelData.height) ? (modelData.width + " × " + modelData.height + " Resolution") : "Connected Display Monitor"
+                                        color: Config.textMuted
+                                        font.family: Config.sysFont
+                                        font.pixelSize: Config.size(Config.fontMicro)
+                                    }
+                                }
+
+                                // Status Badge
+                                Rectangle {
+                                    implicitWidth: badgeText.implicitWidth + 12
+                                    implicitHeight: 22
+                                    radius: 11
+                                    color: isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(255, 255, 255, 0.08)
+                                    border.width: 1
+                                    border.color: isSelected ? Config.accent : Qt.rgba(255, 255, 255, 0.12)
+
+                                    Text {
+                                        id: badgeText
+                                        anchors.centerIn: parent
+                                        text: isSelected ? "ACTIVE ON BAR" : "INACTIVE"
+                                        font.family: Config.sysFont
+                                        font.pixelSize: 9
+                                        font.bold: true
+                                        color: isSelected ? Config.accent : Config.textMuted
+                                    }
+                                }
+
+                                ToggleSwitch {
+                                    checked: isSelected
+                                }
+                            }
+
+                            MouseArea {
+                                id: dispHover
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: Config.toggleBarScreen(modelData.name)
+                            }
+                        }
                     }
                 }
             }

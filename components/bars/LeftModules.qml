@@ -28,8 +28,8 @@ Rectangle {
     readonly property real contentTargetWidth: Math.min(leftModules.implicitWidth + 8, maxAllowedWidth)
     readonly property real contentTargetHeight: Math.min(leftModules.implicitHeight + 8, maxAllowedHeight)
 
-    width: (rootRef && rootRef.isHorizontal) ? contentTargetWidth : 36
-    height: (rootRef && rootRef.isHorizontal) ? 36 : contentTargetHeight
+    width: (rootRef && rootRef.isHorizontal) ? contentTargetWidth : Math.max(36, leftModules.implicitWidth + 8)
+    height: (rootRef && rootRef.isHorizontal) ? 36 : Math.max(36, contentTargetHeight)
     radius: Config.cornerRadius / 2
     color: Qt.rgba(255, 255, 255, 0.05)
     clip: true
@@ -40,7 +40,7 @@ Rectangle {
     states: [
         State {
             name: "horizontal"
-            when: rootRef.isHorizontal
+            when: rootRef && rootRef.isHorizontal
             AnchorChanges {
                 target: leftCard
                 anchors.left: leftCard.parent.left
@@ -51,7 +51,7 @@ Rectangle {
         },
         State {
             name: "vertical"
-            when: !rootRef.isHorizontal
+            when: rootRef && !rootRef.isHorizontal
             AnchorChanges {
                 target: leftCard
                 anchors.top: leftCard.parent.top
@@ -101,13 +101,41 @@ Rectangle {
 
     GridLayout {
         id: leftModules
-        anchors.left: (rootRef && rootRef.isHorizontal) ? parent.left : undefined
-        anchors.leftMargin: (rootRef && rootRef.isHorizontal) ? 4 : 0
-        anchors.verticalCenter: (rootRef && rootRef.isHorizontal) ? parent.verticalCenter : undefined
 
-        anchors.top: (rootRef && !rootRef.isHorizontal) ? parent.top : undefined
-        anchors.topMargin: (rootRef && !rootRef.isHorizontal) ? 4 : 0
-        anchors.horizontalCenter: (rootRef && !rootRef.isHorizontal) ? parent.horizontalCenter : undefined
+        states: [
+            State {
+                name: "horizontal"
+                when: rootRef && rootRef.isHorizontal
+                AnchorChanges {
+                    target: leftModules
+                    anchors.left: leftCard.left
+                    anchors.verticalCenter: leftCard.verticalCenter
+                    anchors.top: undefined
+                    anchors.horizontalCenter: undefined
+                }
+                PropertyChanges {
+                    target: leftModules
+                    anchors.leftMargin: 4
+                    anchors.topMargin: 0
+                }
+            },
+            State {
+                name: "vertical"
+                when: rootRef && !rootRef.isHorizontal
+                AnchorChanges {
+                    target: leftModules
+                    anchors.top: leftCard.top
+                    anchors.horizontalCenter: leftCard.horizontalCenter
+                    anchors.left: undefined
+                    anchors.verticalCenter: undefined
+                }
+                PropertyChanges {
+                    target: leftModules
+                    anchors.leftMargin: 0
+                    anchors.topMargin: 4
+                }
+            }
+        ]
 
         columns: (rootRef && rootRef.isHorizontal) ? 99 : 1
         rows: (rootRef && rootRef.isHorizontal) ? 1 : 99

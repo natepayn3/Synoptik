@@ -966,6 +966,37 @@ QtObject {
     property var selectedWallpaperMonitors: []
     property string wallpaperTransitionType: "wipe"
     property string activeWallpaperPath: ""
+    property var activeMonitorWallpapers: ({})
+
+    function getMonitorWallpaper(screenName) {
+        if (activeMonitorWallpapers && activeMonitorWallpapers[screenName]) {
+            return activeMonitorWallpapers[screenName]
+        }
+        return activeWallpaperPath
+    }
+
+    property Process wallpaperQuerier: Process {
+        id: wpQuerier
+        command: [
+            "python3", "-c",
+            "import subprocess, json, re; out=subprocess.getoutput('awww query 2>/dev/null || swww query 2>/dev/null'); res={}; [res.update({m.group(1).strip(): m.group(2).strip()}) for m in re.finditer(r':\\s*([^:]+):.*currently displaying:\\s*(?:image|video):\\s*(.*)', out)]; print(json.dumps(res))"
+        ]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    let parsed = JSON.parse(this.text)
+                    if (parsed && typeof parsed === "object") {
+                        root.activeMonitorWallpapers = parsed
+                    }
+                } catch (e) {}
+            }
+        }
+    }
+
+    function refreshActiveWallpapers() {
+        wpQuerier.running = false
+        wpQuerier.running = true
+    }
 
     // --- BACKGROUND SLIDESHOW TIMER & RUNNER ---
     property bool slideshowActive: false
@@ -984,6 +1015,7 @@ QtObject {
 
     function applyWallpaperBackend(filePath, activeOnly) {
         wallpaperService.applyWallpaperBackend(filePath, activeOnly)
+        refreshActiveWallpapers()
     }
 
     function toggleWallpaperMonitor(screenName) {
@@ -1116,10 +1148,9 @@ QtObject {
     }
 
     function syncScreenFrame() {
-        let frameMargin = showScreenFrame ? 12 : 0
-        let cmd = "hyprctl keyword monitor ,addreserved," + frameMargin + "," + frameMargin + "," + frameMargin + "," + frameMargin
-        writer.command = ["fish", "-c", cmd]
-        writer.running = true
+        if (isLoaded) {
+            syncHyprlandBorders()
+        }
     }
 
     onBarFrameStyleChanged: { 
@@ -1347,7 +1378,10 @@ QtObject {
     property var draftMonitorConfigs: ({})
 
     function getMonitorConfig(screenName) {
-        const safeFallback = { width: 1920, height: 1080, refreshRate: 60.0, x: 0, y: 0, scale: "auto", transform: 0 }
+        let actualScreen = (Quickshell.screens && screenName) ? Quickshell.screens.find(s => s.name === screenName) : null
+        let defaultW = actualScreen ? actualScreen.width : 1920
+        let defaultH = actualScreen ? actualScreen.height : 1080
+        const safeFallback = { width: defaultW, height: defaultH, refreshRate: 60.0, x: 0, y: 0, scale: "auto", transform: 0 }
 
         if (!screenName) return safeFallback
         
@@ -1386,7 +1420,10 @@ QtObject {
         if (otherScreen) {
             return getMonitorConfig(otherScreen.name)
         }
-        return { width: 1920, height: 1080, refreshRate: 60.0, x: 0, y: 0, scale: "auto", transform: 0 }
+        let actualScreen = (Quickshell.screens && Quickshell.screens.length > 0) ? Quickshell.screens[0] : null
+        let defaultW = actualScreen ? actualScreen.width : 1920
+        let defaultH = actualScreen ? actualScreen.height : 1080
+        return { width: defaultW, height: defaultH, refreshRate: 60.0, x: 0, y: 0, scale: "auto", transform: 0 }
     }
 
     function updateDraftMonitorConfig(screenName, newOpts) {
@@ -1412,7 +1449,42 @@ QtObject {
 
         normalizeMonitorPositions()
         saveSettings()
-        syncHyprlandBorders()
+
+        let monitorLuaBlocks = []
+        if (monitorConfigs && Object.keys(monitorConfigs).length > 0) {
+            Object.keys(monitorConfigs).forEach(k => {
+                let m = monitorConfigs[k]
+                if (!m) return
+                let safeScale = (m.scale === "auto" || !m.scale) ? "auto" : getNearestValidScale(m.width, m.height, m.scale)
+                let scaleVal = (safeScale === "auto") ? '"auto"' : parseFloat(safeScale).toFixed(2)
+                let transformLine = (m.transform !== undefined && m.transform !== 0) ? ',\n    transform = ' + m.transform : ''
+                
+                let luaBlock = 'hl.monitor({\n' +
+                    '    output = "' + k + '",\n' +
+                    '    mode = "' + m.width + 'x' + m.height + '@' + (m.refreshRate || 60.0) + '",\n' +
+                    '    position = "' + m.x + 'x' + m.y + '",\n' +
+                    '    scale = ' + scaleVal + transformLine + '\n' +
+                    '})'
+                monitorLuaBlocks.push(luaBlock)
+            })
+        }
+
+        let pyScript = "import os, re\n" +
+            "path = os.path.expanduser('~/.config/hypr/hypr_style.lua')\n" +
+            "content = ''\n" +
+            "if os.path.exists(path):\n" +
+            "    with open(path, 'r') as f:\n" +
+            "        content = f.read()\n" +
+            "content = re.sub(r'hl\\.monitor\\(\\{[^}]+\\}\\)\\n*', '', content).strip()\n" +
+            "new_monitors = '''" + monitorLuaBlocks.join("\n\n") + "'''\n" +
+            "full_content = content + '\\n\\n' + new_monitors + '\\n'\n" +
+            "with open(path, 'w') as f:\n" +
+            "    f.write(full_content)\n"
+
+        let cmd = "python3 -c \"" + pyScript.replace(/"/g, '\\"') + "\" && hyprctl reload"
+
+        writer.command = ["fish", "-c", cmd]
+        writer.running = true
     }
 
     function resetDraftMonitorConfigs() {
@@ -1439,82 +1511,49 @@ QtObject {
         let colorEnd = "rgba(" + hexEnd + "ff)"
         let inactiveStr = "rgba(" + hexInactive + "aa)"
 
-        let activeStr = animateGradient 
-            ? colorStart + " " + colorEnd + " 45deg"
-            : colorStart
-
         let activeLua = animateGradient
             ? '{ colors = { "' + colorStart + '", "' + colorEnd + '" }, angle = 45 }'
             : '"' + colorStart + '"'
 
         let borderSize = root.borderThickness
-
-        let gapsOut = (barFrameStyle === "screen") ? 30 : 20
+        let gapsOut = (barFrameStyle === "screen") ? 32 : 12
         let roundingVal = Math.round(surfaceRadius)
 
-        let monitorLuaBlocks = []
-        let hyprctlMonitorCmds = []
+        let pyScript = "import os, re\n" +
+            "path = os.path.expanduser('~/.config/hypr/hypr_style.lua')\n" +
+            "existing_monitors = ''\n" +
+            "if os.path.exists(path):\n" +
+            "    with open(path, 'r') as f:\n" +
+            "        content = f.read()\n" +
+            "        mons = re.findall(r'hl\\.monitor\\(\\{[^}]+\\}\\)', content, re.DOTALL)\n" +
+            "        if mons:\n" +
+            "            existing_monitors = '\\n\\n'.join(mons)\n\n" +
+            "new_config = '''hl.config({\n" +
+            "    general = {\n" +
+            "        gaps_out = " + gapsOut + ",\n" +
+            "        border_size = " + borderSize + ",\n" +
+            "        col = {\n" +
+            "            active_border = " + activeLua + ",\n" +
+            "            inactive_border = \"" + inactiveStr + "\"\n" +
+            "        }\n" +
+            "    },\n" +
+            "    decoration = {\n" +
+            "        rounding = " + roundingVal + "\n" +
+            "    }\n" +
+            "})\n\n" +
+            "hl.layer_rule({\n" +
+            "    name = \"synoptik-shell\",\n" +
+            "    match = { namespace = \"^synoptik-shell.*\" },\n" +
+            "    blur = " + (enableBlur ? "true" : "false") + ",\n" +
+            "    xray = " + (enableXray ? "true" : "false") + ",\n" +
+            "    ignore_alpha = 0.6\n" +
+            "})\n'''\n\n" +
+            "if existing_monitors:\n" +
+            "    new_config += '\\n' + existing_monitors + '\\n'\n\n" +
+            "with open(path, 'w') as f:\n" +
+            "    f.write(new_config)\n"
 
-        let keys = Object.keys(monitorConfigs)
-        if (keys.length === 0 && Quickshell.screens) {
-            Quickshell.screens.forEach(s => keys.push(s.name))
-        }
-
-        keys.forEach(k => {
-            let m = getMonitorConfig(k)
-            
-            let safeScale = (m.scale === "auto" || !m.scale) ? "auto" : getNearestValidScale(m.width, m.height, m.scale)
-            let scaleVal = (safeScale === "auto") ? "auto" : parseFloat(safeScale).toFixed(2)
-            
-            let luaBlock = 'hl.monitor({\n' +
-                '    output = "' + k + '",\n' +
-                '    mode = "' + m.width + 'x' + m.height + '@' + (m.refreshRate || 60.0) + '",\n' +
-                '    position = "' + m.x + 'x' + m.y + '",\n' +
-                '    scale = ' + (scaleVal === "auto" ? '"auto"' : scaleVal) +
-                (m.transform !== undefined && m.transform !== 0 ? ',\n    transform = ' + m.transform : '') + '\n' +
-                '})'
-            
-            monitorLuaBlocks.push(luaBlock)
-
-            let transformStr = m.transform !== undefined ? ',transform,' + m.transform : ''
-            let ruleStr = k + ',' + m.width + 'x' + m.height + '@' + (m.refreshRate || 60.0) + ',' + m.x + 'x' + m.y + ',' + scaleVal + transformStr
-            hyprctlMonitorCmds.push("hyprctl keyword monitor '" + ruleStr + "'")
-        })
-
-        let luaContent = 'hl.config({\n' +
-            '    general = {\n' +
-            '        gaps_out = ' + gapsOut + ',\n' +
-            '        border_size = ' + borderSize + ',\n' +
-            '        col = {\n' +
-            '            active_border = ' + activeLua + ',\n' +
-            '            inactive_border = "' + inactiveStr + '"\n' +
-            '        }\n' +
-            '    },\n' +
-            '    decoration = {\n' +
-            '        rounding = ' + roundingVal + '\n' +
-            '    }\n' +
-            '})\n\n' +
-            'hl.layer_rule({\n' +
-            '    name = "synoptik-shell",\n' +
-            '    match = { namespace = "^synoptik-shell.*" },\n' +
-            '    blur = ' + (enableBlur ? "true" : "false") + ',\n' +
-            '    xray = ' + (enableXray ? "true" : "false") + ',\n' +
-            '    ignore_alpha = 0.6\n' +
-            '})\n\n' +
-            monitorLuaBlocks.join('\n\n') + '\n'
-
-        let animCmd = animateGradient 
-            ? " && hyprctl keyword animation 'borderangle, 1, 100, linear, loop'" 
-            : " && hyprctl keyword animation 'borderangle, 0'"
-
-        let monExecCmd = hyprctlMonitorCmds.length > 0 ? " && " + hyprctlMonitorCmds.join(" && ") : ""
-
-        let cmd = "printf '%s' '" + luaContent.replace(/'/g, "'\\''") + "' > " + hyprThemePath + " && " +
-                "hyprctl keyword general:gaps_out " + gapsOut + " && " +
-                "hyprctl keyword decoration:rounding " + roundingVal + " && " +
-                "hyprctl keyword general:col.active_border '" + activeStr + "' && " +
-                "hyprctl keyword general:inactive_border '" + inactiveStr + "' && " +
-                "hyprctl keyword general:border_size " + borderSize + animCmd + monExecCmd
+        let cmd = "python3 -c \"" + pyScript.replace(/"/g, '\\"') + "\" && hyprctl reload"
 
         writer.command = ["fish", "-c", cmd]
         writer.running = true
@@ -1761,6 +1800,8 @@ QtObject {
                 if (root.weather) {
                     root.weather.fetchWeather(true)
                 }
+
+                root.refreshActiveWallpapers()
             }
         }
         
