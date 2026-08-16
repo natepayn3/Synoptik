@@ -967,6 +967,15 @@ QtObject {
     property string wallpaperTransitionType: "wipe"
     property string activeWallpaperPath: ""
     property var activeMonitorWallpapers: ({})
+    property bool enableWallpaperParallax: true
+    property bool wallpaperWorkspaceParallax: true
+    property bool wallpaperCursorParallax: true
+    property real wallpaperParallaxIntensity: 1.0
+
+    onEnableWallpaperParallaxChanged: saveSettings()
+    onWallpaperWorkspaceParallaxChanged: saveSettings()
+    onWallpaperCursorParallaxChanged: saveSettings()
+    onWallpaperParallaxIntensityChanged: saveSettings()
 
     function getMonitorWallpaper(screenName) {
         if (activeMonitorWallpapers && activeMonitorWallpapers[screenName]) {
@@ -1616,6 +1625,10 @@ QtObject {
                 "selectedWallpaperMonitors": root.selectedWallpaperMonitors,
                 "wallpaperTransitionType": root.wallpaperTransitionType,
                 "activeWallpaperPath": root.activeWallpaperPath,
+                "enableWallpaperParallax": root.enableWallpaperParallax,
+                "wallpaperWorkspaceParallax": root.wallpaperWorkspaceParallax,
+                "wallpaperCursorParallax": root.wallpaperCursorParallax,
+                "wallpaperParallaxIntensity": root.wallpaperParallaxIntensity,
                 "slideshowActive": root.slideshowActive,
                 "slideshowMinutes": root.slideshowMinutes,
                 "showScreensaver": root.showScreensaver,
@@ -1742,7 +1755,9 @@ QtObject {
 
                         let props = [
                             "lastSettingsSection", "savedUrls",
-                            "monitorConfigs", "selectedWallpaperMonitors", "wallpaperTransitionType", "activeWallpaperPath", "slideshowActive", "slideshowMinutes",
+                            "monitorConfigs", "selectedWallpaperMonitors", "wallpaperTransitionType", "activeWallpaperPath",
+                            "enableWallpaperParallax", "wallpaperWorkspaceParallax", "wallpaperCursorParallax", "wallpaperParallaxIntensity",
+                            "slideshowActive", "slideshowMinutes",
                             "showScreensaver", "screensaverText", "screensaverMode", "screensaverFontSize", "screensaverSpeed", "screensaverCornerCounter",
                             "showOsk", "oskLayout",
                             "showMascot", "mascotPath", "mascotPhrases", "fetchOnlineQuotes", "quoteSource",
