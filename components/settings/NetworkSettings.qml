@@ -370,7 +370,7 @@ Item {
                                 let step = w / (root.maxGraphPoints - 1)
                                 let xOffset = root.scrollProgress * step
 
-                                // Fill region
+                                // 1. Fill region
                                 ctx.beginPath()
                                 ctx.moveTo(0, h)
 
@@ -384,23 +384,35 @@ Item {
 
                                 ctx.lineTo(((totalPoints - 1) * step) - xOffset, h)
                                 ctx.closePath()
-                                ctx.fillStyle = Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.15)
+                                ctx.fillStyle = "rgba(255, 255, 255, 0.05)"
                                 ctx.fill()
 
-                                // Line stroke
-                                ctx.beginPath()
-                                for (let j = 0; j < totalPoints; j++) {
-                                    let nodeValue = graphHistoryModel.get(j).speedValue
-                                    let scaleRatio = nodeValue / activePeak
-                                    let coordX = (j * step) - xOffset
-                                    let coordY = h - (scaleRatio * (h - 4))
-                                    if (j === 0) ctx.moveTo(coordX, coordY)
-                                    else ctx.lineTo(coordX, coordY)
+                                // Path helper for line rendering
+                                function buildLinePath() {
+                                    ctx.beginPath()
+                                    for (let j = 0; j < totalPoints; j++) {
+                                        let nodeValue = graphHistoryModel.get(j).speedValue
+                                        let scaleRatio = nodeValue / activePeak
+                                        let coordX = (j * step) - xOffset
+                                        let coordY = h - (scaleRatio * (h - 4))
+                                        if (j === 0) ctx.moveTo(coordX, coordY)
+                                        else ctx.lineTo(coordX, coordY)
+                                    }
                                 }
+
+                                // 2. Glow pass (blurred background line)
+                                buildLinePath()
                                 ctx.strokeStyle = Config.accent
                                 ctx.lineWidth = 2
                                 ctx.lineCap = "round"
                                 ctx.lineJoin = "round"
+                                ctx.shadowColor = Config.accent
+                                ctx.shadowBlur = 8
+                                ctx.stroke()
+
+                                // 3. Crisp foreground line pass
+                                buildLinePath()
+                                ctx.shadowBlur = 0
                                 ctx.stroke()
                             }
                         }
@@ -498,10 +510,10 @@ Item {
                         implicitHeight: 32
                         radius: 16
                         color: toggleHover.hovered
-                            ? (root.localConnected ? Qt.rgba(255, 80, 80, 0.2) : Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.85))
+                            ? (root.localConnected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.85))
                             : (root.localConnected ? Qt.rgba(255, 255, 255, 0.08) : Config.accent)
                         border.width: root.localConnected ? 1 : 0
-                        border.color: toggleHover.hovered && root.localConnected ? "#ff5555" : Qt.rgba(255, 255, 255, 0.12)
+                        border.color: toggleHover.hovered && root.localConnected ? Config.accent : Qt.rgba(255, 255, 255, 0.12)
 
                         RowLayout {
                             id: ifToggleActionRow
@@ -513,7 +525,7 @@ Item {
                                 font.family: "Material Symbols Outlined"
                                 font.pixelSize: 14
                                 color: root.localConnected
-                                    ? (toggleHover.hovered ? "#ff6b6b" : Config.textMain)
+                                    ? (toggleHover.hovered ? Config.accent : Config.textMain)
                                     : Config.bgBase
                             }
 
@@ -524,7 +536,7 @@ Item {
                                 font.bold: true
                                 font.pixelSize: 11
                                 color: root.localConnected
-                                    ? (toggleHover.hovered ? "#ff6b6b" : Config.textMain)
+                                    ? (toggleHover.hovered ? Config.accent : Config.textMain)
                                     : Config.bgBase
                             }
                         }
@@ -721,10 +733,10 @@ Item {
                                         implicitHeight: 30
                                         radius: 15
                                         color: vpnActionHover.hovered
-                                            ? (isActive ? Qt.rgba(255, 80, 80, 0.2) : Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.85))
+                                            ? (isActive ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.85))
                                             : (isActive ? Qt.rgba(255, 255, 255, 0.08) : Config.accent)
                                         border.width: isActive ? 1 : 0
-                                        border.color: vpnActionHover.hovered && isActive ? "#ff5555" : Qt.rgba(255, 255, 255, 0.12)
+                                        border.color: vpnActionHover.hovered && isActive ? Config.accent : Qt.rgba(255, 255, 255, 0.12)
 
                                         RowLayout {
                                             id: vpnActionRow
@@ -736,7 +748,7 @@ Item {
                                                 font.family: "Material Symbols Outlined"
                                                 font.pixelSize: 14
                                                 color: isActive
-                                                    ? (vpnActionHover.hovered ? "#ff6b6b" : Config.textMain)
+                                                    ? (vpnActionHover.hovered ? Config.accent : Config.textMain)
                                                     : Config.bgBase
                                             }
 
@@ -747,7 +759,7 @@ Item {
                                                 font.bold: true
                                                 font.pixelSize: 11
                                                 color: isActive
-                                                    ? (vpnActionHover.hovered ? "#ff6b6b" : Config.textMain)
+                                                    ? (vpnActionHover.hovered ? Config.accent : Config.textMain)
                                                     : Config.bgBase
                                             }
                                         }
@@ -764,16 +776,16 @@ Item {
                                         implicitWidth: 30
                                         implicitHeight: 30
                                         radius: 15
-                                        color: delHover.hovered ? Qt.rgba(255, 80, 80, 0.2) : Qt.rgba(255, 255, 255, 0.06)
+                                        color: delHover.hovered ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(255, 255, 255, 0.06)
                                         border.width: 1
-                                        border.color: delHover.hovered ? "#ff5555" : Qt.rgba(255, 255, 255, 0.1)
+                                        border.color: delHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
 
                                         Text {
                                             anchors.centerIn: parent
                                             text: "delete_outline"
                                             font.family: "Material Symbols Outlined"
                                             font.pixelSize: 15
-                                            color: delHover.hovered ? "#ff6b6b" : Config.textMuted
+                                            color: delHover.hovered ? Config.accent : Config.textMuted
                                         }
 
                                         TapHandler {

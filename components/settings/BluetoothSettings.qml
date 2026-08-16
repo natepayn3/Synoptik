@@ -132,11 +132,11 @@ Item {
                                 implicitHeight: 18
                                 radius: 9
                                 color: !root.hasAdapter
-                                    ? Qt.rgba(255, 80, 80, 0.2)
+                                    ? Qt.rgba(255, 255, 255, 0.08)
                                     : (root.isPowered ? (root.activeDeviceName !== "" ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(255, 255, 255, 0.1)) : Qt.rgba(255, 255, 255, 0.08))
                                 border.width: 1
                                 border.color: !root.hasAdapter
-                                    ? "#ff5555"
+                                    ? Qt.rgba(255, 255, 255, 0.15)
                                     : (root.isPowered && root.activeDeviceName !== "" ? Config.accent : Qt.rgba(255, 255, 255, 0.15))
 
                                 Text {
@@ -147,7 +147,7 @@ Item {
                                     font.pixelSize: 9
                                     font.bold: true
                                     color: !root.hasAdapter
-                                        ? "#ff6b6b"
+                                        ? Config.textMuted
                                         : (root.isPowered && root.activeDeviceName !== "" ? Config.accent : Config.textMuted)
                                 }
                             }
@@ -442,10 +442,10 @@ Item {
                                         color: isConnecting
                                             ? Qt.rgba(255, 255, 255, 0.1)
                                             : (actionHover.hovered
-                                                ? (connected ? Qt.rgba(255, 80, 80, 0.2) : Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.85))
+                                                ? (connected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.85))
                                                 : (connected ? Qt.rgba(255, 255, 255, 0.08) : Config.accent))
                                         border.width: connected ? 1 : 0
-                                        border.color: actionHover.hovered && connected ? "#ff5555" : Qt.rgba(255, 255, 255, 0.12)
+                                        border.color: actionHover.hovered && connected ? Config.accent : Qt.rgba(255, 255, 255, 0.12)
 
                                         RowLayout {
                                             id: actionRow
@@ -457,7 +457,7 @@ Item {
                                                 font.family: "Material Symbols Outlined"
                                                 font.pixelSize: 14
                                                 color: connected
-                                                    ? (actionHover.hovered ? "#ff6b6b" : Config.textMain)
+                                                    ? (actionHover.hovered ? Config.accent : Config.textMain)
                                                     : Config.bgBase
                                             }
 
@@ -468,7 +468,7 @@ Item {
                                                 font.bold: true
                                                 font.pixelSize: 11
                                                 color: connected
-                                                    ? (actionHover.hovered ? "#ff6b6b" : Config.textMain)
+                                                    ? (actionHover.hovered ? Config.accent : Config.textMain)
                                                     : Config.bgBase
                                             }
                                         }
@@ -494,16 +494,16 @@ Item {
                                         implicitWidth: 30
                                         implicitHeight: 30
                                         radius: 15
-                                        color: forgetHover.hovered ? Qt.rgba(255, 80, 80, 0.2) : Qt.rgba(255, 255, 255, 0.06)
+                                        color: forgetHover.hovered ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(255, 255, 255, 0.06)
                                         border.width: 1
-                                        border.color: forgetHover.hovered ? "#ff5555" : Qt.rgba(255, 255, 255, 0.1)
+                                        border.color: forgetHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
 
                                         Text {
                                             anchors.centerIn: parent
                                             text: "delete_outline"
                                             font.family: "Material Symbols Outlined"
                                             font.pixelSize: 15
-                                            color: forgetHover.hovered ? "#ff6b6b" : Config.textMuted
+                                            color: forgetHover.hovered ? Config.accent : Config.textMuted
                                         }
 
                                         TapHandler {
