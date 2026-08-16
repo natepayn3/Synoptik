@@ -1190,9 +1190,13 @@ QtObject {
 
     // Typography
     property string sysFont: ""
+    property bool nativeFontRendering: true
+    readonly property int textRenderType: nativeFontRendering ? Text.NativeRendering : Text.QtRendering
     property bool fontDropdownOpen: false
     property string fontSearchFilter: ""
     property int fontScaleIndex: 1 
+
+    onNativeFontRenderingChanged: { if (isLoaded) saveSettings() }
 
     function fontStyle(fontObj) {
         if (!fontObj) return fontObj
@@ -1630,6 +1634,7 @@ QtObject {
                 "autoHideBar": root.autoHideBar,
                 "showScreenFrame": root.showScreenFrame,
                 "sysFont": root.sysFont,
+                "nativeFontRendering": root.nativeFontRendering,
                 "fontScaleIndex": root.fontScaleIndex,
                 "currentThemeIndex": root.currentThemeIndex,
                 "locationQuery": root.locationQuery,
@@ -1738,7 +1743,7 @@ QtObject {
                             "showScreensaver", "screensaverText", "screensaverMode", "screensaverFontSize", "screensaverSpeed", "screensaverCornerCounter",
                             "showOsk", "oskLayout",
                             "showMascot", "mascotPath", "mascotPhrases", "fetchOnlineQuotes", "quoteSource",
-                            "barFrameStyle", "barPosition", "autoHideBar", "showScreenFrame", "sysFont", "fontScaleIndex", "locationQuery",
+                            "barFrameStyle", "barPosition", "autoHideBar", "showScreenFrame", "sysFont", "nativeFontRendering", "fontScaleIndex", "locationQuery",
                             "enabledBarScreens", "useCustomColors", "customBgBase", "customBgPanel",
                             "customAccent", "animateGradient", "shellOpacity", "enableBlur",
                             "enableXray", "enableIris", "showWatermarks", "surfaceRadius", "borderThickness", "cardMargin", "showDesktopClock", "clockStyle", "clockScale", 

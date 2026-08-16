@@ -21,6 +21,35 @@ Flickable {
 
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
+    // Reusable ToggleSwitch Component
+    component ToggleSwitch : Rectangle {
+        id: sw
+        property bool checked: false
+        implicitWidth: 38
+        implicitHeight: 22
+        radius: 11
+        color: checked ? Config.accent : Qt.rgba(255, 255, 255, 0.12)
+        border.width: 1
+        border.color: checked ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
+
+        Behavior on color { ColorAnimation { duration: 150 } }
+        Behavior on border.color { ColorAnimation { duration: 150 } }
+
+        Rectangle {
+            x: sw.checked ? (sw.width - width - 3) : 3
+            anchors.verticalCenter: parent.verticalCenter
+            width: 16
+            height: 16
+            radius: 8
+            color: sw.checked ? Config.bgBase : Config.textMain
+            border.width: sw.checked ? 0 : 1
+            border.color: Qt.rgba(255, 255, 255, 0.2)
+
+            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutQuad } }
+            Behavior on color { ColorAnimation { duration: 150 } }
+        }
+    }
+
     property var allFonts: Qt.fontFamilies()
     property var filteredFonts: {
         let filter = Config.fontSearchFilter ? Config.fontSearchFilter.trim().toLowerCase() : ""
@@ -393,7 +422,85 @@ Flickable {
         }
 
         // ==========================================
-        // 3. FONT LIBRARY & SEARCH CARD
+        // 3. FONT RASTERIZATION & RENDER ENGINE CARD
+        // ==========================================
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: fontEngineCol.implicitHeight + 28
+            radius: Config.cornerRadius
+            color: Qt.rgba(255, 255, 255, 0.05)
+            border.width: 1
+            border.color: Qt.rgba(255, 255, 255, 0.1)
+
+            ColumnLayout {
+                id: fontEngineCol
+                anchors.fill: parent
+                anchors.margins: 14
+                spacing: 12
+
+                Text {
+                    text: "FONT RASTERIZATION & SHARPNESS"
+                    color: Config.textMuted
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontMicro)
+                    font.bold: true
+                }
+
+                // Toggle Row for Native Subpixel FreeType Rendering
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: nativeRenderRow.implicitHeight + 16
+                    radius: Config.cornerRadius / 2
+                    color: nativeRenderHover.containsMouse ? Qt.rgba(255, 255, 255, 0.06) : Qt.rgba(255, 255, 255, 0.03)
+                    border.width: 1
+                    border.color: Qt.rgba(255, 255, 255, 0.08)
+
+                    RowLayout {
+                        id: nativeRenderRow
+                        anchors.fill: parent
+                        anchors.margins: 12
+                        spacing: 12
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 2
+
+                            Text {
+                                text: "Crisp Native Font Rendering (FreeType & Subpixel Hinting)"
+                                color: Config.textMain
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontBody)
+                                font.bold: true
+                            }
+
+                            Text {
+                                text: "Bypasses Qt Distance Field rendering in favor of native FreeType subpixel antialiasing and stem hinting for pixel-sharp text clarity."
+                                color: Config.textMuted
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontCaption)
+                                wrapMode: Text.WordWrap
+                                Layout.fillWidth: true
+                            }
+                        }
+
+                        ToggleSwitch {
+                            checked: Config.nativeFontRendering
+                        }
+                    }
+
+                    MouseArea {
+                        id: nativeRenderHover
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Config.nativeFontRendering = !Config.nativeFontRendering
+                    }
+                }
+            }
+        }
+
+        // ==========================================
+        // 4. FONT LIBRARY & SEARCH CARD
         // ==========================================
         Rectangle {
             Layout.fillWidth: true

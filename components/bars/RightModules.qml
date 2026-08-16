@@ -332,6 +332,7 @@ Rectangle {
                             text: shellRoot.vertHour || (new Date().getHours() % 12 || 12).toString()
                             color: (Config.showCalendar || clockVertHover.hovered) ? Config.accent : Config.textMain
                             font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 15
+                            renderType: Config.textRenderType
                             Layout.alignment: Qt.AlignHCenter
                         }
 
@@ -339,6 +340,7 @@ Rectangle {
                             text: shellRoot.vertMinute || Qt.formatTime(new Date(), "mm")
                             color: (Config.showCalendar || clockVertHover.hovered) ? Config.accent : Config.textMain
                             font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 15
+                            renderType: Config.textRenderType
                             Layout.alignment: Qt.AlignHCenter
                         }
 
@@ -346,6 +348,7 @@ Rectangle {
                             text: shellRoot.vertAmPm || Qt.formatTime(new Date(), "ap").toLowerCase()
                             color: Config.accent
                             font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 12
+                            renderType: Config.textRenderType
                             Layout.alignment: Qt.AlignHCenter
                         }
 
@@ -353,6 +356,7 @@ Rectangle {
                             text: shellRoot.vertMonth || Qt.formatDate(new Date(), "MMM")
                             color: (Config.showCalendar || clockVertHover.hovered) ? Config.accent : Config.textMuted
                             font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 12
+                            renderType: Config.textRenderType
                             Layout.alignment: Qt.AlignHCenter
                         }
 
@@ -360,6 +364,7 @@ Rectangle {
                             text: shellRoot.vertDay || Qt.formatDate(new Date(), "d")
                             color: (Config.showCalendar || clockVertHover.hovered) ? Config.accent : Config.textMuted
                             font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 12
+                            renderType: Config.textRenderType
                             Layout.alignment: Qt.AlignHCenter
                         }
                     }
