@@ -133,7 +133,6 @@ Flickable {
                     wrapMode: Text.WordWrap
                 }
 
-                // Interactive Preview Bar
                 LockscreenPasswordBar {
                     id: previewPassBar
                     Layout.fillWidth: true
@@ -209,6 +208,7 @@ Flickable {
 
                     // Option: Hyprland Focused Monitor
                     Rectangle {
+                        id: focusedPill
                         Layout.fillWidth: true
                         Layout.preferredWidth: 1
                         Layout.minimumWidth: 0
@@ -233,7 +233,7 @@ Flickable {
                                 text: "center_focus_strong"
                                 font.family: "Material Symbols Outlined"
                                 font.pixelSize: 16
-                                color: parent.parent.isSelected ? Config.bgBase : Config.accent
+                                color: focusedPill.isSelected ? Config.bgBase : Config.accent
                                 verticalAlignment: Text.AlignVCenter
                             }
 
@@ -242,7 +242,7 @@ Flickable {
                                 font.family: Config.sysFont
                                 font.pixelSize: Config.size(Config.fontCaption)
                                 font.bold: true
-                                color: parent.parent.isSelected ? Config.bgBase : Config.textMain
+                                color: focusedPill.isSelected ? Config.bgBase : Config.textMain
                                 verticalAlignment: Text.AlignVCenter
                             }
                         }
@@ -254,6 +254,8 @@ Flickable {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
                                 Config.lockscreenTargetMonitor = "focused"
+                                if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                else if (typeof Config.save === "function") Config.save()
                             }
                         }
                     }
@@ -263,13 +265,15 @@ Flickable {
                         model: Quickshell.screens
 
                         delegate: Rectangle {
+                            id: monitorPill
                             Layout.fillWidth: true
                             Layout.preferredWidth: 1
                             Layout.minimumWidth: 0
                             implicitHeight: 36
                             radius: Config.cornerRadius / 2
 
-                            readonly property bool isSelected: Config.lockscreenTargetMonitor === modelData.name
+                            readonly property string scrName: (modelData && modelData.name) ? modelData.name : ""
+                            readonly property bool isSelected: Config.lockscreenTargetMonitor === scrName
 
                             color: isSelected 
                                 ? Config.accent 
@@ -287,16 +291,16 @@ Flickable {
                                     text: "desktop_windows"
                                     font.family: "Material Symbols Outlined"
                                     font.pixelSize: 16
-                                    color: parent.parent.isSelected ? Config.bgBase : Config.accent
+                                    color: monitorPill.isSelected ? Config.bgBase : Config.accent
                                     verticalAlignment: Text.AlignVCenter
                                 }
 
                                 Text {
-                                    text: modelData.name
+                                    text: monitorPill.scrName
                                     font.family: Config.sysFont
                                     font.pixelSize: Config.size(Config.fontCaption)
                                     font.bold: true
-                                    color: parent.parent.isSelected ? Config.bgBase : Config.textMain
+                                    color: monitorPill.isSelected ? Config.bgBase : Config.textMain
                                     verticalAlignment: Text.AlignVCenter
                                 }
                             }
@@ -307,7 +311,11 @@ Flickable {
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    Config.lockscreenTargetMonitor = modelData.name
+                                    if (monitorPill.scrName !== "") {
+                                        Config.lockscreenTargetMonitor = monitorPill.scrName
+                                        if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                        else if (typeof Config.save === "function") Config.save()
+                                    }
                                 }
                             }
                         }
@@ -354,6 +362,7 @@ Flickable {
                         ]
 
                         delegate: Rectangle {
+                            id: maskPill
                             Layout.fillWidth: true
                             Layout.preferredWidth: 1
                             Layout.minimumWidth: 0
@@ -382,7 +391,7 @@ Flickable {
                                         text: modelData.icon
                                         font.family: "Material Symbols Outlined"
                                         font.pixelSize: 16
-                                        color: isSelected ? Config.accent : Config.textMuted
+                                        color: maskPill.isSelected ? Config.accent : Config.textMuted
                                         verticalAlignment: Text.AlignVCenter
                                     }
 
@@ -391,7 +400,7 @@ Flickable {
                                         font.family: Config.sysFont
                                         font.pixelSize: Config.size(Config.fontCaption)
                                         font.bold: true
-                                        color: isSelected ? Config.accent : Config.textMain
+                                        color: maskPill.isSelected ? Config.accent : Config.textMain
                                         verticalAlignment: Text.AlignVCenter
                                         horizontalAlignment: Text.AlignHCenter
                                     }
@@ -402,7 +411,7 @@ Flickable {
                                     font.family: Config.sysFont
                                     font.pixelSize: 11
                                     font.bold: true
-                                    color: isSelected ? Config.accent : Qt.rgba(255, 255, 255, 0.5)
+                                    color: maskPill.isSelected ? Config.accent : Qt.rgba(255, 255, 255, 0.5)
                                     Layout.alignment: Qt.AlignHCenter
                                     horizontalAlignment: Text.AlignHCenter
                                 }
@@ -417,6 +426,8 @@ Flickable {
                                     Config.lockscreenMaskStyle = modelData.id
                                     previewPassBar.maskStyle = modelData.id
                                     previewPassBar.shuffleShapes()
+                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                    else if (typeof Config.save === "function") Config.save()
                                 }
                             }
                         }
@@ -464,6 +475,7 @@ Flickable {
                         ]
 
                         delegate: Rectangle {
+                            id: palPill
                             Layout.fillWidth: true
                             Layout.preferredWidth: 1
                             Layout.minimumWidth: 0
@@ -499,7 +511,7 @@ Flickable {
                                         font.family: Config.sysFont
                                         font.pixelSize: Config.size(Config.fontCaption)
                                         font.bold: true
-                                        color: isSelected ? Config.accent : Config.textMain
+                                        color: palPill.isSelected ? Config.accent : Config.textMain
                                         verticalAlignment: Text.AlignVCenter
                                         horizontalAlignment: Text.AlignHCenter
                                     }
@@ -523,6 +535,8 @@ Flickable {
                                 onClicked: {
                                     Config.lockscreenShapePalette = modelData.id
                                     previewPassBar.shuffleShapes()
+                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                    else if (typeof Config.save === "function") Config.save()
                                 }
                             }
                         }
@@ -582,6 +596,7 @@ Flickable {
                             ]
 
                             delegate: Rectangle {
+                                id: hourPill
                                 Layout.fillWidth: true
                                 Layout.preferredWidth: 1
                                 Layout.minimumWidth: 0
@@ -604,7 +619,7 @@ Flickable {
                                         text: modelData.icon
                                         font.family: "Material Symbols Outlined"
                                         font.pixelSize: 15
-                                        color: isSelected ? Config.bgBase : Config.accent
+                                        color: hourPill.isSelected ? Config.bgBase : Config.accent
                                         verticalAlignment: Text.AlignVCenter
                                     }
 
@@ -613,7 +628,7 @@ Flickable {
                                         font.family: Config.sysFont
                                         font.pixelSize: 11
                                         font.bold: true
-                                        color: isSelected ? Config.bgBase : Config.textMain
+                                        color: hourPill.isSelected ? Config.bgBase : Config.textMain
                                         verticalAlignment: Text.AlignVCenter
                                         horizontalAlignment: Text.AlignHCenter
                                     }
@@ -626,6 +641,8 @@ Flickable {
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: {
                                         Config.lockscreenUse12Hour = modelData.use12
+                                        if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                        else if (typeof Config.save === "function") Config.save()
                                     }
                                 }
                             }
@@ -653,6 +670,7 @@ Flickable {
                             ]
 
                             delegate: Rectangle {
+                                id: clockPill
                                 implicitWidth: sizeText.implicitWidth + 20
                                 implicitHeight: 30
                                 radius: 15
@@ -666,7 +684,7 @@ Flickable {
                                     font.family: Config.sysFont
                                     font.pixelSize: 11
                                     font.bold: true
-                                    color: isSelected ? Config.bgBase : Config.textMain
+                                    color: clockPill.isSelected ? Config.bgBase : Config.textMain
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
                                 }
@@ -676,7 +694,11 @@ Flickable {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: Config.lockscreenClockSize = modelData.size
+                                    onClicked: {
+                                        Config.lockscreenClockSize = modelData.size
+                                        if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                        else if (typeof Config.save === "function") Config.save()
+                                    }
                                 }
                             }
                         }
@@ -710,7 +732,11 @@ Flickable {
                             MouseArea {
                                 anchors.fill: parent
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: Config.lockscreenShowSeconds = !Config.lockscreenShowSeconds
+                                onClicked: {
+                                    Config.lockscreenShowSeconds = !Config.lockscreenShowSeconds
+                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                    else if (typeof Config.save === "function") Config.save()
+                                }
                             }
                         }
 
@@ -723,7 +749,11 @@ Flickable {
                             MouseArea {
                                 anchors.fill: parent
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: Config.lockscreenShowSeconds = !Config.lockscreenShowSeconds
+                                onClicked: {
+                                    Config.lockscreenShowSeconds = !Config.lockscreenShowSeconds
+                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                    else if (typeof Config.save === "function") Config.save()
+                                }
                             }
                         }
                     }
@@ -751,7 +781,11 @@ Flickable {
                             MouseArea {
                                 anchors.fill: parent
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: Config.lockscreenShowAmPm = (Config.lockscreenShowAmPm === false)
+                                onClicked: {
+                                    Config.lockscreenShowAmPm = (Config.lockscreenShowAmPm === false)
+                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                    else if (typeof Config.save === "function") Config.save()
+                                }
                             }
                         }
 
@@ -764,7 +798,11 @@ Flickable {
                             MouseArea {
                                 anchors.fill: parent
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: Config.lockscreenShowAmPm = (Config.lockscreenShowAmPm === false)
+                                onClicked: {
+                                    Config.lockscreenShowAmPm = (Config.lockscreenShowAmPm === false)
+                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                    else if (typeof Config.save === "function") Config.save()
+                                }
                             }
                         }
                     }
@@ -830,6 +868,7 @@ Flickable {
                             ]
 
                             delegate: Rectangle {
+                                id: datePill
                                 Layout.fillWidth: true
                                 Layout.preferredWidth: 1
                                 Layout.minimumWidth: 0
@@ -847,7 +886,7 @@ Flickable {
                                     font.family: Config.sysFont
                                     font.pixelSize: 11
                                     font.bold: true
-                                    color: isSelected ? Config.bgBase : Config.textMain
+                                    color: datePill.isSelected ? Config.bgBase : Config.textMain
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
                                 }
@@ -857,7 +896,11 @@ Flickable {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: Config.lockscreenDateFormat = modelData.id
+                                    onClicked: {
+                                        Config.lockscreenDateFormat = modelData.id
+                                        if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                        else if (typeof Config.save === "function") Config.save()
+                                    }
                                 }
                             }
                         }
@@ -914,7 +957,11 @@ Flickable {
                         MouseArea {
                             anchors.fill: parent
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: Config.lockscreenShowMedia = (Config.lockscreenShowMedia === false)
+                            onClicked: {
+                                Config.lockscreenShowMedia = (Config.lockscreenShowMedia === false)
+                                if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                else if (typeof Config.save === "function") Config.save()
+                            }
                         }
                     }
 
@@ -967,7 +1014,11 @@ Flickable {
                         MouseArea {
                             anchors.fill: parent
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: Config.lockscreenShowPower = (Config.lockscreenShowPower === false)
+                            onClicked: {
+                                Config.lockscreenShowPower = (Config.lockscreenShowPower === false)
+                                if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                else if (typeof Config.save === "function") Config.save()
+                            }
                         }
                     }
 
@@ -1018,6 +1069,7 @@ Flickable {
                         ]
 
                         delegate: Rectangle {
+                            id: blurPill
                             Layout.fillWidth: true
                             Layout.preferredWidth: 1
                             Layout.minimumWidth: 0
@@ -1032,7 +1084,7 @@ Flickable {
                                 font.family: Config.sysFont
                                 font.pixelSize: 11
                                 font.bold: true
-                                color: isSelected ? Config.bgBase : Config.textMain
+                                color: blurPill.isSelected ? Config.bgBase : Config.textMain
                                 horizontalAlignment: Text.AlignHCenter
                                 verticalAlignment: Text.AlignVCenter
                             }
@@ -1042,7 +1094,11 @@ Flickable {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: Config.lockscreenBlurRadius = modelData.value
+                                onClicked: {
+                                    Config.lockscreenBlurRadius = modelData.value
+                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                    else if (typeof Config.save === "function") Config.save()
+                                }
                             }
                         }
                     }
