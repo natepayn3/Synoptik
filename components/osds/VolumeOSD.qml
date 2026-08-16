@@ -1,4 +1,5 @@
 import QtQuick
+import Qt5Compat.GraphicalEffects
 import QtQuick.Layouts
 import QtQuick.Controls
 import QtMultimedia
@@ -168,6 +169,17 @@ Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     implicitHeight: 48
+
+                    Glow {
+                        anchors.fill: waveCanvasH
+                        source: waveCanvasH
+                        radius: 12
+                        samples: 24
+                        color: osdRoot.isMuted ? Config.textMuted : Config.accent
+                        spread: 0.2
+                        transparentBorder: true
+                        visible: Config.clockShowGlow !== undefined ? Config.clockShowGlow : true
+                    }
 
                     Canvas {
                         id: waveCanvasH
