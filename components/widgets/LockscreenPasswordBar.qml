@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import Qt5Compat.GraphicalEffects
 import Quickshell
+import Quickshell.Io
 import ".."
 
 Item {
@@ -147,6 +148,26 @@ Item {
 
     function forceFocus() {
         hiddenInput.forceActiveFocus()
+    }
+
+    // Hardware / Compositor CapsLock Detection Process
+    Process {
+        id: capsCheckProc
+        command: [
+            "sh", "-c",
+            "hyprctl devices -j 2>/dev/null | grep -q '\"capsLock\": true' && echo 1 || (cat /sys/class/leds/*capslock*/brightness 2>/dev/null | grep -q '[1-9]' && echo 1 || echo 0)"
+        ]
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                barRoot.capsLockActive = (this.text.trim() === "1")
+            }
+        }
+    }
+
+    function checkCapsLock() {
+        capsCheckProc.running = false
+        capsCheckProc.running = true
     }
 
     Timer {
@@ -340,7 +361,6 @@ Item {
                             }
 
                             onWidthChanged: {
-                                // Auto-scroll to end as user types
                                 if (width > shapesFlickable.width) {
                                     shapesFlickable.contentX = width - shapesFlickable.width
                                 } else {
@@ -500,8 +520,14 @@ Item {
         }
 
         Keys.onPressed: (event) => {
-            // Check CapsLock
-            barRoot.capsLockActive = (event.modifiers & Qt.KeypadModifier) !== 0 || event.key === Qt.Key_CapsLock
+            // Ignore OS key autorepeat so a single hold doesn't rapid-fire toggle
+            if (event.key === Qt.Key_CapsLock) {
+                if (!event.isAutoRepeat) {
+                    barRoot.capsLockActive = !barRoot.capsLockActive
+                }
+                event.accepted = true
+                return
+            }
 
             if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
                 event.accepted = true
@@ -520,5 +546,6 @@ Item {
 
     Component.onCompleted: {
         forceFocus()
+        checkCapsLock()
     }
 }
