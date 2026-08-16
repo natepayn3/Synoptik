@@ -67,7 +67,6 @@ Flickable {
                     Layout.fillWidth: true
 
                     ColumnLayout {
-                        Layout.fillWidth: true
                         spacing: 2
 
                         Text {
@@ -86,10 +85,15 @@ Flickable {
                         }
                     }
 
+                    Item {
+                        Layout.fillWidth: true
+                    }
+
                     Rectangle {
-                        implicitWidth: 120
-                        implicitHeight: 34
-                        radius: 17
+                        Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                        implicitWidth: 110
+                        implicitHeight: 32
+                        radius: 16
                         color: Config.accent
 
                         RowLayout {
@@ -99,12 +103,12 @@ Flickable {
                             Text {
                                 text: "play_arrow"
                                 font.family: "Material Symbols Outlined"
-                                font.pixelSize: 18
+                                font.pixelSize: 16
                                 color: Config.bgBase
                             }
 
                             Text {
-                                text: "Launch Now"
+                                text: "Test Now"
                                 font.family: Config.sysFont
                                 font.pixelSize: 12
                                 font.bold: true
