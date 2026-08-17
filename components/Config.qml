@@ -976,13 +976,32 @@ QtObject {
     // --- DESKTOP SYSTEM INFO STATE & PERSISTENCE ---
     property bool showDesktopSysInfo: true
     property real sysInfoScale: 1.0
+
+    // OS & System
     property bool sysInfoShowHost: true
+    property bool sysInfoShowOs: true
     property bool sysInfoShowKernel: true
     property bool sysInfoShowUptime: true
-    property bool sysInfoShowIp: true
+    property bool sysInfoShowPackages: true
+    property bool sysInfoShowWm: true
+
+    // Hardware
+    property bool sysInfoShowBoard: true
     property bool sysInfoShowCpu: true
+    property bool sysInfoShowCores: true
+    property bool sysInfoShowLoad: true
+    property bool sysInfoShowGpu: true
+
+    // Network
+    property bool sysInfoShowIp: true
+    property bool sysInfoShowGateway: true
+    property bool sysInfoShowDns: true
+
+    // Gauges & Styling
     property bool sysInfoShowRam: true
+    property bool sysInfoShowSwap: true
     property bool sysInfoShowDisk: true
+    property bool sysInfoShowDiskHome: true
     property bool sysInfoShowBg: true
     property bool sysInfoShowGlow: true
     property int sysInfoRefreshInterval: 3000
@@ -1039,12 +1058,23 @@ QtObject {
     onShowDesktopSysInfoChanged: { if (isLoaded) saveSettings() }
     onSysInfoScaleChanged: { if (isLoaded) saveSettings() }
     onSysInfoShowHostChanged: { if (isLoaded) saveSettings() }
+    onSysInfoShowOsChanged: { if (isLoaded) saveSettings() }
     onSysInfoShowKernelChanged: { if (isLoaded) saveSettings() }
     onSysInfoShowUptimeChanged: { if (isLoaded) saveSettings() }
-    onSysInfoShowIpChanged: { if (isLoaded) saveSettings() }
+    onSysInfoShowPackagesChanged: { if (isLoaded) saveSettings() }
+    onSysInfoShowWmChanged: { if (isLoaded) saveSettings() }
+    onSysInfoShowBoardChanged: { if (isLoaded) saveSettings() }
     onSysInfoShowCpuChanged: { if (isLoaded) saveSettings() }
+    onSysInfoShowCoresChanged: { if (isLoaded) saveSettings() }
+    onSysInfoShowLoadChanged: { if (isLoaded) saveSettings() }
+    onSysInfoShowGpuChanged: { if (isLoaded) saveSettings() }
+    onSysInfoShowIpChanged: { if (isLoaded) saveSettings() }
+    onSysInfoShowGatewayChanged: { if (isLoaded) saveSettings() }
+    onSysInfoShowDnsChanged: { if (isLoaded) saveSettings() }
     onSysInfoShowRamChanged: { if (isLoaded) saveSettings() }
+    onSysInfoShowSwapChanged: { if (isLoaded) saveSettings() }
     onSysInfoShowDiskChanged: { if (isLoaded) saveSettings() }
+    onSysInfoShowDiskHomeChanged: { if (isLoaded) saveSettings() }
     onSysInfoShowBgChanged: { if (isLoaded) saveSettings() }
     onSysInfoShowGlowChanged: { if (isLoaded) saveSettings() }
     onSysInfoRefreshIntervalChanged: { if (isLoaded) saveSettings() }
@@ -1832,12 +1862,23 @@ QtObject {
                 "showDesktopSysInfo": root.showDesktopSysInfo,
                 "sysInfoScale": root.sysInfoScale,
                 "sysInfoShowHost": root.sysInfoShowHost,
+                "sysInfoShowOs": root.sysInfoShowOs,
                 "sysInfoShowKernel": root.sysInfoShowKernel,
                 "sysInfoShowUptime": root.sysInfoShowUptime,
-                "sysInfoShowIp": root.sysInfoShowIp,
+                "sysInfoShowPackages": root.sysInfoShowPackages,
+                "sysInfoShowWm": root.sysInfoShowWm,
+                "sysInfoShowBoard": root.sysInfoShowBoard,
                 "sysInfoShowCpu": root.sysInfoShowCpu,
+                "sysInfoShowCores": root.sysInfoShowCores,
+                "sysInfoShowLoad": root.sysInfoShowLoad,
+                "sysInfoShowGpu": root.sysInfoShowGpu,
+                "sysInfoShowIp": root.sysInfoShowIp,
+                "sysInfoShowGateway": root.sysInfoShowGateway,
+                "sysInfoShowDns": root.sysInfoShowDns,
                 "sysInfoShowRam": root.sysInfoShowRam,
+                "sysInfoShowSwap": root.sysInfoShowSwap,
                 "sysInfoShowDisk": root.sysInfoShowDisk,
+                "sysInfoShowDiskHome": root.sysInfoShowDiskHome,
                 "sysInfoShowBg": root.sysInfoShowBg,
                 "sysInfoShowGlow": root.sysInfoShowGlow,
                 "sysInfoRefreshInterval": root.sysInfoRefreshInterval,
@@ -1902,9 +1943,12 @@ QtObject {
                             "enableXray", "enableIris", "showWatermarks", "bounceWatermarks", "surfaceRadius", "borderThickness", "cardMargin", "showDesktopClock", "clockStyle", "clockScale", 
                             "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", 
                             "clockShowBackground", "clockShowGlow", "clockPositions", "clockScales", "enabledClockScreens",
-                            "showDesktopSysInfo", "sysInfoScale", "sysInfoShowHost", "sysInfoShowKernel",
-                            "sysInfoShowUptime", "sysInfoShowIp", "sysInfoShowCpu", "sysInfoShowRam",
-                            "sysInfoShowDisk", "sysInfoShowBg", "sysInfoShowGlow", "sysInfoRefreshInterval",
+                            "showDesktopSysInfo", "sysInfoScale",
+                            "sysInfoShowHost", "sysInfoShowOs", "sysInfoShowKernel", "sysInfoShowUptime", "sysInfoShowPackages", "sysInfoShowWm",
+                            "sysInfoShowBoard", "sysInfoShowCpu", "sysInfoShowCores", "sysInfoShowLoad", "sysInfoShowGpu",
+                            "sysInfoShowIp", "sysInfoShowGateway", "sysInfoShowDns",
+                            "sysInfoShowRam", "sysInfoShowSwap", "sysInfoShowDisk", "sysInfoShowDiskHome",
+                            "sysInfoShowBg", "sysInfoShowGlow", "sysInfoRefreshInterval",
                             "sysInfoPositions", "sysInfoScales", "enabledSysInfoScreens",
                             "lockscreenBlurRadius", "lockscreenShowMedia", "lockscreenShowPower", "lockscreenMaskStyle", "lockscreenShapePalette",
                             "lockscreenUse12Hour", "lockscreenShowSeconds", "lockscreenShowAmPm", "lockscreenDateFormat", "lockscreenClockSize", "lockscreenTargetMonitor",
