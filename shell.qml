@@ -12,6 +12,7 @@ import QtMultimedia
 import Quickshell.Services.Notifications as Notifs
 import "components"
 import "components/bars"
+import "components/lockscreen"
 import "components/osds"
 import "components/widgets"
 
