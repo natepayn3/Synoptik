@@ -1,0 +1,506 @@
+import QtQuick
+import QtQuick.Layouts
+import QtQuick.Controls
+import Qt5Compat.GraphicalEffects
+import Quickshell
+import ".."
+
+Flickable {
+    id: flickable
+    Layout.fillWidth: true
+    Layout.fillHeight: true
+    contentWidth: width
+    contentHeight: contentColumn.implicitHeight + 32
+    clip: true
+    boundsBehavior: Flickable.StopAtBounds
+
+    ScrollBar.vertical: ScrollBar {
+        policy: ScrollBar.AsNeeded
+        active: flickable.moving || flickable.flicking
+    }
+
+    readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
+
+    ColumnLayout {
+        id: contentColumn
+        width: Math.min(flickable.width - (flickable.cardMargin * 2), 620)
+        anchors.horizontalCenter: parent.horizontalCenter
+        spacing: flickable.cardMargin
+
+        Text {
+            Layout.fillWidth: true
+            text: "SYSTEM INFO OVERLAY CONFIGURATION"
+            color: Config.textMain
+            font.family: Config.sysFont
+            font.pixelSize: Config.size(Config.fontSubhead)
+            font.bold: true
+        }
+
+        Text {
+            text: "Configure the desktop system specification overlay, target displays, hardware telemetry metrics, styling, and background polling rates."
+            color: Config.textMuted
+            font.family: Config.sysFont
+            font.pixelSize: Config.size(Config.fontCaption)
+            Layout.fillWidth: true
+            wrapMode: Text.WordWrap
+        }
+
+        // ==========================================
+        // 1. MASTER WIDGET TOGGLE
+        // ==========================================
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: masterCol.implicitHeight + 28
+            radius: Config.cornerRadius
+            color: Qt.rgba(255, 255, 255, 0.05)
+            border.width: 1
+            border.color: Qt.rgba(255, 255, 255, 0.1)
+
+            ColumnLayout {
+                id: masterCol
+                anchors.fill: parent
+                anchors.margins: 14
+                spacing: 12
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 12
+
+                    Rectangle {
+                        implicitWidth: 20; implicitHeight: 20; radius: 4
+                        color: (Config.showDesktopSysInfo !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "✓"
+                            color: Config.bgBase
+                            visible: Config.showDesktopSysInfo !== false
+                            font.pixelSize: 12
+                            font.bold: true
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                Config.showDesktopSysInfo = (Config.showDesktopSysInfo === false)
+                                if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                else if (typeof Config.save === "function") Config.save()
+                            }
+                        }
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 1
+
+                        Text {
+                            text: "Enable Desktop System Info Overlay"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
+                            font.bold: true
+                        }
+
+                        Text {
+                            text: "Renders live system metrics, hardware info, and storage directly onto your desktop canvas."
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                        }
+                    }
+                }
+
+                // Interactive Hint
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: 34
+                    radius: Config.cornerRadius / 2
+                    color: Qt.rgba(0, 0, 0, 0.25)
+
+                    RowLayout {
+                        anchors.centerIn: parent
+                        spacing: 6
+
+                        Text {
+                            text: "mouse"
+                            font.family: "Material Symbols Outlined"
+                            font.pixelSize: 15
+                            color: Config.accent
+                        }
+
+                        Text {
+                            text: "Click + Drag anywhere to reposition. Scroll wheel directly on the widget to resize."
+                            font.family: Config.sysFont
+                            font.pixelSize: 11
+                            color: Config.textMuted
+                        }
+                    }
+                }
+            }
+        }
+
+        // ==========================================
+        // 2. TARGET MONITOR SELECTION CARD
+        // ==========================================
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: monitorCol.implicitHeight + 28
+            radius: Config.cornerRadius
+            color: Qt.rgba(255, 255, 255, 0.05)
+            border.width: 1
+            border.color: Qt.rgba(255, 255, 255, 0.1)
+
+            ColumnLayout {
+                id: monitorCol
+                anchors.fill: parent
+                anchors.margins: 14
+                spacing: 12
+
+                Text {
+                    text: "TARGET DISPLAY OUTPUTS"
+                    color: Config.textMuted
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontMicro)
+                    font.bold: true
+                }
+
+                Text {
+                    text: "Select which attached monitors render the system specification overlay."
+                    color: Config.textMuted
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontCaption)
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    Repeater {
+                        model: Quickshell.screens
+
+                        delegate: Rectangle {
+                            id: monPill
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 1
+                            implicitHeight: 36
+                            radius: Config.cornerRadius / 2
+
+                            readonly property string scrName: (modelData && modelData.name) ? modelData.name : ""
+                            readonly property bool isEnabled: Config.isSysInfoEnabledForScreen ? Config.isSysInfoEnabledForScreen(scrName) : true
+
+                            color: isEnabled 
+                                ? Config.accent 
+                                : (monHover.containsMouse ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(0, 0, 0, 0.2))
+                            border.width: isEnabled ? 1.5 : 1
+                            border.color: isEnabled ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+
+                            Behavior on color { ColorAnimation { duration: 150 } }
+
+                            RowLayout {
+                                anchors.centerIn: parent
+                                spacing: 6
+
+                                Text {
+                                    text: "desktop_windows"
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 16
+                                    color: monPill.isEnabled ? Config.bgBase : Config.accent
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+
+                                Text {
+                                    text: monPill.scrName
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontCaption)
+                                    font.bold: true
+                                    color: monPill.isEnabled ? Config.bgBase : Config.textMain
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                            }
+
+                            MouseArea {
+                                id: monHover
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    if (Config.toggleSysInfoScreen) {
+                                        Config.toggleSysInfoScreen(monPill.scrName)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ==========================================
+        // 3. TELEMETRY & METRIC TOGGLES
+        // ==========================================
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: metricsCol.implicitHeight + 28
+            radius: Config.cornerRadius
+            color: Qt.rgba(255, 255, 255, 0.05)
+            border.width: 1
+            border.color: Qt.rgba(255, 255, 255, 0.1)
+
+            ColumnLayout {
+                id: metricsCol
+                anchors.fill: parent
+                anchors.margins: 14
+                spacing: 12
+
+                Text {
+                    text: "VISIBLE METRICS & TELEMETRY"
+                    color: Config.textMuted
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontMicro)
+                    font.bold: true
+                }
+
+                Repeater {
+                    model: [
+                        { key: "sysInfoShowHost",   label: "Host & User Header",       desc: "Display username@hostname and decorative header glow", icon: "badge",              def: true },
+                        { key: "sysInfoShowKernel", label: "Kernel Release",           desc: "Display active Linux kernel version (uname -r)",      icon: "memory",             def: true },
+                        { key: "sysInfoShowUptime", label: "System Uptime",            desc: "Time elapsed since system boot",                      icon: "history",            def: true },
+                        { key: "sysInfoShowIp",     label: "IPv4 Network Address",     desc: "Default routed local interface address",              icon: "lan",                def: true },
+                        { key: "sysInfoShowCpu",    label: "Processor Hardware Model", desc: "CPU brand and core architecture identifier",          icon: "developer_board",    def: true },
+                        { key: "sysInfoShowRam",    label: "RAM / Memory Usage Bar",   desc: "Active memory capacity and visual usage indicator",   icon: "memory_alt",         def: true },
+                        { key: "sysInfoShowDisk",   label: "Root Storage Usage Bar",   desc: "Disk fill percentage and available storage space",    icon: "hard_drive",         def: true }
+                    ]
+
+                    delegate: RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+
+                        readonly property bool isChecked: Config[modelData.key] !== undefined ? Config[modelData.key] : modelData.def
+
+                        Rectangle {
+                            implicitWidth: 20; implicitHeight: 20; radius: 4
+                            color: parent.isChecked ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "✓"
+                                color: Config.bgBase
+                                visible: parent.parent.isChecked
+                                font.pixelSize: 12
+                                font.bold: true
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    Config[modelData.key] = !parent.parent.isChecked
+                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                    else if (typeof Config.save === "function") Config.save()
+                                }
+                            }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 1
+
+                            RowLayout {
+                                spacing: 6
+                                Text {
+                                    text: modelData.icon
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 15
+                                    color: Config.accent
+                                }
+                                Text {
+                                    text: modelData.label
+                                    color: Config.textMain
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontCaption)
+                                    font.bold: true
+                                }
+                            }
+
+                            Text {
+                                text: modelData.desc
+                                color: Config.textMuted
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontMicro)
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ==========================================
+        // 4. VISUAL STYLING & INTERVAL CARD
+        // ==========================================
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: styleCol.implicitHeight + 28
+            radius: Config.cornerRadius
+            color: Qt.rgba(255, 255, 255, 0.05)
+            border.width: 1
+            border.color: Qt.rgba(255, 255, 255, 0.1)
+
+            ColumnLayout {
+                id: styleCol
+                anchors.fill: parent
+                anchors.margins: 14
+                spacing: 12
+
+                Text {
+                    text: "VISUAL STYLING & UPDATE INTERVAL"
+                    color: Config.textMuted
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontMicro)
+                    font.bold: true
+                }
+
+                // Background & Glow Checkboxes
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 24
+
+                    // Show Background
+                    RowLayout {
+                        spacing: 8
+                        Rectangle {
+                            implicitWidth: 18; implicitHeight: 18; radius: 4
+                            color: (Config.sysInfoShowBg !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "✓"
+                                color: Config.bgBase
+                                visible: Config.sysInfoShowBg !== false
+                                font.pixelSize: 11
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    Config.sysInfoShowBg = (Config.sysInfoShowBg === false)
+                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                    else if (typeof Config.save === "function") Config.save()
+                                }
+                            }
+                        }
+                        Text {
+                            text: "Show Card Background"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                        }
+                    }
+
+                    // Show Glow
+                    RowLayout {
+                        spacing: 8
+                        Rectangle {
+                            implicitWidth: 18; implicitHeight: 18; radius: 4
+                            color: (Config.sysInfoShowGlow !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "✓"
+                                color: Config.bgBase
+                                visible: Config.sysInfoShowGlow !== false
+                                font.pixelSize: 11
+                                font.bold: true
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    Config.sysInfoShowGlow = (Config.sysInfoShowGlow === false)
+                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                    else if (typeof Config.save === "function") Config.save()
+                                }
+                            }
+                        }
+                        Text {
+                            text: "Show Accent Glow"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                        }
+                    }
+                }
+
+                // Polling Interval Presets
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Layout.topMargin: 4
+
+                    Text {
+                        text: "Refresh Rate:"
+                        color: Config.textMain
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontCaption)
+                        font.bold: true
+                    }
+
+                    Repeater {
+                        model: [
+                            { label: "1s (Realtime)", ms: 1000 },
+                            { label: "3s (Balanced)", ms: 3000 },
+                            { label: "10s (Eco)", ms: 10000 }
+                        ]
+
+                        delegate: Rectangle {
+                            id: intPill
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 1
+                            implicitHeight: 30
+                            radius: 15
+
+                            readonly property bool isSelected: (Config.sysInfoRefreshInterval || 3000) === modelData.ms
+                            color: isSelected ? Config.accent : (intHover.containsMouse ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(0, 0, 0, 0.2))
+
+                            Behavior on color { ColorAnimation { duration: 150 } }
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: modelData.label
+                                font.family: Config.sysFont
+                                font.pixelSize: 11
+                                font.bold: true
+                                color: intPill.isSelected ? Config.bgBase : Config.textMain
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            MouseArea {
+                                id: intHover
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    Config.sysInfoRefreshInterval = modelData.ms
+                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                    else if (typeof Config.save === "function") Config.save()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Item { Layout.fillHeight: true; implicitHeight: 20 }
+    }
+}
