@@ -70,82 +70,22 @@ Flickable {
 
     property string currentWallpaperPath: Config.activeWallpaperPath || ""
 
-    Process {
+    // Unified backend caller routed through Config
+    QtObject {
         id: wallpaperBackend
-        running: false
-
-        property string pendingIrisPath: ""
-
-        onExited: (exitCode, exitStatus) => {
-            if (exitCode === 0 && Config.enableIris && pendingIrisPath !== "") {
-                Config.applyIrisColors(pendingIrisPath)
-                pendingIrisPath = ""
-            }
-        }
 
         function applyWallpaper(filePath) {
             if (!filePath || filePath === "") return
-
             let cleanFilePath = (typeof filePath === "string" ? filePath : filePath.toString()).replace(/^file:\/\//, "")
             root.currentWallpaperPath = cleanFilePath
-            Config.activeWallpaperPath = cleanFilePath
-
-            let ext = cleanFilePath.split('.').pop().toLowerCase()
-            let waylandDisplay = Quickshell.env("WAYLAND_DISPLAY") || "wayland-1"
-            let sockPath = "/run/user/" + Quickshell.env("UID") + "/" + waylandDisplay + "-awww-daemon.sock"
-            let targets = (Config.selectedWallpaperMonitors || []).filter(mon => {
-                return Quickshell.screens.some(s => s.name === mon)
-            })
-            let transition = Config.wallpaperTransitionType || "fade"
-
-            let script = "killall -q mpvpaper 2>/dev/null; "
-
-            if (targets.length > 0) {
-                for (let i = 0; i < targets.length; i++) {
-                    let mon = targets[i]
-                    if (ext === "mp4" || ext === "webm") {
-                        script += "awww clear -o \"" + mon + "\" 2>/dev/null; "
-                        script += "pkill -f 'mpvpaper' 2>/dev/null; "
-                        script += "nohup mpvpaper -vs -o 'loop-file=inf no-audio panscan=1.0 video-unscaled=no' \"" + mon + "\" '" + cleanFilePath + "' >/dev/null 2>&1 & disown; "
-                    } else {
-                        script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; "
-                        script += "awww img -o \"" + mon + "\" '" + cleanFilePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; "
-                    }
-                }
-            } else {
-                if (ext === "mp4" || ext === "webm") {
-                    script += "awww kill 2>/dev/null; killall -9 -q awww-daemon 2>/dev/null; rm -f " + sockPath + "; "
-                    script += "nohup mpvpaper -vs -o 'loop-file=inf no-audio panscan=1.0 video-unscaled=no' '*' '" + cleanFilePath + "' >/dev/null 2>&1 & disown; "
-                } else {
-                    script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; "
-                    script += "awww img '" + cleanFilePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; "
-                }
-            }
-
-            if (Config.enableIris) {
-                if (ext === "mp4" || ext === "webm") {
-                    let fileName = cleanFilePath.split('/').pop()
-                    let thumbName = fileName.replace(/[^a-zA-Z0-9]/g, "_") + ".png"
-                    let thumbPath = Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + thumbName
-                    
-                    pendingIrisPath = thumbPath
-                    script += "test -f '" + thumbPath + "'; or ffmpeg -y -ss 00:00:00 -i '" + cleanFilePath + "' -vframes 1 -vf 'scale=600:-1' '" + thumbPath + "' >/dev/null 2>&1; "
-                    script += "iris '" + thumbPath + "'; "
-                } else {
-                    pendingIrisPath = cleanFilePath
-                    script += "iris '" + cleanFilePath + "'; "
-                }
-            }
-
-            command = ["fish", "-c", script]
-            running = false
-            running = true
+            Config.applyWallpaperBackend(cleanFilePath, false)
         }
 
         function shuffleRandom() {
-            if (folderModel.count <= 0) return
-            let randIdx = Math.floor(Math.random() * folderModel.count)
-            let path = folderModel.get(randIdx, "filePath")
+            let list = Config.wallpapers || []
+            if (list.length <= 0) return
+            let randIdx = Math.floor(Math.random() * list.length)
+            let path = list[randIdx]
             if (path) applyWallpaper(path)
         }
     }
@@ -261,7 +201,6 @@ Flickable {
                         anchors.leftMargin: 12; anchors.rightMargin: 12
                         spacing: 10
 
-                        // Checkbox
                         Rectangle {
                             implicitWidth: 18; implicitHeight: 18; radius: 4
                             color: Config.slideshowActive ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
@@ -298,7 +237,6 @@ Flickable {
 
                         Item { Layout.fillWidth: true }
 
-                        // Interval Stepper
                         RowLayout {
                             spacing: 4
                             opacity: Config.slideshowActive ? 1.0 : 0.4
@@ -376,7 +314,6 @@ Flickable {
                 anchors.margins: 14
                 spacing: 12
 
-                // Header & Master Switch
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 10
@@ -419,7 +356,6 @@ Flickable {
                     }
                 }
 
-                // Sub-options (visible when master switch is enabled)
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 8
@@ -717,7 +653,7 @@ Flickable {
         }
 
         // ==========================================
-        // 3. TRANSITION EFFECT CARD
+        // 4. TRANSITION EFFECT CARD
         // ==========================================
         Rectangle {
             Layout.fillWidth: true
@@ -797,11 +733,11 @@ Flickable {
         }
 
         // ==========================================
-        // 4. WALLPAPER LIBRARY GALLERY CARD
+        // 5. WALLPAPER LIBRARY GALLERY CARD
         // ==========================================
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: galleryCol.implicitHeight + 28
+            implicitHeight: Math.max(320, galleryCol.implicitHeight + 28)
             radius: Config.cornerRadius
             color: Qt.rgba(255, 255, 255, 0.05)
             border.width: 1
@@ -835,7 +771,6 @@ Flickable {
 
                     Item { Layout.fillWidth: true }
 
-                    // Count Badge
                     Rectangle {
                         implicitWidth: wpCountText.implicitWidth + 16
                         implicitHeight: 24
@@ -845,7 +780,7 @@ Flickable {
                         Text {
                             id: wpCountText
                             anchors.centerIn: parent
-                            text: folderModel.count + " Wallpapers"
+                            text: ((Config.wallpapers ? Config.wallpapers.length : 0)) + " Wallpapers"
                             font.family: Config.sysFont
                             font.pixelSize: 11
                             font.bold: true
@@ -854,7 +789,6 @@ Flickable {
                     }
                 }
 
-                // Grid View Box
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: Math.max(260, gridView.contentHeight + 12)
@@ -873,84 +807,46 @@ Flickable {
 
                         clip: true
                         boundsBehavior: Flickable.StopAtBounds
-                        cacheBuffer: 2000
+                        cacheBuffer: 4000
                         reuseItems: true
-
-                        model: FolderListModel {
-                            id: folderModel
-                            folder: "file://" + Quickshell.env("HOME") + "/Pictures/Wallpapers"
-                            nameFilters: ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.mp4", "*.webm"]
-                            showDirs: false
-                        }
+                        model: Config.wallpapers
 
                         delegate: Item {
                             id: delegateItem
                             width: gridView.cellWidth
                             height: gridView.cellHeight
 
-                            readonly property string cleanPath: (typeof filePath === "string" ? filePath : filePath.toString()).replace(/^file:\/\//, "")
-                            readonly property bool isCurrent: root.currentWallpaperPath === cleanPath || root.currentWallpaperPath === filePath
-                            readonly property bool isVideo: {
-                                let ext = fileSuffix.toLowerCase()
-                                return ext === "mp4" || ext === "webm"
-                            }
+                            readonly property string fullPath: modelData || ""
+                            readonly property string cleanPath: (typeof fullPath === "string" ? fullPath : "").replace(/^file:\/\//, "")
+                            readonly property string fileName: cleanPath.split('/').pop()
+                            readonly property string baseName: fileName.replace(/\.[^/.]+$/, "")
+                            readonly property string fileExt: cleanPath.split('.').pop().toLowerCase()
+                            readonly property bool isVideo: fileExt === "mp4" || fileExt === "webm"
+                            readonly property bool isCurrent: root.currentWallpaperPath === cleanPath
 
-                            readonly property string thumbName: fileName.replace(/\./g, "_") + ".jpg"
-                            readonly property string thumbPath: Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + thumbName
-                            readonly property string thumbUrl: "file://" + thumbPath
-
-                            Process {
-                                id: delegateThumbGenerator
-                                running: false
-
-                                onExited: (exitCode, exitStatus) => {
-                                    if (exitCode === 0) {
-                                        let path = delegateItem.thumbUrl
-                                        thumbImage.source = ""
-                                        thumbImage.source = path
-                                    }
-                                }
-                            }
-
-                            Component.onCompleted: {
-                                if (isVideo) {
-                                    let cmd = "if not test -f '" + thumbPath + "'; ffmpeg -y -i '" + cleanPath + "' -vf 'scale=300:-1' '" + thumbPath + "' >/dev/null 2>&1; end"
-                                    delegateThumbGenerator.command = ["fish", "-c", cmd]
-                                    delegateThumbGenerator.running = true
-                                }
-                            }
+                            readonly property string imageSource: isVideo ? 
+                                ("file://" + Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + baseName + ".jpg") : 
+                                ("file://" + cleanPath)
 
                             Item {
                                 anchors.fill: parent
                                 anchors.margins: 4
 
                                 ClippingRectangle {
-                                    id: imageHolder
                                     anchors.fill: parent
                                     radius: Config.cornerRadius / 2
                                     color: Qt.rgba(255, 255, 255, 0.05)
 
                                     Image {
-                                        id: thumbImage
                                         anchors.fill: parent
-                                        source: isVideo ? "" : filePath
+                                        source: delegateItem.imageSource
                                         fillMode: Image.PreserveAspectCrop
-                                        sourceSize.width: 400
-                                        sourceSize.height: 225
+                                        sourceSize.width: 320
+                                        sourceSize.height: 180
                                         asynchronous: true
                                         cache: true
                                     }
 
-                                    // Subtle Vignette Gradient
-                                    Rectangle {
-                                        anchors.fill: parent
-                                        gradient: Gradient {
-                                            GradientStop { position: 0.0; color: "transparent" }
-                                            GradientStop { position: 1.0; color: Qt.rgba(0, 0, 0, 0.45) }
-                                        }
-                                    }
-
-                                    // Video Play Icon Badge
                                     Rectangle {
                                         width: 22
                                         height: 22
@@ -959,7 +855,7 @@ Flickable {
                                         anchors.bottom: parent.bottom
                                         anchors.left: parent.left
                                         anchors.margins: 6
-                                        visible: isVideo
+                                        visible: delegateItem.isVideo
 
                                         Text {
                                             anchors.centerIn: parent
@@ -970,7 +866,6 @@ Flickable {
                                         }
                                     }
 
-                                    // Selected Active Checkmark Badge
                                     Rectangle {
                                         width: 22
                                         height: 22
@@ -979,7 +874,7 @@ Flickable {
                                         anchors.top: parent.top
                                         anchors.right: parent.right
                                         anchors.margins: 6
-                                        visible: isCurrent
+                                        visible: delegateItem.isCurrent
 
                                         Text {
                                             anchors.centerIn: parent
@@ -991,19 +886,16 @@ Flickable {
                                     }
                                 }
 
-                                // Glowing active border
                                 Rectangle {
                                     anchors.fill: parent
                                     radius: Config.cornerRadius / 2
                                     color: "transparent"
-                                    border.width: isCurrent ? 2.5 : (cardHover.hovered ? 1.5 : 0)
+                                    border.width: delegateItem.isCurrent ? 2.5 : (cardHover.hovered ? 1.5 : 0)
                                     border.color: Config.accent
-
-                                    Behavior on border.width { NumberAnimation { duration: 120 } }
                                 }
 
                                 TapHandler {
-                                    onTapped: wallpaperBackend.applyWallpaper(filePath)
+                                    onTapped: wallpaperBackend.applyWallpaper(delegateItem.fullPath)
                                 }
                                 HoverHandler { id: cardHover; cursorShape: Qt.PointingHandCursor }
                             }
