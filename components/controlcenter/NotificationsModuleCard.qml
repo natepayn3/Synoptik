@@ -320,18 +320,8 @@ Item {
                 }
             }
 
-            Rectangle {
-                id: notifDividerLine
-                anchors.top: notifHeaderRow.bottom
-                anchors.topMargin: 12
-                anchors.left: parent.left
-                anchors.right: parent.right
-                height: 1
-                color: Qt.rgba(255, 255, 255, 0.08)
-            }
-
             Item {
-                anchors.top: notifDividerLine.bottom
+                anchors.top: notifHeaderRow.bottom
                 anchors.topMargin: 12
                 anchors.left: parent.left
                 anchors.right: parent.right
