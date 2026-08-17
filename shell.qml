@@ -524,6 +524,7 @@ ShellRoot {
     Mascot { id: mascotWidget }
     OSK { id: oskWidget }
     Screensaver { id: screensaverWidget }
+    WallpaperSurface { id: wallpaperSurface }
     Lockscreen { id: lockscreenWidget; sessionLocked: Config.sessionLocked; shellRef: shellRoot }
 
     VideoOutput {
