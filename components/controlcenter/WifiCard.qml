@@ -110,40 +110,28 @@ Item {
     }
 
     readonly property real collapsedX: {
-        let p0 = cardRoot
-        let p1 = p0 ? p0.parent : null
-        let p2 = p1 ? p1.parent : null
-        let p3 = p2 ? p2.parent : null
-        let p4 = p3 ? p3.parent : null
-        
-        let x0 = p0 ? p0.x : 0
-        let x1 = p1 ? p1.x : 0
-        let x2 = p2 ? p2.x : 0
-        let x3 = p3 ? p3.x : 0
-        let x4 = p4 ? p4.x : 0
-        
-        return x0 + x1 + x2 + x3 + x4
+        let sum = 0
+        let p = cardRoot
+        while (p && p !== controlCenterPanel) {
+            sum += p.x
+            p = p.parent
+        }
+        return sum
     }
 
     readonly property real collapsedY: {
-        let p0 = cardRoot
-        let p1 = p0 ? p0.parent : null
-        let p2 = p1 ? p1.parent : null
-        let p3 = p2 ? p2.parent : null
-        let p4 = p3 ? p3.parent : null
-        
-        let y0 = p0 ? p0.y : 0
-        let y1 = p1 ? p1.y : 0
-        let y2 = p2 ? p2.y : 0
-        let y3 = p3 ? p3.y : 0
-        let y4 = p4 ? p4.y : 0
-        
-        return y0 + y1 + y2 + y3 + y4
+        let sum = 0
+        let p = cardRoot
+        while (p && p !== controlCenterPanel) {
+            sum += p.y
+            p = p.parent
+        }
+        return sum
     }
 
     Rectangle {
         id: visualBackground
-        parent: controlCenterPanel ? controlCenterPanel : cardRoot.parent.parent.parent
+        parent: controlCenterPanel ? controlCenterPanel : cardRoot.parent
         z: cardRoot.panelExpanded ? 1000 : 100
         clip: true
         
@@ -526,15 +514,12 @@ Item {
                             property bool isExpanded: cardRoot.expandedSsid === model.ssid
                             property bool isConnecting: cardRoot.connectingSsid === model.ssid
                             property bool isDisconnecting: cardRoot.disconnectingSsid === model.ssid
-                            // Cache fallback ensures disconnecting doesn't visually dump you back to the password screen
                             property bool isKnown: (model.isSaved === true) || (cardRoot.knownNetworks && cardRoot.knownNetworks[model.ssid] === true)
                             property bool hasError: cardRoot.errorSsid === model.ssid && cardRoot.connectingSsid !== model.ssid && cardRoot.activeSsid !== model.ssid
 
-                            // Instantly wipe password and update local known networks dictionary on successful connection
                             onIsCurrentActiveChanged: {
                                 if (isCurrentActive) {
                                     passInput.text = ""
-                                    
                                     let updated = Object.assign({}, cardRoot.knownNetworks)
                                     updated[model.ssid] = true
                                     cardRoot.knownNetworks = updated
@@ -734,7 +719,6 @@ Item {
                                                     }
                                                 }
 
-                                                // Eye Toggle Button
                                                 Rectangle {
                                                     implicitWidth: 24
                                                     implicitHeight: 24
@@ -757,7 +741,6 @@ Item {
                                             }
                                         }
 
-                                        // JOIN ACTION BUTTON
                                         Rectangle {
                                             implicitWidth: Math.max(joinRow.implicitWidth + 18, 72)
                                             implicitHeight: 32
@@ -814,7 +797,6 @@ Item {
                                         Layout.fillWidth: true
                                         spacing: 8
 
-                                        // Disconnect Button
                                         Rectangle {
                                             visible: isCurrentActive
                                             Layout.fillWidth: true
@@ -854,7 +836,6 @@ Item {
                                             HoverHandler { id: discHover; cursorShape: Qt.PointingHandCursor }
                                         }
 
-                                        // Connect Button
                                         Rectangle {
                                             visible: !isCurrentActive && (isKnown && !hasError || !model.isSecure)
                                             Layout.fillWidth: true
@@ -897,7 +878,6 @@ Item {
                                             HoverHandler { id: connHover; cursorShape: Qt.PointingHandCursor }
                                         }
 
-                                        // Forget Button
                                         Rectangle {
                                             visible: isKnown || isCurrentActive 
                                             Layout.fillWidth: true

@@ -11,7 +11,6 @@ Item {
     Layout.preferredWidth: 1
     Layout.alignment: Qt.AlignTop
 
-    // Lock structural footprint to 64px so lower cards stay static in ControlCenter
     implicitHeight: 64
     Layout.preferredHeight: 64
     z: panelExpanded ? 1000 : 1
@@ -38,43 +37,29 @@ Item {
         stopwatchCanvas.updateProgress()
     }
 
-    // Reactive collapsed position calculation spanning parent hierarchy up to controlCenterPanel (root)
     readonly property real collapsedX: {
-        let p0 = cardRoot
-        let p1 = p0 ? p0.parent : null
-        let p2 = p1 ? p1.parent : null
-        let p3 = p2 ? p2.parent : null
-        let p4 = p3 ? p3.parent : null
-        
-        let x0 = p0 ? p0.x : 0
-        let x1 = p1 ? p1.x : 0
-        let x2 = p2 ? p2.x : 0
-        let x3 = p3 ? p3.x : 0
-        let x4 = p4 ? p4.x : 0
-        
-        return x0 + x1 + x2 + x3 + x4
+        let sum = 0
+        let p = cardRoot
+        while (p && p !== controlCenterPanel) {
+            sum += p.x
+            p = p.parent
+        }
+        return sum
     }
 
     readonly property real collapsedY: {
-        let p0 = cardRoot
-        let p1 = p0 ? p0.parent : null
-        let p2 = p1 ? p1.parent : null
-        let p3 = p2 ? p2.parent : null
-        let p4 = p3 ? p3.parent : null
-        
-        let y0 = p0 ? p0.y : 0
-        let y1 = p1 ? p1.y : 0
-        let y2 = p2 ? p2.y : 0
-        let y3 = p3 ? p3.y : 0
-        let y4 = p4 ? p4.y : 0
-        
-        return y0 + y1 + y2 + y3 + y4
+        let sum = 0
+        let p = cardRoot
+        while (p && p !== controlCenterPanel) {
+            sum += p.y
+            p = p.parent
+        }
+        return sum
     }
 
-    // Floating overlay container that expands to fill the ControlCenter panel area
     Rectangle {
         id: visualBackground
-        parent: controlCenterPanel ? controlCenterPanel : cardRoot.parent.parent.parent
+        parent: controlCenterPanel ? controlCenterPanel : cardRoot.parent
         z: cardRoot.panelExpanded ? 1000 : 100
         clip: true
 
@@ -104,7 +89,6 @@ Item {
             enabled: !cardRoot.panelExpanded
         }
 
-        // Shield overlay: Eat all click and mouse events when panel is expanded
         MouseArea {
             anchors.fill: parent
             enabled: cardRoot.panelExpanded
@@ -142,7 +126,6 @@ Item {
                     anchors.fill: parent
                     spacing: 8
 
-                    // Caffeine Toggle Button (Clicking ONLY icon cycles state)
                     Rectangle {
                         implicitWidth: 44
                         implicitHeight: 44
@@ -182,7 +165,6 @@ Item {
                         HoverHandler { id: iconHover }
                     }
 
-                    // Label & Subtitle
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 1
@@ -216,7 +198,6 @@ Item {
                         }
                     }
 
-                    // Chevron visual indicator for panel expansion
                     Text {
                         text: "chevron_right"
                         font.family: "Material Symbols Outlined"
@@ -227,7 +208,6 @@ Item {
                     }
                 }
 
-                // Click handler for card expansion
                 MouseArea {
                     anchors.fill: parent
                     anchors.leftMargin: 52
@@ -249,7 +229,6 @@ Item {
             opacity: cardRoot.panelExpanded ? 1.0 : 0.0
             Behavior on opacity { NumberAnimation { duration: 180 } }
 
-            // Fixed Panel Header Bar (44px Height locked to top)
             RowLayout {
                 id: caffHeaderRow
                 anchors.top: parent.top
@@ -282,7 +261,6 @@ Item {
                     HoverHandler { id: backHover }
                 }
 
-                // Title Section with Accent Glow & Italicizing
                 ColumnLayout {
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignVCenter
@@ -328,7 +306,6 @@ Item {
                     }
                 }
 
-                // Cycle State Quick Action Button
                 Rectangle {
                     implicitWidth: 36
                     implicitHeight: 36
@@ -361,7 +338,6 @@ Item {
                 }
             }
 
-            // Divider Line
             Rectangle {
                 id: caffDividerLine
                 anchors.top: caffHeaderRow.bottom
@@ -372,7 +348,6 @@ Item {
                 color: Qt.rgba(255, 255, 255, 0.08)
             }
 
-            // Fixed Bottom Action Buttons Container
             RowLayout {
                 id: bottomActionRow
                 anchors.bottom: parent.bottom
@@ -381,7 +356,6 @@ Item {
                 height: 38
                 spacing: 10
 
-                // Disable / Allow Sleep Button
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: 38
@@ -406,7 +380,6 @@ Item {
                     HoverHandler { id: disBtnHover }
                 }
 
-                // Start / Update Timer Button
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: 38
@@ -436,7 +409,6 @@ Item {
                 }
             }
 
-            // Middle Body: Centered Stopwatch, Steppers & Preset Pills
             Item {
                 anchors.top: caffDividerLine.bottom
                 anchors.bottom: bottomActionRow.top
@@ -449,7 +421,6 @@ Item {
                     width: parent.width
                     spacing: 14
 
-                    // --- 3. ENLARGED STOPWATCH GRAPHIC & 60-MINUTE CLOCK RING ---
                     Item {
                         Layout.fillWidth: true
                         implicitHeight: 220
@@ -473,7 +444,6 @@ Item {
                                     if (diffMs <= 0) {
                                         animProgress = 0.0
                                     } else {
-                                        // Map remaining time onto a 60-minute dial
                                         let rem = diffMs % 3600000
                                         animProgress = (rem === 0) ? 1.0 : (rem / 3600000.0)
                                     }
@@ -495,14 +465,12 @@ Item {
                                 var startAngle = -Math.PI / 2
                                 var endAngle = startAngle + (2 * Math.PI * animProgress)
 
-                                // Background Circle Track
                                 ctx.beginPath()
                                 ctx.arc(centerX, centerY, radius, 0, 2 * Math.PI, false)
                                 ctx.lineWidth = 8
                                 ctx.strokeStyle = Qt.rgba(255, 255, 255, 0.06)
                                 ctx.stroke()
 
-                                // Active Arc (Clock progress fill)
                                 if (animProgress > 0) {
                                     ctx.beginPath()
                                     ctx.arc(centerX, centerY, radius, startAngle, endAngle, false)
@@ -523,7 +491,6 @@ Item {
                             Component.onCompleted: stopwatchCanvas.updateProgress()
                         }
 
-                        // Center Countdown / Status Text (Extra-Large Digits)
                         ColumnLayout {
                             anchors.centerIn: parent
                             spacing: 0
@@ -552,7 +519,6 @@ Item {
                         }
                     }
 
-                    // --- 4. DURATION ADJUSTMENT CONTROLS ---
                     ColumnLayout {
                         Layout.fillWidth: true
                         Layout.alignment: Qt.AlignHCenter
@@ -567,12 +533,10 @@ Item {
                             Layout.alignment: Qt.AlignHCenter
                         }
 
-                        // Numeric Step & Custom Input Row
                         RowLayout {
                             Layout.alignment: Qt.AlignHCenter
                             spacing: 8
 
-                            // -5m Button
                             Rectangle {
                                 implicitWidth: 42
                                 implicitHeight: 32
@@ -597,7 +561,6 @@ Item {
                                 HoverHandler { id: minus5Hover }
                             }
 
-                            // Editable Minutes Input Box (Fixed 2px Border)
                             Rectangle {
                                 implicitWidth: 70
                                 implicitHeight: 32
@@ -639,7 +602,6 @@ Item {
                                 }
                             }
 
-                            // +5m Button
                             Rectangle {
                                 implicitWidth: 42
                                 implicitHeight: 32
@@ -665,12 +627,10 @@ Item {
                             }
                         }
 
-                        // Centered Preset Duration Pills Row
                         RowLayout {
                             Layout.alignment: Qt.AlignHCenter
                             spacing: 8
 
-                            // 30m Preset Pill
                             Rectangle {
                                 implicitWidth: 68
                                 implicitHeight: 28
@@ -699,7 +659,6 @@ Item {
                                 HoverHandler { id: p30Hover }
                             }
 
-                            // 1h Preset Pill
                             Rectangle {
                                 implicitWidth: 68
                                 implicitHeight: 28
@@ -728,7 +687,6 @@ Item {
                                 HoverHandler { id: p1hHover }
                             }
 
-                            // Always On (Indefinite Awake) Pill
                             Rectangle {
                                 implicitWidth: 100
                                 implicitHeight: 28

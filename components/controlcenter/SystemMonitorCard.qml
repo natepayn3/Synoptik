@@ -11,7 +11,6 @@ Item {
     id: cardRoot
 
     Layout.fillWidth: true
-    Layout.preferredWidth: parent ? parent.width : 400
     Layout.alignment: Qt.AlignTop
 
     implicitHeight: 116
@@ -29,7 +28,6 @@ Item {
     property real sysRam: 0.0
     property real sysDisk: 0.0
 
-    // Temperature properties (in °C)
     property int cpuTemp: 0
     property int gpuTemp: 0
     property int ramTemp: 0
@@ -263,8 +261,8 @@ Item {
 
     component StatRingItem : Item {
         id: ringRow
-        width: 76
-        height: 76
+        width: 78
+        height: 78
 
         property string label: ""
         property real value: 0.0
@@ -277,7 +275,7 @@ Item {
             NumberAnimation { duration: 500; easing.type: Easing.OutCubic }
         }
 
-        property real animStrokeWidth: ringRow.clickable && ringRow.selected ? 5.0 : 4.0
+        property real animStrokeWidth: ringRow.clickable && ringRow.selected ? 5.5 : 4.5
         Behavior on animStrokeWidth {
             NumberAnimation { duration: 150; easing.type: Easing.OutQuad }
         }
@@ -290,7 +288,7 @@ Item {
                 strokeColor: ringRow.clickable && ringRow.selected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(255, 255, 255, 0.08)
                 strokeWidth: ringRow.animStrokeWidth
                 PathAngleArc { 
-                    centerX: 38; centerY: 38; radiusX: 33; radiusY: 33
+                    centerX: 39; centerY: 39; radiusX: 34; radiusY: 34
                     startAngle: -90; sweepAngle: 360
                 }
             }
@@ -301,7 +299,7 @@ Item {
                 strokeWidth: ringRow.animStrokeWidth
                 capStyle: ShapePath.RoundCap
                 PathAngleArc { 
-                    centerX: 38; centerY: 38; radiusX: 33; radiusY: 33
+                    centerX: 39; centerY: 39; radiusX: 34; radiusY: 34
                     startAngle: -90; sweepAngle: Math.max(0.1, ringRow.animValue * 360)
                 }
             }
@@ -351,12 +349,29 @@ Item {
         }
     }
 
-    readonly property real collapsedX: cardRoot.x + cardRoot.cardMargin
-    readonly property real collapsedY: cardRoot.y + cardRoot.cardMargin
+    readonly property real collapsedX: {
+        let sum = 0
+        let p = cardRoot
+        while (p && p !== controlCenterPanel) {
+            sum += p.x
+            p = p.parent
+        }
+        return sum
+    }
+
+    readonly property real collapsedY: {
+        let sum = 0
+        let p = cardRoot
+        while (p && p !== controlCenterPanel) {
+            sum += p.y
+            p = p.parent
+        }
+        return sum
+    }
 
     Rectangle {
         id: visualBackground
-        parent: controlCenterPanel ? controlCenterPanel : (cardRoot.parent ? cardRoot.parent.parent.parent : cardRoot)
+        parent: controlCenterPanel ? controlCenterPanel : cardRoot.parent
         z: cardRoot.panelExpanded ? 1000 : 100
         clip: true
         
@@ -375,7 +390,6 @@ Item {
         Behavior on height { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
         Behavior on color { ColorAnimation { duration: 150 } }
 
-        // Expanded Dark Background Overlay (Prevents RGBA White Flash during expansion)
         Rectangle {
             anchors.fill: parent
             radius: parent.radius
@@ -390,7 +404,6 @@ Item {
             enabled: !cardRoot.panelExpanded
         }
 
-        // Shield overlay: Eat all click and mouse events when panel is expanded
         MouseArea {
             anchors.fill: parent
             enabled: cardRoot.panelExpanded
@@ -408,12 +421,11 @@ Item {
             onTapped: {}
         }
 
-        // Tap on card to expand when collapsed
         TapHandler {
             enabled: !cardRoot.panelExpanded
             onTapped: cardRoot.panelExpanded = true
         }
-        // GRAPHIC WATERMARK (Visible only when collapsed on main card)
+
         Watermark {
             icon: "analytics"
             iconSize: 150
@@ -422,7 +434,7 @@ Item {
         }
 
         // ==========================================
-        // COLLAPSED CARD CONTENT (FOUR RINGS)
+        // COLLAPSED CARD CONTENT (FOUR ENLARGED RINGS)
         // ==========================================
         Item {
             id: collapsedView
@@ -437,7 +449,8 @@ Item {
 
             RowLayout {
                 anchors.fill: parent
-                anchors.margins: 10
+                anchors.leftMargin: 6
+                anchors.rightMargin: 6
                 spacing: 0
 
                 Item { Layout.fillWidth: true }
@@ -469,7 +482,6 @@ Item {
                 anchors.fill: parent
                 spacing: 12
 
-                // Header Row (Back Button & Title)
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 10
@@ -520,7 +532,6 @@ Item {
                     }
                 }
 
-                // Four Rings Row
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: 96
@@ -544,171 +555,170 @@ Item {
                     }
                 }
 
-            // Process List Section (Fades in when expanded)
-            Rectangle {
-                id: processSectionContainer
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                color: Qt.rgba(0, 0, 0, 0.15)
-                radius: Config.cornerRadius / 1.5
-                clip: true
-                visible: opacity > 0
-                opacity: (cardRoot.panelExpanded && cardRoot.processListVisible) ? 1.0 : 0.0
-                Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+                Rectangle {
+                    id: processSectionContainer
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    color: Qt.rgba(0, 0, 0, 0.15)
+                    radius: Config.cornerRadius / 1.5
+                    clip: true
+                    visible: opacity > 0
+                    opacity: (cardRoot.panelExpanded && cardRoot.processListVisible) ? 1.0 : 0.0
+                    Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
 
-                ColumnLayout {
-                    anchors.fill: parent
-                    anchors.margins: 10
-                    spacing: 8
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 10
+                        spacing: 8
 
-                    RowLayout {
-                        Layout.fillWidth: true
-                        Text {
-                            text: cardRoot.activeCategory + " PROCESSES"
-                            color: Config.textMuted
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontMicro)
-                            font.bold: true
+                        RowLayout {
                             Layout.fillWidth: true
-                        }
-                    }
-
-                    ListView {
-                        id: processListView
-                        Layout.fillWidth: true
-                        Layout.fillHeight: true
-                        clip: true
-                        spacing: 4
-                        model: filteredProcessModel
-                        boundsBehavior: Flickable.StopAtBounds
-
-                        property bool isHoveringRow: false
-
-                        WheelHandler {
-                            id: processWheelHandler
-                            onWheel: (event) => {
-                                let delta = event.angleDelta.y
-                                let maxScroll = Math.max(0, processListView.contentHeight - processListView.height)
-                                processListView.contentY = Math.max(0, Math.min(maxScroll, processListView.contentY - delta))
+                            Text {
+                                text: cardRoot.activeCategory + " PROCESSES"
+                                color: Config.textMuted
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontMicro)
+                                font.bold: true
+                                Layout.fillWidth: true
                             }
                         }
 
-                        delegate: Rectangle {
-                            id: rowDelegate
-                            width: processListView.width
-                            height: 28
-                            color: deleteMouse.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2)
-                            radius: 4
+                        ListView {
+                            id: processListView
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            clip: true
+                            spacing: 4
+                            model: filteredProcessModel
+                            boundsBehavior: Flickable.StopAtBounds
 
-                            Behavior on color { ColorAnimation { duration: 150 } }
+                            property bool isHoveringRow: false
 
-                            MouseArea {
-                                id: rowMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                acceptedButtons: Qt.NoButton
-                                cursorShape: Qt.ArrowCursor
-                                onContainsMouseChanged: {
-                                    processListView.isHoveringRow = containsMouse
-                                    if (!containsMouse) {
-                                        processNameText.x = 0
-                                    }
+                            WheelHandler {
+                                id: processWheelHandler
+                                onWheel: (event) => {
+                                    let delta = event.angleDelta.y
+                                    let maxScroll = Math.max(0, processListView.contentHeight - processListView.height)
+                                    processListView.contentY = Math.max(0, Math.min(maxScroll, processListView.contentY - delta))
                                 }
                             }
 
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.leftMargin: 8
-                                anchors.rightMargin: 8
-                                spacing: 8
+                            delegate: Rectangle {
+                                id: rowDelegate
+                                width: processListView.width
+                                height: 28
+                                color: deleteMouse.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2)
+                                radius: 4
 
-                                Item {
-                                    id: nameContainer
-                                    Layout.fillWidth: true
-                                    height: parent.height
-                                    clip: true
+                                Behavior on color { ColorAnimation { duration: 150 } }
+
+                                MouseArea {
+                                    id: rowMouse
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    acceptedButtons: Qt.NoButton
+                                    cursorShape: Qt.ArrowCursor
+                                    onContainsMouseChanged: {
+                                        processListView.isHoveringRow = containsMouse
+                                        if (!containsMouse) {
+                                            processNameText.x = 0
+                                        }
+                                    }
+                                }
+
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 8
+                                    anchors.rightMargin: 8
+                                    spacing: 8
+
+                                    Item {
+                                        id: nameContainer
+                                        Layout.fillWidth: true
+                                        height: parent.height
+                                        clip: true
+
+                                        Text {
+                                            id: processNameText
+                                            text: model.name
+                                            color: Config.textMain
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontCaption)
+                                            anchors.verticalCenter: parent.verticalCenter
+                                            
+                                            elide: (rowMouse.containsMouse && scrollAnim.running) ? Text.ElideNone : Text.ElideRight
+                                            width: (rowMouse.containsMouse && scrollAnim.running) ? undefined : nameContainer.width
+
+                                            NumberAnimation on x {
+                                                id: scrollAnim
+                                                running: rowMouse.containsMouse && (processNameText.implicitWidth > nameContainer.width)
+                                                from: 0
+                                                to: -(processNameText.implicitWidth - nameContainer.width)
+                                                duration: Math.max(800, (processNameText.implicitWidth - nameContainer.width) * 15)
+                                                loops: Animation.Infinite
+
+                                                onStopped: {
+                                                    processNameText.x = 0
+                                                }
+                                            }
+                                        }
+                                    }
 
                                     Text {
-                                        id: processNameText
-                                        text: model.name
+                                        text: model.pid !== "0" ? model.pid : ""
+                                        color: Config.textMuted
+                                        font.family: Config.sysFont
+                                        font.pixelSize: Config.size(Config.fontMicro)
+                                        Layout.preferredWidth: 44
+                                        Layout.alignment: Qt.AlignVCenter
+                                        horizontalAlignment: Text.AlignRight
+                                    }
+
+                                    Text {
+                                        text: model.metric
                                         color: Config.textMain
                                         font.family: Config.sysFont
                                         font.pixelSize: Config.size(Config.fontCaption)
-                                        anchors.verticalCenter: parent.verticalCenter
-                                        
-                                        elide: (rowMouse.containsMouse && scrollAnim.running) ? Text.ElideNone : Text.ElideRight
-                                        width: (rowMouse.containsMouse && scrollAnim.running) ? undefined : nameContainer.width
-
-                                        NumberAnimation on x {
-                                            id: scrollAnim
-                                            running: rowMouse.containsMouse && (processNameText.implicitWidth > nameContainer.width)
-                                            from: 0
-                                            to: -(processNameText.implicitWidth - nameContainer.width)
-                                            duration: Math.max(800, (processNameText.implicitWidth - nameContainer.width) * 15)
-                                            loops: Animation.Infinite
-
-                                            onStopped: {
-                                                processNameText.x = 0
-                                            }
-                                        }
-                                    }
-                                }
-
-                                Text {
-                                    text: model.pid !== "0" ? model.pid : ""
-                                    color: Config.textMuted
-                                    font.family: Config.sysFont
-                                    font.pixelSize: Config.size(Config.fontMicro)
-                                    Layout.preferredWidth: 44
-                                    Layout.alignment: Qt.AlignVCenter
-                                    horizontalAlignment: Text.AlignRight
-                                }
-
-                                Text {
-                                    text: model.metric
-                                    color: Config.textMain
-                                    font.family: Config.sysFont
-                                    font.pixelSize: Config.size(Config.fontCaption)
-                                    font.bold: true
-                                    Layout.preferredWidth: 50
-                                    Layout.alignment: Qt.AlignVCenter
-                                    horizontalAlignment: Text.AlignRight
-                                }
-
-                                Rectangle {
-                                    id: deleteBtn
-                                    implicitWidth: 20
-                                    implicitHeight: 20
-                                    radius: Config.cornerRadius / 4
-                                    color: deleteMouse.containsMouse ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-                                    Layout.alignment: Qt.AlignVCenter
-
-                                    Behavior on color { ColorAnimation { duration: 150 } }
-
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: "×"
-                                        color: deleteMouse.containsMouse ? Config.accent : Config.textMuted
-                                        font.family: Config.sysFont
-                                        font.pixelSize: 14
                                         font.bold: true
+                                        Layout.preferredWidth: 50
+                                        Layout.alignment: Qt.AlignVCenter
+                                        horizontalAlignment: Text.AlignRight
                                     }
 
-                                    TapHandler {
-                                        onTapped: {
-                                            let targetPid = parseInt(model.pid)
-                                            if (targetPid > 0) {
-                                                killerProc.command = ["kill", "-15", targetPid.toString()]
-                                                killerProc.running = true
-                                                allProcessesFetcher.running = true
+                                    Rectangle {
+                                        id: deleteBtn
+                                        implicitWidth: 20
+                                        implicitHeight: 20
+                                        radius: Config.cornerRadius / 4
+                                        color: deleteMouse.containsMouse ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                                        Layout.alignment: Qt.AlignVCenter
+
+                                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: "×"
+                                            color: deleteMouse.containsMouse ? Config.accent : Config.textMuted
+                                            font.family: Config.sysFont
+                                            font.pixelSize: 14
+                                            font.bold: true
+                                        }
+
+                                        TapHandler {
+                                            onTapped: {
+                                                let targetPid = parseInt(model.pid)
+                                                if (targetPid > 0) {
+                                                    killerProc.command = ["kill", "-15", targetPid.toString()]
+                                                    killerProc.running = true
+                                                    allProcessesFetcher.running = true
+                                                }
                                             }
                                         }
+                                        HoverHandler { id: deleteMouse; cursorShape: Qt.PointingHandCursor }
                                     }
-                                    HoverHandler { id: deleteMouse; cursorShape: Qt.PointingHandCursor }
                                 }
                             }
                         }
-                    }
                     }
                 }
             }

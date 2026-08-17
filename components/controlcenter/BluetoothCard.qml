@@ -13,7 +13,6 @@ Item {
     Layout.preferredWidth: 1
     Layout.alignment: Qt.AlignTop
 
-    // Lock structural footprint to 64px so lower cards in ControlCenter stay static
     implicitHeight: 64
     Layout.preferredHeight: 64
     z: panelExpanded ? 1000 : 1
@@ -62,43 +61,29 @@ Item {
         }
     }
 
-    // Reactive collapsed position calculation spanning parent hierarchy up to controlCenterPanel (root)
     readonly property real collapsedX: {
-        let p0 = cardRoot
-        let p1 = p0 ? p0.parent : null
-        let p2 = p1 ? p1.parent : null
-        let p3 = p2 ? p2.parent : null
-        let p4 = p3 ? p3.parent : null
-        
-        let x0 = p0 ? p0.x : 0
-        let x1 = p1 ? p1.x : 0
-        let x2 = p2 ? p2.x : 0
-        let x3 = p3 ? p3.x : 0
-        let x4 = p4 ? p4.x : 0
-        
-        return x0 + x1 + x2 + x3 + x4
+        let sum = 0
+        let p = cardRoot
+        while (p && p !== controlCenterPanel) {
+            sum += p.x
+            p = p.parent
+        }
+        return sum
     }
 
     readonly property real collapsedY: {
-        let p0 = cardRoot
-        let p1 = p0 ? p0.parent : null
-        let p2 = p1 ? p1.parent : null
-        let p3 = p2 ? p2.parent : null
-        let p4 = p3 ? p3.parent : null
-        
-        let y0 = p0 ? p0.y : 0
-        let y1 = p1 ? p1.y : 0
-        let y2 = p2 ? p2.y : 0
-        let y3 = p3 ? p3.y : 0
-        let y4 = p4 ? p4.y : 0
-        
-        return y0 + y1 + y2 + y3 + y4
+        let sum = 0
+        let p = cardRoot
+        while (p && p !== controlCenterPanel) {
+            sum += p.y
+            p = p.parent
+        }
+        return sum
     }
 
-    // Floating overlay container that expands to fill the entire ControlCenter panel area
     Rectangle {
         id: visualBackground
-        parent: controlCenterPanel ? controlCenterPanel : cardRoot.parent.parent.parent
+        parent: controlCenterPanel ? controlCenterPanel : cardRoot.parent
         z: cardRoot.panelExpanded ? 1000 : 100
         clip: true
         
@@ -128,7 +113,6 @@ Item {
             enabled: !cardRoot.panelExpanded
         }
 
-        // Shield overlay: Eat all click and mouse events when panel is expanded so they never leak to items underneath
         MouseArea {
             anchors.fill: parent
             enabled: cardRoot.panelExpanded
@@ -166,7 +150,6 @@ Item {
                     anchors.fill: parent
                     spacing: 8
 
-                    // Bluetooth Icon Toggle Button (Clicking ONLY icon toggles power)
                     Rectangle {
                         implicitWidth: 44
                         implicitHeight: 44
@@ -196,7 +179,6 @@ Item {
                         HoverHandler { id: iconHover }
                     }
 
-                    // Bluetooth Label & Subtitle
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 1
@@ -225,7 +207,6 @@ Item {
                         }
                     }
 
-                    // Chevron visual indicator for panel expansion
                     Text {
                         text: "chevron_right"
                         font.family: "Material Symbols Outlined"
@@ -238,7 +219,6 @@ Item {
                     }
                 }
 
-                // Click handler for the rest of the card (expands to fill panel)
                 MouseArea {
                     anchors.fill: parent
                     anchors.leftMargin: 52
@@ -260,7 +240,6 @@ Item {
             opacity: cardRoot.panelExpanded ? 1.0 : 0.0
             Behavior on opacity { NumberAnimation { duration: 180 } }
 
-            // Fixed Panel Header Bar (Fixed 44px Height locked to top)
             RowLayout {
                 id: btHeaderRow
                 anchors.top: parent.top
@@ -269,7 +248,6 @@ Item {
                 height: 44
                 spacing: 10
 
-                // Back Button
                 Rectangle {
                     implicitWidth: 36
                     implicitHeight: 36
@@ -299,7 +277,6 @@ Item {
                     HoverHandler { id: backHover }
                 }
 
-                // Title Section with Accent Glow & Italicizing
                 ColumnLayout {
                     Layout.fillWidth: true
                     Layout.alignment: Qt.AlignVCenter
@@ -343,7 +320,6 @@ Item {
                     }
                 }
 
-                // Refresh / Scan Button
                 Rectangle {
                     implicitWidth: 36
                     implicitHeight: 36
@@ -382,7 +358,6 @@ Item {
                     HoverHandler { id: scanHover }
                 }
 
-                // Power Toggle Switch Button
                 Rectangle {
                     implicitWidth: 36
                     implicitHeight: 36
@@ -418,7 +393,6 @@ Item {
                 }
             }
 
-            // Separator Divider Line
             Rectangle {
                 id: btDividerLine
                 anchors.top: btHeaderRow.bottom
@@ -429,7 +403,6 @@ Item {
                 color: Qt.rgba(255, 255, 255, 0.08)
             }
 
-            // Body Content Container
             Item {
                 anchors.top: btDividerLine.bottom
                 anchors.topMargin: 12
@@ -438,13 +411,11 @@ Item {
                 anchors.bottom: parent.bottom
                 clip: true
 
-                // Active Devices Section & List
                 ColumnLayout {
                     anchors.fill: parent
                     spacing: 12
                     visible: cardRoot.hasHardware && cardRoot.isPowered && btModel.count > 0
 
-                    // Devices Section Header
                     RowLayout {
                         Layout.fillWidth: true
 
@@ -466,7 +437,6 @@ Item {
                         }
                     }
 
-                    // Full Device List View
                     ListView {
                         id: fullBtListView
                         Layout.fillWidth: true
@@ -580,7 +550,6 @@ Item {
                                     }
                                 }
 
-                                // Expanded Action Row
                                 Item {
                                     id: actionRowContainer
                                     Layout.fillWidth: true
@@ -599,7 +568,6 @@ Item {
                                         anchors.top: parent.top
                                         spacing: 8
 
-                                        // Connect / Disconnect / Pair Action
                                         Rectangle {
                                             Layout.fillWidth: true
                                             implicitHeight: 32
@@ -648,7 +616,6 @@ Item {
                                             }
                                         }
 
-                                        // Forget Action
                                         Rectangle {
                                             Layout.fillWidth: true
                                             implicitHeight: 32
@@ -700,7 +667,6 @@ Item {
                     }
                 }
 
-                // Empty State View (Centered)
                 ColumnLayout {
                     anchors.centerIn: parent
                     spacing: 12
@@ -775,7 +741,6 @@ Item {
                     }
                 }
 
-                // Powered Off State View (Centered)
                 ColumnLayout {
                     anchors.centerIn: parent
                     spacing: 12
