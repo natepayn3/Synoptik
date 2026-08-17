@@ -120,7 +120,7 @@ ColumnLayout {
                         spacing: 4
 
                         Repeater {
-                            model: (Config.leftCardOrder || ["power", "recorder", "mirror", "screenshot", "notifications", "player", "wallpaper", "settings", "launcher", "audio", "network", "clipboard"]).filter(id => id !== "batt")
+                            model: (Config.leftCardOrder || ["power", "recorder", "mirror", "screenshot", "player", "wallpaper", "settings", "launcher", "audio", "network", "clipboard"]).filter(id => id !== "batt")
 
                             delegate: Rectangle {
                                 implicitWidth: 26; implicitHeight: 26; radius: 6
