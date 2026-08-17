@@ -566,7 +566,7 @@ QtObject {
     property bool lockscreenShowSeconds: false
     property bool lockscreenShowAmPm: true
     property string lockscreenDateFormat: "long" // "long", "standard", "iso", "dayFirst"
-    property int lockscreenClockSize: 96 // 72, 96, 120
+    property int lockscreenClockSize: 150 // 100, 150, 200
     property string lockscreenTargetMonitor: "focused"
 
     onLockscreenBlurRadiusChanged: { if (isLoaded) saveSettings() }
