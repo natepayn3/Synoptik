@@ -4,6 +4,7 @@ import QtQuick.Controls
 import Qt5Compat.GraphicalEffects
 import Quickshell
 import "../widgets"
+import "../lockscreen"
 import ".."
 
 Flickable {
@@ -140,6 +141,17 @@ Flickable {
                     maskStyle: Config.lockscreenMaskStyle || "shapes"
                     paletteMode: Config.lockscreenShapePalette || "vibrant"
                     placeholderText: "Type to test password bar..."
+
+                    // Overlay MouseArea to catch direct settings view clicks and force focus
+                    MouseArea {
+                        anchors.fill: parent
+                        z: 20
+                        acceptedButtons: Qt.AllButtons
+                        onPressed: (mouse) => {
+                            previewPassBar.forceFocus()
+                            mouse.accepted = false
+                        }
+                    }
 
                     onSubmitPassword: (pass) => {
                         previewPassBar.isAuthenticating = true
@@ -425,7 +437,9 @@ Flickable {
                                 onClicked: {
                                     Config.lockscreenMaskStyle = modelData.id
                                     previewPassBar.maskStyle = modelData.id
-                                    previewPassBar.shuffleShapes()
+                                    if (typeof previewPassBar.shuffleShapes === "function") {
+                                        previewPassBar.shuffleShapes()
+                                    }
                                     if (typeof Config.saveConfig === "function") Config.saveConfig()
                                     else if (typeof Config.save === "function") Config.save()
                                 }
@@ -501,7 +515,9 @@ Flickable {
                                     spacing: 5
 
                                     Rectangle {
-                                        implicitWidth: 10; implicitHeight: 10; radius: 5
+                                        implicitWidth: 10
+                                        implicitHeight: 10
+                                        radius: 5
                                         color: modelData.previewColor
                                         Layout.alignment: Qt.AlignVCenter
                                     }
@@ -534,7 +550,9 @@ Flickable {
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: {
                                     Config.lockscreenShapePalette = modelData.id
-                                    previewPassBar.shuffleShapes()
+                                    if (typeof previewPassBar.shuffleShapes === "function") {
+                                        previewPassBar.shuffleShapes()
+                                    }
                                     if (typeof Config.saveConfig === "function") Config.saveConfig()
                                     else if (typeof Config.save === "function") Config.save()
                                 }
@@ -573,6 +591,7 @@ Flickable {
                 // TIME FORMAT (12-HOUR VS 24-HOUR) & CLOCK SIZE
                 RowLayout {
                     Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignHCenter
                     spacing: 16
 
                     // 12-Hour vs 24-Hour Compact Pills
@@ -715,7 +734,9 @@ Flickable {
                         spacing: 8
 
                         Rectangle {
-                            implicitWidth: 18; implicitHeight: 18; radius: 4
+                            implicitWidth: 18
+                            implicitHeight: 18
+                            radius: 4
                             color: (Config.lockscreenShowSeconds === true) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
 
                             Text {
@@ -764,7 +785,9 @@ Flickable {
                         visible: Config.lockscreenUse12Hour !== false
 
                         Rectangle {
-                            implicitWidth: 18; implicitHeight: 18; radius: 4
+                            implicitWidth: 18
+                            implicitHeight: 18
+                            radius: 4
                             color: (Config.lockscreenShowAmPm !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
 
                             Text {
@@ -940,7 +963,9 @@ Flickable {
                     spacing: 10
 
                     Rectangle {
-                        implicitWidth: 20; implicitHeight: 20; radius: 4
+                        implicitWidth: 20
+                        implicitHeight: 20
+                        radius: 4
                         color: (Config.lockscreenShowMedia !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
 
                         Text {
@@ -997,7 +1022,9 @@ Flickable {
                     spacing: 10
 
                     Rectangle {
-                        implicitWidth: 20; implicitHeight: 20; radius: 4
+                        implicitWidth: 20
+                        implicitHeight: 20
+                        radius: 4
                         color: (Config.lockscreenShowPower !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
 
                         Text {
@@ -1106,6 +1133,9 @@ Flickable {
             }
         }
 
-        Item { Layout.fillHeight: true; implicitHeight: 20 }
+        Item {
+            Layout.fillHeight: true
+            implicitHeight: 20
+        }
     }
 }
