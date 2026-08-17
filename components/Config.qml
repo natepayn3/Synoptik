@@ -963,6 +963,92 @@ QtObject {
         saveSettings()
     }
 
+    onShowDesktopClockChanged: { if (isLoaded) saveSettings() }
+    onClockStyleChanged: { if (isLoaded) saveSettings() }
+    onClockScaleChanged: { if (isLoaded) saveSettings() }
+    onClockShowSecondsChanged: { if (isLoaded) saveSettings() }
+    onClockUse12HourChanged: { if (isLoaded) saveSettings() }
+    onClockShowAmPmChanged: { if (isLoaded) saveSettings() }
+    onClockShowBorderChanged: { if (isLoaded) saveSettings() }
+    onClockShowBackgroundChanged: { if (isLoaded) saveSettings() }
+    onClockShowGlowChanged: { if (isLoaded) saveSettings() }
+
+    // --- DESKTOP SYSTEM INFO STATE & PERSISTENCE ---
+    property bool showDesktopSysInfo: true
+    property real sysInfoScale: 1.0
+    property bool sysInfoShowHost: true
+    property bool sysInfoShowKernel: true
+    property bool sysInfoShowUptime: true
+    property bool sysInfoShowIp: true
+    property bool sysInfoShowCpu: true
+    property bool sysInfoShowRam: true
+    property bool sysInfoShowDisk: true
+    property bool sysInfoShowBg: true
+    property bool sysInfoShowGlow: true
+    property int sysInfoRefreshInterval: 3000
+
+    property var sysInfoPositions: ({})
+    property var sysInfoScales: ({})
+    property var enabledSysInfoScreens: []
+
+    function getSysInfoPosition(screenName, defaultX, defaultY) {
+        if (sysInfoPositions && sysInfoPositions[screenName]) {
+            return sysInfoPositions[screenName]
+        }
+        return { x: defaultX, y: defaultY }
+    }
+
+    function saveSysInfoPosition(screenName, x, y) {
+        let current = Object.assign({}, sysInfoPositions)
+        current[screenName] = { x: x, y: y }
+        sysInfoPositions = current
+        saveSettings()
+    }
+
+    function getSysInfoScale(screenName) {
+        if (sysInfoScales && sysInfoScales[screenName] !== undefined) {
+            return sysInfoScales[screenName]
+        }
+        return 1.0
+    }
+
+    function saveSysInfoScale(screenName, scale) {
+        let current = Object.assign({}, sysInfoScales)
+        current[screenName] = scale
+        sysInfoScales = current
+        saveSettings()
+    }
+
+    function isSysInfoEnabledForScreen(screenName) {
+        if (!enabledSysInfoScreens || enabledSysInfoScreens.length === 0) return true
+        return enabledSysInfoScreens.includes(screenName)
+    }
+
+    function toggleSysInfoScreen(screenName) {
+        let current = (enabledSysInfoScreens || []).slice()
+        let idx = current.indexOf(screenName)
+        if (idx !== -1) {
+            current.splice(idx, 1)
+        } else {
+            current.push(screenName)
+        }
+        enabledSysInfoScreens = current
+        saveSettings()
+    }
+
+    onShowDesktopSysInfoChanged: { if (isLoaded) saveSettings() }
+    onSysInfoScaleChanged: { if (isLoaded) saveSettings() }
+    onSysInfoShowHostChanged: { if (isLoaded) saveSettings() }
+    onSysInfoShowKernelChanged: { if (isLoaded) saveSettings() }
+    onSysInfoShowUptimeChanged: { if (isLoaded) saveSettings() }
+    onSysInfoShowIpChanged: { if (isLoaded) saveSettings() }
+    onSysInfoShowCpuChanged: { if (isLoaded) saveSettings() }
+    onSysInfoShowRamChanged: { if (isLoaded) saveSettings() }
+    onSysInfoShowDiskChanged: { if (isLoaded) saveSettings() }
+    onSysInfoShowBgChanged: { if (isLoaded) saveSettings() }
+    onSysInfoShowGlowChanged: { if (isLoaded) saveSettings() }
+    onSysInfoRefreshIntervalChanged: { if (isLoaded) saveSettings() }
+
     // --- WALLPAPER CONFIG STATE & PERSISTENCE ---
     property var selectedWallpaperMonitors: []
     property string wallpaperTransitionType: "wipe"
@@ -1047,16 +1133,6 @@ QtObject {
 
     onSelectedWallpaperMonitorsChanged: { if (isLoaded) saveSettings() }
     onWallpaperTransitionTypeChanged: { if (isLoaded) saveSettings() }
-
-    onShowDesktopClockChanged: { if (isLoaded) saveSettings() }
-    onClockStyleChanged: { if (isLoaded) saveSettings() }
-    onClockScaleChanged: { if (isLoaded) saveSettings() }
-    onClockShowSecondsChanged: { if (isLoaded) saveSettings() }
-    onClockUse12HourChanged: { if (isLoaded) saveSettings() }
-    onClockShowAmPmChanged: { if (isLoaded) saveSettings() }
-    onClockShowBorderChanged: { if (isLoaded) saveSettings() }
-    onClockShowBackgroundChanged: { if (isLoaded) saveSettings() }
-    onClockShowGlowChanged: { if (isLoaded) saveSettings() }
 
     // --- ON-SCREEN KEYBOARD (OSK) STATE & PERSISTENCE ---
     property bool showOsk: false
@@ -1620,7 +1696,6 @@ QtObject {
         }
     }
 
-    // Generates 320px JPG thumbnails for EVERY wallpaper on shell launch
     property Process thumbPreloader: Process {
         id: thumbPreloader
         running: false
@@ -1754,6 +1829,22 @@ QtObject {
                 "clockScales": root.clockScales,
                 "enabledClockScreens": root.enabledClockScreens,
 
+                "showDesktopSysInfo": root.showDesktopSysInfo,
+                "sysInfoScale": root.sysInfoScale,
+                "sysInfoShowHost": root.sysInfoShowHost,
+                "sysInfoShowKernel": root.sysInfoShowKernel,
+                "sysInfoShowUptime": root.sysInfoShowUptime,
+                "sysInfoShowIp": root.sysInfoShowIp,
+                "sysInfoShowCpu": root.sysInfoShowCpu,
+                "sysInfoShowRam": root.sysInfoShowRam,
+                "sysInfoShowDisk": root.sysInfoShowDisk,
+                "sysInfoShowBg": root.sysInfoShowBg,
+                "sysInfoShowGlow": root.sysInfoShowGlow,
+                "sysInfoRefreshInterval": root.sysInfoRefreshInterval,
+                "sysInfoPositions": root.sysInfoPositions,
+                "sysInfoScales": root.sysInfoScales,
+                "enabledSysInfoScreens": root.enabledSysInfoScreens,
+
                 "lockscreenBlurRadius": root.lockscreenBlurRadius,
                 "lockscreenShowMedia": root.lockscreenShowMedia,
                 "lockscreenShowPower": root.lockscreenShowPower,
@@ -1811,6 +1902,10 @@ QtObject {
                             "enableXray", "enableIris", "showWatermarks", "bounceWatermarks", "surfaceRadius", "borderThickness", "cardMargin", "showDesktopClock", "clockStyle", "clockScale", 
                             "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", 
                             "clockShowBackground", "clockShowGlow", "clockPositions", "clockScales", "enabledClockScreens",
+                            "showDesktopSysInfo", "sysInfoScale", "sysInfoShowHost", "sysInfoShowKernel",
+                            "sysInfoShowUptime", "sysInfoShowIp", "sysInfoShowCpu", "sysInfoShowRam",
+                            "sysInfoShowDisk", "sysInfoShowBg", "sysInfoShowGlow", "sysInfoRefreshInterval",
+                            "sysInfoPositions", "sysInfoScales", "enabledSysInfoScreens",
                             "lockscreenBlurRadius", "lockscreenShowMedia", "lockscreenShowPower", "lockscreenMaskStyle", "lockscreenShapePalette",
                             "lockscreenUse12Hour", "lockscreenShowSeconds", "lockscreenShowAmPm", "lockscreenDateFormat", "lockscreenClockSize", "lockscreenTargetMonitor",
                             "workspaceStyle", "workspaceGlow", "workspaceScroll", "workspaceTooltips", "workspaceShowAddBtn", "workspaceShowOverviewBtn", "workspaceShowSpecial", "workspaceContainerStyle",
