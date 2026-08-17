@@ -5,181 +5,152 @@ import Quickshell.Wayland
 import Quickshell.Hyprland
 import Quickshell.Io
 
-PanelWindow {
-    id: wpWindow
+Scope {
+    id: parallaxScope
 
-    visible: Config.enableWallpaperParallax && (Config.wallpaperWorkspaceParallax || Config.wallpaperCursorParallax)
+    Variants {
+        model: Quickshell.screens
 
-    WlrLayershell.layer: WlrLayer.Background
-    WlrLayershell.namespace: "quickshell-wallpaper-parallax"
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
-    WlrLayershell.exclusiveZone: -1
+        delegate: PanelWindow {
+            id: wpWindow
+            required property var modelData
 
-    anchors {
-        top: true
-        bottom: true
-        left: true
-        right: true
-    }
+            screen: modelData
+            visible: Config.enableWallpaperParallax && (Config.wallpaperWorkspaceParallax || Config.wallpaperCursorParallax)
 
-    color: "transparent"
-    exclusiveZone: -1
+            WlrLayershell.layer: WlrLayer.Background
+            WlrLayershell.namespace: "quickshell-wallpaper-parallax"
+            WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+            WlrLayershell.exclusiveZone: -1
 
-    // Completely click-through region so desktop icons, apps, and window clicks pass straight through
-    mask: Region {}
+            anchors {
+                top: true
+                bottom: true
+                left: true
+                right: true
+            }
 
-    readonly property string currentWallpaper: {
-        let monName = screen ? screen.name : ""
-        let wp = Config.getMonitorWallpaper(monName)
-        if (!wp || wp === "") return Config.activeWallpaperPath || ""
-        return wp
-    }
+            color: "transparent"
+            exclusiveZone: -1
+            mask: Region {}
 
-    // Overscan margins for parallax motion
-    readonly property real intensity: Math.max(0.1, Config.wallpaperParallaxIntensity)
-    readonly property real overscanX: (width * 0.16) * intensity
-    readonly property real overscanY: (height * 0.10) * intensity
+            function getDisplayWallpaper() {
+                let monName = modelData ? modelData.name : ""
+                let wp = Config.getMonitorWallpaper(monName) || Config.activeWallpaperPath || ""
+                let clean = wp.replace(/^file:\/\//, "")
+                let ext = clean.split('.').pop().toLowerCase()
+                
+                if (ext === "mp4" || ext === "webm") {
+                    let baseName = clean.split('/').pop().replace(/\.[^/.]+$/, "")
+                    return "file://" + Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + baseName + ".jpg"
+                }
+                return clean !== "" ? (clean.startsWith("file://") ? clean : "file://" + clean) : ""
+            }
 
-    // -------------------------------------------------------------
-    // 1. WORKSPACE SWITCH PARALLAX
-    // -------------------------------------------------------------
-    readonly property int activeWsId: {
-        if (!Hyprland.focusedWorkspace) return 1
-        return Math.max(1, Hyprland.focusedWorkspace.id)
-    }
+            readonly property real intensity: Math.max(0.1, Config.wallpaperParallaxIntensity)
+            readonly property real overscanX: (width * 0.16) * intensity
+            readonly property real overscanY: (height * 0.10) * intensity
 
-    // Number of virtual spaces to span
-    readonly property int maxTrackedWorkspaces: 10
+            // ---------------- 1. WORKSPACE PARALLAX ----------------
+            readonly property int activeWsId: {
+                if (Hyprland.focusedMonitor && Hyprland.focusedMonitor.activeWorkspace) {
+                    return Math.max(1, Hyprland.focusedMonitor.activeWorkspace.id)
+                }
+                return 1
+            }
 
-    // Calculates target shift for workspace panning (-overscanX to +overscanX)
-    readonly property real wsPanProgress: {
-        if (!Config.wallpaperWorkspaceParallax) return 0.5
-        let clampedWs = Math.min(maxTrackedWorkspaces, Math.max(1, activeWsId))
-        return (clampedWs - 1) / (maxTrackedWorkspaces - 1)
-    }
+            readonly property int maxTrackedWorkspaces: 10
 
-    property real smoothWsOffsetX: 0.0
-    property real targetWsOffsetX: {
-        if (!Config.wallpaperWorkspaceParallax) return 0.0
-        // Maps 0.0..1.0 progress to -overscanX/2 ... +overscanX/2
-        return (wsPanProgress - 0.5) * -overscanX
-    }
+            readonly property real wsPanProgress: {
+                if (!Config.wallpaperWorkspaceParallax) return 0.5
+                let clampedWs = Math.min(maxTrackedWorkspaces, Math.max(1, activeWsId))
+                return (clampedWs - 1) / (maxTrackedWorkspaces - 1)
+            }
 
-    Behavior on smoothWsOffsetX {
-        NumberAnimation {
-            duration: 450
-            easing.type: Easing.OutCubic
-        }
-    }
+            readonly property real targetWsOffsetX: Config.wallpaperWorkspaceParallax ? (wsPanProgress - 0.5) * -overscanX : 0.0
+            property real smoothWsOffsetX: targetWsOffsetX
 
-    onTargetWsOffsetXChanged: {
-        smoothWsOffsetX = targetWsOffsetX
-    }
+            Behavior on smoothWsOffsetX {
+                NumberAnimation { duration: 450; easing.type: Easing.OutCubic }
+            }
 
-    // -------------------------------------------------------------
-    // 2. CURSOR / MOUSE MOTION PARALLAX
-    // -------------------------------------------------------------
-    property real cursorNormX: 0.5
-    property real cursorNormY: 0.5
+            // ---------------- 2. CURSOR MOTION PARALLAX ----------------
+            property real cursorNormX: 0.5
+            property real cursorNormY: 0.5
 
-    property real smoothCursorOffsetX: 0.0
-    property real smoothCursorOffsetY: 0.0
+            readonly property real targetCursorOffsetX: Config.wallpaperCursorParallax ? (cursorNormX - 0.5) * (-overscanX * 0.35) : 0.0
+            readonly property real targetCursorOffsetY: Config.wallpaperCursorParallax ? (cursorNormY - 0.5) * (-overscanY * 0.45) : 0.0
 
-    readonly property real targetCursorOffsetX: {
-        if (!Config.wallpaperCursorParallax) return 0.0
-        return (cursorNormX - 0.5) * (-overscanX * 0.35)
-    }
+            property real smoothCursorOffsetX: targetCursorOffsetX
+            property real smoothCursorOffsetY: targetCursorOffsetY
 
-    readonly property real targetCursorOffsetY: {
-        if (!Config.wallpaperCursorParallax) return 0.0
-        return (cursorNormY - 0.5) * (-overscanY * 0.45)
-    }
+            Behavior on smoothCursorOffsetX { NumberAnimation { duration: 260; easing.type: Easing.OutQuad } }
+            Behavior on smoothCursorOffsetY { NumberAnimation { duration: 260; easing.type: Easing.OutQuad } }
 
-    Behavior on smoothCursorOffsetX {
-        NumberAnimation {
-            duration: 260
-            easing.type: Easing.OutQuad
-        }
-    }
+            Process {
+                id: cursorTrackerProc
+                running: Config.enableWallpaperParallax && Config.wallpaperCursorParallax
+                command: [
+                    "fish", "-c",
+                    "while true; hyprctl cursorpos; sleep 0.033; end"
+                ]
 
-    Behavior on smoothCursorOffsetY {
-        NumberAnimation {
-            duration: 260
-            easing.type: Easing.OutQuad
-        }
-    }
+                stdout: SplitParser {
+                    onRead: data => {
+                        if (!data || data.length === 0) return
+                        let parts = data.trim().split(",")
+                        if (parts.length >= 2) {
+                            let cx = parseFloat(parts[0].trim())
+                            let cy = parseFloat(parts[1].trim())
 
-    onTargetCursorOffsetXChanged: smoothCursorOffsetX = targetCursorOffsetX
-    onTargetCursorOffsetYChanged: smoothCursorOffsetY = targetCursorOffsetY
+                            if (!isNaN(cx) && !isNaN(cy) && wpWindow.modelData) {
+                                let hMon = Hyprland.monitorFor(wpWindow.modelData)
+                                let monX = hMon ? hMon.x : 0
+                                let monY = hMon ? hMon.y : 0
+                                let sw = (hMon && hMon.width) ? hMon.width : (wpWindow.modelData.width || 1920)
+                                let sh = (hMon && hMon.height) ? hMon.height : (wpWindow.modelData.height || 1080)
 
-    // Continuous real-time cursor tracker process (active only when cursor parallax is enabled)
-    Process {
-        id: cursorTrackerProc
-        running: Config.enableWallpaperParallax && Config.wallpaperCursorParallax
-        command: [
-            "python3", "-u", "-c",
-            "import subprocess, time\nwhile True:\n    try:\n        out = subprocess.check_output(['hyprctl', 'cursorpos'], text=True).strip()\n        print(out, flush=True)\n    except:\n        pass\n    time.sleep(0.033)\n"
-        ]
+                                let relX = (cx - monX) / sw
+                                let relY = (cy - monY) / sh
 
-        stdout: SplitParser {
-            onRead: data => {
-                if (!data || data.length === 0) return
-                let parts = data.trim().split(",")
-                if (parts.length >= 2) {
-                    let cx = parseFloat(parts[0].trim())
-                    let cy = parseFloat(parts[1].trim())
-
-                    if (!isNaN(cx) && !isNaN(cy) && wpWindow.screen) {
-                        let sw = wpWindow.screen.width || 1920
-                        let sh = wpWindow.screen.height || 1080
-                        let sx = wpWindow.screen.x || 0
-                        let sy = wpWindow.screen.y || 0
-
-                        let relX = (cx - sx) / sw
-                        let relY = (cy - sy) / sh
-
-                        wpWindow.cursorNormX = Math.max(0.0, Math.min(1.0, relX))
-                        wpWindow.cursorNormY = Math.max(0.0, Math.min(1.0, relY))
+                                wpWindow.cursorNormX = Math.max(0.0, Math.min(1.0, relX))
+                                wpWindow.cursorNormY = Math.max(0.0, Math.min(1.0, relY))
+                            }
+                        }
                     }
                 }
             }
-        }
-    }
 
-    // -------------------------------------------------------------
-    // 3. WALLPAPER CANVAS & CROSSFADE IMAGE ENGINE
-    // -------------------------------------------------------------
-    Item {
-        id: wallpaperCanvas
-        anchors.centerIn: parent
+            // ---------------- 3. WALLPAPER CANVAS ----------------
+            Item {
+                id: wallpaperCanvas
+                anchors.centerIn: parent
 
-        // Expand canvas width to cover combined workspace (0.5) + cursor (0.175) peak shifts
-        width: parent.width + (overscanX * 1.5)
-        height: parent.height + overscanY
+                width: parent.width + (overscanX * 1.5)
+                height: parent.height + overscanY
 
-        // Combined parallax coordinate offset
-        transform: Translate {
-            x: wpWindow.smoothWsOffsetX + wpWindow.smoothCursorOffsetX
-            y: wpWindow.smoothCursorOffsetY
-        }
+                transform: Translate {
+                    x: wpWindow.smoothWsOffsetX + wpWindow.smoothCursorOffsetX
+                    y: wpWindow.smoothCursorOffsetY
+                }
 
-        Image {
-            id: imgPrimary
-            anchors.fill: parent
-            fillMode: Image.PreserveAspectCrop
-            source: wpWindow.currentWallpaper !== "" 
-                ? (wpWindow.currentWallpaper.startsWith("file://") ? wpWindow.currentWallpaper : "file://" + wpWindow.currentWallpaper) 
-                : ""
-            asynchronous: true
-            cache: true
-            smooth: true
-            mipmap: true
-        }
+                Image {
+                    id: imgPrimary
+                    anchors.fill: parent
+                    fillMode: Image.PreserveAspectCrop
+                    source: wpWindow.getDisplayWallpaper()
+                    asynchronous: true
+                    cache: true
+                    smooth: true
+                    mipmap: true
+                }
 
-        Rectangle {
-            anchors.fill: parent
-            color: "black"
-            opacity: 0.06
+                Rectangle {
+                    anchors.fill: parent
+                    color: "black"
+                    opacity: 0.06
+                }
+            }
         }
     }
 }
