@@ -18,9 +18,11 @@ Scope {
             screen: modelData
 
             readonly property string currentWpPath: {
-                Config.activeWallpaperPath
                 let monName = modelData ? modelData.name : ""
-                let wp = (Config.getMonitorWallpaper ? Config.getMonitorWallpaper(monName) : "") || Config.activeWallpaperPath || ""
+                let wp = Config.activeWallpaperPath || ""
+                if (Config.activeMonitorWallpapers && Config.activeMonitorWallpapers[monName]) {
+                    wp = Config.activeMonitorWallpapers[monName]
+                }
                 return wp.replace(/^file:\/\//, "")
             }
 
@@ -34,12 +36,12 @@ Scope {
                 return currentWpPath.startsWith("file://") ? currentWpPath : ("file://" + currentWpPath)
             }
 
+            // Remounts a fresh surface on Background layer when switching from video to image
             visible: Config.enableWallpaperParallax && 
                      (Config.wallpaperWorkspaceParallax || Config.wallpaperCursorParallax) && 
                      !isVideo && 
                      currentWpPath !== ""
 
-            // Background layer ensures wallpaper stays behind all desktop widgets on Bottom layer
             WlrLayershell.layer: WlrLayer.Background
             WlrLayershell.namespace: "quickshell-wallpaper-parallax"
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
