@@ -27,16 +27,32 @@ PanelWindow {
 
     mask: Region { item: infoContainer }
 
+    // --- SYSTEM METRICS STATE ---
     property string hostUser: "---"
+    property string osDistro: "---"
     property string kernelVer: "---"
     property string sysUptime: "---"
-    property string localIp: "---"
+    property string packageCount: "---"
+    property string wmCompositor: "---"
+    property string boardModel: "---"
     property string cpuModel: "---"
+    property string cpuCores: "---"
+    property string loadAvg: "---"
+    property string gpuModel: "---"
+    property string localIp: "---"
+    property string gatewayIp: "---"
+    property string dnsServer: "---"
+
     property string ramText: "---"
     property real ramPct: 0.0
-    property string diskText: "---"
-    property real diskPct: 0.0
+    property string swapText: "---"
+    property real swapPct: 0.0
+    property string diskRootText: "---"
+    property real diskRootPct: 0.0
+    property string diskHomeText: "---"
+    property real diskHomePct: 0.0
 
+    // --- ASYNC FISH TELEMETRY DISPATCHER ---
     Process {
         id: sysInfoProc
         running: false
@@ -44,15 +60,34 @@ PanelWindow {
             "fish", "-c",
             "set -l u (whoami); " +
             "set -l h (uname -n); " +
+            "set -l os (grep -m1 '^PRETTY_NAME=' /etc/os-release 2>/dev/null | cut -d= -f2 | string trim -c '\"'); " +
+            "test -z \"$os\"; and set os 'Arch Linux'; " +
             "set -l k (uname -r); " +
             "set -l upt (uptime -p 2>/dev/null | string replace 'up ' ''); " +
+            "set -l pkgs (pacman -Qq 2>/dev/null | count); " +
+            "test \"$pkgs\" = \"0\"; and set pkgs '---'; " +
+            "set -l wm (echo 'Hyprland '(hyprctl version 2>/dev/null | grep -m1 'Tag:' | awk '{print $2}')); " +
+            "test \"$wm\" = 'Hyprland '; and set wm 'Hyprland'; " +
+            "set -l board (cat /sys/devices/virtual/dmi/id/product_name 2>/dev/null); " +
+            "test -z \"$board\" -o \"$board\" = 'None' -o \"$board\" = 'Default string'; and set board (cat /sys/devices/virtual/dmi/id/board_name 2>/dev/null); " +
+            "test -z \"$board\"; and set board 'Generic Board'; " +
+            "set -l cpu (grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d: -f2 | string trim | string replace -r '[(][^)]*[)]' '' | string replace -r ' @.*' ''); " +
+            "set -l cores (nproc 2>/dev/null); " +
+            "set -l load (awk '{print $1\", \"$2\", \"$3}' /proc/loadavg 2>/dev/null); " +
+            "set -l gpu (lspci 2>/dev/null | grep -iE 'vga|3d|display' | head -n1 | cut -d: -f3 | string trim | string replace -r '[(][^)]*[)]' '' | string replace -r 'Corporation ' '' | string replace -r 'Technologies Inc ' ''); " +
+            "test -z \"$gpu\"; and set gpu 'Integrated'; " +
             "set -l ip (ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}'); " +
             "test -z \"$ip\"; and set ip (hostname -I 2>/dev/null | awk '{print $1}'); " +
             "test -z \"$ip\"; and set ip '127.0.0.1'; " +
+            "set -l gw (ip -4 route show default 2>/dev/null | awk '{print $3; exit}'); " +
+            "test -z \"$gw\"; and set gw '---'; " +
+            "set -l dns (awk '/nameserver/ {print $2; exit}' /etc/resolv.conf 2>/dev/null); " +
+            "test -z \"$dns\"; and set dns '---'; " +
             "set -l mem (free -b | awk '/Mem:/ {printf \"{\\\"used\\\":%.1f,\\\"total\\\":%.1f,\\\"pct\\\":%.1f}\", $3/1073741824, $2/1073741824, ($3/$2)*100}'); " +
-            "set -l disk (df -h / | awk 'NR==2 {gsub(/%/,\"\",$5); printf \"{\\\"used\\\":\\\"%s\\\",\\\"total\\\":\\\"%s\\\",\\\"pct\\\":%s}\", $3, $2, $5}'); " +
-            "set -l cpu (grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d: -f2 | string trim | string replace -r '[(][^)]*[)]' '' | string replace -r ' @.*' ''); " +
-            "printf '{\"user\":\"%s\",\"host\":\"%s\",\"kernel\":\"%s\",\"uptime\":\"%s\",\"ip\":\"%s\",\"cpu\":\"%s\",\"mem\":%s,\"disk\":%s}\\n' \"$u\" \"$h\" \"$k\" \"$upt\" \"$ip\" \"$cpu\" \"$mem\" \"$disk\""
+            "set -l swap (free -b | awk '/Swap:/ {if ($2>0) printf \"{\\\"used\\\":%.1f,\\\"total\\\":%.1f,\\\"pct\\\":%.1f}\", $3/1073741824, $2/1073741824, ($3/$2)*100; else print \"null\"}'); " +
+            "set -l diskRoot (df -h / 2>/dev/null | awk 'NR==2 {gsub(/%/,\"\",$5); printf \"{\\\"used\\\":\\\"%s\\\",\\\"total\\\":\\\"%s\\\",\\\"pct\\\":%s}\", $3, $2, $5}'); " +
+            "set -l diskHome (df -h /home 2>/dev/null | awk 'NR==2 {gsub(/%/,\"\",$5); printf \"{\\\"used\\\":\\\"%s\\\",\\\"total\\\":\\\"%s\\\",\\\"pct\\\":%s}\", $3, $2, $5}'); " +
+            "printf '{\"user\":\"%s\",\"host\":\"%s\",\"os\":\"%s\",\"kernel\":\"%s\",\"uptime\":\"%s\",\"pkgs\":\"%s\",\"wm\":\"%s\",\"board\":\"%s\",\"cpu\":\"%s\",\"cores\":\"%s\",\"load\":\"%s\",\"gpu\":\"%s\",\"ip\":\"%s\",\"gw\":\"%s\",\"dns\":\"%s\",\"mem\":%s,\"swap\":%s,\"diskRoot\":%s,\"diskHome\":%s}\\n' \"$u\" \"$h\" \"$os\" \"$k\" \"$upt\" \"$pkgs\" \"$wm\" \"$board\" \"$cpu\" \"$cores\" \"$load\" \"$gpu\" \"$ip\" \"$gw\" \"$dns\" \"$mem\" \"$swap\" \"$diskRoot\" \"$diskHome\""
         ]
 
         stdout: StdioCollector {
@@ -62,18 +97,38 @@ PanelWindow {
                 try {
                     let d = JSON.parse(txt)
                     sysInfoWindow.hostUser = (d.user && d.host) ? `${d.user}@${d.host}` : "localhost"
+                    sysInfoWindow.osDistro = d.os || "Linux"
                     sysInfoWindow.kernelVer = d.kernel || "Linux"
                     sysInfoWindow.sysUptime = d.uptime || "Just booted"
-                    sysInfoWindow.localIp = d.ip || "127.0.0.1"
+                    sysInfoWindow.packageCount = d.pkgs ? `${d.pkgs} (pacman)` : "---"
+                    sysInfoWindow.wmCompositor = d.wm || "Hyprland"
+                    sysInfoWindow.boardModel = d.board || "Generic Board"
                     sysInfoWindow.cpuModel = d.cpu || "Generic CPU"
-                    
+                    sysInfoWindow.cpuCores = d.cores ? `${d.cores} threads` : "---"
+                    sysInfoWindow.loadAvg = d.load || "---"
+                    sysInfoWindow.gpuModel = d.gpu || "Integrated GPU"
+                    sysInfoWindow.localIp = d.ip || "127.0.0.1"
+                    sysInfoWindow.gatewayIp = d.gw || "---"
+                    sysInfoWindow.dnsServer = d.dns || "---"
+
                     if (d.mem) {
                         sysInfoWindow.ramPct = Math.min(100, Math.max(0, d.mem.pct)) / 100.0
                         sysInfoWindow.ramText = `${d.mem.used.toFixed(1)} / ${d.mem.total.toFixed(1)} GB`
                     }
-                    if (d.disk) {
-                        sysInfoWindow.diskPct = Math.min(100, Math.max(0, parseFloat(d.disk.pct))) / 100.0
-                        sysInfoWindow.diskText = `${d.disk.used} / ${d.disk.total}`
+                    if (d.swap) {
+                        sysInfoWindow.swapPct = Math.min(100, Math.max(0, d.swap.pct)) / 100.0
+                        sysInfoWindow.swapText = `${d.swap.used.toFixed(1)} / ${d.swap.total.toFixed(1)} GB`
+                    } else {
+                        sysInfoWindow.swapPct = 0.0
+                        sysInfoWindow.swapText = "Disabled"
+                    }
+                    if (d.diskRoot) {
+                        sysInfoWindow.diskRootPct = Math.min(100, Math.max(0, parseFloat(d.diskRoot.pct))) / 100.0
+                        sysInfoWindow.diskRootText = `${d.diskRoot.used} / ${d.diskRoot.total}`
+                    }
+                    if (d.diskHome) {
+                        sysInfoWindow.diskHomePct = Math.min(100, Math.max(0, parseFloat(d.diskHome.pct))) / 100.0
+                        sysInfoWindow.diskHomeText = `${d.diskHome.used} / ${d.diskHome.total}`
                     }
                 } catch(e) {}
             }
@@ -90,9 +145,9 @@ PanelWindow {
 
     Item {
         id: infoContainer
-        
+
         readonly property real basePadding: 14
-        property real currentScale: sysInfoWindow.screen ? Config.getSysInfoScale(sysInfoWindow.screen.name) : 1.0
+        property real currentScale: 1.0
 
         implicitWidth: (mainLayout.implicitWidth + (basePadding * 2))
         implicitHeight: (mainLayout.implicitHeight + (basePadding * 2))
@@ -114,12 +169,24 @@ PanelWindow {
                 dragY = savedPos.y
                 initialized = true
             }
+
+            if (Config.getSysInfoScale) {
+                currentScale = Config.getSysInfoScale(sysInfoWindow.screen.name)
+            }
         }
 
         Connections {
             target: Config
             function onIsLoadedChanged() {
                 if (Config.isLoaded) infoContainer.restorePosition()
+            }
+            function onSysInfoPositionsChanged() {
+                infoContainer.restorePosition()
+            }
+            function onSysInfoScalesChanged() {
+                if (sysInfoWindow.screen && Config.getSysInfoScale) {
+                    infoContainer.currentScale = Config.getSysInfoScale(sysInfoWindow.screen.name)
+                }
             }
         }
 
@@ -138,11 +205,12 @@ PanelWindow {
             }
         }
 
+        // BACKGROUND CARD
         Rectangle {
             anchors.fill: parent
             visible: Config.sysInfoShowBg !== false
             radius: Config.cornerRadius
-            color: Qt.rgba(Config.bgBase.r, Config.bgBase.g, Config.bgBase.b, 0.75)
+            color: Qt.rgba(Config.bgBase.r, Config.bgBase.g, Config.bgBase.b, 0.85)
             border.width: Config.showBorders ? 2 : 1
             border.color: Config.showBorders ? Config.accent : Qt.rgba(255, 255, 255, 0.12)
         }
@@ -151,7 +219,7 @@ PanelWindow {
             id: mainLayout
             anchors.centerIn: parent
             spacing: 8 * infoContainer.currentScale
-            width: 280 * infoContainer.currentScale
+            width: 320 * infoContainer.currentScale
 
             // HEADER ROW
             RowLayout {
@@ -180,7 +248,6 @@ PanelWindow {
                         color: Config.accent
                         font.family: "Material Symbols Outlined"
                         font.pixelSize: Config.size(Config.fontTitle) * infoContainer.currentScale
-                        font.bold: true
                     }
                 }
 
@@ -191,9 +258,9 @@ PanelWindow {
                     Text {
                         text: "SYSTEM SPECIFICATION"
                         color: Config.textMain
+                        renderType: Config.textRenderType
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontCaption) * infoContainer.currentScale
-                        font.bold: true
                         font.italic: true
                         font.letterSpacing: 1.2
                     }
@@ -201,9 +268,9 @@ PanelWindow {
                     Text {
                         text: sysInfoWindow.hostUser
                         color: Config.accent
-                        font.family: "monospace"
+                        renderType: Config.textRenderType
+                        font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale
-                        font.bold: true
                         elide: Text.ElideRight
                         Layout.fillWidth: true
                     }
@@ -217,45 +284,123 @@ PanelWindow {
                 visible: Config.sysInfoShowHost !== false
             }
 
-            // STATS ROWS
+            // TELEMETRY KEY-VALUE METRICS
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 5 * infoContainer.currentScale
+                spacing: 4 * infoContainer.currentScale
 
+                // OS / Distro
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: Config.sysInfoShowOs !== false
+                    Text { text: "OS Distro"; color: Config.textMuted; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; Layout.preferredWidth: 84 * infoContainer.currentScale }
+                    Text { text: sysInfoWindow.osDistro; color: Config.textMain; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; elide: Text.ElideRight; Layout.fillWidth: true }
+                }
+
+                // Kernel
                 RowLayout {
                     Layout.fillWidth: true
                     visible: Config.sysInfoShowKernel !== false
-                    Text { text: "Kernel"; color: Config.textMuted; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; Layout.preferredWidth: 60 * infoContainer.currentScale }
-                    Text { text: sysInfoWindow.kernelVer; color: Config.textMain; font.family: "monospace"; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true }
+                    Text { text: "Kernel"; color: Config.textMuted; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; Layout.preferredWidth: 84 * infoContainer.currentScale }
+                    Text { text: sysInfoWindow.kernelVer; color: Config.textMain; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; elide: Text.ElideRight; Layout.fillWidth: true }
                 }
 
+                // Uptime
                 RowLayout {
                     Layout.fillWidth: true
                     visible: Config.sysInfoShowUptime !== false
-                    Text { text: "Uptime"; color: Config.textMuted; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; Layout.preferredWidth: 60 * infoContainer.currentScale }
-                    Text { text: sysInfoWindow.sysUptime; color: Config.textMain; font.family: "monospace"; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true }
+                    Text { text: "Uptime"; color: Config.textMuted; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; Layout.preferredWidth: 84 * infoContainer.currentScale }
+                    Text { text: sysInfoWindow.sysUptime; color: Config.textMain; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; elide: Text.ElideRight; Layout.fillWidth: true }
                 }
 
+                // Packages
                 RowLayout {
                     Layout.fillWidth: true
-                    visible: Config.sysInfoShowIp !== false
-                    Text { text: "IPv4"; color: Config.textMuted; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; Layout.preferredWidth: 60 * infoContainer.currentScale }
-                    Text { text: sysInfoWindow.localIp; color: Config.textMain; font.family: "monospace"; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true }
+                    visible: Config.sysInfoShowPackages !== false
+                    Text { text: "Packages"; color: Config.textMuted; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; Layout.preferredWidth: 84 * infoContainer.currentScale }
+                    Text { text: sysInfoWindow.packageCount; color: Config.textMain; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; elide: Text.ElideRight; Layout.fillWidth: true }
                 }
 
+                // Window Manager
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: Config.sysInfoShowWm !== false
+                    Text { text: "Compositor"; color: Config.textMuted; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; Layout.preferredWidth: 84 * infoContainer.currentScale }
+                    Text { text: sysInfoWindow.wmCompositor; color: Config.textMain; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; elide: Text.ElideRight; Layout.fillWidth: true }
+                }
+
+                // Motherboard / Machine
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: Config.sysInfoShowBoard !== false
+                    Text { text: "Motherboard"; color: Config.textMuted; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; Layout.preferredWidth: 84 * infoContainer.currentScale }
+                    Text { text: sysInfoWindow.boardModel; color: Config.textMain; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; elide: Text.ElideRight; Layout.fillWidth: true }
+                }
+
+                // Processor
                 RowLayout {
                     Layout.fillWidth: true
                     visible: Config.sysInfoShowCpu !== false
-                    Text { text: "Processor"; color: Config.textMuted; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; Layout.preferredWidth: 60 * infoContainer.currentScale }
-                    Text { text: sysInfoWindow.cpuModel; color: Config.textMain; font.family: "monospace"; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; font.bold: true; elide: Text.ElideRight; Layout.fillWidth: true }
+                    Text { text: "Processor"; color: Config.textMuted; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; Layout.preferredWidth: 84 * infoContainer.currentScale }
+                    Text { text: sysInfoWindow.cpuModel; color: Config.textMain; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; elide: Text.ElideRight; Layout.fillWidth: true }
+                }
+
+                // CPU Threads
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: Config.sysInfoShowCores !== false
+                    Text { text: "CPU Cores"; color: Config.textMuted; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; Layout.preferredWidth: 84 * infoContainer.currentScale }
+                    Text { text: sysInfoWindow.cpuCores; color: Config.textMain; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; elide: Text.ElideRight; Layout.fillWidth: true }
+                }
+
+                // Load Average
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: Config.sysInfoShowLoad !== false
+                    Text { text: "Load Avg"; color: Config.textMuted; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; Layout.preferredWidth: 84 * infoContainer.currentScale }
+                    Text { text: sysInfoWindow.loadAvg; color: Config.textMain; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; elide: Text.ElideRight; Layout.fillWidth: true }
+                }
+
+                // Graphics Card
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: Config.sysInfoShowGpu !== false
+                    Text { text: "Graphics"; color: Config.textMuted; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; Layout.preferredWidth: 84 * infoContainer.currentScale }
+                    Text { text: sysInfoWindow.gpuModel; color: Config.textMain; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; elide: Text.ElideRight; Layout.fillWidth: true }
+                }
+
+                // IPv4 Address
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: Config.sysInfoShowIp !== false
+                    Text { text: "IPv4 Address"; color: Config.textMuted; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; Layout.preferredWidth: 84 * infoContainer.currentScale }
+                    Text { text: sysInfoWindow.localIp; color: Config.textMain; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; elide: Text.ElideRight; Layout.fillWidth: true }
+                }
+
+                // Default Gateway
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: Config.sysInfoShowGateway !== false
+                    Text { text: "Gateway"; color: Config.textMuted; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; Layout.preferredWidth: 84 * infoContainer.currentScale }
+                    Text { text: sysInfoWindow.gatewayIp; color: Config.textMain; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; elide: Text.ElideRight; Layout.fillWidth: true }
+                }
+
+                // DNS Resolver
+                RowLayout {
+                    Layout.fillWidth: true
+                    visible: Config.sysInfoShowDns !== false
+                    Text { text: "DNS Server"; color: Config.textMuted; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; Layout.preferredWidth: 84 * infoContainer.currentScale }
+                    Text { text: sysInfoWindow.dnsServer; color: Config.textMain; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; elide: Text.ElideRight; Layout.fillWidth: true }
                 }
             }
 
-            // RESOURCE BARS
+            // RESOURCE CAPACITY GAUGES
             ColumnLayout {
                 Layout.fillWidth: true
                 spacing: 6 * infoContainer.currentScale
+                visible: (Config.sysInfoShowRam !== false) || (Config.sysInfoShowSwap !== false) || (Config.sysInfoShowDisk !== false) || (Config.sysInfoShowDiskHome !== false)
 
+                // Memory / RAM Bar
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 2
@@ -263,9 +408,9 @@ PanelWindow {
 
                     RowLayout {
                         Layout.fillWidth: true
-                        Text { text: "Memory"; color: Config.textMuted; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale }
+                        Text { text: "Memory (RAM)"; color: Config.textMuted; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale }
                         Item { Layout.fillWidth: true }
-                        Text { text: sysInfoWindow.ramText; color: Config.accent; font.family: "monospace"; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; font.bold: true }
+                        Text { text: sysInfoWindow.ramText; color: Config.accent; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale }
                     }
 
                     Rectangle {
@@ -286,16 +431,17 @@ PanelWindow {
                     }
                 }
 
+                // Swap Space Bar
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 2
-                    visible: Config.sysInfoShowDisk !== false
+                    visible: Config.sysInfoShowSwap !== false
 
                     RowLayout {
                         Layout.fillWidth: true
-                        Text { text: "Root Disk"; color: Config.textMuted; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale }
+                        Text { text: "Swap Space"; color: Config.textMuted; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale }
                         Item { Layout.fillWidth: true }
-                        Text { text: sysInfoWindow.diskText; color: Config.accent; font.family: "monospace"; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale; font.bold: true }
+                        Text { text: sysInfoWindow.swapText; color: Config.accent; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale }
                     }
 
                     Rectangle {
@@ -308,7 +454,69 @@ PanelWindow {
                             anchors.left: parent.left
                             anchors.top: parent.top
                             anchors.bottom: parent.bottom
-                            width: parent.width * sysInfoWindow.diskPct
+                            width: parent.width * sysInfoWindow.swapPct
+                            radius: height / 2
+                            color: Config.accent
+                            Behavior on width { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+                        }
+                    }
+                }
+
+                // Root Storage Bar
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+                    visible: Config.sysInfoShowDisk !== false
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Root Disk (/)"; color: Config.textMuted; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale }
+                        Item { Layout.fillWidth: true }
+                        Text { text: sysInfoWindow.diskRootText; color: Config.accent; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 4 * infoContainer.currentScale
+                        radius: height / 2
+                        color: Qt.rgba(255, 255, 255, 0.08)
+
+                        Rectangle {
+                            anchors.left: parent.left
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            width: parent.width * sysInfoWindow.diskRootPct
+                            radius: height / 2
+                            color: Config.accent
+                            Behavior on width { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+                        }
+                    }
+                }
+
+                // Home Storage Bar
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+                    visible: Config.sysInfoShowDiskHome !== false
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text { text: "Home Disk (/home)"; color: Config.textMuted; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale }
+                        Item { Layout.fillWidth: true }
+                        Text { text: sysInfoWindow.diskHomeText; color: Config.accent; renderType: Config.textRenderType; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) * infoContainer.currentScale }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 4 * infoContainer.currentScale
+                        radius: height / 2
+                        color: Qt.rgba(255, 255, 255, 0.08)
+
+                        Rectangle {
+                            anchors.left: parent.left
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            width: parent.width * sysInfoWindow.diskHomePct
                             radius: height / 2
                             color: Config.accent
                             Behavior on width { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
@@ -333,14 +541,16 @@ PanelWindow {
             }
 
             onWheel: (wheel) => {
-                let step = 0.1
+                let step = 0.08
                 let newScale = infoContainer.currentScale
                 if (wheel.angleDelta.y > 0) {
                     newScale = Math.min(3.0, newScale + step)
                 } else {
                     newScale = Math.max(0.5, newScale - step)
                 }
-                
+
+                infoContainer.currentScale = newScale
+
                 if (sysInfoWindow.screen && Config.saveSysInfoScale) {
                     Config.saveSysInfoScale(sysInfoWindow.screen.name, newScale)
                 }
