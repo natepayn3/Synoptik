@@ -10,24 +10,40 @@ QtObject {
     property var onlineResults: []
     property bool isFetchingOnline: false
 
-    // Inline Comment: Global async thumbnail pre-generator running purely in Fish
+    // Inline Comment: Global async thumbnail pre-generator running in Fish using unified naming
+    // Inline Comment: Covers both video (frame grab) and static images (downscaled cache copy)
+    // so the deck never has to decode full-resolution originals at render time.
     property Process batchThumbProcess: Process {
         id: thumbBatchProc
         command: [
             "fish", "-c",
             "set -l cache_dir $HOME/.cache/wallpaper-thumbs; " +
             "test -d $cache_dir; or mkdir -p $cache_dir; " +
-            "for f in ~/Pictures/Wallpapers/*.{mp4,webm}; " +
+            "for f in ~/Pictures/Wallpapers/*.{jpg,jpeg,png,webp,mp4,webm}; " +
             "    test -f $f; or continue; " +
-            "    set -l name (string replace -r '[^a-zA-Z0-9]' '_' (path basename $f))'.jpg'; " +
-            "    if not test -f $cache_dir/$name; " +
-            "        ffmpeg -y -ss 00:00:01 -i $f -vframes 1 -vf 'scale=720:-1' $cache_dir/$name >/dev/null 2>&1 &; " +
+            "    set -l base_name (string replace -r '\\.[^.]+$' '' (path basename $f)); " +
+            "    set -l thumb_path \"$cache_dir/$base_name.jpg\"; " +
+            "    if not test -f $thumb_path; " +
+            "        if string match -rq '\\.(mp4|webm)$' $f; " +
+            "            ffmpeg -y -ss 00:00:01 -i $f -vframes 1 -vf 'scale=480:-1' $thumb_path >/dev/null 2>&1 &; " +
+            "        else; " +
+            "            ffmpeg -y -i $f -vf 'scale=480:-1' $thumb_path >/dev/null 2>&1 &; " +
+            "        end; " +
             "    end; " +
             "end; " +
             "wait"
         ]
         running: true
+
+        // Inline Comment: Notify any open Wallpaper.qml instance that fresh thumbs landed on disk
+        onExited: {
+            wallpaperService.thumbEpoch++
+        }
     }
+
+    // Inline Comment: Bumped whenever the batch thumbnail process finishes; Wallpaper.qml binds
+    // its own thumbEpoch to this so the deck refreshes once real thumbs replace originals.
+    property int thumbEpoch: 0
 
     // Background Slideshow Process
     property Process slideshowRunner: Process {
@@ -132,12 +148,12 @@ QtObject {
             }
         }
 
-        // Inline Comment: Extract video frame or pass image straight to Iris color extraction
+        // Inline Comment: Extract video frame matching getThumbPath convention or pass image straight to Iris
         if (configRef.enableIris) {
             if (isVid) {
                 let fileName = cleanFilePath.split('/').pop()
-                let thumbName = fileName.replace(/[^a-zA-Z0-9]/g, "_") + ".png"
-                let thumbPath = Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + thumbName
+                let baseName = fileName.replace(/\.[^/.]+$/, "")
+                let thumbPath = Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + baseName + ".jpg"
                 
                 wpApplyProc.pendingIrisPath = thumbPath
                 script += "test -f '" + thumbPath + "'; or ffmpeg -y -ss 00:00:01 -i '" + cleanFilePath + "' -vframes 1 -vf 'scale=600:-1' '" + thumbPath + "' >/dev/null 2>&1; "
