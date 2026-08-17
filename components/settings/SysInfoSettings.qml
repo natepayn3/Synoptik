@@ -37,7 +37,7 @@ Flickable {
         }
 
         Text {
-            text: "Configure the desktop system specification overlay, target displays, hardware telemetry metrics, styling, and background polling rates."
+            text: "Configure the desktop BGInfo-style telemetry overlay. Toggle individual system identifiers, hardware specs, network routing metrics, and resource bars."
             color: Config.textMuted
             font.family: Config.sysFont
             font.pixelSize: Config.size(Config.fontCaption)
@@ -105,7 +105,7 @@ Flickable {
                         }
 
                         Text {
-                            text: "Renders live system metrics, hardware info, and storage directly onto your desktop canvas."
+                            text: "Renders live system telemetry, hardware specifications, and resource bars directly onto your desktop."
                             color: Config.textMuted
                             font.family: Config.sysFont
                             font.pixelSize: Config.size(Config.fontMicro)
@@ -113,7 +113,6 @@ Flickable {
                     }
                 }
 
-                // Interactive Hint
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: 34
@@ -132,7 +131,7 @@ Flickable {
                         }
 
                         Text {
-                            text: "Click + Drag anywhere to reposition. Scroll wheel directly on the widget to resize."
+                            text: "Click + Drag anywhere to reposition. Scroll wheel directly on the widget to scale."
                             font.family: Config.sysFont
                             font.pixelSize: 11
                             color: Config.textMuted
@@ -165,15 +164,6 @@ Flickable {
                     font.family: Config.sysFont
                     font.pixelSize: Config.size(Config.fontMicro)
                     font.bold: true
-                }
-
-                Text {
-                    text: "Select which attached monitors render the system specification overlay."
-                    color: Config.textMuted
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontCaption)
-                    Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
                 }
 
                 RowLayout {
@@ -241,24 +231,24 @@ Flickable {
         }
 
         // ==========================================
-        // 3. TELEMETRY & METRIC TOGGLES
+        // 3. SYSTEM & OS IDENTIFIERS
         // ==========================================
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: metricsCol.implicitHeight + 28
+            implicitHeight: osGroupCol.implicitHeight + 28
             radius: Config.cornerRadius
             color: Qt.rgba(255, 255, 255, 0.05)
             border.width: 1
             border.color: Qt.rgba(255, 255, 255, 0.1)
 
             ColumnLayout {
-                id: metricsCol
+                id: osGroupCol
                 anchors.fill: parent
                 anchors.margins: 14
                 spacing: 12
 
                 Text {
-                    text: "VISIBLE METRICS & TELEMETRY"
+                    text: "SYSTEM & OS IDENTIFIERS"
                     color: Config.textMuted
                     font.family: Config.sysFont
                     font.pixelSize: Config.size(Config.fontMicro)
@@ -267,13 +257,12 @@ Flickable {
 
                 Repeater {
                     model: [
-                        { key: "sysInfoShowHost",   label: "Host & User Header",       desc: "Display username@hostname and decorative header glow", icon: "badge",              def: true },
-                        { key: "sysInfoShowKernel", label: "Kernel Release",           desc: "Display active Linux kernel version (uname -r)",      icon: "memory",             def: true },
-                        { key: "sysInfoShowUptime", label: "System Uptime",            desc: "Time elapsed since system boot",                      icon: "history",            def: true },
-                        { key: "sysInfoShowIp",     label: "IPv4 Network Address",     desc: "Default routed local interface address",              icon: "lan",                def: true },
-                        { key: "sysInfoShowCpu",    label: "Processor Hardware Model", desc: "CPU brand and core architecture identifier",          icon: "developer_board",    def: true },
-                        { key: "sysInfoShowRam",    label: "RAM / Memory Usage Bar",   desc: "Active memory capacity and visual usage indicator",   icon: "memory_alt",         def: true },
-                        { key: "sysInfoShowDisk",   label: "Root Storage Usage Bar",   desc: "Disk fill percentage and available storage space",    icon: "hard_drive",         def: true }
+                        { key: "sysInfoShowHost",     label: "Host & User Header",       desc: "Display username@hostname header badge with accent glow", icon: "badge",              def: true },
+                        { key: "sysInfoShowOs",       label: "Operating System Distro",  desc: "Linux distribution release name (e.g. Arch Linux)",      icon: "desktop_windows",    def: true },
+                        { key: "sysInfoShowKernel",   label: "Kernel Release",           desc: "Running Linux kernel version (uname -r)",                icon: "memory",             def: true },
+                        { key: "sysInfoShowUptime",   label: "System Uptime",            desc: "Elapsed time since last boot cycle",                     icon: "history",            def: true },
+                        { key: "sysInfoShowPackages", label: "Installed Packages",       desc: "Total installed pacman package count",                   icon: "inventory_2",        def: true },
+                        { key: "sysInfoShowWm",       label: "Compositor / Window Mgr",  desc: "Active Wayland compositor and build tag",                icon: "view_carousel",       def: true }
                     ]
 
                     delegate: RowLayout {
@@ -314,27 +303,10 @@ Flickable {
 
                             RowLayout {
                                 spacing: 6
-                                Text {
-                                    text: modelData.icon
-                                    font.family: "Material Symbols Outlined"
-                                    font.pixelSize: 15
-                                    color: Config.accent
-                                }
-                                Text {
-                                    text: modelData.label
-                                    color: Config.textMain
-                                    font.family: Config.sysFont
-                                    font.pixelSize: Config.size(Config.fontCaption)
-                                    font.bold: true
-                                }
+                                Text { text: modelData.icon; font.family: "Material Symbols Outlined"; font.pixelSize: 15; color: Config.accent }
+                                Text { text: modelData.label; color: Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); font.bold: true }
                             }
-
-                            Text {
-                                text: modelData.desc
-                                color: Config.textMuted
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontMicro)
-                            }
+                            Text { text: modelData.desc; color: Config.textMuted; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) }
                         }
                     }
                 }
@@ -342,7 +314,250 @@ Flickable {
         }
 
         // ==========================================
-        // 4. VISUAL STYLING & INTERVAL CARD
+        // 4. HARDWARE SPECIFICATIONS
+        // ==========================================
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: hwGroupCol.implicitHeight + 28
+            radius: Config.cornerRadius
+            color: Qt.rgba(255, 255, 255, 0.05)
+            border.width: 1
+            border.color: Qt.rgba(255, 255, 255, 0.1)
+
+            ColumnLayout {
+                id: hwGroupCol
+                anchors.fill: parent
+                anchors.margins: 14
+                spacing: 12
+
+                Text {
+                    text: "HARDWARE SPECIFICATIONS"
+                    color: Config.textMuted
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontMicro)
+                    font.bold: true
+                }
+
+                Repeater {
+                    model: [
+                        { key: "sysInfoShowBoard", label: "Motherboard / Machine Model", desc: "DMI hardware product and chassis identifier",  icon: "developer_board", def: true },
+                        { key: "sysInfoShowCpu",   label: "Processor Model",             desc: "CPU architecture brand and model identifier",   icon: "memory_alt",      def: true },
+                        { key: "sysInfoShowCores", label: "CPU Core & Thread Count",     desc: "Total accessible logical processor threads",    icon: "grid_view",       def: true },
+                        { key: "sysInfoShowLoad",  label: "System Load Averages",        desc: "1, 5, and 15-minute system load averages",       icon: "speed",           def: true },
+                        { key: "sysInfoShowGpu",   label: "Dedicated Graphics (GPU)",    desc: "PCI display adapter and GPU controller name",   icon: "videogame_asset", def: true }
+                    ]
+
+                    delegate: RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+
+                        readonly property bool isChecked: Config[modelData.key] !== undefined ? Config[modelData.key] : modelData.def
+
+                        Rectangle {
+                            implicitWidth: 20; implicitHeight: 20; radius: 4
+                            color: parent.isChecked ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "✓"
+                                color: Config.bgBase
+                                visible: parent.parent.isChecked
+                                font.pixelSize: 12
+                                font.bold: true
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    Config[modelData.key] = !parent.parent.isChecked
+                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                    else if (typeof Config.save === "function") Config.save()
+                                }
+                            }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 1
+
+                            RowLayout {
+                                spacing: 6
+                                Text { text: modelData.icon; font.family: "Material Symbols Outlined"; font.pixelSize: 15; color: Config.accent }
+                                Text { text: modelData.label; color: Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); font.bold: true }
+                            }
+                            Text { text: modelData.desc; color: Config.textMuted; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ==========================================
+        // 5. NETWORK & ROUTING METRICS
+        // ==========================================
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: netGroupCol.implicitHeight + 28
+            radius: Config.cornerRadius
+            color: Qt.rgba(255, 255, 255, 0.05)
+            border.width: 1
+            border.color: Qt.rgba(255, 255, 255, 0.1)
+
+            ColumnLayout {
+                id: netGroupCol
+                anchors.fill: parent
+                anchors.margins: 14
+                spacing: 12
+
+                Text {
+                    text: "NETWORK & ROUTING METRICS"
+                    color: Config.textMuted
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontMicro)
+                    font.bold: true
+                }
+
+                Repeater {
+                    model: [
+                        { key: "sysInfoShowIp",      label: "Primary IPv4 Address", desc: "Default routed private interface address", icon: "lan",        def: true },
+                        { key: "sysInfoShowGateway", label: "Default Gateway",      desc: "Default upstream gateway router IP",        icon: "router",     def: true },
+                        { key: "sysInfoShowDns",     label: "DNS Server",           desc: "Primary name resolution server",            icon: "dns",        def: true }
+                    ]
+
+                    delegate: RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+
+                        readonly property bool isChecked: Config[modelData.key] !== undefined ? Config[modelData.key] : modelData.def
+
+                        Rectangle {
+                            implicitWidth: 20; implicitHeight: 20; radius: 4
+                            color: parent.isChecked ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "✓"
+                                color: Config.bgBase
+                                visible: parent.parent.isChecked
+                                font.pixelSize: 12
+                                font.bold: true
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    Config[modelData.key] = !parent.parent.isChecked
+                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                    else if (typeof Config.save === "function") Config.save()
+                                }
+                            }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 1
+
+                            RowLayout {
+                                spacing: 6
+                                Text { text: modelData.icon; font.family: "Material Symbols Outlined"; font.pixelSize: 15; color: Config.accent }
+                                Text { text: modelData.label; color: Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); font.bold: true }
+                            }
+                            Text { text: modelData.desc; color: Config.textMuted; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ==========================================
+        // 6. RESOURCE CAPACITY GAUGES
+        // ==========================================
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: gaugesGroupCol.implicitHeight + 28
+            radius: Config.cornerRadius
+            color: Qt.rgba(255, 255, 255, 0.05)
+            border.width: 1
+            border.color: Qt.rgba(255, 255, 255, 0.1)
+
+            ColumnLayout {
+                id: gaugesGroupCol
+                anchors.fill: parent
+                anchors.margins: 14
+                spacing: 12
+
+                Text {
+                    text: "RESOURCE USAGE BARS"
+                    color: Config.textMuted
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontMicro)
+                    font.bold: true
+                }
+
+                Repeater {
+                    model: [
+                        { key: "sysInfoShowRam",      label: "Memory (RAM) Gauge",      desc: "Live physical memory usage and visual capacity bar", icon: "memory",     def: true },
+                        { key: "sysInfoShowSwap",     label: "Swap Memory Gauge",       desc: "Swap space allocation and usage bar",                icon: "swap_horiz", def: true },
+                        { key: "sysInfoShowDisk",     label: "Root Storage (/) Gauge",  desc: "Root filesystem partition fill level",               icon: "hard_drive", def: true },
+                        { key: "sysInfoShowDiskHome", label: "Home Storage (/home) Bar",desc: "User home directory filesystem fill level",         icon: "folder",     def: true }
+                    ]
+
+                    delegate: RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 10
+
+                        readonly property bool isChecked: Config[modelData.key] !== undefined ? Config[modelData.key] : modelData.def
+
+                        Rectangle {
+                            implicitWidth: 20; implicitHeight: 20; radius: 4
+                            color: parent.isChecked ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: "✓"
+                                color: Config.bgBase
+                                visible: parent.parent.isChecked
+                                font.pixelSize: 12
+                                font.bold: true
+                                horizontalAlignment: Text.AlignHCenter
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    Config[modelData.key] = !parent.parent.isChecked
+                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                    else if (typeof Config.save === "function") Config.save()
+                                }
+                            }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 1
+
+                            RowLayout {
+                                spacing: 6
+                                Text { text: modelData.icon; font.family: "Material Symbols Outlined"; font.pixelSize: 15; color: Config.accent }
+                                Text { text: modelData.label; color: Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); font.bold: true }
+                            }
+                            Text { text: modelData.desc; color: Config.textMuted; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ==========================================
+        // 7. VISUAL STYLING & UPDATE INTERVAL
         // ==========================================
         Rectangle {
             Layout.fillWidth: true
@@ -366,12 +581,11 @@ Flickable {
                     font.bold: true
                 }
 
-                // Background & Glow Checkboxes
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 24
 
-                    // Show Background
+                    // Card Background Toggle
                     RowLayout {
                         spacing: 8
                         Rectangle {
@@ -405,7 +619,7 @@ Flickable {
                         }
                     }
 
-                    // Show Glow
+                    // Accent Glow Toggle
                     RowLayout {
                         spacing: 8
                         Rectangle {
