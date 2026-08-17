@@ -18,6 +18,12 @@ Scope {
     property bool sessionLocked: Config.sessionLocked
     property var shellRef: null
 
+    onSessionLockedChanged: {
+        if (sessionLocked) {
+            lockscreenScope.clearInput()
+        }
+    }
+
     // Shared global password state across ALL monitor surfaces
     property string currentPassword: ""
     property bool isAuthenticating: false
@@ -210,6 +216,9 @@ Scope {
         lockscreenScope.currentPassword = ""
         lockscreenScope.shapeItems = []
         lockscreenScope.authStatus = "System Locked"
+        lockscreenScope.isSuccess = false
+        lockscreenScope.isError = false
+        lockscreenScope.isAuthenticating = false
     }
 
     // Shape Generation Logic Shared Across All Screens
@@ -563,7 +572,7 @@ Scope {
                                         color: Config.textMain
                                         font.family: Config.sysFont
                                         font.pixelSize: Config.lockscreenClockSize || 96
-                                        font.weight: Font.DemiBold
+                                        font.weight: Font.ExtraBold
                                         font.letterSpacing: -2
                                     }
                                 }
