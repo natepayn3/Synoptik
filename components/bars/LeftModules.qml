@@ -144,7 +144,7 @@ Rectangle {
 
         Repeater {
             id: repeater
-            model: Config.leftCardOrder || ["power", "recorder", "mirror", "screenshot", "notifications", "player", "wallpaper", "settings", "launcher", "audio", "batt", "network", "clipboard"]
+            model: Config.leftCardOrder || ["power", "recorder", "mirror", "screenshot", "player", "wallpaper", "settings", "launcher", "audio", "batt", "network", "clipboard"]
 
             delegate: Loader {
                 readonly property string itemKey: modelData
@@ -167,7 +167,6 @@ Rectangle {
                         case "recorder": return recorderComp
                         case "mirror": return mirrorComp
                         case "screenshot": return screenshotComp
-                        case "notifications": return notifComp
                         case "player": return playerComp
                         case "wallpaper": return wallpaperComp
                         case "settings": return settingsComp
@@ -510,63 +509,6 @@ Rectangle {
             TapHandler { onTapped: Quickshell.execDetached(["fish", "-c", "sleep 0.1; and grim -g (slurp) -t ppm - | satty --filename -"]) }
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("screenshot") }
             HoverHandler { id: screenshotHover; cursorShape: Qt.PointingHandCursor }
-        }
-    }
-
-    Component {
-        id: notifComp
-        Rectangle {
-            id: btnNotifications
-            implicitWidth: 32
-            implicitHeight: 32
-            radius: 10
-            color: Config.showNotifications ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-
-            Behavior on color { ColorAnimation { duration: 150 } }
-
-            Item {
-                anchors.centerIn: parent
-                implicitWidth: notifIconText.implicitWidth
-                implicitHeight: notifIconText.implicitHeight
-                scale: notificationsHover.hovered ? 1.25 : 1.0
-
-                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
-
-                Glow {
-                    anchors.fill: notifIconText
-                    source: notifIconText
-                    radius: notificationsHover.hovered ? 8 : 0
-                    samples: 16
-                    color: Config.accent
-                    spread: 0.2
-                    transparentBorder: true
-                    visible: notificationsHover.hovered
-
-                    Behavior on radius { NumberAnimation { duration: 180 } }
-                }
-
-                Text {
-                    id: notifIconText
-                    anchors.centerIn: parent
-                    text: (typeof shellRoot !== "undefined" && shellRoot.activeNotifs > 0) ? "inbox_text" : Config.getIcon("notifications")
-                    color: (Config.showNotifications || notificationsHover.hovered || (typeof shellRoot !== "undefined" && shellRoot.activeNotifs > 0)) ? Config.accent : Config.textMain
-                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
-
-                    Behavior on color { ColorAnimation { duration: 150 } }
-                }
-            }
-
-            Rectangle {
-                anchors.top: parent.top; anchors.right: parent.right
-                anchors.topMargin: 2; anchors.rightMargin: 2
-                width: 5; height: 5; radius: 2.5
-                color: Config.accent
-                visible: !Config.leftCardCollapsed && Config.isPinned("notifications")
-            }
-
-            TapHandler { onTapped: { popoutRequested(btnNotifications); Config.showNotifications = !Config.showNotifications; } }
-            TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("notifications") }
-            HoverHandler { id: notificationsHover; cursorShape: Qt.PointingHandCursor }
         }
     }
 
