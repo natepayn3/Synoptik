@@ -664,9 +664,9 @@ Flickable {
 
                         Repeater {
                             model: [
-                                { label: "72px", size: 72 },
-                                { label: "96px", size: 96 },
-                                { label: "120px", size: 120 }
+                                { label: "100px", size: 100 },
+                                { label: "150px", size: 150 },
+                                { label: "200px", size: 200 }
                             ]
 
                             delegate: Rectangle {
@@ -674,7 +674,7 @@ Flickable {
                                 implicitWidth: sizeText.implicitWidth + 20
                                 implicitHeight: 30
                                 radius: 15
-                                readonly property bool isSelected: (Config.lockscreenClockSize || 96) === modelData.size
+                                readonly property bool isSelected: (Config.lockscreenClockSize || 150) === modelData.size
                                 color: isSelected ? Config.accent : (sizeHover.containsMouse ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(0, 0, 0, 0.2))
 
                                 Text {
