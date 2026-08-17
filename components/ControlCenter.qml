@@ -81,7 +81,7 @@ Item {
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.margins: root.cardMargin
-        spacing: root.cardMargin
+        spacing: root.cardMargin / 2
         enabled: !root.isAnyPanelExpanded
 
         // ==========================================
@@ -231,6 +231,7 @@ Item {
             MediaCard {
                 id: mediaCardComponent
                 Layout.fillWidth: true
+                controlCenterPanel: root
                 onSendCommand: cmd => {
                     mediaControlProc.command = cmd
                     mediaControlProc.running = true
