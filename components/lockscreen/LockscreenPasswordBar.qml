@@ -5,7 +5,7 @@ import Qt5Compat.GraphicalEffects
 import Quickshell
 import ".."
 
-Item {
+FocusScope {
     id: barRoot
 
     property string password: ""
@@ -23,6 +23,112 @@ Item {
 
     implicitWidth: 440
     implicitHeight: 58
+
+    focus: true
+
+    function forceFocus() {
+        barRoot.forceActiveFocus()
+        hiddenInput.forceActiveFocus()
+    }
+
+    Component.onCompleted: {
+        barRoot.forceFocus()
+    }
+
+    function shuffleShapes() {
+        let newItems = []
+        for (let i = 0; i < password.length; i++) {
+            newItems.push(generateShapeProps(password.charAt(i)))
+        }
+        shapeItems = newItems
+    }
+
+    function clearInput() {
+        password = ""
+        shapeItems = []
+        hiddenInput.text = ""
+    }
+
+    function generateShapeProps(ch) {
+        let index = Math.floor(Math.random() * 16)
+        let rotation = Math.floor(Math.random() * 4) * 90
+        let col = Config.accent
+        let style = maskStyle
+
+        if (paletteMode === "vibrant") {
+            let vibrantColors = ["#00f0ff", "#7000ff", "#ff0055", "#00ff66", "#ffcc00"]
+            col = vibrantColors[Math.floor(Math.random() * vibrantColors.length)]
+        } else if (paletteMode === "neon") {
+            let neonColors = ["#ff0055", "#00ffff", "#ffff00", "#ff00ff"]
+            col = neonColors[Math.floor(Math.random() * neonColors.length)]
+        } else if (paletteMode === "pastel") {
+            let pastelColors = ["#c4b5fd", "#93c5fd", "#fbcfe8", "#fed7aa"]
+            col = pastelColors[Math.floor(Math.random() * pastelColors.length)]
+        } else if (paletteMode === "monochrome") {
+            col = "#ffffff"
+        }
+
+        let specialChars = ["!", "@", "#", "$", "%", "^", "&", "*", "~", "?", "★", "◆", "✦", "⚡", "♦", "§"]
+        let displayGlyph = (style === "special")
+            ? specialChars[Math.floor(Math.random() * specialChars.length)]
+            : ch
+
+        return {
+            shapeIndex: index,
+            color: col,
+            rotation: rotation,
+            isOutline: Math.random() > 0.7,
+            charGlyph: displayGlyph,
+            maskStyle: style
+        }
+    }
+
+    TextInput {
+        id: hiddenInput
+        anchors.fill: parent
+        opacity: 0
+        z: 10
+        focus: true
+        cursorVisible: false
+        inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
+
+        onActiveFocusChanged: {
+            if (!activeFocus) {
+                barRoot.forceFocus()
+            }
+        }
+
+        onTextChanged: {
+            barRoot.password = text
+            let items = []
+            for (let i = 0; i < text.length; i++) {
+                items.push(generateShapeProps(text.charAt(i)))
+            }
+            barRoot.shapeItems = items
+        }
+
+        Keys.onReturnPressed: {
+            if (barRoot.password.length > 0 && !barRoot.isAuthenticating) {
+                barRoot.submitPassword(barRoot.password)
+            }
+        }
+
+        Keys.onEnterPressed: {
+            if (barRoot.password.length > 0 && !barRoot.isAuthenticating) {
+                barRoot.submitPassword(barRoot.password)
+            }
+        }
+
+        MouseArea {
+            anchors.fill: parent
+            z: 1
+            cursorShape: Qt.IBeamCursor
+            onPressed: (mouse) => {
+                barRoot.forceFocus()
+                mouse.accepted = false
+            }
+        }
+    }
 
     onIsErrorChanged: {
         if (isError) shakeAnimation.restart()
@@ -43,7 +149,6 @@ Item {
         id: shakeContainer
         anchors.fill: parent
 
-        // Outer Glow
         RectangularGlow {
             anchors.fill: barBg
             glowRadius: barRoot.isError ? 16 : (barRoot.isSuccess ? 18 : 10)
@@ -60,7 +165,6 @@ Item {
             Behavior on glowRadius { NumberAnimation { duration: 200 } }
         }
 
-        // Main Bar Surface
         Rectangle {
             id: barBg
             anchors.fill: parent
@@ -80,8 +184,8 @@ Item {
                 anchors.leftMargin: 16
                 anchors.rightMargin: 10
                 spacing: 10
+                z: 2
 
-                // Leading Icon
                 Rectangle {
                     implicitWidth: 36
                     implicitHeight: 36
@@ -103,13 +207,11 @@ Item {
                     }
                 }
 
-                // Center Glyph Container
                 Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     clip: true
 
-                    // Placeholder Text
                     Row {
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.left: parent.left
@@ -142,7 +244,6 @@ Item {
                         }
                     }
 
-                    // Shapes Flow
                     Flickable {
                         id: shapesFlickable
                         anchors.fill: parent
@@ -185,7 +286,6 @@ Item {
                     }
                 }
 
-                // CAPS LOCK BADGE
                 Rectangle {
                     visible: barRoot.capsLockActive
                     implicitWidth: capsRow.implicitWidth + 12
@@ -218,7 +318,6 @@ Item {
                     }
                 }
 
-                // CLEAR (X) BUTTON
                 Rectangle {
                     id: clearBtn
                     visible: barRoot.password.length > 0 && !barRoot.isAuthenticating
@@ -244,11 +343,13 @@ Item {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: barRoot.clearRequested()
+                        onClicked: {
+                            barRoot.clearInput()
+                            barRoot.clearRequested()
+                        }
                     }
                 }
 
-                // SUBMIT BUTTON
                 Rectangle {
                     id: submitBtn
                     implicitWidth: 40
