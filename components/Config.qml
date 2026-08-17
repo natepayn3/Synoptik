@@ -807,6 +807,7 @@ QtObject {
         "batt": "battery_android_frame_full",
         "cc": "widgets",
         "network": "lan",
+        "notifications": "inbox",
         "clipboard": "content_paste",
         "clock": "calendar_month",
         "overview": "select_window_2",
