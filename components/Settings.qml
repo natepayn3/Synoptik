@@ -605,10 +605,10 @@ Item {
 
                             Repeater {
                                 model: [
-                                    { id: 8, name: "Mascot",      icon: "smart_toy" },
-                                    { id: 9, name: "Clock",       icon: "schedule" },
-                                    { id: 10, name: "Keyboard",   icon: "keyboard" },
-                                    { id: 13, name: "Sounds",     icon: "volume_up" },
+                                    { id: 8,  name: "Mascot",      icon: "smart_toy" },
+                                    { id: 9,  name: "Clock",       icon: "schedule" },
+                                    { id: 10, name: "Keyboard",    icon: "keyboard" },
+                                    { id: 13, name: "Sounds",      icon: "volume_up" },
                                     { id: 15, name: "Lockscreen",  icon: "lock" },
                                     { id: 18, name: "Screensaver", icon: "tv" }
                                 ]
@@ -836,7 +836,7 @@ Item {
 
                     Loader { id: mascotSettingsLoader; anchors.fill: parent; active: settingsRoot.activeSection === 8; visible: active; sourceComponent: MascotSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 9; visible: active; sourceComponent: ClockSettings {} }
-                    Loader { anchors.fill: parent; active: settingsRoot.activeSection === 10; visible: active; sourceComponent: OskSettings {} }
+                    Loader { anchors.fill: parent; active: settingsRoot.activeSection === 10; visible: active; sourceComponent: KeyboardSettings {} }
 
                     // Shell View (Section 11)
                     Loader {
