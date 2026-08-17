@@ -318,7 +318,7 @@ Item {
                             radius: 12
                             visible: root.notifCount > 0
                             color: clearHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
-                            border.width: 1
+                            border.width: 2
                             border.color: clearHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.12)
                             Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -335,13 +335,6 @@ Item {
                             TapHandler { onTapped: root.clearAllNotifications() }
                             HoverHandler { id: clearHover; cursorShape: Qt.PointingHandCursor }
                         }
-                    }
-
-                    // Divider Line
-                    Rectangle {
-                        Layout.fillWidth: true
-                        height: 1
-                        color: Qt.rgba(255, 255, 255, 0.08)
                     }
 
                     // Scrollable List
@@ -364,8 +357,6 @@ Item {
                             implicitHeight: itemLayout.implicitHeight + 16
                             radius: Config.cornerRadius * 0.5
                             color: cardMouse.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.25)
-                            border.width: 1
-                            border.color: cardMouse.hovered ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.3) : "transparent"
                             Behavior on color { ColorAnimation { duration: 150 } }
 
                             ColumnLayout {

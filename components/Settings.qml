@@ -27,13 +27,13 @@ Item {
     function expandActiveCategory(sectionId) {
         if ([0, 16, 17, 1, 2, 3, 12].includes(sectionId)) visualsExpanded = true
         else if ([4, 5, 6, 7].includes(sectionId)) connectivityExpanded = true
-        else if ([8, 9, 10, 13, 14, 15, 18].includes(sectionId)) widgetsExpanded = true
+        else if ([8, 9, 10, 13, 14, 15, 18, 19].includes(sectionId)) widgetsExpanded = true
     }
 
     function getSectionCategory(sectionId) {
         if ([0, 16, 17, 1, 2, 3, 12].includes(sectionId)) return "VISUALS"
         if ([4, 5, 6, 7].includes(sectionId)) return "CONNECTIVITY"
-        if ([8, 9, 10, 13, 15, 18].includes(sectionId)) return "WIDGETS"
+        if ([8, 9, 10, 13, 15, 18, 19].includes(sectionId)) return "WIDGETS"
         if (sectionId === 11) return "SYSTEM"
         return "GENERAL"
     }
@@ -53,6 +53,7 @@ Item {
             case 7: return "Weather"
             case 8: return "Mascot"
             case 9: return "Clock"
+            case 19: return "System Info"
             case 10: return "Keyboard"
             case 13: return "System Sounds"
             case 15: return "Lockscreen"
@@ -77,6 +78,7 @@ Item {
             case 7: return "thermostat"
             case 8: return "smart_toy"
             case 9: return "schedule"
+            case 19: return "terminal"
             case 10: return "keyboard"
             case 13: return "volume_up"
             case 15: return "lock"
@@ -368,7 +370,6 @@ Item {
                                     Behavior on color { ColorAnimation { duration: 150 } }
                                     Behavior on border.color { ColorAnimation { duration: 150 } }
 
-                                    // Glowing active pill
                                     Rectangle {
                                         anchors.left: parent.left
                                         anchors.leftMargin: 2
@@ -496,7 +497,6 @@ Item {
                                     Behavior on color { ColorAnimation { duration: 150 } }
                                     Behavior on border.color { ColorAnimation { duration: 150 } }
 
-                                    // Glowing active pill
                                     Rectangle {
                                         anchors.left: parent.left
                                         anchors.leftMargin: 2
@@ -607,6 +607,7 @@ Item {
                                 model: [
                                     { id: 8,  name: "Mascot",      icon: "smart_toy" },
                                     { id: 9,  name: "Clock",       icon: "schedule" },
+                                    { id: 19, name: "System Info", icon: "terminal" },
                                     { id: 10, name: "Keyboard",    icon: "keyboard" },
                                     { id: 13, name: "Sounds",      icon: "volume_up" },
                                     { id: 15, name: "Lockscreen",  icon: "lock" },
@@ -626,7 +627,6 @@ Item {
                                     Behavior on color { ColorAnimation { duration: 150 } }
                                     Behavior on border.color { ColorAnimation { duration: 150 } }
 
-                                    // Glowing active pill
                                     Rectangle {
                                         anchors.left: parent.left
                                         anchors.leftMargin: 2
@@ -809,7 +809,6 @@ Item {
                     onTriggered: rightPaneRoot.refreshActiveFlickable()
                 }
 
-                // Subtle Gear Watermark
                 Watermark {
                     icon: Config.getIcon("settings")
                     iconSize: 180
@@ -817,7 +816,6 @@ Item {
                     seed: 16
                 }
 
-                // Section Content Wrapper with Crossfade
                 Item {
                     id: contentPane
                     anchors.fill: parent
@@ -836,6 +834,7 @@ Item {
 
                     Loader { id: mascotSettingsLoader; anchors.fill: parent; active: settingsRoot.activeSection === 8; visible: active; sourceComponent: MascotSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 9; visible: active; sourceComponent: ClockSettings {} }
+                    Loader { anchors.fill: parent; active: settingsRoot.activeSection === 19; visible: active; sourceComponent: SysInfoSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 10; visible: active; sourceComponent: KeyboardSettings {} }
 
                     // Shell View (Section 11)
@@ -900,7 +899,6 @@ Item {
                                 anchors.fill: parent
                                 spacing: settingsRoot.cardMargin
 
-                                // Header Row
                                 RowLayout {
                                     Layout.fillWidth: true
                                     spacing: 12
@@ -943,7 +941,6 @@ Item {
                                     }
                                 }
 
-                                // Repository & Quick Link Card
                                 Rectangle {
                                     Layout.fillWidth: true
                                     implicitHeight: 60
@@ -1011,7 +1008,6 @@ Item {
                                     HoverHandler { id: gitHubHover }
                                 }
 
-                                // Status & Update Control Card
                                 Rectangle {
                                     Layout.fillWidth: true
                                     implicitHeight: Math.max(68, statusRow.implicitHeight + 20)
@@ -1078,7 +1074,6 @@ Item {
                                             spacing: 8
                                             Layout.alignment: Qt.AlignVCenter
 
-                                            // Reload Shell
                                             Rectangle {
                                                 implicitWidth: 110
                                                 implicitHeight: 32
@@ -1105,7 +1100,6 @@ Item {
                                                 HoverHandler { id: reloadBtnHover }
                                             }
 
-                                            // Check / Update Button
                                             Rectangle {
                                                 implicitWidth: 120
                                                 implicitHeight: 32
@@ -1151,7 +1145,6 @@ Item {
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 18; visible: active; sourceComponent: ScreensaverSettings {} }
                 }
 
-                // Bottom Edge Soft Gradient Vignette
                 Rectangle {
                     anchors.bottom: parent.bottom
                     anchors.left: parent.left
@@ -1168,7 +1161,6 @@ Item {
                     }
                 }
 
-                // Interactive Floating "More Content Below" Indicator Pill
                 Rectangle {
                     id: scrollCuePill
                     anchors.horizontalCenter: parent.horizontalCenter
@@ -1188,7 +1180,6 @@ Item {
                     Behavior on color { ColorAnimation { duration: 150 } }
                     Behavior on border.color { ColorAnimation { duration: 150 } }
 
-                    // Subtle Vertical Floating / Bouncing Animation
                     SequentialAnimation on anchors.bottomMargin {
                         running: rightPaneRoot.canScrollDown
                         loops: Animation.Infinite
