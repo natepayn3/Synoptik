@@ -6,6 +6,7 @@ import Qt.labs.folderlistmodel
 import Quickshell
 import Quickshell.Io
 import Quickshell.Widgets
+import "services"
 
 Item {
     id: root
@@ -19,8 +20,10 @@ Item {
 
     property int activeIndex: 0
     property string activeHoveredPath: ""
+    // Inline Comment: Version counter to invalidate QML image cache when thumbnails finish rendering
+    property int thumbEpoch: 0
 
-    // Helper to compute unified thumbnail path without extension mangling
+    // Inline Comment: Compute unified thumbnail path stripping file extension
     function getThumbPath(filePath) {
         if (!filePath) return ""
         let clean = (typeof filePath === "string" ? filePath : filePath.toString()).replace(/^file:\/\//, "")
@@ -29,37 +32,21 @@ Item {
         return Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + baseName + ".jpg"
     }
 
-    // Resolves either image source or generated video thumbnail
+    // Inline Comment: Always resolves to the cached thumbnail (image or video frame grab) —
+    // never the original full-res file, since this is only ever used for small/blurred display.
     function resolveImageSource(rawPath) {
         if (!rawPath) return ""
         let clean = (typeof rawPath === "string" ? rawPath : rawPath.toString()).replace(/^file:\/\//, "")
-        let ext = clean.split('.').pop().toLowerCase()
-        if (ext === "mp4" || ext === "webm") {
-            return "file://" + getThumbPath(clean)
-        }
-        return "file://" + clean
+        return "file://" + getThumbPath(clean)
     }
 
-    // Background thumbnail batch generator in Fish
-    Process {
-        id: thumbBatchProc
-        command: [
-            "fish", "-c",
-            "set -l cache_dir $HOME/.cache/wallpaper-thumbs; " +
-            "test -d $cache_dir; or mkdir -p $cache_dir; " +
-            "for f in ~/Pictures/Wallpapers/*.{mp4,webm}; " +
-            "    test -f $f; or continue; " +
-            "    set -l base_name (string replace -r '\\.[^.]+$' '' (path basename $f)); " +
-            "    set -l thumb_path \"$cache_dir/$base_name.jpg\"; " +
-            "    if not test -f $thumb_path; " +
-            "        ffmpeg -y -ss 00:00:01 -i $f -vframes 1 -vf 'scale=720:-1' $thumb_path >/dev/null 2>&1; " +
-            "    end; " +
-            "end"
-        ]
-        running: true
-
-        onExited: {
-            // Re-evaluate backdrop source once thumbnails finish generating
+    // Inline Comment: Thumbnail generation now lives solely in WallpaperService (runs once at
+    // shell startup, covers images + video). We just mirror its epoch so the deck refreshes
+    // if this popup happens to be open while a batch of new wallpapers finishes thumbnailing.
+    Connections {
+        target: WallpaperService
+        function onThumbEpochChanged() {
+            root.thumbEpoch = WallpaperService.thumbEpoch
             ambientBackdrop.source = Qt.binding(() => {
                 if (root.activeHoveredPath !== "") return root.resolveImageSource(root.activeHoveredPath)
                 if (folderModel.count > root.activeIndex && root.activeIndex >= 0) {
@@ -70,7 +57,7 @@ Item {
         }
     }
 
-    // Backend Execution Process
+    // Inline Comment: Backend execution process managing awww, mpvpaper, and iris
     Process {
         id: wallpaperBackend
         running: false
@@ -392,11 +379,38 @@ Item {
                                 Image {
                                     id: cardImg
                                     anchors.fill: parent
-                                    source: bladeDelegate.isVid ? ("file://" + bladeDelegate.thumbFile) : filePath
+
+                                    // Inline Comment: property (not a re-derived binding) so onStatusChanged
+                                    // can swap it to the raw file without fighting the source binding below
+                                    property bool usingFallback: false
+
+                                    // Inline Comment: Prefer the cached thumbnail (fast, pre-scaled). Re-evaluates
+                                    // against thumbEpoch once the batch generator finishes producing new thumbs.
+                                    source: {
+                                        root.thumbEpoch // dependency only — re-evaluate when batch gen completes
+                                        cardImg.usingFallback = false
+                                        return "file://" + bladeDelegate.thumbFile
+                                    }
+
+                                    // Inline Comment: Thumb missing (not generated yet) — fall back to the
+                                    // original file once, rather than an empty tile
+                                    onStatusChanged: {
+                                        if (status === Image.Error && !usingFallback) {
+                                            usingFallback = true
+                                            source = filePath
+                                        }
+                                    }
+
                                     fillMode: Image.PreserveAspectCrop
+                                    
+                                    // Clamp decode resolution to deck card size
+                                    sourceSize.width: 320
+                                    sourceSize.height: 180
+                                    
                                     asynchronous: true
                                     cache: true
-                                    smooth: true
+                                    smooth: false
+                                    mipmap: false
                                 }
 
                                 // Depth & distance dimming
