@@ -17,7 +17,6 @@ Scope {
 
             screen: modelData
 
-            // Explicit reactive binding to track active wallpaper transitions
             readonly property string currentWpPath: {
                 Config.activeWallpaperPath
                 let monName = modelData ? modelData.name : ""
@@ -35,14 +34,13 @@ Scope {
                 return currentWpPath.startsWith("file://") ? currentWpPath : ("file://" + currentWpPath)
             }
 
-            // Visible only for static wallpapers when parallax is active
             visible: Config.enableWallpaperParallax && 
                      (Config.wallpaperWorkspaceParallax || Config.wallpaperCursorParallax) && 
                      !isVideo && 
                      currentWpPath !== ""
 
-            // Bottom layer guarantees this sits permanently above awww-daemon on Background layer
-            WlrLayershell.layer: WlrLayer.Bottom
+            // Background layer ensures wallpaper stays behind all desktop widgets on Bottom layer
+            WlrLayershell.layer: WlrLayer.Background
             WlrLayershell.namespace: "quickshell-wallpaper-parallax"
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
             WlrLayershell.exclusiveZone: -1
@@ -61,7 +59,6 @@ Scope {
             readonly property real overscanX: (width * 0.16) * intensity
             readonly property real overscanY: (height * 0.10) * intensity
 
-            // ---------------- 1. WORKSPACE PARALLAX ----------------
             readonly property int activeWsId: {
                 if (Hyprland.focusedMonitor && Hyprland.focusedMonitor.activeWorkspace) {
                     return Math.max(1, Hyprland.focusedMonitor.activeWorkspace.id)
@@ -84,7 +81,6 @@ Scope {
                 NumberAnimation { duration: 450; easing.type: Easing.OutCubic }
             }
 
-            // ---------------- 2. CURSOR MOTION PARALLAX ----------------
             property real cursorNormX: 0.5
             property real cursorNormY: 0.5
 
@@ -131,7 +127,6 @@ Scope {
                 }
             }
 
-            // ---------------- 3. WALLPAPER CANVAS ----------------
             Item {
                 id: wallpaperCanvas
                 anchors.centerIn: parent
