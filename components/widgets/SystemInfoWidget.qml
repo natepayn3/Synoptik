@@ -74,7 +74,10 @@ PanelWindow {
             "set -l cpu (grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d: -f2 | string trim | string replace -r '[(][^)]*[)]' '' | string replace -r ' @.*' ''); " +
             "set -l cores (nproc 2>/dev/null); " +
             "set -l load (awk '{print $1\", \"$2\", \"$3}' /proc/loadavg 2>/dev/null); " +
-            "set -l gpu (lspci 2>/dev/null | grep -iE 'vga|3d|display' | head -n1 | cut -d: -f3 | string trim | string replace -r '[(][^)]*[)]' '' | string replace -r 'Corporation ' '' | string replace -r 'Technologies Inc ' ''); " +
+            "set -l raw_gpu (lspci 2>/dev/null | grep -iE 'vga|3d|display' | grep -i 'nvidia' | head -n1); " +
+            "test -z \"$raw_gpu\"; and set raw_gpu (lspci 2>/dev/null | grep -iE 'vga|3d|display' | head -n1); " +
+            "set -l gpu (echo $raw_gpu | string match -r '\\[([^\\]]+)\\]' | tail -n1); " +
+            "test -z \"$gpu\"; and set gpu (echo $raw_gpu | cut -d: -f3 | string trim | string replace -r '[(][^)]*[)]' '' | string replace -r 'Corporation ' '' | string replace -r 'NVIDIA ' ''); " +
             "test -z \"$gpu\"; and set gpu 'Integrated'; " +
             "set -l ip (ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}'); " +
             "test -z \"$ip\"; and set ip (hostname -I 2>/dev/null | awk '{print $1}'); " +
