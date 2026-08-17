@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
+import Quickshell.Services.Notifications as Notifs
 import "controlcenter"
 
 Item {
@@ -11,9 +12,9 @@ Item {
 
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
-    // Calculate root implicit dimensions cleanly from mainLayout
-    implicitWidth: mainLayout.implicitWidth + (cardMargin * 2)
-    implicitHeight: mainLayout.implicitHeight + (cardMargin * 2)
+    // Derive root width and height directly from layout geometry
+    implicitWidth: bentoLayout.implicitWidth + (cardMargin * 2)
+    implicitHeight: bentoLayout.implicitHeight + (cardMargin * 2)
 
     // --- State Properties ---
     property bool hasWifiAdapter: false
@@ -37,15 +38,16 @@ Item {
     property string connectionError: ""
     property var knownNetworks: ({})
 
-    // Bind directly to global shell state to eliminate loading latency & jumps
     property int currentVolume: shellRoot.audioVolume
     property bool isAudioMuted: shellRoot.audioMuted
     property bool isUserDraggingVol: false
     property int currentBrightness: 100
     property bool hasBacklight: false
-
-    // Local override guard
     property bool isSettingVolume: false
+
+    readonly property int notifCount: (typeof shellRoot !== "undefined" && shellRoot.activeNotifs !== undefined) 
+        ? shellRoot.activeNotifs 
+        : ((typeof notifServer !== "undefined" && notifServer.trackedNotifications) ? notifServer.trackedNotifications.values.length : 0)
 
     readonly property bool isAnyPanelExpanded: (wifiCard && (wifiCard.panelExpanded || wifiCard.shouldExpand)) ||
                                                (btCard && (btCard.panelExpanded || btCard.shouldExpand)) ||
@@ -54,177 +56,438 @@ Item {
 
     ListModel { id: wifiModel }
 
+    function clearAllNotifications() {
+        if (typeof notifServer === "undefined" || !notifServer.trackedNotifications) return;
+        let notifs = notifServer.trackedNotifications.values;
+        if (!notifs) return;
+        
+        for (let i = notifs.length - 1; i >= 0; i--) {
+            if (notifs[i]) notifs[i].dismiss();
+        }
+        if (typeof shellRoot !== "undefined" && shellRoot.updateNotifCount) {
+            Qt.callLater(shellRoot.updateNotifCount);
+        }
+    }
+
     Component.onCompleted: {
         detectWifiAdapterProc.running = true
         detectBtAdapterProc.running = true
         fetchWifiStatusProc.running = true
     }
 
-    ColumnLayout {
-        id: mainLayout
-        
-        // Define explicit width and top-left anchoring to prevent parent stretch locking
-        width: 400
+    // MAIN BENTO CONTAINER
+    RowLayout {
+        id: bentoLayout
         anchors.top: parent.top
         anchors.left: parent.left
-        anchors.topMargin: root.cardMargin
-        anchors.leftMargin: root.cardMargin
-        spacing: root.cardMargin / 2
-
+        anchors.margins: root.cardMargin
+        spacing: root.cardMargin
         enabled: !root.isAnyPanelExpanded
 
-        // TOP HEADER & TOGGLES CONTAINER CARD
-        Rectangle {
-            id: topHeaderCard
-            Layout.fillWidth: true
-            implicitWidth: 400
-            // Inline Comment: Reduced height addition to match half-margin top/bottom (cardMargin/2 * 2 = cardMargin)
-            implicitHeight: topHeaderLayout.implicitHeight + (root.cardMargin * 2)
-            radius: Config.cornerRadius
-            color: Qt.rgba(255, 255, 255, 0.04)
+        // ==========================================
+        // LEFT COLUMN: CONTROLS, SLIDERS & MEDIA
+        // ==========================================
+        ColumnLayout {
+            id: leftColLayout
+            Layout.preferredWidth: 350
+            Layout.fillWidth: false
+            Layout.alignment: Qt.AlignTop
+            spacing: root.cardMargin / 2
 
-            // GRAPHIC WATERMARK
-            Item {
-                anchors.fill: parent
+            // COMBINED HEADER & 4 TOGGLES CARD
+            Rectangle {
+                id: topControlsCard
+                Layout.fillWidth: true
+                implicitHeight: topControlsLayout.implicitHeight + (root.cardMargin * 2)
+                radius: Config.cornerRadius
+                color: Qt.rgba(255, 255, 255, 0.04)
+
+                Item {
+                    anchors.fill: parent
+                    clip: true
+
+                    Watermark {
+                        icon: Config.getIcon("cc")
+                        iconSize: 150
+                        seed: 25
+                    }
+                }
+
+                z: ((wifiCard && (wifiCard.panelExpanded || wifiCard.shouldExpand)) || 
+                    (btCard && (btCard.panelExpanded || btCard.shouldExpand)) || 
+                    (caffeineCard && caffeineCard.panelExpanded)) ? 1000 : 1
+
+                ColumnLayout {
+                    id: topControlsLayout
+                    anchors.left: parent.left
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.margins: root.cardMargin
+                    spacing: root.cardMargin / 2
+
+                    Item {
+                        implicitWidth: ccTitleText.implicitWidth
+                        implicitHeight: ccTitleText.implicitHeight
+                        Layout.fillWidth: true
+
+                        Glow {
+                            anchors.fill: ccTitleText
+                            source: ccTitleText
+                            radius: 8
+                            samples: 16
+                            color: Config.accent
+                            spread: 0.2
+                            transparentBorder: true
+                            visible: Config.clockShowGlow
+                        }
+
+                        Text {
+                            id: ccTitleText
+                            anchors.fill: parent
+                            text: "CONTROL CENTER"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            font.bold: true
+                            font.italic: true
+                        }
+                    }
+
+                    // 2x2 Toggles Grid (Row 1)
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: root.cardMargin / 2
+                        z: ((wifiCard && (wifiCard.panelExpanded || wifiCard.shouldExpand)) || (btCard && (btCard.panelExpanded || btCard.shouldExpand))) ? 1000 : 1
+
+                        WifiCard {
+                            id: wifiCard
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 1
+                            hasAdapter: root.hasWifiAdapter
+                            controlCenterPanel: root
+                            wifiPowered: root.wifiPowered
+                            wifiScanning: root.wifiScanning
+                            activeSsid: root.activeSsid
+                            expandedSsid: root.expandedSsid
+                            connectingSsid: root.connectingSsid
+                            disconnectingSsid: root.disconnectingSsid
+                            errorSsid: root.errorSsid
+                            connectionError: root.connectionError
+                            knownNetworks: root.knownNetworks
+                            wifiModel: wifiModel
+                            onTogglePower: power => root.toggleWifiPower(power)
+                            onTriggerScan: root.triggerWifiScan()
+                            onConnectTo: (ssid, pass, isKnown) => connectWifiProc.connectTo(ssid, pass, isKnown)
+                            onDisconnectSsid: ssid => disconnectWifiProc.disconnect(ssid)
+                            onForgetSsid: ssid => forgetWifiProc.forget(ssid)
+                        }
+
+                        BluetoothCard {
+                            id: btCard
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 1
+                            hasHardware: root.hasBtAdapter
+                            controlCenterPanel: root
+                            onTogglePower: power => btCard.execTogglePower(power)
+                            onTriggerScan: btCard.execTriggerScan()
+                        }
+                    }
+
+                    // 2x2 Toggles Grid (Row 2)
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: root.cardMargin / 2
+                        z: (caffeineCard && caffeineCard.panelExpanded) ? 1000 : 1
+
+                        CaffeineCard {
+                            id: caffeineCard
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 1
+                            controlCenterPanel: root
+                        }
+
+                        DndCard {
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 1
+                        }
+                    }
+                }
+            }
+
+            // Sliders Card
+            SlidersCard {
+                id: slidersCardComponent
+                Layout.fillWidth: true
+                currentBrightness: root.currentBrightness
+                hasBacklight: root.hasBacklight
+                currentVolume: root.currentVolume
+                isAudioMuted: root.isAudioMuted
+                onBrightnessChanged: pct => root.setBrightness(pct)
+                onVolumeChanged: pct => root.setVolume(pct)
+                onIsUserDraggingVolChanged: root.isUserDraggingVol = isUserDraggingVol
+            }
+
+            // Media Player Tile
+            MediaCard {
+                id: mediaCardComponent
+                Layout.fillWidth: true
+                onSendCommand: cmd => {
+                    mediaControlProc.command = cmd
+                    mediaControlProc.running = true
+                }
+            }
+        }
+
+        // ==========================================
+        // RIGHT COLUMN: NOTIFICATIONS & SYSTEM MONITOR
+        // ==========================================
+        ColumnLayout {
+            id: rightColLayout
+            Layout.preferredWidth: 350
+            Layout.fillWidth: false
+            Layout.alignment: Qt.AlignTop
+            spacing: root.cardMargin / 2
+
+            // NOTIFICATION HUB (Upper Section)
+            Rectangle {
+                id: notifHubContainer
+                Layout.fillWidth: true
+                implicitHeight: (leftColLayout.implicitHeight - sysMonitorCard.implicitHeight - (root.cardMargin / 2))
+                radius: Config.cornerRadius
+                color: Qt.rgba(255, 255, 255, 0.04)
                 clip: true
 
                 Watermark {
-                    icon: Config.getIcon("cc")
-                    iconSize: 150
-                    seed: 25
+                    icon: Config.getIcon("notifications")
+                    iconSize: 160
+                    seed: 10
+                }
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 10
+                    spacing: 8
+
+                    // Aligned Header Row
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 32
+                        Layout.maximumHeight: 32
+                        Layout.alignment: Qt.AlignTop
+                        spacing: 8
+
+                        Text {
+                            text: root.notifCount > 0 ? "notifications_active" : "notifications"
+                            font.family: "Material Symbols Outlined"
+                            font.pixelSize: 20
+                            color: root.notifCount > 0 ? Config.accent : Config.textMain
+                        }
+
+                        Item {
+                            implicitWidth: notifTitle.implicitWidth
+                            implicitHeight: notifTitle.implicitHeight
+                            Layout.fillWidth: true
+
+                            Text {
+                                id: notifTitle
+                                anchors.fill: parent
+                                text: "NOTIFICATIONS"
+                                color: Config.textMain
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontCaption)
+                                font.bold: true
+                                font.italic: true
+                            }
+
+                            Glow {
+                                anchors.fill: notifTitle
+                                source: notifTitle
+                                radius: 6
+                                samples: 12
+                                color: Config.accent
+                                spread: 0.2
+                                transparentBorder: true
+                                visible: Config.clockShowGlow
+                            }
+                        }
+
+                        Rectangle {
+                            implicitWidth: clearBtnText.implicitWidth + 14
+                            implicitHeight: 24
+                            radius: 12
+                            visible: root.notifCount > 0
+                            color: clearHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
+                            border.width: 1
+                            border.color: clearHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.12)
+                            Behavior on color { ColorAnimation { duration: 150 } }
+
+                            Text {
+                                id: clearBtnText
+                                anchors.centerIn: parent
+                                text: "CLEAR"
+                                color: clearHover.hovered ? Config.accent : Config.textMuted
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontMicro)
+                                font.bold: true
+                            }
+
+                            TapHandler { onTapped: root.clearAllNotifications() }
+                            HoverHandler { id: clearHover; cursorShape: Qt.PointingHandCursor }
+                        }
+                    }
+
+                    // Divider Line
+                    Rectangle {
+                        Layout.fillWidth: true
+                        height: 1
+                        color: Qt.rgba(255, 255, 255, 0.08)
+                    }
+
+                    // Scrollable List
+                    ListView {
+                        id: notifListView
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        clip: true
+                        spacing: 8
+                        boundsBehavior: Flickable.StopAtBounds
+                        visible: root.notifCount > 0
+
+                        model: (typeof notifServer !== "undefined" && notifServer.trackedNotifications) 
+                            ? notifServer.trackedNotifications.values
+                            : []
+
+                        delegate: Rectangle {
+                            id: notifCardItem
+                            width: notifListView.width
+                            implicitHeight: itemLayout.implicitHeight + 16
+                            radius: Config.cornerRadius * 0.5
+                            color: cardMouse.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.25)
+                            border.width: 1
+                            border.color: cardMouse.hovered ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.3) : "transparent"
+                            Behavior on color { ColorAnimation { duration: 150 } }
+
+                            ColumnLayout {
+                                id: itemLayout
+                                anchors.top: parent.top
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.topMargin: 8
+                                anchors.leftMargin: 10
+                                anchors.rightMargin: 10
+                                spacing: 3
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 6
+
+                                    Text {
+                                        text: (modelData && modelData.appName) ? modelData.appName.toUpperCase() : "SYSTEM"
+                                        color: Config.accent
+                                        font.family: Config.sysFont
+                                        font.pixelSize: Config.size(Config.fontMicro)
+                                        font.bold: true
+                                        font.italic: true
+                                        Layout.fillWidth: true
+                                        elide: Text.ElideRight
+                                    }
+                                }
+
+                                Text {
+                                    visible: modelData && modelData.summary !== ""
+                                    text: (modelData && modelData.summary) ? modelData.summary : ""
+                                    color: Config.textMain
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontCaption)
+                                    font.bold: true
+                                    Layout.fillWidth: true
+                                    wrapMode: Text.Wrap
+                                }
+
+                                Text {
+                                    visible: modelData && modelData.body !== ""
+                                    text: (modelData && modelData.body) ? modelData.body : ""
+                                    color: Config.textMuted
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontMicro)
+                                    Layout.fillWidth: true
+                                    wrapMode: Text.Wrap
+                                }
+                            }
+
+                            Rectangle {
+                                anchors.right: parent.right
+                                anchors.top: parent.top
+                                anchors.margins: 6
+                                implicitWidth: 18
+                                implicitHeight: 18
+                                radius: 9
+                                color: closeHover.hovered ? Qt.rgba(255, 255, 255, 0.2) : "transparent"
+                                opacity: cardMouse.hovered ? 1.0 : 0.0
+                                Behavior on opacity { NumberAnimation { duration: 150 } }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "close"
+                                    color: closeHover.hovered ? Config.accent : Config.textMuted
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 13
+                                }
+
+                                TapHandler {
+                                    onTapped: {
+                                        if (modelData) modelData.dismiss();
+                                    }
+                                }
+                                HoverHandler { id: closeHover; cursorShape: Qt.PointingHandCursor }
+                            }
+
+                            HoverHandler { id: cardMouse }
+                        }
+                    }
+
+                    // Empty State Container
+                    Item {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        visible: root.notifCount === 0
+
+                        ColumnLayout {
+                            anchors.centerIn: parent
+                            spacing: 8
+
+                            Text {
+                                text: "inbox"
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 36
+                                color: Config.textMuted
+                                opacity: 0.4
+                                Layout.alignment: Qt.AlignHCenter
+                            }
+
+                            Text {
+                                text: "No notifications"
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontCaption)
+                                font.bold: true
+                                color: Config.textMain
+                                Layout.alignment: Qt.AlignHCenter
+                            }
+                        }
+                    }
                 }
             }
 
-            z: ((wifiCard && (wifiCard.panelExpanded || wifiCard.shouldExpand)) || (btCard && (btCard.panelExpanded || btCard.shouldExpand)) || (caffeineCard && caffeineCard.panelExpanded)) ? 1000 : 1
-
-            ColumnLayout {
-                id: topHeaderLayout
-                anchors.left: parent.left
-                anchors.right: parent.right
-                anchors.top: parent.top
-                // Inline Comment: Reduced outer padding around the title and toggle cards
-                anchors.margins: root.cardMargin
-                spacing: root.cardMargin / 2
-
-                Item {
-                    implicitWidth: ccTitleText.implicitWidth
-                    implicitHeight: ccTitleText.implicitHeight
-                    Layout.fillWidth: true
-
-                    Glow {
-                        anchors.fill: ccTitleText
-                        source: ccTitleText
-                        radius: 8
-                        samples: 16
-                        color: Config.accent
-                        spread: 0.2
-                        transparentBorder: true
-                        visible: Config.clockShowGlow
-                    }
-
-                    Text {
-                        id: ccTitleText
-                        anchors.fill: parent
-                        text: "CONTROL CENTER"
-                        color: Config.textMain
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontTitle)
-                        font.bold: true
-                        font.italic: true
-                    }
-                }
-
-                RowLayout {
-                    id: topHeaderRow
-                    Layout.fillWidth: true
-                    Layout.alignment: Qt.AlignTop
-                    spacing: root.cardMargin / 2
-                    z: (caffeineCard && caffeineCard.panelExpanded) ? 1000 : 1
-
-                    CaffeineCard {
-                        id: caffeineCard
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        controlCenterPanel: root
-                    }
-
-                    DndCard {
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                    }
-                }
-
-                RowLayout {
-                    id: staticToggleRow
-                    Layout.fillWidth: true
-                    Layout.alignment: Qt.AlignTop
-                    spacing: root.cardMargin / 2
-
-                    z: ((wifiCard && (wifiCard.panelExpanded || wifiCard.shouldExpand)) || (btCard && (btCard.panelExpanded || btCard.shouldExpand))) ? 1000 : 1
-
-                    WifiCard {
-                        id: wifiCard
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        hasAdapter: root.hasWifiAdapter
-                        controlCenterPanel: root
-                        wifiPowered: root.wifiPowered
-                        wifiScanning: root.wifiScanning
-                        activeSsid: root.activeSsid
-                        expandedSsid: root.expandedSsid
-                        connectingSsid: root.connectingSsid
-                        disconnectingSsid: root.disconnectingSsid
-                        errorSsid: root.errorSsid
-                        connectionError: root.connectionError
-                        knownNetworks: root.knownNetworks
-                        wifiModel: wifiModel
-                        onTogglePower: power => root.toggleWifiPower(power)
-                        onTriggerScan: root.triggerWifiScan()
-                        onConnectTo: (ssid, pass, isKnown) => connectWifiProc.connectTo(ssid, pass, isKnown)
-                        onDisconnectSsid: ssid => disconnectWifiProc.disconnect(ssid)
-                        onForgetSsid: ssid => forgetWifiProc.forget(ssid)
-                    }
-
-                    BluetoothCard {
-                        id: btCard
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        hasHardware: root.hasBtAdapter
-                        controlCenterPanel: root
-                        onTogglePower: power => btCard.execTogglePower(power)
-                        onTriggerScan: btCard.execTriggerScan()
-                    }
-                }
-            }
-        }
-
-        SystemMonitorCard {
-            id: sysMonitorCard
-            controlCenterPanel: root
-            z: panelExpanded ? 1000 : 1
-        }
-
-        SlidersCard {
-            id: slidersCardComponent
-            currentBrightness: root.currentBrightness
-            hasBacklight: root.hasBacklight
-            currentVolume: root.currentVolume
-            isAudioMuted: root.isAudioMuted
-            onBrightnessChanged: pct => root.setBrightness(pct)
-            onVolumeChanged: pct => root.setVolume(pct)
-            onIsUserDraggingVolChanged: root.isUserDraggingVol = isUserDraggingVol
-        }
-
-        MediaCard {
-            id: mediaCardComponent
-            onSendCommand: cmd => {
-                mediaControlProc.command = cmd
-                mediaControlProc.running = true
+            // SYSTEM MONITOR
+            SystemMonitorCard {
+                id: sysMonitorCard
+                Layout.fillWidth: true
+                controlCenterPanel: root
+                z: panelExpanded ? 1000 : 1
             }
         }
     }
 
-    // Keep ControlCenter aligned with shellRoot unless actively dragging/setting
     Connections {
         target: shellRoot
         function onAudioVolumeChanged() {
@@ -281,16 +544,10 @@ Item {
                 
                 let points = clean.split(';');
                 let arr = [];
-                
                 for (let i = 0; i < points.length; i++) {
-                    if (points[i] !== "") {
-                        arr.push(parseInt(points[i], 10) || 0);
-                    }
+                    if (points[i] !== "") arr.push(parseInt(points[i], 10) || 0);
                 }
-                
-                if (arr.length > 0) {
-                    mediaCardComponent.cavaBars = arr;
-                }
+                if (arr.length > 0) mediaCardComponent.cavaBars = arr;
             }
         }
     }
@@ -359,7 +616,6 @@ Item {
             command = ["wpctl", "set-volume", "@DEFAULT_AUDIO_SINK@", `${floatVal}`]
             running = true
         }
-
         onExited: {
             root.isSettingVolume = false
             if (typeof shellRoot !== "undefined") shellRoot.isUserSettingVolume = false
@@ -398,12 +654,10 @@ Item {
         id: scanWifiProc
         command: ["nmcli", "dev", "wifi", "rescan"]
         running: false
-        
         function startScan() {
             root.wifiScanning = true
             running = true
         }
-
         onExited: {
             root.wifiScanning = false
             fetchWifiStatusProc.running = true
