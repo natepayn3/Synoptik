@@ -16,9 +16,33 @@ Scope {
             required property var modelData
 
             screen: modelData
-            visible: Config.enableWallpaperParallax && (Config.wallpaperWorkspaceParallax || Config.wallpaperCursorParallax)
 
-            WlrLayershell.layer: WlrLayer.Background
+            // Explicit reactive binding to track active wallpaper transitions
+            readonly property string currentWpPath: {
+                Config.activeWallpaperPath
+                let monName = modelData ? modelData.name : ""
+                let wp = (Config.getMonitorWallpaper ? Config.getMonitorWallpaper(monName) : "") || Config.activeWallpaperPath || ""
+                return wp.replace(/^file:\/\//, "")
+            }
+
+            readonly property bool isVideo: {
+                let ext = currentWpPath.split('.').pop().toLowerCase()
+                return ext === "mp4" || ext === "webm"
+            }
+
+            readonly property string displayWallpaper: {
+                if (!currentWpPath || isVideo) return ""
+                return currentWpPath.startsWith("file://") ? currentWpPath : ("file://" + currentWpPath)
+            }
+
+            // Visible only for static wallpapers when parallax is active
+            visible: Config.enableWallpaperParallax && 
+                     (Config.wallpaperWorkspaceParallax || Config.wallpaperCursorParallax) && 
+                     !isVideo && 
+                     currentWpPath !== ""
+
+            // Bottom layer guarantees this sits permanently above awww-daemon on Background layer
+            WlrLayershell.layer: WlrLayer.Bottom
             WlrLayershell.namespace: "quickshell-wallpaper-parallax"
             WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
             WlrLayershell.exclusiveZone: -1
@@ -31,21 +55,7 @@ Scope {
             }
 
             color: "transparent"
-            exclusiveZone: -1
             mask: Region {}
-
-            function getDisplayWallpaper() {
-                let monName = modelData ? modelData.name : ""
-                let wp = Config.getMonitorWallpaper(monName) || Config.activeWallpaperPath || ""
-                let clean = wp.replace(/^file:\/\//, "")
-                let ext = clean.split('.').pop().toLowerCase()
-                
-                if (ext === "mp4" || ext === "webm") {
-                    let baseName = clean.split('/').pop().replace(/\.[^/.]+$/, "")
-                    return "file://" + Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + baseName + ".jpg"
-                }
-                return clean !== "" ? (clean.startsWith("file://") ? clean : "file://" + clean) : ""
-            }
 
             readonly property real intensity: Math.max(0.1, Config.wallpaperParallaxIntensity)
             readonly property real overscanX: (width * 0.16) * intensity
@@ -89,7 +99,7 @@ Scope {
 
             Process {
                 id: cursorTrackerProc
-                running: Config.enableWallpaperParallax && Config.wallpaperCursorParallax
+                running: wpWindow.visible && Config.enableWallpaperParallax && Config.wallpaperCursorParallax
                 command: [
                     "fish", "-c",
                     "while true; hyprctl cursorpos; sleep 0.033; end"
@@ -138,7 +148,7 @@ Scope {
                     id: imgPrimary
                     anchors.fill: parent
                     fillMode: Image.PreserveAspectCrop
-                    source: wpWindow.getDisplayWallpaper()
+                    source: wpWindow.displayWallpaper
                     asynchronous: true
                     cache: true
                     smooth: true

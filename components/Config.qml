@@ -66,10 +66,8 @@ QtObject {
     property real playerX: -1
     property real playerY: -1
 
-    // Inline Comment: Default position set to center matching mirrorAnchorPos ("top", "center", "bottom")
     property string playerAnchorPos: "center"
 
-    // Inline Comment: Clean 3-state cycle handler matching cycleMirrorAnchor
     function cyclePlayerAnchor(direction) {
         if (direction === "up" || direction === "left" || direction === "prev") {
             if (playerAnchorPos === "bottom") playerAnchorPos = "center"
@@ -95,7 +93,6 @@ QtObject {
     property string activeStreamTitle: ""
     property string activeStreamThumbnail: ""
     
-    // TRACK PREFETCHING ENGINE
     property string prefetchStreamUrl: ""
     property string prefetchThumbnail: ""
     property int prefetchIndex: -1
@@ -108,7 +105,6 @@ QtObject {
 
     readonly property string cookiePath: Quickshell.shellDir + "/cookies.txt"
 
-    // Global background player and audio output
     property MediaPlayer inlinePlayer: MediaPlayer {
         id: globalPlayer
         source: root.embeddedStreamUrl
@@ -253,12 +249,10 @@ QtObject {
         }
     }
 
-    // Cache management process to wipe temp files on close
     property Process cacheCleaner: Process {
         command: ["fish", "-c", "rm -rf /tmp/synoptik_media 2>/dev/null"]
     }
 
-    // Process to pull ahead in the playlist silently
     property Process prefetchExtractor: Process {
         id: prefetchedProc
         running: false
@@ -274,7 +268,6 @@ QtObject {
         }
     }
 
-    // Secondary process to fetch the entire flat playlist metadata at once
     property Process playlistFetcher: Process {
         id: plFetcher
         running: false
@@ -298,14 +291,12 @@ QtObject {
                     root.addSavedUrl(root.activeChannelName, plTitle)
                     root.resolveTrack(root.activePlaylistIndex)
                 } else {
-                    console.log("yt-dlp flat-playlist extraction failed:\n" + this.text)
                     root.isLoadingStream = false
                 }
             }
         }
     }
 
-    // Background process for single-track stream resolution
     property Process streamExtractor: Process {
         id: extractor
         running: false
@@ -331,12 +322,9 @@ QtObject {
                     }
                     root.inlinePlayer.play()
 
-                    // Trigger silent prefetch for next track
                     if (root.currentPlaylist.length > 0 && root.activePlaylistIndex < root.currentPlaylist.length - 1) {
                         root.prefetchTrack(root.activePlaylistIndex + 1)
                     }
-                } else {
-                    console.log("yt-dlp format extraction failed:\n" + this.text)
                 }
                 root.isLoadingStream = false
             }
@@ -350,7 +338,6 @@ QtObject {
         prefetchThumbnail = ""
         
         let track = currentPlaylist[index]
-
         let vidId = track.id
         if (vidId.startsWith("http")) {
             let match = vidId.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)
@@ -390,7 +377,6 @@ QtObject {
         }
         
         let track = currentPlaylist[index]
-
         let vidId = track.id
         if (vidId.startsWith("http")) {
             let match = vidId.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)
@@ -524,7 +510,6 @@ QtObject {
     property bool showCalendar: false
     property bool showWallpaper: false
     property bool showAppLauncher: false
-    property bool showNotifications: false
     property bool showNetwork: false
     property bool showAudio: false
     property bool showBluetooth: false
@@ -541,6 +526,34 @@ QtObject {
     // --- NAVIGATION PERSISTENCE ---
     property int lastSettingsSection: 0
     onLastSettingsSectionChanged: { if (isLoaded) saveSettings() }
+
+    // --- SHELL KEYBIND CUSTOMIZATION (SUPER EXCLUSIVE) ---
+    readonly property var defaultKeybinds: ({
+        "wallpaper":         { mod: "SUPER",         key: "B",     cmd: "qs -c Synoptik ipc call wallpaper toggle" },
+        "launcher":          { mod: "SUPER",         key: "A",     cmd: "qs -c Synoptik ipc call launcher toggle" },
+        "settings":          { mod: "SUPER",         key: "Space", cmd: "qs -c Synoptik ipc call settings toggle" },
+        "workspaceoverview": { mod: "SUPER",         key: "TAB",   cmd: "qs -c Synoptik ipc call workspaceoverview toggle" },
+        "clipboard":         { mod: "SUPER + SHIFT", key: "V",     cmd: "qs -c Synoptik ipc call clipboard toggle" },
+        "lockscreen":        { mod: "SUPER",         key: "L",     cmd: "qs -c Synoptik ipc call lockscreen toggle" }
+    })
+
+    property var keybinds: Object.assign({}, defaultKeybinds)
+
+    function updateKeybind(action, mod, key) {
+        let current = Object.assign({}, keybinds)
+        if (current[action]) {
+            current[action] = { mod: mod, key: key, cmd: current[action].cmd }
+            keybinds = current
+            syncHyprlandBorders()
+            saveSettings()
+        }
+    }
+
+    function resetKeybinds() {
+        keybinds = Object.assign({}, defaultKeybinds)
+        syncHyprlandBorders()
+        saveSettings()
+    }
 
     // --- SYSTEM SOUNDS CONFIGURATION ---
     property bool playWindowSounds: true
@@ -560,13 +573,13 @@ QtObject {
     property real lockscreenBlurRadius: 36
     property bool lockscreenShowMedia: true
     property bool lockscreenShowPower: true
-    property string lockscreenMaskStyle: "shapes" // "shapes", "dots", "asterisks", "special"
+    property string lockscreenMaskStyle: "shapes"
     property string lockscreenShapePalette: "vibrant"
     property bool lockscreenUse12Hour: true
     property bool lockscreenShowSeconds: false
     property bool lockscreenShowAmPm: true
-    property string lockscreenDateFormat: "long" // "long", "standard", "iso", "dayFirst"
-    property int lockscreenClockSize: 150 // 100, 150, 200
+    property string lockscreenDateFormat: "long"
+    property int lockscreenClockSize: 150
     property string lockscreenTargetMonitor: "focused"
 
     onLockscreenBlurRadiusChanged: { if (isLoaded) saveSettings() }
@@ -582,14 +595,14 @@ QtObject {
     onLockscreenTargetMonitorChanged: { if (isLoaded) saveSettings() }
 
     // --- WORKSPACES CONFIGURATION ---
-    property string workspaceStyle: "pill" // "pill", "sliding", "numeric", "window_pips", "app_icons", "geometric"
+    property string workspaceStyle: "pill"
     property bool workspaceGlow: true
     property bool workspaceScroll: true
     property bool workspaceTooltips: true
     property bool workspaceShowAddBtn: true
     property bool workspaceShowOverviewBtn: true
     property bool workspaceShowSpecial: true
-    property string workspaceContainerStyle: "plain" // "plain", "capsule", "bordered"
+    property string workspaceContainerStyle: "plain"
 
     onWorkspaceStyleChanged: { if (isLoaded) saveSettings() }
     onWorkspaceGlowChanged: { if (isLoaded) saveSettings() }
@@ -600,7 +613,6 @@ QtObject {
     onWorkspaceShowSpecialChanged: { if (isLoaded) saveSettings() }
     onWorkspaceContainerStyleChanged: { if (isLoaded) saveSettings() }
 
-    // --- CAFFEINE / IDLE INHIBITION CONFIGURATION ---
     // --- MIRROR WIDGET CONFIGURATION ---
     property bool showMirror: false
     property bool mirrorShowPanel: true
@@ -608,7 +620,7 @@ QtObject {
     property bool mirrorKeepAspect: true
     property bool mirrorExpanded: false
     property bool mirrorPinned: false
-    property string mirrorAnchorPos: "center" // "top", "center", "bottom"
+    property string mirrorAnchorPos: "center"
 
     function cycleMirrorAnchor(direction) {
         if (direction === "up" || direction === "left" || direction === "prev") {
@@ -652,18 +664,12 @@ QtObject {
         id: caffeineCheckStatusProc
         command: ["fish", "-c", "pgrep -x hypridle"]
         running: false
-        
-        stdout: StdioCollector {
-            id: caffeineStatusOutput
-        }
+        stdout: StdioCollector { id: caffeineStatusOutput }
 
         onExited: (exitCode, exitStatus) => {
             let isRunning = (exitCode === 0 && caffeineStatusOutput.text.trim().length > 0)
-            
             if (!isRunning) {
-                if (root.caffeineState === 0) {
-                    root.caffeineState = 1
-                }
+                if (root.caffeineState === 0) root.caffeineState = 1
             } else {
                 if (root.caffeineState !== 0) {
                     root.caffeineState = 0
@@ -676,9 +682,7 @@ QtObject {
     property Process caffeineExecProc: Process {
         id: caffeineExecProc
         running: false
-        onExited: {
-            root.caffeineCheckStatusProc.running = true
-        }
+        onExited: root.caffeineCheckStatusProc.running = true
     }
 
     property Timer caffeinePoller: Timer {
@@ -702,7 +706,6 @@ QtObject {
 
     function updateCaffeineCountdown() {
         if (root.caffeineState !== 2) return
-
         let now = Date.now()
         let diffMs = root.caffeineTimerEndTime - now
 
@@ -716,7 +719,6 @@ QtObject {
         let totalSeconds = Math.round(diffMs / 1000)
         let mins = Math.floor(totalSeconds / 60)
         let secs = totalSeconds % 60
-
         root.caffeineRemainingTimeString = `${mins}:${secs < 10 ? '0' : ''}${secs}`
     }
 
@@ -733,7 +735,6 @@ QtObject {
         if (caffeineState !== 2) return
         let msToAdd = minutes * 60 * 1000
         let now = Date.now()
-        
         let baseTime = Math.max(now, caffeineTimerEndTime)
         let newEndTime = baseTime + msToAdd
 
@@ -749,7 +750,6 @@ QtObject {
 
     function cycleCaffeine() {
         if (!caffeineHasHypridle) return
-
         let nextState = (caffeineState + 1) % 3
 
         if (nextState === 1) {
@@ -757,7 +757,7 @@ QtObject {
             setHypridleRunning(false)
         } else if (nextState === 2) {
             let roundedNow = Math.floor(Date.now() / 1000) * 1000
-            caffeineTimerEndTime = roundedNow + 900000 // 15 minutes default
+            caffeineTimerEndTime = roundedNow + 900000
             updateCaffeineCountdown()
             setHypridleRunning(false)
         } else {
@@ -799,7 +799,6 @@ QtObject {
         "mirror": "photo_camera",
         "player": "play_circle",
         "screenshot": "crop",
-        "notifications": "inbox",
         "wallpaper": "wall_art",
         "settings": "build",
         "launcher": "terminal_2",
@@ -859,7 +858,7 @@ QtObject {
     onRightCardCollapsedChanged: { if (isLoaded) saveSettings() }
 
     // --- DYNAMIC MODULE ORDERING ---
-    property var leftCardOrder: ["power", "recorder", "mirror", "screenshot", "notifications", "player", "wallpaper", "settings", "launcher", "audio", "batt", "network", "clipboard"]
+    property var leftCardOrder: ["power", "recorder", "mirror", "screenshot", "player", "wallpaper", "settings", "launcher", "audio", "batt", "network", "clipboard"]
     property var rightCardOrder: ["clock", "cc"]
 
     function moveModule(cardKey, iconId, direction) {
@@ -1101,7 +1100,7 @@ QtObject {
     // --- DESKTOP SCREENSAVER STATE & PERSISTENCE ---
     property bool showScreensaver: false
     property string screensaverText: "SYNOPTIK"
-    property string screensaverMode: "text" // "text", "dvd", "clock"
+    property string screensaverMode: "text"
     property int screensaverFontSize: 54
     property real screensaverSpeed: 3.5
     property bool screensaverCornerCounter: true
@@ -1536,6 +1535,21 @@ QtObject {
         let gapsOut = (barFrameStyle === "screen") ? 32 : 20
         let roundingVal = Math.round(surfaceRadius)
 
+        // Generates uniform literal binds with SUPER
+        let bindLines = []
+        let bindKeys = ["wallpaper", "launcher", "settings", "workspaceoverview", "clipboard", "lockscreen"]
+        bindKeys.forEach(bk => {
+            let b = (root.keybinds && root.keybinds[bk]) ? root.keybinds[bk] : root.defaultKeybinds[bk]
+            if (b) {
+                let modStr = (b.mod || "SUPER").replace(/mainMod/g, "SUPER").replace(/\.\./g, "").replace(/["']/g, "").trim()
+                let keyStr = (b.key || "").trim()
+                let combo = modStr.length > 0 ? (modStr + " + " + keyStr) : keyStr
+                combo = combo.replace(/\+\s*\+/g, "+").trim()
+                bindLines.push('hl.bind("' + combo + '", hl.dsp.exec_cmd("' + b.cmd + '"))')
+            }
+        })
+        let bindsLua = bindLines.join('\n')
+
         let pyScript = "import os, re\n" +
             "path = os.path.expanduser('~/.config/hypr/hypr_style.lua')\n" +
             "existing_monitors = ''\n" +
@@ -1564,7 +1578,8 @@ QtObject {
             "    blur = " + (enableBlur ? "true" : "false") + ",\n" +
             "    xray = " + (enableXray ? "true" : "false") + ",\n" +
             "    ignore_alpha = 0.6\n" +
-            "})\n'''\n\n" +
+            "})\n\n" +
+            bindsLua.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "\n'''\n\n" +
             "if existing_monitors:\n" +
             "    new_config += '\\n' + existing_monitors + '\\n'\n\n" +
             "with open(path, 'w') as f:\n" +
@@ -1576,7 +1591,7 @@ QtObject {
         writer.running = true
     }
 
-    // Wallpaper Scanner
+    // --- STARTUP WALLPAPER & THUMBNAIL CACHER ---
     property var wallpapers: []
     property var tempPaths: []
 
@@ -1594,8 +1609,34 @@ QtObject {
             }
         }
 
-        onExited: (code, status) => { root.wallpapers = root.tempPaths }
-        Component.onCompleted: root.refreshWallpapers()
+        onExited: (code, status) => { 
+            root.wallpapers = root.tempPaths 
+            thumbPreloader.running = true
+        }
+
+        Component.onCompleted: {
+            root.tempPaths = []
+            running = true
+        }
+    }
+
+    // Generates 320px JPG thumbnails for EVERY wallpaper on shell launch
+    property Process thumbPreloader: Process {
+        id: thumbPreloader
+        running: false
+        command: [
+            "fish", "-c",
+            "set -l cache_dir $HOME/.cache/wallpaper-thumbs; " +
+            "test -d $cache_dir; or mkdir -p $cache_dir; " +
+            "for f in ~/Pictures/Wallpapers/*.{png,jpg,jpeg,webp,mp4,webm}; " +
+            "    test -f $f; or continue; " +
+            "    set -l base_name (string replace -r '\\.[^.]+$' '' (path basename $f)); " +
+            "    set -l target \"$cache_dir/$base_name.jpg\"; " +
+            "    if not test -f $target; " +
+            "        ffmpeg -y -ss 00:00:01 -i $f -vframes 1 -vf 'scale=320:180:force_original_aspect_ratio=increase,crop=320:180' $target >/dev/null 2>&1 &; " +
+            "    end; " +
+            "end"
+        ]
     }
 
     function refreshWallpapers() {
@@ -1641,6 +1682,7 @@ QtObject {
                 "screensaverCornerCounter": root.screensaverCornerCounter,
                 "showOsk": root.showOsk,
                 "oskLayout": root.oskLayout,
+                "keybinds": root.keybinds,
                 "showMascot": root.showMascot,
                 "mascotPath": root.mascotPath,
                 "mascotPhrases": root.mascotPhrases,
@@ -1734,7 +1776,6 @@ QtObject {
                 "workspaceContainerStyle": root.workspaceContainerStyle
             }
 
-            // Formats with 2-space indentation
             var jsonStr = JSON.stringify(data, null, 2)
             saver.command = ["fish", "-c", "printf '%s' '" + jsonStr.replace(/'/g, "'\\''") + "' > " + settingsPath]
             saver.running = true
@@ -1784,8 +1825,20 @@ QtObject {
                             if (parsed[p] !== undefined) root[p] = parsed[p]
                         })
 
-                        // Ensure all default left modules exist in leftCardOrder
-                        let defaultLeft = ["power", "recorder", "mirror", "screenshot", "notifications", "player", "wallpaper", "settings", "launcher", "audio", "batt", "network", "clipboard"]
+                        if (parsed.keybinds && typeof parsed.keybinds === "object") {
+                            let cleaned = {}
+                            Object.keys(parsed.keybinds).forEach(k => {
+                                let item = parsed.keybinds[k]
+                                cleaned[k] = {
+                                    mod: (item.mod || "SUPER").replace(/mainMod/g, "SUPER").replace(/\.\./g, "").replace(/["']/g, "").trim(),
+                                    key: item.key || "",
+                                    cmd: item.cmd || ""
+                                }
+                            })
+                            root.keybinds = cleaned
+                        }
+
+                        let defaultLeft = ["power", "recorder", "mirror", "screenshot", "player", "wallpaper", "settings", "launcher", "audio", "batt", "network", "clipboard"]
                         let currentLeft = Array.isArray(root.leftCardOrder) ? root.leftCardOrder.slice() : []
                         defaultLeft.forEach(mod => {
                             if (!currentLeft.includes(mod)) currentLeft.push(mod)
