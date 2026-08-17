@@ -20,10 +20,10 @@ Item {
 
     property int activeIndex: 0
     property string activeHoveredPath: ""
-    // Inline Comment: Version counter to invalidate QML image cache when thumbnails finish rendering
+    // Version counter to invalidate QML image cache when thumbnails finish rendering
     property int thumbEpoch: 0
 
-    // Inline Comment: Compute unified thumbnail path stripping file extension
+    // Compute unified thumbnail path stripping file extension
     function getThumbPath(filePath) {
         if (!filePath) return ""
         let clean = (typeof filePath === "string" ? filePath : filePath.toString()).replace(/^file:\/\//, "")
@@ -32,17 +32,13 @@ Item {
         return Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + baseName + ".jpg"
     }
 
-    // Inline Comment: Always resolves to the cached thumbnail (image or video frame grab) —
-    // never the original full-res file, since this is only ever used for small/blurred display.
+    // Resolves to the cached thumbnail (image or video frame grab)
     function resolveImageSource(rawPath) {
         if (!rawPath) return ""
         let clean = (typeof rawPath === "string" ? rawPath : rawPath.toString()).replace(/^file:\/\//, "")
         return "file://" + getThumbPath(clean)
     }
 
-    // Inline Comment: Thumbnail generation now lives solely in WallpaperService (runs once at
-    // shell startup, covers images + video). We just mirror its epoch so the deck refreshes
-    // if this popup happens to be open while a batch of new wallpapers finishes thumbnailing.
     Connections {
         target: WallpaperService
         function onThumbEpochChanged() {
@@ -57,78 +53,14 @@ Item {
         }
     }
 
-    // Inline Comment: Backend execution process managing awww, mpvpaper, and iris
-    Process {
+    // Unified dispatcher routed directly through Config / WallpaperService
+    QtObject {
         id: wallpaperBackend
-        running: false
-        property string pendingIrisPath: ""
-
-        onExited: (exitCode, exitStatus) => {
-            if (exitCode === 0) {
-                if (Config.enableIris && pendingIrisPath !== "") {
-                    Config.applyIrisColors(pendingIrisPath)
-                    pendingIrisPath = ""
-                }
-                if (Config.refreshActiveWallpapers) {
-                    Config.refreshActiveWallpapers()
-                }
-            }
-        }
 
         function triggerBackendRun(filePath, activeOnly) {
             if (!filePath) return
-
             let cleanFilePath = (typeof filePath === "string" ? filePath : filePath.toString()).replace(/^file:\/\//, "")
-            Config.activeWallpaperPath = cleanFilePath
-
-            let ext = cleanFilePath.split('.').pop().toLowerCase()
-            let isVid = (ext === "mp4" || ext === "webm")
-            let waylandDisplay = Quickshell.env("WAYLAND_DISPLAY") || "wayland-1"
-            let sockPath = "/run/user/" + Quickshell.env("UID") + "/" + waylandDisplay + "-awww-daemon.sock"
-            let transition = Config.wallpaperTransitionType || "fade"
-
-            let script = "killall -q mpvpaper 2>/dev/null; "
-
-            if (activeOnly) {
-                // Focus monitor targeted run
-                script += "set TARGET_MON (hyprctl monitors -j | jq -r '.[] | select(.focused) | .name'); "
-                if (isVid) {
-                    script += "awww clear -o \"$TARGET_MON\" 2>/dev/null; "
-                    script += "pkill -f 'mpvpaper' 2>/dev/null; "
-                    script += "nohup mpvpaper -vs -o 'input-terminal=no loop-file=inf no-audio panscan=1.0 video-unscaled=no' \"$TARGET_MON\" '" + cleanFilePath + "' < /dev/null >/dev/null 2>&1 & disown; "
-                } else {
-                    script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; "
-                    script += "awww img -o \"$TARGET_MON\" '" + cleanFilePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; "
-                }
-            } else {
-                // All monitors run
-                if (isVid) {
-                    script += "awww kill 2>/dev/null; killall -9 -q awww-daemon 2>/dev/null; rm -f " + sockPath + "; "
-                    script += "nohup mpvpaper -vs -o 'input-terminal=no loop-file=inf no-audio panscan=1.0 video-unscaled=no' '*' '" + cleanFilePath + "' < /dev/null >/dev/null 2>&1 & disown; "
-                } else {
-                    script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; "
-                    for (let i = 0; i < Quickshell.screens.length; i++) {
-                        let monName = Quickshell.screens[i].name
-                        script += "awww img -o \"" + monName + "\" '" + cleanFilePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; "
-                    }
-                }
-            }
-
-            if (Config.enableIris) {
-                if (isVid) {
-                    let thumbPath = root.getThumbPath(cleanFilePath)
-                    pendingIrisPath = thumbPath
-                    script += "test -f '" + thumbPath + "'; or ffmpeg -y -ss 00:00:01 -i '" + cleanFilePath + "' -vframes 1 -vf 'scale=600:-1' '" + thumbPath + "' >/dev/null 2>&1; "
-                    script += "iris '" + thumbPath + "'; "
-                } else {
-                    pendingIrisPath = cleanFilePath
-                    script += "iris '" + cleanFilePath + "'; "
-                }
-            }
-
-            command = ["fish", "-c", script]
-            running = false
-            running = true
+            Config.applyWallpaperBackend(cleanFilePath, activeOnly)
         }
     }
 
@@ -339,7 +271,6 @@ Item {
                         readonly property real actualH: bladeListView.height
                         readonly property real exact16by9W: Math.round(actualH * (16.0 / 9.0))
 
-                        // Progressive accordion scaling falloff
                         readonly property int distFromActive: Math.abs(index - root.activeIndex)
                         readonly property real scaleFactor: Math.max(0.38, Math.pow(0.84, distFromActive))
 
@@ -379,21 +310,14 @@ Item {
                                 Image {
                                     id: cardImg
                                     anchors.fill: parent
-
-                                    // Inline Comment: property (not a re-derived binding) so onStatusChanged
-                                    // can swap it to the raw file without fighting the source binding below
                                     property bool usingFallback: false
 
-                                    // Inline Comment: Prefer the cached thumbnail (fast, pre-scaled). Re-evaluates
-                                    // against thumbEpoch once the batch generator finishes producing new thumbs.
                                     source: {
-                                        root.thumbEpoch // dependency only — re-evaluate when batch gen completes
+                                        root.thumbEpoch
                                         cardImg.usingFallback = false
                                         return "file://" + bladeDelegate.thumbFile
                                     }
 
-                                    // Inline Comment: Thumb missing (not generated yet) — fall back to the
-                                    // original file once, rather than an empty tile
                                     onStatusChanged: {
                                         if (status === Image.Error && !usingFallback) {
                                             usingFallback = true
@@ -402,18 +326,14 @@ Item {
                                     }
 
                                     fillMode: Image.PreserveAspectCrop
-                                    
-                                    // Clamp decode resolution to deck card size
                                     sourceSize.width: 320
                                     sourceSize.height: 180
-                                    
                                     asynchronous: true
                                     cache: true
                                     smooth: false
                                     mipmap: false
                                 }
 
-                                // Depth & distance dimming
                                 Rectangle {
                                     anchors.fill: parent
                                     color: "black"
