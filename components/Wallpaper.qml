@@ -20,6 +20,26 @@ Item {
     property int activeIndex: 0
     property string activeHoveredPath: ""
 
+    // Helper to compute unified thumbnail path without extension mangling
+    function getThumbPath(filePath) {
+        if (!filePath) return ""
+        let clean = (typeof filePath === "string" ? filePath : filePath.toString()).replace(/^file:\/\//, "")
+        let fileName = clean.split('/').pop()
+        let baseName = fileName.replace(/\.[^/.]+$/, "")
+        return Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + baseName + ".jpg"
+    }
+
+    // Resolves either image source or generated video thumbnail
+    function resolveImageSource(rawPath) {
+        if (!rawPath) return ""
+        let clean = (typeof rawPath === "string" ? rawPath : rawPath.toString()).replace(/^file:\/\//, "")
+        let ext = clean.split('.').pop().toLowerCase()
+        if (ext === "mp4" || ext === "webm") {
+            return "file://" + getThumbPath(clean)
+        }
+        return "file://" + clean
+    }
+
     // Background thumbnail batch generator in Fish
     Process {
         id: thumbBatchProc
@@ -29,14 +49,25 @@ Item {
             "test -d $cache_dir; or mkdir -p $cache_dir; " +
             "for f in ~/Pictures/Wallpapers/*.{mp4,webm}; " +
             "    test -f $f; or continue; " +
-            "    set -l name (string replace -r '[^a-zA-Z0-9]' '_' (path basename $f))'.jpg'; " +
-            "    if not test -f $cache_dir/$name; " +
-            "        ffmpeg -y -ss 00:00:01 -i $f -vframes 1 -vf 'scale=720:-1' $cache_dir/$name >/dev/null 2>&1 &; " +
+            "    set -l base_name (string replace -r '\\.[^.]+$' '' (path basename $f)); " +
+            "    set -l thumb_path \"$cache_dir/$base_name.jpg\"; " +
+            "    if not test -f $thumb_path; " +
+            "        ffmpeg -y -ss 00:00:01 -i $f -vframes 1 -vf 'scale=720:-1' $thumb_path >/dev/null 2>&1; " +
             "    end; " +
-            "end; " +
-            "wait"
+            "end"
         ]
         running: true
+
+        onExited: {
+            // Re-evaluate backdrop source once thumbnails finish generating
+            ambientBackdrop.source = Qt.binding(() => {
+                if (root.activeHoveredPath !== "") return root.resolveImageSource(root.activeHoveredPath)
+                if (folderModel.count > root.activeIndex && root.activeIndex >= 0) {
+                    return root.resolveImageSource(folderModel.get(root.activeIndex, "filePath"))
+                }
+                return root.resolveImageSource(Config.activeWallpaperPath)
+            })
+        }
     }
 
     // Backend Execution Process
@@ -98,10 +129,7 @@ Item {
 
             if (Config.enableIris) {
                 if (isVid) {
-                    let fileName = cleanFilePath.split('/').pop()
-                    let thumbName = fileName.replace(/[^a-zA-Z0-9]/g, "_") + ".png"
-                    let thumbPath = Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + thumbName
-                    
+                    let thumbPath = root.getThumbPath(cleanFilePath)
                     pendingIrisPath = thumbPath
                     script += "test -f '" + thumbPath + "'; or ffmpeg -y -ss 00:00:01 -i '" + cleanFilePath + "' -vframes 1 -vf 'scale=600:-1' '" + thumbPath + "' >/dev/null 2>&1; "
                     script += "iris '" + thumbPath + "'; "
@@ -138,11 +166,11 @@ Item {
             id: ambientBackdrop
             anchors.fill: parent
             source: {
-                if (root.activeHoveredPath !== "") return "file://" + root.activeHoveredPath
+                if (root.activeHoveredPath !== "") return root.resolveImageSource(root.activeHoveredPath)
                 if (folderModel.count > root.activeIndex && root.activeIndex >= 0) {
-                    return folderModel.get(root.activeIndex, "filePath")
+                    return root.resolveImageSource(folderModel.get(root.activeIndex, "filePath"))
                 }
-                return Config.activeWallpaperPath ? "file://" + Config.activeWallpaperPath : ""
+                return root.resolveImageSource(Config.activeWallpaperPath)
             }
             fillMode: Image.PreserveAspectCrop
             opacity: 0.22
@@ -307,7 +335,6 @@ Item {
                     id: bladeListView
                     anchors.fill: parent
                     orientation: ListView.Horizontal
-                    // Tightly nested negative overlap to produce the accordion fan
                     spacing: -14
                     boundsBehavior: Flickable.StopAtBounds
                     model: folderModel
@@ -320,7 +347,7 @@ Item {
                         readonly property bool isHovered: bladeHover.containsMouse
                         readonly property string cleanPath: (typeof filePath === "string" ? filePath : "").replace(/^file:\/\//, "")
                         readonly property bool isVid: fileSuffix.toLowerCase() === "mp4" || fileSuffix.toLowerCase() === "webm"
-                        readonly property string thumbFile: Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + fileName.replace(/\./g, "_") + ".jpg"
+                        readonly property string thumbFile: root.getThumbPath(filePath)
 
                         readonly property real actualH: bladeListView.height
                         readonly property real exact16by9W: Math.round(actualH * (16.0 / 9.0))
@@ -329,7 +356,6 @@ Item {
                         readonly property int distFromActive: Math.abs(index - root.activeIndex)
                         readonly property real scaleFactor: Math.max(0.38, Math.pow(0.84, distFromActive))
 
-                        // Dynamic width fan: Full 16:9 for active, tapering down exponentially with distance
                         width: isSelected ? exact16by9W : (isHovered ? Math.round(112 * scaleFactor + 24) : Math.round(96 * scaleFactor))
                         height: actualH
                         z: isSelected ? 200 : (100 - Math.min(90, distFromActive * 6))
@@ -341,7 +367,6 @@ Item {
                         Item {
                             id: cardWrapper
                             anchors.fill: parent
-                            // Vertical accordion compression as distance increases
                             anchors.topMargin: isSelected ? 0 : Math.round((1.0 - bladeDelegate.scaleFactor) * 44)
                             anchors.bottomMargin: isSelected ? 0 : Math.round((1.0 - bladeDelegate.scaleFactor) * 44)
 
@@ -367,7 +392,7 @@ Item {
                                 Image {
                                     id: cardImg
                                     anchors.fill: parent
-                                    source: isVid ? ("file://" + thumbFile) : filePath
+                                    source: bladeDelegate.isVid ? ("file://" + bladeDelegate.thumbFile) : filePath
                                     fillMode: Image.PreserveAspectCrop
                                     asynchronous: true
                                     cache: true
