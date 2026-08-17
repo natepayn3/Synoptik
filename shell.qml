@@ -549,4 +549,13 @@ ShellRoot {
             visible: Config.showDesktopClock && Config.isClockEnabledForScreen(modelData.name)
         }
     }
+    Variants {
+        model: Quickshell.screens
+
+        delegate: SystemInfoWidget {
+            required property var modelData
+            screen: modelData
+            visible: (Config.showDesktopSysInfo !== false) && (Config.isSysInfoEnabledForScreen ? Config.isSysInfoEnabledForScreen(modelData.name) : true)
+        }
+    }
 }
