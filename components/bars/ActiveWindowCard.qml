@@ -34,15 +34,13 @@ Rectangle {
 
     signal popoutRequested(var item)
 
-    // Rotation angle for text in vertical mode:
-    // Left bar: 90 degrees (reads top-to-bottom)
-    // Right bar: -90 degrees (reads bottom-to-top)
+    // Rotation angle for text in vertical mode
     readonly property real textRotation: {
         if (isHoriz) return 0
-        return barPos === "left" ? 90 : -90
+        return barPos === "left" ? -90 : 90
     }
 
-    // DYNAMIC DIMENSIONS - Shrinks when space between left & right cards is constrained
+    // Dynamic dimensions
     property real maxAvailableSpan: 190
     width: isHoriz ? Math.max(36, Math.min(190, maxAvailableSpan)) : 36
     height: isHoriz ? 36 : Math.max(36, Math.min(190, maxAvailableSpan))
@@ -58,14 +56,26 @@ Rectangle {
 
     TapHandler {
         onTapped: {
+            if (rootRef && rootRef.stopPeek) rootRef.stopPeek()
             activeWinCard.popoutRequested(activeWinCard)
             if (rootRef) rootRef.setPopoutPos(activeWinCard)
             Config.showTaskOverflow = !Config.showTaskOverflow
         }
     }
-    HoverHandler { id: cardHover; cursorShape: Qt.PointingHandCursor }
 
-    // HORIZONTAL LAYOUT (Icon fixed left, ticker text fills remaining width)
+    HoverHandler { 
+        id: cardHover
+        cursorShape: Qt.PointingHandCursor 
+        onHoveredChanged: {
+            if (hovered) {
+                if (rootRef && rootRef.startPeek) rootRef.startPeek(activeWinCard)
+            } else {
+                if (rootRef && rootRef.stopPeek) rootRef.stopPeek()
+            }
+        }
+    }
+
+    // HORIZONTAL LAYOUT
     RowLayout {
         id: contentRow
         visible: isHoriz
@@ -134,17 +144,22 @@ Rectangle {
         }
     }
 
-    // VERTICAL LAYOUT (Icon fixed top, ticker text fills remaining height)
-    ColumnLayout {
+    // VERTICAL LAYOUT (Icon positioned at the leading start of the text reading direction)
+    GridLayout {
         id: contentColumn
         visible: !isHoriz
         anchors.fill: parent
         anchors.topMargin: activeWinCard.height <= 44 ? 0 : 10
         anchors.bottomMargin: activeWinCard.height <= 44 ? 0 : 10
-        spacing: activeWinCard.height <= 44 ? 0 : 8
+        columnSpacing: 0
+        rowSpacing: activeWinCard.height <= 44 ? 0 : 8
+        columns: 1
+        rows: 2
 
         IconImage {
             id: iconVert
+            // Bottom (row 1) for left bar (-90° bottom-to-top), Top (row 0) for right bar (90° top-to-bottom)
+            Layout.row: activeWinCard.barPos === "left" ? 1 : 0
             Layout.preferredWidth: 20
             Layout.preferredHeight: 20
             Layout.alignment: activeWinCard.height <= 44 ? Qt.AlignCenter : Qt.AlignHCenter
@@ -162,6 +177,7 @@ Rectangle {
 
         Item {
             id: tickerBoxVert
+            Layout.row: activeWinCard.barPos === "left" ? 0 : 1
             visible: activeWinCard.height > 50
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -169,6 +185,7 @@ Rectangle {
 
             readonly property real overflowDist: Math.max(0, titleTextVert.implicitWidth - tickerBoxVert.height)
             readonly property bool needsTicker: overflowDist > 2
+            readonly property bool isCcw: activeWinCard.textRotation === -90
             property real tickerOffset: 0
 
             SequentialAnimation on tickerOffset {
@@ -179,7 +196,7 @@ Rectangle {
                 PauseAnimation { duration: 1000 }
 
                 NumberAnimation {
-                    to: -tickerBoxVert.overflowDist
+                    to: tickerBoxVert.isCcw ? tickerBoxVert.overflowDist : -tickerBoxVert.overflowDist
                     duration: Math.max(1000, tickerBoxVert.overflowDist * 40)
                     easing.type: Easing.Linear
                 }
@@ -194,10 +211,22 @@ Rectangle {
                 font.bold: true
 
                 transformOrigin: Item.TopLeft
-                rotation: 90
+                rotation: activeWinCard.textRotation
 
-                x: Math.round((tickerBoxVert.width + titleTextVert.implicitHeight) / 2.0)
-                y: tickerBoxVert.needsTicker ? tickerBoxVert.tickerOffset : Math.round((tickerBoxVert.height - titleTextVert.implicitWidth) / 2.0)
+                x: tickerBoxVert.isCcw
+                    ? Math.round((tickerBoxVert.width - titleTextVert.implicitHeight) / 2.0)
+                    : Math.round((tickerBoxVert.width + titleTextVert.implicitHeight) / 2.0)
+
+                y: {
+                    if (tickerBoxVert.needsTicker) {
+                        return tickerBoxVert.isCcw
+                            ? (tickerBoxVert.height + tickerBoxVert.tickerOffset)
+                            : tickerBoxVert.tickerOffset
+                    }
+                    return tickerBoxVert.isCcw
+                        ? Math.round((tickerBoxVert.height + titleTextVert.implicitWidth) / 2.0)
+                        : Math.round((tickerBoxVert.height - titleTextVert.implicitWidth) / 2.0)
+                }
 
                 onTextChanged: {
                     tickerBoxVert.tickerOffset = 0

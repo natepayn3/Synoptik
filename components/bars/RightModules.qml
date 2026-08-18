@@ -26,7 +26,7 @@ Rectangle {
     }
 
     width: (rootRef && rootRef.isHorizontal) 
-        ? Math.min(centerContentLayout.implicitWidth + 8, (rootRef.width || 1920) - 160) // Adjusted from 100 to 160
+        ? Math.min(centerContentLayout.implicitWidth + 8, (rootRef.width || 1920) - 160)
         : Math.max(36, centerContentLayout.implicitWidth + 4)
 
     height: (rootRef && rootRef.isHorizontal) 
@@ -400,6 +400,7 @@ Rectangle {
                         Config.showCalendar = !Config.showCalendar 
                     } 
                 }
+
                 HoverHandler { 
                     id: clockVertHover
                     cursorShape: Qt.PointingHandCursor 
