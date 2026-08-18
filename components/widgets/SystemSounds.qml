@@ -72,42 +72,8 @@ ColumnLayout {
             spacing: 8
 
             RowLayout {
-                spacing: 8
+                spacing: 12
                 Layout.fillWidth: true
-
-                // Checkbox matching OSK keycap design
-                Item {
-                    implicitWidth: 20
-                    implicitHeight: 20
-
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: Config.cornerRadius / 4
-                        color: Config.playWindowSounds ? Config.accent : Config.bgPanel
-                        border.color: Config.playWindowSounds ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                        border.width: 1
-                    }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "✓"
-                        color: Config.playWindowSounds ? Config.bgBase : Config.textMain
-                        font.bold: true
-                        font.pixelSize: 12
-                        font.family: Config.sysFont
-                        visible: Config.playWindowSounds
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            if (Config.isLoaded) {
-                                Config.playWindowSounds = !Config.playWindowSounds
-                            }
-                        }
-                    }
-                }
 
                 Text {
                     text: "web_asset"
@@ -123,6 +89,35 @@ ColumnLayout {
                     font.pixelSize: Config.size(Config.fontBody)
                     font.bold: true
                     Layout.fillWidth: true
+                }
+
+                // Toggle Switch matching WorkspaceSettings style
+                Rectangle {
+                    implicitWidth: 44
+                    implicitHeight: 24
+                    radius: 12
+                    color: (Config.playWindowSounds !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        x: (Config.playWindowSounds !== false) ? 22 : 2
+                        implicitWidth: 20
+                        implicitHeight: 20
+                        radius: 10
+                        color: (Config.playWindowSounds !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
+                        Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (Config.isLoaded) {
+                                Config.playWindowSounds = !Config.playWindowSounds
+                            }
+                        }
+                    }
                 }
             }
 
@@ -205,42 +200,8 @@ ColumnLayout {
             spacing: 8
 
             RowLayout {
-                spacing: 8
+                spacing: 12
                 Layout.fillWidth: true
-
-                // Checkbox matching OSK keycap design
-                Item {
-                    implicitWidth: 20
-                    implicitHeight: 20
-
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: Config.cornerRadius / 4
-                        color: Config.playNotificationSounds ? Config.accent : Config.bgPanel
-                        border.color: Config.playNotificationSounds ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                        border.width: 1
-                    }
-
-                    Text {
-                        anchors.centerIn: parent
-                        text: "✓"
-                        color: Config.playNotificationSounds ? Config.bgBase : Config.textMain
-                        font.bold: true
-                        font.pixelSize: 12
-                        font.family: Config.sysFont
-                        visible: Config.playNotificationSounds
-                    }
-
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            if (Config.isLoaded) {
-                                Config.playNotificationSounds = !Config.playNotificationSounds
-                            }
-                        }
-                    }
-                }
 
                 Text {
                     text: "notifications"
@@ -256,6 +217,35 @@ ColumnLayout {
                     font.pixelSize: Config.size(Config.fontBody)
                     font.bold: true
                     Layout.fillWidth: true
+                }
+
+                // Toggle Switch matching WorkspaceSettings style
+                Rectangle {
+                    implicitWidth: 44
+                    implicitHeight: 24
+                    radius: 12
+                    color: (Config.playNotificationSounds !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        x: (Config.playNotificationSounds !== false) ? 22 : 2
+                        implicitWidth: 20
+                        implicitHeight: 20
+                        radius: 10
+                        color: (Config.playNotificationSounds !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
+                        Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            if (Config.isLoaded) {
+                                Config.playNotificationSounds = !Config.playNotificationSounds
+                            }
+                        }
+                    }
                 }
             }
 
