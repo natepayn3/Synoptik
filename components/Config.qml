@@ -1202,6 +1202,8 @@ QtObject {
         irisService.applyIrisColors(filePath)
     }
 
+    property bool enablePeek: true
+
     readonly property bool isFloatingBar: barFrameStyle === "floating"
 
     // --- DESKTOP SCREENSAVER STATE & PERSISTENCE ---
