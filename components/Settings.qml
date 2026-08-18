@@ -25,13 +25,13 @@ Item {
     property bool widgetsExpanded: false
 
     function expandActiveCategory(sectionId) {
-        if ([0, 16, 17, 1, 2, 3, 12].includes(sectionId)) visualsExpanded = true
+        if ([0, 16, 1, 17, 2, 3, 12].includes(sectionId)) visualsExpanded = true
         else if ([4, 5, 6, 7].includes(sectionId)) connectivityExpanded = true
         else if ([8, 9, 10, 13, 14, 15, 18, 19].includes(sectionId)) widgetsExpanded = true
     }
 
     function getSectionCategory(sectionId) {
-        if ([0, 16, 17, 1, 2, 3, 12].includes(sectionId)) return "VISUALS"
+        if ([0, 16, 1, 17, 2, 3, 12].includes(sectionId)) return "VISUALS"
         if ([4, 5, 6, 7].includes(sectionId)) return "CONNECTIVITY"
         if ([8, 9, 10, 13, 15, 18, 19].includes(sectionId)) return "WIDGETS"
         if (sectionId === 11) return "SYSTEM"
@@ -42,8 +42,8 @@ Item {
         switch (sectionId) {
             case 0: return "Display"
             case 16: return "Bar"
-            case 17: return "Workspaces"
             case 1: return "Appearance"
+            case 17: return "Workspaces"
             case 2: return "Typography"
             case 3: return "Wallpaper"
             case 12: return "Icons"
@@ -67,8 +67,8 @@ Item {
         switch (sectionId) {
             case 0: return "aspect_ratio"
             case 16: return "dock"
-            case 17: return "view_carousel"
             case 1: return "palette"
+            case 17: return "view_carousel"
             case 2: return "match_case"
             case 3: return "wallpaper"
             case 12: return "account_circle"
@@ -350,8 +350,8 @@ Item {
                                 model: [
                                     { id: 0,  name: "Display",    icon: "aspect_ratio" },
                                     { id: 16, name: "Bar",        icon: "sliders" },
-                                    { id: 17, name: "Workspaces", icon: "view_carousel" },
                                     { id: 1,  name: "Appearance", icon: "palette" },
+                                    { id: 17, name: "Workspaces", icon: "view_carousel" },
                                     { id: 2,  name: "Typography", icon: "match_case" },
                                     { id: 3,  name: "Wallpaper",  icon: "wallpaper" },
                                     { id: 12, name: "Icons",      icon: "account_circle" }
@@ -823,8 +823,8 @@ Item {
 
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 0; visible: active; sourceComponent: DisplaySettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 16; visible: active; sourceComponent: BarSettings {} }
-                    Loader { anchors.fill: parent; active: settingsRoot.activeSection === 17; visible: active; sourceComponent: WorkspaceSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 1; visible: active; sourceComponent: AppearanceSettings {} }
+                    Loader { anchors.fill: parent; active: settingsRoot.activeSection === 17; visible: active; sourceComponent: WorkspaceSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 2; visible: active; sourceComponent: TypographySettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 3; visible: active; sourceComponent: WallpaperSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 4; visible: active; sourceComponent: NetworkSettings {} }
