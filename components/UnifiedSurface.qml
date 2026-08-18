@@ -1968,6 +1968,7 @@ PanelWindow {
                     rootRef: root
                     onPopoutRequested: item => root.setPopoutPos(item)
                 }
+                
                 ActiveWindowCard {
                     id: activeWindowCard
                     rootRef: root
@@ -1978,20 +1979,33 @@ PanelWindow {
                     readonly property real endBound: rightCard 
                         ? (root.isHorizontal ? rightCard.x : rightCard.y) 
                         : (root.isHorizontal ? parent.width : parent.height)
-                    readonly property real availableGap: Math.max(0, endBound - startBound - 24)
 
-                    // Give vertical bars more headroom (e.g., 420px) to prevent unnecessary truncation
+                    // Calculate symmetric clearance around bar midpoint when centered to prevent module collisions
+                    readonly property real islandGap: Math.max(0, endBound - startBound - 24)
+                    readonly property real centeredGap: {
+                        let mid = (root.isHorizontal ? parent.width : parent.height) / 2
+                        let halfSpan = Math.max(0, Math.min(mid - startBound, endBound - mid) - 12)
+                        return halfSpan * 2
+                    }
+                    readonly property real availableGap: root.isIsland ? islandGap : centeredGap
+
+                    // Dynamic headroom limits
                     maxAvailableSpan: Math.max(36, Math.min(root.isHorizontal ? 220 : 420, availableGap))
 
-                    // Position directly in the visual center of the space between LeftModules and RightModules
+                    // Explicitly center across the full bar length, preserving gap-centering only on Island
                     x: root.isHorizontal
-                        ? startBound + ((endBound - startBound - activeWindowCard.width) / 2)
-                        : (parent.width - activeWindowCard.width) / 2
+                        ? (root.isIsland 
+                            ? (startBound + ((endBound - startBound - activeWindowCard.width) / 2))
+                            : ((parent.width - activeWindowCard.width) / 2))
+                        : ((parent.width - activeWindowCard.width) / 2)
 
                     y: root.isHorizontal
-                        ? (parent.height - activeWindowCard.height) / 2
-                        : startBound + ((endBound - startBound - activeWindowCard.height) / 2)
+                        ? ((parent.height - activeWindowCard.height) / 2)
+                        : (root.isIsland 
+                            ? (startBound + ((endBound - startBound - activeWindowCard.height) / 2))
+                            : ((parent.height - activeWindowCard.height) / 2))
                 }
+
                 RightModules {
                     id: rightCard
                     rootRef: root
