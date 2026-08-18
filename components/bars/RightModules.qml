@@ -91,7 +91,6 @@ Rectangle {
             readonly property var clockBtn: btnClockHoriz
             readonly property var overviewBtn: wsHoriz.overviewButton
 
-            // Workspace Indicators
             WorkspaceIndicators {
                 id: wsHoriz
                 isVertical: false
@@ -100,7 +99,6 @@ Rectangle {
                 onPopoutRequested: item => rightCard.popoutRequested(item)
             }
 
-            // Control Center Button
             Rectangle {
                 id: btnCCHoriz
                 implicitWidth: 32
@@ -145,14 +143,21 @@ Rectangle {
 
                 TapHandler {
                     onTapped: {
+                        if (rootRef && rootRef.stopPeek) rootRef.stopPeek()
                         rightCard.popoutRequested(btnCCHoriz)
                         Config.showControlCenter = !Config.showControlCenter
                     }
                 }
-                HoverHandler { id: ccHorizHover; cursorShape: Qt.PointingHandCursor }
+                HoverHandler { 
+                    id: ccHorizHover
+                    cursorShape: Qt.PointingHandCursor 
+                    onHoveredChanged: {
+                        if (hovered && rootRef && rootRef.startPeek) rootRef.startPeek(btnCCHoriz)
+                        else if (!hovered && rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                    }
+                }
             }
 
-            // Calendar Button (Placed LAST in RightModules)
             Rectangle {
                 id: btnClockHoriz
                 implicitWidth: dateRow.implicitWidth + 20
@@ -212,8 +217,21 @@ Rectangle {
                     }
                 }
 
-                TapHandler { onTapped: { rightCard.popoutRequested(btnClockHoriz); Config.showCalendar = !Config.showCalendar; } }
-                HoverHandler { id: clockHorizHover; cursorShape: Qt.PointingHandCursor }
+                TapHandler { 
+                    onTapped: { 
+                        if (rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                        rightCard.popoutRequested(btnClockHoriz)
+                        Config.showCalendar = !Config.showCalendar 
+                    } 
+                }
+                HoverHandler { 
+                    id: clockHorizHover
+                    cursorShape: Qt.PointingHandCursor 
+                    onHoveredChanged: {
+                        if (hovered && rootRef && rootRef.startPeek) rootRef.startPeek(btnClockHoriz)
+                        else if (!hovered && rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                    }
+                }
             }
         }
     }
@@ -230,7 +248,6 @@ Rectangle {
             readonly property var clockBtn: btnClockVert
             readonly property var overviewBtn: wsVert.overviewButton
 
-            // Workspace Indicators
             WorkspaceIndicators {
                 id: wsVert
                 isVertical: true
@@ -239,7 +256,6 @@ Rectangle {
                 onPopoutRequested: item => rightCard.popoutRequested(item)
             }
 
-            // Control Center Button
             Rectangle {
                 id: btnCCVert
                 implicitWidth: 32
@@ -284,14 +300,21 @@ Rectangle {
 
                 TapHandler {
                     onTapped: {
+                        if (rootRef && rootRef.stopPeek) rootRef.stopPeek()
                         rightCard.popoutRequested(btnCCVert)
                         Config.showControlCenter = !Config.showControlCenter
                     }
                 }
-                HoverHandler { id: ccVertHover; cursorShape: Qt.PointingHandCursor }
+                HoverHandler { 
+                    id: ccVertHover
+                    cursorShape: Qt.PointingHandCursor 
+                    onHoveredChanged: {
+                        if (hovered && rootRef && rootRef.startPeek) rootRef.startPeek(btnCCVert)
+                        else if (!hovered && rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                    }
+                }
             }
 
-            // Calendar Button (Placed LAST in RightModules)
             Rectangle {
                 id: btnClockVert
                 implicitWidth: 32
@@ -370,8 +393,21 @@ Rectangle {
                     }
                 }
 
-                TapHandler { onTapped: { rightCard.popoutRequested(btnClockVert); Config.showCalendar = !Config.showCalendar; } }
-                HoverHandler { id: clockVertHover; cursorShape: Qt.PointingHandCursor }
+                TapHandler { 
+                    onTapped: { 
+                        if (rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                        rightCard.popoutRequested(btnClockVert)
+                        Config.showCalendar = !Config.showCalendar 
+                    } 
+                }
+                HoverHandler { 
+                    id: clockVertHover
+                    cursorShape: Qt.PointingHandCursor 
+                    onHoveredChanged: {
+                        if (hovered && rootRef && rootRef.startPeek) rootRef.startPeek(btnClockVert)
+                        else if (!hovered && rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                    }
+                }
             }
         }
     }

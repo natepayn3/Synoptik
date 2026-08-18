@@ -17,6 +17,8 @@ PanelWindow {
     property alias mainContainer: mainContainer
 
     property bool isOpen: false
+    property bool isPeeking: false
+    readonly property real peekThickness: 8
     
     readonly property real actualScreenWidth: screen ? screen.width : 1920
     readonly property real actualScreenHeight: screen ? screen.height : 1080
@@ -24,6 +26,16 @@ PanelWindow {
     property real popoutXOffset: actualScreenWidth / 2.0
     property real popoutYOffset: actualScreenHeight / 2.0
     property bool isCentered: false
+
+    function startPeek(item) {
+        if (root.isOpen) return
+        setPopoutPos(item)
+        root.isPeeking = true
+    }
+
+    function stopPeek() {
+        root.isPeeking = false
+    }
 
     readonly property real shadowPadding: 16
 
@@ -105,14 +117,25 @@ PanelWindow {
     property real lastOpenHeight: rawChildHeight
 
     onIsOpenChanged: {
-        if (!isOpen) {
+        if (isOpen) {
+            root.isPeeking = false
+        } else {
             lastOpenWidth = rawChildWidth
             lastOpenHeight = rawChildHeight
         }
     }
 
-    property real targetWidth: isOpen ? rawChildWidth : (isHorizontal ? (lastOpenWidth * 0.33) : (lastOpenWidth * 1.10))
-    property real targetHeight: isOpen ? rawChildHeight : (isHorizontal ? (lastOpenHeight * 1.10) : (lastOpenHeight * 0.33))
+    property real targetWidth: {
+        if (root.isOpen) return rawChildWidth
+        if (root.isPeeking) return isHorizontal ? Math.max(48, lastOpenWidth * 0.35) : peekThickness
+        return isHorizontal ? (lastOpenWidth * 0.33) : (lastOpenWidth * 1.10)
+    }
+
+    property real targetHeight: {
+        if (root.isOpen) return rawChildHeight
+        if (root.isPeeking) return isHorizontal ? peekThickness : Math.max(48, lastOpenHeight * 0.35)
+        return isHorizontal ? (lastOpenHeight * 1.10) : (lastOpenHeight * 0.33)
+    }
 
     Behavior on targetWidth { NumberAnimation { duration: 350; easing.type: Easing.OutBack; easing.overshoot: 0.8 } }
     Behavior on targetHeight { NumberAnimation { duration: 350; easing.type: Easing.OutBack; easing.overshoot: 0.8 } }
@@ -129,7 +152,6 @@ PanelWindow {
     readonly property real wingH: (Config.surfaceRadius || 18) * animScale
     readonly property real radius: Math.max(0.1, (Config.surfaceRadius || 18) * animScale)
 
-    // Ensure double-casting safely falls back to double value (0.0 or valid number)
     readonly property real borderWidth: (Config.borderThickness !== undefined && Config.borderThickness !== null) ? Number(Config.borderThickness) : 0.0
     readonly property real halfB: borderWidth / 2.0
 
@@ -164,7 +186,7 @@ PanelWindow {
 
     mask: Region {
         Region { item: barContent }
-        Region { item: (root.isOpen || root.progress > 0.01) ? contentContainer : null }
+        Region { item: (root.isOpen && root.progress > 0.01) ? contentContainer : null }
     }
 
     WlrLayershell.layer: WlrLayer.Top
@@ -253,6 +275,7 @@ PanelWindow {
     }
 
     function setPopoutPos(item) {
+        if (!item) return
         root.isCentered = false
         if (isHorizontal) {
             root.popoutXOffset = item.mapToItem(mainContainer, item.width / 2, 0).x
@@ -348,17 +371,34 @@ PanelWindow {
         }
 
         states: [
-            State { name: "open"; when: root.isOpen; PropertyChanges { target: root; progress: 1.0 } },
-            State { name: "closed"; when: !root.isOpen; PropertyChanges { target: root; progress: 0.0 } }
+            State { 
+                name: "open"
+                when: root.isOpen
+                PropertyChanges { target: root; progress: 1.0 } 
+            },
+            State { 
+                name: "peek"
+                when: !root.isOpen && root.isPeeking
+                PropertyChanges { target: root; progress: 0.25 } 
+            },
+            State { 
+                name: "closed"
+                when: !root.isOpen && !root.isPeeking
+                PropertyChanges { target: root; progress: 0.0 } 
+            }
         ]
 
         transitions: [
             Transition {
-                from: "closed"; to: "open"
+                from: "*"; to: "open"
                 NumberAnimation { target: root; property: "progress"; duration: 500; easing.type: Easing.OutBack; easing.overshoot: 0.7 }
             },
             Transition {
-                from: "open"; to: "closed"
+                from: "closed"; to: "peek"
+                NumberAnimation { target: root; property: "progress"; duration: 220; easing.type: Easing.OutCubic }
+            },
+            Transition {
+                from: "*"; to: "closed"
                 NumberAnimation { target: root; property: "progress"; duration: 500; easing.type: Easing.InBack; easing.overshoot: 1.6 }
             }
         ]
@@ -447,7 +487,7 @@ PanelWindow {
             height: root.currentHeight
             
             clip: true
-            visible: root.isOpen || root.progress > 0.05
+            visible: root.isOpen && root.progress > 0.05
             focus: true
 
             TapHandler { onTapped: {} }

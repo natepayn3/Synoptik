@@ -10,7 +10,6 @@ Rectangle {
     property var rootRef
     signal popoutRequested(var item)
 
-    // Map instantiated child items by icon key for PanelWindow origin tracking
     function getButton(key) {
         if (Config.leftCardCollapsed && !Config.isPinned(key)) return null
         for (let i = 0; i < repeater.count; i++) {
@@ -276,9 +275,22 @@ Rectangle {
                 visible: !Config.leftCardCollapsed && Config.isPinned("power")
             }
 
-            TapHandler { onTapped: { popoutRequested(btnPower); Config.showPower = !Config.showPower; } }
+            TapHandler { 
+                onTapped: { 
+                    if (rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                    popoutRequested(btnPower)
+                    Config.showPower = !Config.showPower 
+                } 
+            }
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("power") }
-            HoverHandler { id: powerHover; cursorShape: Qt.PointingHandCursor }
+            HoverHandler { 
+                id: powerHover
+                cursorShape: Qt.PointingHandCursor 
+                onHoveredChanged: {
+                    if (hovered && rootRef && rootRef.startPeek) rootRef.startPeek(btnPower)
+                    else if (!hovered && rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                }
+            }
         }
     }
 
@@ -333,9 +345,22 @@ Rectangle {
                 visible: !Config.leftCardCollapsed && Config.isPinned("recorder")
             }
 
-            TapHandler { onTapped: { popoutRequested(btnRecorder); Config.showScreenRecorder = !Config.showScreenRecorder; } }
+            TapHandler { 
+                onTapped: { 
+                    if (rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                    popoutRequested(btnRecorder)
+                    Config.showScreenRecorder = !Config.showScreenRecorder 
+                } 
+            }
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("recorder") }
-            HoverHandler { id: recordHover; cursorShape: Qt.PointingHandCursor }
+            HoverHandler { 
+                id: recordHover
+                cursorShape: Qt.PointingHandCursor 
+                onHoveredChanged: {
+                    if (hovered && rootRef && rootRef.startPeek) rootRef.startPeek(btnRecorder)
+                    else if (!hovered && rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                }
+            }
         }
     }
 
@@ -390,16 +415,28 @@ Rectangle {
                 visible: !Config.leftCardCollapsed && Config.isPinned("player")
             }
 
-            // Direct in-memory toggle
-            TapHandler { onTapped: Config.showPlayer = !Config.showPlayer }
+            TapHandler { 
+                onTapped: {
+                    if (rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                    Config.showPlayer = !Config.showPlayer 
+                }
+            }
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("player") }
-            HoverHandler { id: playerHover; cursorShape: Qt.PointingHandCursor }
+            HoverHandler { 
+                id: playerHover
+                cursorShape: Qt.PointingHandCursor 
+                onHoveredChanged: {
+                    if (hovered && rootRef && rootRef.startPeek) rootRef.startPeek(btnPlayer)
+                    else if (!hovered && rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                }
+            }
         }
     }
 
     Component {
         id: mirrorComp
         Rectangle {
+            id: btnMirror
             implicitWidth: 32
             implicitHeight: 32
             radius: 10
@@ -447,12 +484,21 @@ Rectangle {
                 visible: !Config.leftCardCollapsed && Config.isPinned("mirror")
             }
 
-            // Direct in-memory toggle
             TapHandler { 
-                onTapped: Config.showMirror = !Config.showMirror 
+                onTapped: {
+                    if (rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                    Config.showMirror = !Config.showMirror 
+                }
             }
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("mirror") }
-            HoverHandler { id: mirrorHover; cursorShape: Qt.PointingHandCursor }
+            HoverHandler { 
+                id: mirrorHover
+                cursorShape: Qt.PointingHandCursor 
+                onHoveredChanged: {
+                    if (hovered && rootRef && rootRef.startPeek) rootRef.startPeek(btnMirror)
+                    else if (!hovered && rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                }
+            }
         }
     }
 
@@ -563,9 +609,22 @@ Rectangle {
                 visible: !Config.leftCardCollapsed && Config.isPinned("wallpaper")
             }
 
-            TapHandler { onTapped: { popoutRequested(btnWallpaper); Config.showWallpaper = !Config.showWallpaper; } }
+            TapHandler { 
+                onTapped: { 
+                    if (rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                    popoutRequested(btnWallpaper)
+                    Config.showWallpaper = !Config.showWallpaper 
+                } 
+            }
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("wallpaper") }
-            HoverHandler { id: wallpaperHover; cursorShape: Qt.PointingHandCursor }
+            HoverHandler { 
+                id: wallpaperHover
+                cursorShape: Qt.PointingHandCursor 
+                onHoveredChanged: {
+                    if (hovered && rootRef && rootRef.startPeek) rootRef.startPeek(btnWallpaper)
+                    else if (!hovered && rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                }
+            }
         }
     }
 
@@ -620,9 +679,22 @@ Rectangle {
                 visible: !Config.leftCardCollapsed && Config.isPinned("settings")
             }
 
-            TapHandler { onTapped: { popoutRequested(btnSettings); Config.showSettings = !Config.showSettings; } }
+            TapHandler { 
+                onTapped: { 
+                    if (rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                    popoutRequested(btnSettings)
+                    Config.showSettings = !Config.showSettings 
+                } 
+            }
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("settings") }
-            HoverHandler { id: settingsHover; cursorShape: Qt.PointingHandCursor }
+            HoverHandler { 
+                id: settingsHover
+                cursorShape: Qt.PointingHandCursor 
+                onHoveredChanged: {
+                    if (hovered && rootRef && rootRef.startPeek) rootRef.startPeek(btnSettings)
+                    else if (!hovered && rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                }
+            }
         }
     }
 
@@ -677,9 +749,22 @@ Rectangle {
                 visible: !Config.leftCardCollapsed && Config.isPinned("launcher")
             }
 
-            TapHandler { onTapped: { popoutRequested(btnLauncher); Config.showAppLauncher = !Config.showAppLauncher; } }
+            TapHandler { 
+                onTapped: { 
+                    if (rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                    popoutRequested(btnLauncher)
+                    Config.showAppLauncher = !Config.showAppLauncher 
+                } 
+            }
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("launcher") }
-            HoverHandler { id: launcherHover; cursorShape: Qt.PointingHandCursor }
+            HoverHandler { 
+                id: launcherHover
+                cursorShape: Qt.PointingHandCursor 
+                onHoveredChanged: {
+                    if (hovered && rootRef && rootRef.startPeek) rootRef.startPeek(btnLauncher)
+                    else if (!hovered && rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                }
+            }
         }
     }
 
@@ -723,9 +808,22 @@ Rectangle {
                 visible: !Config.leftCardCollapsed && Config.isPinned("audio")
             }
 
-            TapHandler { onTapped: { popoutRequested(btnAudio); Config.showAudio = !Config.showAudio; } }
+            TapHandler { 
+                onTapped: { 
+                    if (rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                    popoutRequested(btnAudio)
+                    Config.showAudio = !Config.showAudio 
+                } 
+            }
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("audio") }
-            HoverHandler { id: audioHover; cursorShape: Qt.PointingHandCursor }
+            HoverHandler { 
+                id: audioHover
+                cursorShape: Qt.PointingHandCursor 
+                onHoveredChanged: {
+                    if (hovered && rootRef && rootRef.startPeek) rootRef.startPeek(btnAudio)
+                    else if (!hovered && rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                }
+            }
         }
     }
 
@@ -779,9 +877,22 @@ Rectangle {
                 visible: !Config.leftCardCollapsed && Config.isPinned("batt")
             }
 
-            TapHandler { onTapped: { popoutRequested(btnBatt); Config.showBattery = !Config.showBattery; } }
+            TapHandler { 
+                onTapped: { 
+                    if (rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                    popoutRequested(btnBatt)
+                    Config.showBattery = !Config.showBattery 
+                } 
+            }
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("batt") }
-            HoverHandler { id: battHover; cursorShape: Qt.PointingHandCursor }
+            HoverHandler { 
+                id: battHover
+                cursorShape: Qt.PointingHandCursor 
+                onHoveredChanged: {
+                    if (hovered && rootRef && rootRef.startPeek) rootRef.startPeek(btnBatt)
+                    else if (!hovered && rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                }
+            }
         }
     }
 
@@ -825,9 +936,22 @@ Rectangle {
                 visible: !Config.leftCardCollapsed && Config.isPinned("network")
             }
 
-            TapHandler { onTapped: { popoutRequested(btnNetwork); Config.showNetwork = !Config.showNetwork; } }
+            TapHandler { 
+                onTapped: { 
+                    if (rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                    popoutRequested(btnNetwork)
+                    Config.showNetwork = !Config.showNetwork 
+                } 
+            }
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("network") }
-            HoverHandler { id: networkHover; cursorShape: Qt.PointingHandCursor }
+            HoverHandler { 
+                id: networkHover
+                cursorShape: Qt.PointingHandCursor 
+                onHoveredChanged: {
+                    if (hovered && rootRef && rootRef.startPeek) rootRef.startPeek(btnNetwork)
+                    else if (!hovered && rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                }
+            }
         }
     }
 
@@ -871,9 +995,22 @@ Rectangle {
                 visible: !Config.leftCardCollapsed && Config.isPinned("clipboard")
             }
 
-            TapHandler { onTapped: { popoutRequested(btnClipboard); Config.showClipboard = !Config.showClipboard; } }
+            TapHandler { 
+                onTapped: { 
+                    if (rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                    popoutRequested(btnClipboard)
+                    Config.showClipboard = !Config.showClipboard 
+                } 
+            }
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("clipboard") }
-            HoverHandler { id: clipHover; cursorShape: Qt.PointingHandCursor }
+            HoverHandler { 
+                id: clipHover
+                cursorShape: Qt.PointingHandCursor 
+                onHoveredChanged: {
+                    if (hovered && rootRef && rootRef.startPeek) rootRef.startPeek(btnClipboard)
+                    else if (!hovered && rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                }
+            }
         }
     }
 }
