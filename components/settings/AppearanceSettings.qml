@@ -744,6 +744,65 @@ Flickable {
                         onClicked: Config.bounceWatermarks = !Config.bounceWatermarks
                     }
                 }
+                // 7. Hover Peek Tabs Row
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: 48
+                    radius: Config.cornerRadius / 2
+                    color: Config.enablePeek ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : (peekHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
+                    border.width: Config.enablePeek ? 1.5 : 1
+                    border.color: Config.enablePeek ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 12; anchors.rightMargin: 12
+                        spacing: 10
+
+                        Rectangle {
+                            implicitWidth: 28; implicitHeight: 28; radius: 14
+                            color: Config.enablePeek ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+                            Text {
+                                anchors.centerIn: parent
+                                text: "tabs"
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 15
+                                color: Config.enablePeek ? Config.bgBase : Config.textMuted
+                            }
+                        }
+
+                        ColumnLayout {
+                            spacing: 1
+                            Text {
+                                text: "Hover Peek Tabs"
+                                color: Config.enablePeek ? Config.accent : Config.textMain
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontCaption)
+                                font.bold: true
+                            }
+                            Text {
+                                text: "Extend rounded protrusion tabs when hovering over active bar modules"
+                                color: Config.textMuted
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontMicro)
+                            }
+                        }
+
+                        Item { Layout.fillWidth: true }
+
+                        ToggleSwitch {
+                            checked: Config.enablePeek !== undefined ? Config.enablePeek : true
+                            Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                        }
+                    }
+
+                    MouseArea {
+                        id: peekHover
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Config.enablePeek = (Config.enablePeek !== undefined ? !Config.enablePeek : false)
+                    }
+                }
             }
         }
 
