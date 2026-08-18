@@ -17,6 +17,8 @@ PanelWindow {
     default property alias content: contentContainer.data
 
     property bool isOpen: false
+    property bool isPeeking: false
+    property var peekTargetItem: null
     
     readonly property real actualScreenWidth: screen ? screen.width : 1920
     readonly property real actualScreenHeight: screen ? screen.height : 1080
@@ -222,28 +224,39 @@ PanelWindow {
         }
     }
 
-    property real targetWidth: isOpen ? rawChildWidth : (isHorizontal ? (lastOpenWidth * 0.33) : (lastOpenWidth * 1.10))
-    property real targetHeight: isOpen ? rawChildHeight : (isHorizontal ? (lastOpenHeight * 1.10) : (lastOpenHeight * 0.33))
+    // --- Dynamic Dimensions & Scaling ---
+    readonly property real peekW: isHorizontal ? peekSpan : peekDepth
+    readonly property real peekH: isHorizontal ? peekDepth : peekSpan
 
-    Behavior on targetWidth {
-        NumberAnimation { duration: 350; easing.type: Easing.OutBack; easing.overshoot: 0.8 }
+    // Smooth transition from hover tab (0.0) to full popout (1.0)
+    property real openFactor: root.isOpen ? 1.0 : 0.0
+    Behavior on openFactor {
+        NumberAnimation { duration: 380; easing.type: Easing.OutBack; easing.overshoot: 0.75 }
     }
 
-    Behavior on targetHeight {
-        NumberAnimation { duration: 350; easing.type: Easing.OutBack; easing.overshoot: 0.8 }
-    }
+    readonly property real currentActiveW: root.isOpen ? rawChildWidth : lastOpenWidth
+    readonly property real currentActiveH: root.isOpen ? rawChildHeight : lastOpenHeight
+
+    readonly property real targetWidth: (peekW * (1.0 - openFactor)) + (currentActiveW * openFactor)
+    readonly property real targetHeight: (peekH * (1.0 - openFactor)) + (currentActiveH * openFactor)
 
     property real progress: 0.0
     readonly property real animScale: Math.max(0.0, progress)
     readonly property real closeFactor: root.isOpen ? progress : Math.pow(progress, 1.2)
 
-    readonly property real currentHeight: targetHeight * Math.pow(closeFactor, 1.8)
-    readonly property real squishRatio: targetHeight > 0 ? (1.0 - (currentHeight / targetHeight)) : 0.0
-    readonly property real currentWidth: root.isOpen ? (targetWidth * animScale) : (targetWidth * (closeFactor + (0.3 * squishRatio * closeFactor)))
+    readonly property real currentHeight: (targetHeight * Math.pow(closeFactor, 1.8 * openFactor)) * animScale
+    readonly property real squishRatio: (openFactor > 0.1 && targetHeight > 0) ? (1.0 - (currentHeight / targetHeight)) : 0.0
+    readonly property real currentWidth: (targetWidth * (closeFactor + (0.3 * squishRatio * closeFactor * openFactor))) * animScale
 
-    readonly property real wingW: (Config.surfaceRadius || 18) * animScale
-    readonly property real wingH: (Config.surfaceRadius || 18) * animScale
-    readonly property real radius: Math.max(0.1, (Config.surfaceRadius || 18) * animScale)
+    readonly property real panelRadius: Config.surfaceRadius || 18
+    readonly property real panelWing: Config.surfaceRadius || 18
+    
+    readonly property real effectiveRadius: (peekRadius * (1.0 - openFactor)) + (panelRadius * openFactor)
+    readonly property real effectiveWing: (peekWing * (1.0 - openFactor)) + (panelWing * openFactor)
+
+    readonly property real wingW: effectiveWing * animScale
+    readonly property real wingH: effectiveWing * animScale
+    readonly property real radius: Math.max(0.1, effectiveRadius * animScale)
 
     readonly property real borderWidth: (Config.borderThickness !== undefined && Config.borderThickness !== null) ? Number(Config.borderThickness) : 0.0
     readonly property real halfB: borderWidth / 2.0
@@ -415,10 +428,7 @@ PanelWindow {
             let rawLeft = offset - (span / 2.0)
             let rawRight = offset + (span / 2.0)
 
-            // Snap flush if within safe margin (two wings / corner radius span)
-            if (span >= barSpan - safeMargin) {
-                return barOrigin + ((barSpan - span) / 2.0)
-            }
+            if (span >= barSpan - safeMargin) return barOrigin + ((barSpan - span) / 2.0)
             if (rawLeft <= barOrigin + safeMargin) return barOrigin
             if (rawRight >= barEnd - safeMargin) return barEnd - span
             return Math.max(barOrigin + safeMargin, Math.min(barEnd - safeMargin - span, rawLeft))
@@ -546,6 +556,34 @@ PanelWindow {
         } else {
             root.popoutYOffset = item.mapToItem(mainContainer, 0, item.height / 2).y
         }
+    }
+
+    readonly property real peekSpan: 44
+    readonly property real peekDepth: 4
+    readonly property real peekRadius: 2
+    readonly property real peekWing: 2
+    readonly property real peekTipRadius: 48
+
+    function updatePeekPos() {
+        if (!peekTargetItem) return
+        root.isCentered = false
+        if (isHorizontal) {
+            root.popoutXOffset = peekTargetItem.mapToItem(mainContainer, peekTargetItem.width / 2, 0).x
+        } else {
+            root.popoutYOffset = peekTargetItem.mapToItem(mainContainer, 0, peekTargetItem.height / 2).y
+        }
+    }
+
+    function startPeek(item) {
+        if (!item || root.isOpen) return
+        root.peekTargetItem = item
+        updatePeekPos()
+        root.isPeeking = true
+    }
+
+    function stopPeek() {
+        root.isPeeking = false
+        root.peekTargetItem = null
     }
 
     function closeOthers(except) {
@@ -707,18 +745,43 @@ PanelWindow {
         }
 
         states: [
-            State { name: "open"; when: root.isOpen; PropertyChanges { target: root; progress: 1.0 } },
-            State { name: "closed"; when: !root.isOpen; PropertyChanges { target: root; progress: 0.0 } }
+            State { 
+                name: "open"
+                when: root.isOpen
+                PropertyChanges { target: root; progress: 1.0 } 
+            },
+            State {
+                name: "peeking"
+                when: root.isPeeking && !root.isOpen
+                PropertyChanges { target: root; progress: 1.0 }
+            },
+            State { 
+                name: "closed"
+                when: !root.isOpen && !root.isPeeking
+                PropertyChanges { target: root; progress: 0.0 } 
+            }
         ]
 
         transitions: [
             Transition {
                 from: "closed"; to: "open"
-                NumberAnimation { target: root; property: "progress"; duration: 500; easing.type: Easing.OutBack; easing.overshoot: 0.7 }
+                NumberAnimation { target: root; property: "progress"; duration: 420; easing.type: Easing.OutBack; easing.overshoot: 0.7 }
             },
             Transition {
                 from: "open"; to: "closed"
                 NumberAnimation { target: root; property: "progress"; duration: 300; easing.type: Easing.InBack; easing.overshoot: 1.6 }
+            },
+            Transition {
+                from: "closed"; to: "peeking"
+                NumberAnimation { target: root; property: "progress"; duration: 160; easing.type: Easing.OutCubic }
+            },
+            Transition {
+                from: "peeking"; to: "closed"
+                NumberAnimation { target: root; property: "progress"; duration: 140; easing.type: Easing.OutCubic }
+            },
+            Transition {
+                from: "peeking"; to: "open"
+                ScriptAction { script: root.isPeeking = false }
             }
         ]
 
@@ -1951,7 +2014,7 @@ PanelWindow {
                 
                 clip: true
                 visible: root.progress > 0.01
-                opacity: (root.isOpen && root.progress >= 0.95) ? 1.0 : 0.0
+                opacity: root.isOpen ? 1.0 : 0.0
                 focus: true
 
                 Behavior on opacity {
