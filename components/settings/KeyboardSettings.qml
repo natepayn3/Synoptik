@@ -345,40 +345,13 @@ Flickable {
                 // OSK ENABLE TOGGLE
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 10
-
-                    Rectangle {
-                        implicitWidth: 20
-                        implicitHeight: 20
-                        radius: 4
-                        color: Config.showOsk ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "✓"
-                            color: Config.bgBase
-                            visible: Config.showOsk
-                            font.pixelSize: 12
-                            font.bold: true
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                Config.showOsk = !Config.showOsk
-                                if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                else if (typeof Config.save === "function") Config.save()
-                            }
-                        }
-                    }
+                    spacing: 12
 
                     ColumnLayout {
                         Layout.fillWidth: true
+                        Layout.preferredWidth: 1
                         Layout.minimumWidth: 0
-                        spacing: 1
+                        spacing: 2
 
                         Text {
                             Layout.fillWidth: true
@@ -395,8 +368,32 @@ Flickable {
                             text: "Show the virtual touch-friendly keyboard overlay for touchscreens and quick input."
                             color: Config.textMuted
                             font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontMicro)
+                            font.pixelSize: Config.size(Config.fontCaption)
                             wrapMode: Text.WordWrap
+                        }
+                    }
+
+                    Rectangle {
+                        implicitWidth: 44; implicitHeight: 24; radius: 12
+                        color: (Config.showOsk !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: (Config.showOsk !== false) ? 22 : 2
+                            implicitWidth: 20; implicitHeight: 20; radius: 10
+                            color: (Config.showOsk !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
+                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                Config.showOsk = (Config.showOsk === false)
+                                if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                else if (typeof Config.save === "function") Config.save()
+                            }
                         }
                     }
                 }

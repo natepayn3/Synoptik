@@ -187,110 +187,129 @@ Flickable {
                     }
                 }
 
-                // Automatic Slideshow Bar
-                Rectangle {
+                // Automatic Slideshow Toggle
+                RowLayout {
                     Layout.fillWidth: true
-                    implicitHeight: 46
-                    radius: Config.cornerRadius / 2
-                    color: Qt.rgba(0, 0, 0, 0.3)
-                    border.width: 1
-                    border.color: Qt.rgba(255, 255, 255, 0.08)
+                    spacing: 12
 
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 12; anchors.rightMargin: 12
-                        spacing: 10
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
+                        spacing: 2
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Automatic Wallpaper Slideshow"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
+                            font.bold: true
+                            wrapMode: Text.WordWrap
+                        }
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Cycles randomly through your wallpaper library on a timed interval"
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+
+                    Rectangle {
+                        implicitWidth: 44; implicitHeight: 24; radius: 12
+                        color: (Config.slideshowActive !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                        Behavior on color { ColorAnimation { duration: 150 } }
 
                         Rectangle {
-                            implicitWidth: 18; implicitHeight: 18; radius: 4
-                            color: Config.slideshowActive ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: (Config.slideshowActive !== false) ? 22 : 2
+                            implicitWidth: 20; implicitHeight: 20; radius: 10
+                            color: (Config.slideshowActive !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
+                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                        }
 
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                Config.slideshowActive = (Config.slideshowActive === false)
+                                if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                else if (typeof Config.save === "function") Config.save()
+                            }
+                        }
+                    }
+                }
+
+                // Slideshow Interval Stepper
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+                    opacity: Config.slideshowActive ? 1.0 : 0.4
+
+                    Text {
+                        text: "Change every"
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontCaption)
+                    }
+
+                    Item { Layout.fillWidth: true }
+
+                    RowLayout {
+                        spacing: 4
+
+                        Rectangle {
+                            implicitWidth: 26; implicitHeight: 26; radius: 13
+                            color: Qt.rgba(255, 255, 255, 0.08)
+                            border.width: 1
+                            border.color: Qt.rgba(255, 255, 255, 0.1)
                             Text {
                                 anchors.centerIn: parent
-                                text: "✓"
-                                color: Config.bgBase
-                                visible: Config.slideshowActive
-                                font.pixelSize: 11
-                                font.bold: true
+                                text: "remove"
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 14
+                                color: Config.textMain
                             }
-
-                            TapHandler { onTapped: Config.slideshowActive = !Config.slideshowActive }
+                            TapHandler {
+                                onTapped: if (Config.slideshowMinutes > 1) Config.slideshowMinutes--
+                            }
                             HoverHandler { cursorShape: Qt.PointingHandCursor }
                         }
 
-                        ColumnLayout {
-                            spacing: 0
+                        Rectangle {
+                            implicitWidth: 44; implicitHeight: 26; radius: 6
+                            color: Qt.rgba(0, 0, 0, 0.4)
+                            border.width: 1
+                            border.color: Config.accent
                             Text {
-                                text: "Automatic Wallpaper Slideshow"
-                                color: Config.slideshowActive ? Config.textMain : Config.textMuted
+                                anchors.centerIn: parent
+                                text: Config.slideshowMinutes + "m"
+                                color: Config.accent
                                 font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontCaption)
-                                font.bold: Config.slideshowActive
-                            }
-                            Text {
-                                text: "Cycles randomly through your wallpaper library"
-                                color: Config.textMuted
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontMicro)
+                                font.pixelSize: 11
+                                font.bold: true
                             }
                         }
 
-                        Item { Layout.fillWidth: true }
-
-                        RowLayout {
-                            spacing: 4
-                            opacity: Config.slideshowActive ? 1.0 : 0.4
-
-                            Rectangle {
-                                implicitWidth: 26; implicitHeight: 26; radius: 13
-                                color: Qt.rgba(255, 255, 255, 0.08)
-                                border.width: 1
-                                border.color: Qt.rgba(255, 255, 255, 0.1)
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "remove"
-                                    font.family: "Material Symbols Outlined"
-                                    font.pixelSize: 14
-                                    color: Config.textMain
-                                }
-                                TapHandler {
-                                    onTapped: if (Config.slideshowMinutes > 1) Config.slideshowMinutes--
-                                }
-                                HoverHandler { cursorShape: Qt.PointingHandCursor }
+                        Rectangle {
+                            implicitWidth: 26; implicitHeight: 26; radius: 13
+                            color: Qt.rgba(255, 255, 255, 0.08)
+                            border.width: 1
+                            border.color: Qt.rgba(255, 255, 255, 0.1)
+                            Text {
+                                anchors.centerIn: parent
+                                text: "add"
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 14
+                                color: Config.textMain
                             }
-
-                            Rectangle {
-                                implicitWidth: 44; implicitHeight: 26; radius: 6
-                                color: Qt.rgba(0, 0, 0, 0.4)
-                                border.width: 1
-                                border.color: Config.accent
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: Config.slideshowMinutes + "m"
-                                    color: Config.accent
-                                    font.family: Config.sysFont
-                                    font.pixelSize: 11
-                                    font.bold: true
-                                }
+                            TapHandler {
+                                onTapped: Config.slideshowMinutes++
                             }
-
-                            Rectangle {
-                                implicitWidth: 26; implicitHeight: 26; radius: 13
-                                color: Qt.rgba(255, 255, 255, 0.08)
-                                border.width: 1
-                                border.color: Qt.rgba(255, 255, 255, 0.1)
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "add"
-                                    font.family: "Material Symbols Outlined"
-                                    font.pixelSize: 14
-                                    color: Config.textMain
-                                }
-                                TapHandler {
-                                    onTapped: Config.slideshowMinutes++
-                                }
-                                HoverHandler { cursorShape: Qt.PointingHandCursor }
-                            }
+                            HoverHandler { cursorShape: Qt.PointingHandCursor }
                         }
                     }
                 }
@@ -670,7 +689,7 @@ Flickable {
                 spacing: 12
 
                 Text {
-                    text: "WAYLAND TRANSITIONS"
+                    text: "TRANSITIONS"
                     color: Config.textMain
                     font.family: Config.sysFont
                     font.pixelSize: Config.size(Config.fontBody)

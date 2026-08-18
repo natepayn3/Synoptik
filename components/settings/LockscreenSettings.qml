@@ -724,108 +724,115 @@ Flickable {
                     }
                 }
 
-                // TIME DISPLAY CHECKBOXES (SECONDS & AM/PM)
+                // TIME DISPLAY TOGGLES (SECONDS & AM/PM)
+                // SHOW SECONDS
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 24
+                    spacing: 12
 
-                    // SHOW SECONDS
-                    RowLayout {
-                        spacing: 8
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
+                        spacing: 2
 
-                        Rectangle {
-                            implicitWidth: 18
-                            implicitHeight: 18
-                            radius: 4
-                            color: (Config.lockscreenShowSeconds === true) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: "✓"
-                                color: Config.bgBase
-                                visible: Config.lockscreenShowSeconds === true
-                                font.pixelSize: 11
-                                font.bold: true
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    Config.lockscreenShowSeconds = !Config.lockscreenShowSeconds
-                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                    else if (typeof Config.save === "function") Config.save()
-                                }
-                            }
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Show Seconds"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
+                            font.bold: true
+                            wrapMode: Text.WordWrap
                         }
 
                         Text {
-                            text: "Show Seconds (10:42:30)"
-                            color: Config.textMain
+                            Layout.fillWidth: true
+                            text: "Display seconds in the clock (e.g. 10:42:30)."
+                            color: Config.textMuted
                             font.family: Config.sysFont
                             font.pixelSize: Config.size(Config.fontCaption)
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    Config.lockscreenShowSeconds = !Config.lockscreenShowSeconds
-                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                    else if (typeof Config.save === "function") Config.save()
-                                }
-                            }
+                            wrapMode: Text.WordWrap
                         }
                     }
 
-                    // SHOW AM/PM BADGE
-                    RowLayout {
-                        spacing: 8
-                        visible: Config.lockscreenUse12Hour !== false
+                    Rectangle {
+                        implicitWidth: 44; implicitHeight: 24; radius: 12
+                        color: (Config.lockscreenShowSeconds !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                        Behavior on color { ColorAnimation { duration: 150 } }
 
                         Rectangle {
-                            implicitWidth: 18
-                            implicitHeight: 18
-                            radius: 4
-                            color: (Config.lockscreenShowAmPm !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: "✓"
-                                color: Config.bgBase
-                                visible: Config.lockscreenShowAmPm !== false
-                                font.pixelSize: 11
-                                font.bold: true
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    Config.lockscreenShowAmPm = (Config.lockscreenShowAmPm === false)
-                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                    else if (typeof Config.save === "function") Config.save()
-                                }
-                            }
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: (Config.lockscreenShowSeconds !== false) ? 22 : 2
+                            implicitWidth: 20; implicitHeight: 20; radius: 10
+                            color: (Config.lockscreenShowSeconds !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
+                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
                         }
 
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                Config.lockscreenShowSeconds = (Config.lockscreenShowSeconds === false)
+                                if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                else if (typeof Config.save === "function") Config.save()
+                            }
+                        }
+                    }
+                }
+
+                // SHOW AM/PM BADGE
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 12
+                    visible: Config.lockscreenUse12Hour !== false
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
+                        spacing: 2
+
                         Text {
+                            Layout.fillWidth: true
                             text: "Show AM/PM Badge"
                             color: Config.textMain
                             font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
+                            font.pixelSize: Config.size(Config.fontBody)
+                            font.bold: true
+                            wrapMode: Text.WordWrap
+                        }
 
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    Config.lockscreenShowAmPm = (Config.lockscreenShowAmPm === false)
-                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                    else if (typeof Config.save === "function") Config.save()
-                                }
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Display the AM/PM indicator alongside the 12-hour clock."
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+
+                    Rectangle {
+                        implicitWidth: 44; implicitHeight: 24; radius: 12
+                        color: (Config.lockscreenShowAmPm !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: (Config.lockscreenShowAmPm !== false) ? 22 : 2
+                            implicitWidth: 20; implicitHeight: 20; radius: 10
+                            color: (Config.lockscreenShowAmPm !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
+                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                Config.lockscreenShowAmPm = (Config.lockscreenShowAmPm === false)
+                                if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                else if (typeof Config.save === "function") Config.save()
                             }
                         }
                     }
@@ -960,40 +967,13 @@ Flickable {
                 // TOGGLE 1: MEDIA CONTROLLER
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 10
-
-                    Rectangle {
-                        implicitWidth: 20
-                        implicitHeight: 20
-                        radius: 4
-                        color: (Config.lockscreenShowMedia !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "✓"
-                            color: Config.bgBase
-                            visible: Config.lockscreenShowMedia !== false
-                            font.pixelSize: 12
-                            font.bold: true
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                Config.lockscreenShowMedia = (Config.lockscreenShowMedia === false)
-                                if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                else if (typeof Config.save === "function") Config.save()
-                            }
-                        }
-                    }
+                    spacing: 12
 
                     ColumnLayout {
                         Layout.fillWidth: true
+                        Layout.preferredWidth: 1
                         Layout.minimumWidth: 0
-                        spacing: 1
+                        spacing: 2
 
                         Text {
                             Layout.fillWidth: true
@@ -1010,8 +990,32 @@ Flickable {
                             text: "Display currently playing track metadata and playback controls on the lock screen."
                             color: Config.textMuted
                             font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontMicro)
+                            font.pixelSize: Config.size(Config.fontCaption)
                             wrapMode: Text.WordWrap
+                        }
+                    }
+
+                    Rectangle {
+                        implicitWidth: 44; implicitHeight: 24; radius: 12
+                        color: (Config.lockscreenShowMedia !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: (Config.lockscreenShowMedia !== false) ? 22 : 2
+                            implicitWidth: 20; implicitHeight: 20; radius: 10
+                            color: (Config.lockscreenShowMedia !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
+                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                Config.lockscreenShowMedia = (Config.lockscreenShowMedia === false)
+                                if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                else if (typeof Config.save === "function") Config.save()
+                            }
                         }
                     }
                 }
@@ -1019,40 +1023,13 @@ Flickable {
                 // TOGGLE 2: POWER CONTROLS
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 10
-
-                    Rectangle {
-                        implicitWidth: 20
-                        implicitHeight: 20
-                        radius: 4
-                        color: (Config.lockscreenShowPower !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "✓"
-                            color: Config.bgBase
-                            visible: Config.lockscreenShowPower !== false
-                            font.pixelSize: 12
-                            font.bold: true
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                        }
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                Config.lockscreenShowPower = (Config.lockscreenShowPower === false)
-                                if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                else if (typeof Config.save === "function") Config.save()
-                            }
-                        }
-                    }
+                    spacing: 12
 
                     ColumnLayout {
                         Layout.fillWidth: true
+                        Layout.preferredWidth: 1
                         Layout.minimumWidth: 0
-                        spacing: 1
+                        spacing: 2
 
                         Text {
                             Layout.fillWidth: true
@@ -1069,8 +1046,32 @@ Flickable {
                             text: "Allow suspending, rebooting, and powering off the system directly from the lock surface."
                             color: Config.textMuted
                             font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontMicro)
+                            font.pixelSize: Config.size(Config.fontCaption)
                             wrapMode: Text.WordWrap
+                        }
+                    }
+
+                    Rectangle {
+                        implicitWidth: 44; implicitHeight: 24; radius: 12
+                        color: (Config.lockscreenShowPower !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: (Config.lockscreenShowPower !== false) ? 22 : 2
+                            implicitWidth: 20; implicitHeight: 20; radius: 10
+                            color: (Config.lockscreenShowPower !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
+                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                Config.lockscreenShowPower = (Config.lockscreenShowPower === false)
+                                if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                else if (typeof Config.save === "function") Config.save()
+                            }
                         }
                     }
                 }

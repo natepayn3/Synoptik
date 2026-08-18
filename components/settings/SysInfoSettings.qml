@@ -66,19 +66,43 @@ Flickable {
                     Layout.fillWidth: true
                     spacing: 12
 
-                    Rectangle {
-                        implicitWidth: 20; implicitHeight: 20; radius: 4
-                        color: (Config.showDesktopSysInfo !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
+                        spacing: 2
 
                         Text {
-                            anchors.centerIn: parent
-                            text: "✓"
-                            color: Config.bgBase
-                            visible: Config.showDesktopSysInfo !== false
-                            font.pixelSize: 12
+                            Layout.fillWidth: true
+                            text: "Enable Desktop System Info Overlay"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
                             font.bold: true
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
+                            wrapMode: Text.WordWrap
+                        }
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Renders live system telemetry, hardware specifications, and resource bars directly onto your desktop."
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+
+                    Rectangle {
+                        implicitWidth: 44; implicitHeight: 24; radius: 12
+                        color: (Config.showDesktopSysInfo !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: (Config.showDesktopSysInfo !== false) ? 22 : 2
+                            implicitWidth: 20; implicitHeight: 20; radius: 10
+                            color: (Config.showDesktopSysInfo !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
+                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
                         }
 
                         MouseArea {
@@ -89,26 +113,6 @@ Flickable {
                                 if (typeof Config.saveConfig === "function") Config.saveConfig()
                                 else if (typeof Config.save === "function") Config.save()
                             }
-                        }
-                    }
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 1
-
-                        Text {
-                            text: "Enable Desktop System Info Overlay"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
-                            font.bold: true
-                        }
-
-                        Text {
-                            text: "Renders live system telemetry, hardware specifications, and resource bars directly onto your desktop."
-                            color: Config.textMuted
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontMicro)
                         }
                     }
                 }
@@ -267,23 +271,51 @@ Flickable {
 
                     delegate: RowLayout {
                         Layout.fillWidth: true
-                        spacing: 10
+                        spacing: 12
 
                         readonly property bool isChecked: Config[modelData.key] !== undefined ? Config[modelData.key] : modelData.def
 
-                        Rectangle {
-                            implicitWidth: 20; implicitHeight: 20; radius: 4
-                            color: parent.isChecked ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 1
+                            Layout.minimumWidth: 0
+                            spacing: 2
+
+                            RowLayout {
+                                spacing: 6
+                                Text { text: modelData.icon; font.family: "Material Symbols Outlined"; font.pixelSize: 15; color: Config.accent }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: modelData.label
+                                    color: Config.textMain
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontBody)
+                                    font.bold: true
+                                    wrapMode: Text.WordWrap
+                                }
+                            }
 
                             Text {
-                                anchors.centerIn: parent
-                                text: "✓"
-                                color: Config.bgBase
-                                visible: parent.parent.isChecked
-                                font.pixelSize: 12
-                                font.bold: true
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
+                                Layout.fillWidth: true
+                                text: modelData.desc
+                                color: Config.textMuted
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontCaption)
+                                wrapMode: Text.WordWrap
+                            }
+                        }
+
+                        Rectangle {
+                            implicitWidth: 44; implicitHeight: 24; radius: 12
+                            color: parent.isChecked ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                            Behavior on color { ColorAnimation { duration: 150 } }
+
+                            Rectangle {
+                                anchors.verticalCenter: parent.verticalCenter
+                                x: parent.parent.isChecked ? 22 : 2
+                                implicitWidth: 20; implicitHeight: 20; radius: 10
+                                color: parent.parent.isChecked ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
+                                Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
                             }
 
                             MouseArea {
@@ -295,18 +327,6 @@ Flickable {
                                     else if (typeof Config.save === "function") Config.save()
                                 }
                             }
-                        }
-
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 1
-
-                            RowLayout {
-                                spacing: 6
-                                Text { text: modelData.icon; font.family: "Material Symbols Outlined"; font.pixelSize: 15; color: Config.accent }
-                                Text { text: modelData.label; color: Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); font.bold: true }
-                            }
-                            Text { text: modelData.desc; color: Config.textMuted; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) }
                         }
                     }
                 }
@@ -349,23 +369,51 @@ Flickable {
 
                     delegate: RowLayout {
                         Layout.fillWidth: true
-                        spacing: 10
+                        spacing: 12
 
                         readonly property bool isChecked: Config[modelData.key] !== undefined ? Config[modelData.key] : modelData.def
 
-                        Rectangle {
-                            implicitWidth: 20; implicitHeight: 20; radius: 4
-                            color: parent.isChecked ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 1
+                            Layout.minimumWidth: 0
+                            spacing: 2
+
+                            RowLayout {
+                                spacing: 6
+                                Text { text: modelData.icon; font.family: "Material Symbols Outlined"; font.pixelSize: 15; color: Config.accent }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: modelData.label
+                                    color: Config.textMain
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontBody)
+                                    font.bold: true
+                                    wrapMode: Text.WordWrap
+                                }
+                            }
 
                             Text {
-                                anchors.centerIn: parent
-                                text: "✓"
-                                color: Config.bgBase
-                                visible: parent.parent.isChecked
-                                font.pixelSize: 12
-                                font.bold: true
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
+                                Layout.fillWidth: true
+                                text: modelData.desc
+                                color: Config.textMuted
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontCaption)
+                                wrapMode: Text.WordWrap
+                            }
+                        }
+
+                        Rectangle {
+                            implicitWidth: 44; implicitHeight: 24; radius: 12
+                            color: parent.isChecked ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                            Behavior on color { ColorAnimation { duration: 150 } }
+
+                            Rectangle {
+                                anchors.verticalCenter: parent.verticalCenter
+                                x: parent.parent.isChecked ? 22 : 2
+                                implicitWidth: 20; implicitHeight: 20; radius: 10
+                                color: parent.parent.isChecked ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
+                                Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
                             }
 
                             MouseArea {
@@ -377,18 +425,6 @@ Flickable {
                                     else if (typeof Config.save === "function") Config.save()
                                 }
                             }
-                        }
-
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 1
-
-                            RowLayout {
-                                spacing: 6
-                                Text { text: modelData.icon; font.family: "Material Symbols Outlined"; font.pixelSize: 15; color: Config.accent }
-                                Text { text: modelData.label; color: Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); font.bold: true }
-                            }
-                            Text { text: modelData.desc; color: Config.textMuted; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) }
                         }
                     }
                 }
@@ -429,23 +465,51 @@ Flickable {
 
                     delegate: RowLayout {
                         Layout.fillWidth: true
-                        spacing: 10
+                        spacing: 12
 
                         readonly property bool isChecked: Config[modelData.key] !== undefined ? Config[modelData.key] : modelData.def
 
-                        Rectangle {
-                            implicitWidth: 20; implicitHeight: 20; radius: 4
-                            color: parent.isChecked ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 1
+                            Layout.minimumWidth: 0
+                            spacing: 2
+
+                            RowLayout {
+                                spacing: 6
+                                Text { text: modelData.icon; font.family: "Material Symbols Outlined"; font.pixelSize: 15; color: Config.accent }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: modelData.label
+                                    color: Config.textMain
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontBody)
+                                    font.bold: true
+                                    wrapMode: Text.WordWrap
+                                }
+                            }
 
                             Text {
-                                anchors.centerIn: parent
-                                text: "✓"
-                                color: Config.bgBase
-                                visible: parent.parent.isChecked
-                                font.pixelSize: 12
-                                font.bold: true
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
+                                Layout.fillWidth: true
+                                text: modelData.desc
+                                color: Config.textMuted
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontCaption)
+                                wrapMode: Text.WordWrap
+                            }
+                        }
+
+                        Rectangle {
+                            implicitWidth: 44; implicitHeight: 24; radius: 12
+                            color: parent.isChecked ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                            Behavior on color { ColorAnimation { duration: 150 } }
+
+                            Rectangle {
+                                anchors.verticalCenter: parent.verticalCenter
+                                x: parent.parent.isChecked ? 22 : 2
+                                implicitWidth: 20; implicitHeight: 20; radius: 10
+                                color: parent.parent.isChecked ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
+                                Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
                             }
 
                             MouseArea {
@@ -457,18 +521,6 @@ Flickable {
                                     else if (typeof Config.save === "function") Config.save()
                                 }
                             }
-                        }
-
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 1
-
-                            RowLayout {
-                                spacing: 6
-                                Text { text: modelData.icon; font.family: "Material Symbols Outlined"; font.pixelSize: 15; color: Config.accent }
-                                Text { text: modelData.label; color: Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); font.bold: true }
-                            }
-                            Text { text: modelData.desc; color: Config.textMuted; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) }
                         }
                     }
                 }
@@ -510,23 +562,51 @@ Flickable {
 
                     delegate: RowLayout {
                         Layout.fillWidth: true
-                        spacing: 10
+                        spacing: 12
 
                         readonly property bool isChecked: Config[modelData.key] !== undefined ? Config[modelData.key] : modelData.def
 
-                        Rectangle {
-                            implicitWidth: 20; implicitHeight: 20; radius: 4
-                            color: parent.isChecked ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 1
+                            Layout.minimumWidth: 0
+                            spacing: 2
+
+                            RowLayout {
+                                spacing: 6
+                                Text { text: modelData.icon; font.family: "Material Symbols Outlined"; font.pixelSize: 15; color: Config.accent }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: modelData.label
+                                    color: Config.textMain
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontBody)
+                                    font.bold: true
+                                    wrapMode: Text.WordWrap
+                                }
+                            }
 
                             Text {
-                                anchors.centerIn: parent
-                                text: "✓"
-                                color: Config.bgBase
-                                visible: parent.parent.isChecked
-                                font.pixelSize: 12
-                                font.bold: true
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
+                                Layout.fillWidth: true
+                                text: modelData.desc
+                                color: Config.textMuted
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontCaption)
+                                wrapMode: Text.WordWrap
+                            }
+                        }
+
+                        Rectangle {
+                            implicitWidth: 44; implicitHeight: 24; radius: 12
+                            color: parent.isChecked ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                            Behavior on color { ColorAnimation { duration: 150 } }
+
+                            Rectangle {
+                                anchors.verticalCenter: parent.verticalCenter
+                                x: parent.parent.isChecked ? 22 : 2
+                                implicitWidth: 20; implicitHeight: 20; radius: 10
+                                color: parent.parent.isChecked ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
+                                Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
                             }
 
                             MouseArea {
@@ -538,18 +618,6 @@ Flickable {
                                     else if (typeof Config.save === "function") Config.save()
                                 }
                             }
-                        }
-
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            spacing: 1
-
-                            RowLayout {
-                                spacing: 6
-                                Text { text: modelData.icon; font.family: "Material Symbols Outlined"; font.pixelSize: 15; color: Config.accent }
-                                Text { text: modelData.label; color: Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption); font.bold: true }
-                            }
-                            Text { text: modelData.desc; color: Config.textMuted; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro) }
                         }
                     }
                 }
@@ -581,75 +649,114 @@ Flickable {
                     font.bold: true
                 }
 
+                // Card Background Toggle
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 24
+                    spacing: 12
 
-                    // Card Background Toggle
-                    RowLayout {
-                        spacing: 8
-                        Rectangle {
-                            implicitWidth: 18; implicitHeight: 18; radius: 4
-                            color: (Config.sysInfoShowBg !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
+                        spacing: 2
 
-                            Text {
-                                anchors.centerIn: parent
-                                text: "✓"
-                                color: Config.bgBase
-                                visible: Config.sysInfoShowBg !== false
-                                font.pixelSize: 11
-                                font.bold: true
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    Config.sysInfoShowBg = (Config.sysInfoShowBg === false)
-                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                    else if (typeof Config.save === "function") Config.save()
-                                }
-                            }
-                        }
                         Text {
+                            Layout.fillWidth: true
                             text: "Show Card Background"
                             color: Config.textMain
                             font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
+                            font.bold: true
+                            wrapMode: Text.WordWrap
+                        }
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Renders a semi-transparent background panel behind the system info widget."
+                            color: Config.textMuted
+                            font.family: Config.sysFont
                             font.pixelSize: Config.size(Config.fontCaption)
+                            wrapMode: Text.WordWrap
                         }
                     }
 
-                    // Accent Glow Toggle
-                    RowLayout {
-                        spacing: 8
+                    Rectangle {
+                        implicitWidth: 44; implicitHeight: 24; radius: 12
+                        color: (Config.sysInfoShowBg !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
                         Rectangle {
-                            implicitWidth: 18; implicitHeight: 18; radius: 4
-                            color: (Config.sysInfoShowGlow !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: (Config.sysInfoShowBg !== false) ? 22 : 2
+                            implicitWidth: 20; implicitHeight: 20; radius: 10
+                            color: (Config.sysInfoShowBg !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
+                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                        }
 
-                            Text {
-                                anchors.centerIn: parent
-                                text: "✓"
-                                color: Config.bgBase
-                                visible: Config.sysInfoShowGlow !== false
-                                font.pixelSize: 11
-                                font.bold: true
-                            }
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    Config.sysInfoShowGlow = (Config.sysInfoShowGlow === false)
-                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                    else if (typeof Config.save === "function") Config.save()
-                                }
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                Config.sysInfoShowBg = (Config.sysInfoShowBg === false)
+                                if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                else if (typeof Config.save === "function") Config.save()
                             }
                         }
+                    }
+                }
+
+                // Accent Glow Toggle
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 12
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
+                        spacing: 2
+
                         Text {
+                            Layout.fillWidth: true
                             text: "Show Accent Glow"
                             color: Config.textMain
                             font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
+                            font.bold: true
+                            wrapMode: Text.WordWrap
+                        }
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Applies a colored glow effect using the current accent color to the host header badge."
+                            color: Config.textMuted
+                            font.family: Config.sysFont
                             font.pixelSize: Config.size(Config.fontCaption)
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+
+                    Rectangle {
+                        implicitWidth: 44; implicitHeight: 24; radius: 12
+                        color: (Config.sysInfoShowGlow !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: (Config.sysInfoShowGlow !== false) ? 22 : 2
+                            implicitWidth: 20; implicitHeight: 20; radius: 10
+                            color: (Config.sysInfoShowGlow !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
+                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                Config.sysInfoShowGlow = (Config.sysInfoShowGlow === false)
+                                if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                else if (typeof Config.save === "function") Config.save()
+                            }
                         }
                     }
                 }

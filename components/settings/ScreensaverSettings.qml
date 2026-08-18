@@ -520,36 +520,59 @@ Flickable {
                     }
                 }
 
-                // CORNER HIT COUNTER CHECKBOX
+                // CORNER HIT COUNTER TOGGLE
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 8
+                    spacing: 12
 
-                    Rectangle {
-                        implicitWidth: 18; implicitHeight: 18; radius: 4
-                        color: Config.screensaverCornerCounter !== false ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
+                        spacing: 2
 
                         Text {
-                            anchors.centerIn: parent
-                            text: "✓"
-                            color: Config.bgBase
-                            visible: Config.screensaverCornerCounter !== false
-                            font.pixelSize: 11
+                            Layout.fillWidth: true
+                            text: "Corner Hit Counter & Flash Effect"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
                             font.bold: true
+                            wrapMode: Text.WordWrap
                         }
 
-                        TapHandler { onTapped: Config.screensaverCornerCounter = (Config.screensaverCornerCounter === false) }
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Display a running corner-hit count and trigger a flash animation each time the logo bounces into a corner."
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            wrapMode: Text.WordWrap
+                        }
                     }
 
-                    Text {
-                        text: "Show Corner Hit Counter & Flash Effect"
-                        color: Config.textMain
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontCaption)
+                    Rectangle {
+                        implicitWidth: 44; implicitHeight: 24; radius: 12
+                        color: Config.screensaverCornerCounter !== false ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                        Behavior on color { ColorAnimation { duration: 150 } }
 
-                        TapHandler { onTapped: Config.screensaverCornerCounter = (Config.screensaverCornerCounter === false) }
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: Config.screensaverCornerCounter !== false ? 22 : 2
+                            implicitWidth: 20; implicitHeight: 20; radius: 10
+                            color: Config.screensaverCornerCounter !== false ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
+                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                Config.screensaverCornerCounter = (Config.screensaverCornerCounter === false)
+                                if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                else if (typeof Config.save === "function") Config.save()
+                            }
+                        }
                     }
                 }
             }

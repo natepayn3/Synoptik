@@ -74,71 +74,115 @@ Item {
                 font.bold: true
             }
 
-            // CHECKBOX: ENABLE DESKTOP MASCOT
+            // TOGGLE: ENABLE DESKTOP MASCOT
             RowLayout {
-                spacing: 8
+                Layout.fillWidth: true
+                spacing: 12
 
-                Rectangle {
-                    implicitWidth: 18
-                    implicitHeight: 18
-                    radius: 4
-                    color: Config.showMascot ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 1
+                    Layout.minimumWidth: 0
+                    spacing: 2
 
                     Text {
-                        anchors.centerIn: parent
-                        text: "✓"
-                        color: Config.bgBase
-                        visible: Config.showMascot
-                        font.pixelSize: 11
+                        Layout.fillWidth: true
+                        text: "Enable Desktop Mascot"
+                        color: Config.textMain
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontBody)
                         font.bold: true
+                        wrapMode: Text.WordWrap
                     }
 
-                    TapHandler { onTapped: Config.showMascot = !Config.showMascot }
-                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    Text {
+                        Layout.fillWidth: true
+                        text: "Show the animated mascot on your desktop"
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontCaption)
+                        wrapMode: Text.WordWrap
+                    }
                 }
 
-                Text {
-                    text: "Enable Desktop Mascot"
-                    color: Config.textMain
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontCaption)
+                Rectangle {
+                    implicitWidth: 44; implicitHeight: 24; radius: 12
+                    color: (Config.showMascot !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                    Behavior on color { ColorAnimation { duration: 150 } }
 
-                    TapHandler { onTapped: Config.showMascot = !Config.showMascot }
-                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        x: (Config.showMascot !== false) ? 22 : 2
+                        implicitWidth: 20; implicitHeight: 20; radius: 10
+                        color: (Config.showMascot !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
+                        Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            Config.showMascot = (Config.showMascot === false)
+                            if (typeof Config.saveConfig === "function") Config.saveConfig()
+                            else if (typeof Config.save === "function") Config.save()
+                        }
+                    }
                 }
             }
 
-            // CHECKBOX: AUTO-FETCH ONLINE QUOTES
+            // TOGGLE: AUTO-FETCH ONLINE QUOTES
             RowLayout {
-                spacing: 8
+                Layout.fillWidth: true
+                spacing: 12
 
-                Rectangle {
-                    implicitWidth: 18
-                    implicitHeight: 18
-                    radius: 4
-                    color: Config.fetchOnlineQuotes ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 1
+                    Layout.minimumWidth: 0
+                    spacing: 2
 
                     Text {
-                        anchors.centerIn: parent
-                        text: "✓"
-                        color: Config.bgBase
-                        visible: Config.fetchOnlineQuotes
-                        font.pixelSize: 11
+                        Layout.fillWidth: true
+                        text: "Auto-Fetch Online Quotes"
+                        color: Config.textMain
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontBody)
                         font.bold: true
+                        wrapMode: Text.WordWrap
                     }
 
-                    TapHandler { onTapped: Config.fetchOnlineQuotes = !Config.fetchOnlineQuotes }
-                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    Text {
+                        Layout.fillWidth: true
+                        text: "Periodically retrieve quotes from online providers"
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontCaption)
+                        wrapMode: Text.WordWrap
+                    }
                 }
 
-                Text {
-                    text: "Auto-Fetch Online Quotes"
-                    color: Config.textMain
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontCaption)
+                Rectangle {
+                    implicitWidth: 44; implicitHeight: 24; radius: 12
+                    color: (Config.fetchOnlineQuotes !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                    Behavior on color { ColorAnimation { duration: 150 } }
 
-                    TapHandler { onTapped: Config.fetchOnlineQuotes = !Config.fetchOnlineQuotes }
-                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        x: (Config.fetchOnlineQuotes !== false) ? 22 : 2
+                        implicitWidth: 20; implicitHeight: 20; radius: 10
+                        color: (Config.fetchOnlineQuotes !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
+                        Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            Config.fetchOnlineQuotes = (Config.fetchOnlineQuotes === false)
+                            if (typeof Config.saveConfig === "function") Config.saveConfig()
+                            else if (typeof Config.save === "function") Config.save()
+                        }
+                    }
                 }
             }
 

@@ -24,35 +24,59 @@ Item {
                 font.bold: true
             }
 
-            // CHECKBOX: ENABLE WIDGET
+            // TOGGLE: ENABLE WIDGET
             RowLayout {
-                spacing: 8
+                Layout.fillWidth: true
+                spacing: 12
 
-                Rectangle {
-                    implicitWidth: 18; implicitHeight: 18; radius: 4
-                    color: Config.showDesktopClock ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 1
+                    Layout.minimumWidth: 0
+                    spacing: 2
 
                     Text {
-                        anchors.centerIn: parent
-                        text: "✓"
-                        color: Config.bgBase
-                        visible: Config.showDesktopClock
-                        font.pixelSize: 11
+                        Layout.fillWidth: true
+                        text: "Enable Desktop Clock Widget"
+                        color: Config.textMain
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontBody)
                         font.bold: true
+                        wrapMode: Text.WordWrap
                     }
 
-                    TapHandler { onTapped: Config.showDesktopClock = !Config.showDesktopClock }
-                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    Text {
+                        Layout.fillWidth: true
+                        text: "Show the desktop clock overlay on your displays"
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontCaption)
+                        wrapMode: Text.WordWrap
+                    }
                 }
 
-                Text {
-                    text: "Enable Desktop Clock Widget"
-                    color: Config.textMain
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontCaption)
+                Rectangle {
+                    implicitWidth: 44; implicitHeight: 24; radius: 12
+                    color: (Config.showDesktopClock !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                    Behavior on color { ColorAnimation { duration: 150 } }
 
-                    TapHandler { onTapped: Config.showDesktopClock = !Config.showDesktopClock }
-                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    Rectangle {
+                        anchors.verticalCenter: parent.verticalCenter
+                        x: (Config.showDesktopClock !== false) ? 22 : 2
+                        implicitWidth: 20; implicitHeight: 20; radius: 10
+                        color: (Config.showDesktopClock !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
+                        Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            Config.showDesktopClock = (Config.showDesktopClock === false)
+                            if (typeof Config.saveConfig === "function") Config.saveConfig()
+                            else if (typeof Config.save === "function") Config.save()
+                        }
+                    }
                 }
             }
 
@@ -181,128 +205,338 @@ Item {
 
                 // TOGGLE BORDER
                 RowLayout {
-                    spacing: 8
-                    Rectangle {
-                        implicitWidth: 18; implicitHeight: 18; radius: 4
-                        color: Config.clockShowBorder ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                    Layout.fillWidth: true
+                    spacing: 12
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
+                        spacing: 2
+
                         Text {
-                            anchors.centerIn: parent; text: "✓"; color: Config.bgBase
-                            visible: Config.clockShowBorder; font.pixelSize: 11; font.bold: true
+                            Layout.fillWidth: true
+                            text: "Show Border"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
+                            font.bold: true
+                            wrapMode: Text.WordWrap
                         }
-                        TapHandler { onTapped: Config.clockShowBorder = !Config.clockShowBorder }
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Draw a decorative border around the clock widget"
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            wrapMode: Text.WordWrap
+                        }
                     }
-                    Text {
-                        text: "Show Border"
-                        color: Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption)
-                        TapHandler { onTapped: Config.clockShowBorder = !Config.clockShowBorder }
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+
+                    Rectangle {
+                        implicitWidth: 44; implicitHeight: 24; radius: 12
+                        color: (Config.clockShowBorder !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: (Config.clockShowBorder !== false) ? 22 : 2
+                            implicitWidth: 20; implicitHeight: 20; radius: 10
+                            color: (Config.clockShowBorder !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
+                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                Config.clockShowBorder = (Config.clockShowBorder === false)
+                                if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                else if (typeof Config.save === "function") Config.save()
+                            }
+                        }
                     }
                 }
 
                 // TOGGLE BACKGROUND
                 RowLayout {
-                    spacing: 8
-                    Rectangle {
-                        implicitWidth: 18; implicitHeight: 18; radius: 4
-                        color: Config.clockShowBackground ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                    Layout.fillWidth: true
+                    spacing: 12
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
+                        spacing: 2
+
                         Text {
-                            anchors.centerIn: parent; text: "✓"; color: Config.bgBase
-                            visible: Config.clockShowBackground; font.pixelSize: 11; font.bold: true
+                            Layout.fillWidth: true
+                            text: "Show Background"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
+                            font.bold: true
+                            wrapMode: Text.WordWrap
                         }
-                        TapHandler { onTapped: Config.clockShowBackground = !Config.clockShowBackground }
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Display a background panel behind the clock"
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            wrapMode: Text.WordWrap
+                        }
                     }
-                    Text {
-                        text: "Show Background"
-                        color: Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption)
-                        TapHandler { onTapped: Config.clockShowBackground = !Config.clockShowBackground }
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+
+                    Rectangle {
+                        implicitWidth: 44; implicitHeight: 24; radius: 12
+                        color: (Config.clockShowBackground !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: (Config.clockShowBackground !== false) ? 22 : 2
+                            implicitWidth: 20; implicitHeight: 20; radius: 10
+                            color: (Config.clockShowBackground !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
+                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                Config.clockShowBackground = (Config.clockShowBackground === false)
+                                if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                else if (typeof Config.save === "function") Config.save()
+                            }
+                        }
                     }
                 }
 
                 // TOGGLE GLOW EFFECT
                 RowLayout {
-                    spacing: 8
-                    Rectangle {
-                        implicitWidth: 18; implicitHeight: 18; radius: 4
-                        color: Config.clockShowGlow ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                    Layout.fillWidth: true
+                    spacing: 12
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
+                        spacing: 2
+
                         Text {
-                            anchors.centerIn: parent; text: "✓"; color: Config.bgBase
-                            visible: Config.clockShowGlow; font.pixelSize: 11; font.bold: true
+                            Layout.fillWidth: true
+                            text: "Glow Effect"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
+                            font.bold: true
+                            wrapMode: Text.WordWrap
                         }
-                        TapHandler { onTapped: Config.clockShowGlow = !Config.clockShowGlow }
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Apply a soft glow effect to the clock display"
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            wrapMode: Text.WordWrap
+                        }
                     }
-                    Text {
-                        text: "Glow Effect"
-                        color: Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption)
-                        TapHandler { onTapped: Config.clockShowGlow = !Config.clockShowGlow }
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+
+                    Rectangle {
+                        implicitWidth: 44; implicitHeight: 24; radius: 12
+                        color: (Config.clockShowGlow !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: (Config.clockShowGlow !== false) ? 22 : 2
+                            implicitWidth: 20; implicitHeight: 20; radius: 10
+                            color: (Config.clockShowGlow !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
+                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                Config.clockShowGlow = (Config.clockShowGlow === false)
+                                if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                else if (typeof Config.save === "function") Config.save()
+                            }
+                        }
                     }
                 }
 
                 // TOGGLE SECONDS
                 RowLayout {
-                    spacing: 8
-                    Rectangle {
-                        implicitWidth: 18; implicitHeight: 18; radius: 4
-                        color: Config.clockShowSeconds ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                    Layout.fillWidth: true
+                    spacing: 12
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
+                        spacing: 2
+
                         Text {
-                            anchors.centerIn: parent; text: "✓"; color: Config.bgBase
-                            visible: Config.clockShowSeconds; font.pixelSize: 11; font.bold: true
+                            Layout.fillWidth: true
+                            text: "Show Seconds"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
+                            font.bold: true
+                            wrapMode: Text.WordWrap
                         }
-                        TapHandler { onTapped: Config.clockShowSeconds = !Config.clockShowSeconds }
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Include seconds in the clock time display"
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            wrapMode: Text.WordWrap
+                        }
                     }
-                    Text {
-                        text: "Show Seconds"
-                        color: Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption)
-                        TapHandler { onTapped: Config.clockShowSeconds = !Config.clockShowSeconds }
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+
+                    Rectangle {
+                        implicitWidth: 44; implicitHeight: 24; radius: 12
+                        color: (Config.clockShowSeconds !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: (Config.clockShowSeconds !== false) ? 22 : 2
+                            implicitWidth: 20; implicitHeight: 20; radius: 10
+                            color: (Config.clockShowSeconds !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
+                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                Config.clockShowSeconds = (Config.clockShowSeconds === false)
+                                if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                else if (typeof Config.save === "function") Config.save()
+                            }
+                        }
                     }
                 }
 
                 // TOGGLE 12-HOUR FORMAT
                 RowLayout {
-                    spacing: 8
-                    Rectangle {
-                        implicitWidth: 18; implicitHeight: 18; radius: 4
-                        color: Config.clockUse12Hour ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                    Layout.fillWidth: true
+                    spacing: 12
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
+                        spacing: 2
+
                         Text {
-                            anchors.centerIn: parent; text: "✓"; color: Config.bgBase
-                            visible: Config.clockUse12Hour; font.pixelSize: 11; font.bold: true
+                            Layout.fillWidth: true
+                            text: "Use 12-Hour Format"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
+                            font.bold: true
+                            wrapMode: Text.WordWrap
                         }
-                        TapHandler { onTapped: Config.clockUse12Hour = !Config.clockUse12Hour }
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Display time in 12-hour instead of 24-hour format"
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            wrapMode: Text.WordWrap
+                        }
                     }
-                    Text {
-                        text: "Use 12-Hour Format"
-                        color: Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption)
-                        TapHandler { onTapped: Config.clockUse12Hour = !Config.clockUse12Hour }
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+
+                    Rectangle {
+                        implicitWidth: 44; implicitHeight: 24; radius: 12
+                        color: (Config.clockUse12Hour !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: (Config.clockUse12Hour !== false) ? 22 : 2
+                            implicitWidth: 20; implicitHeight: 20; radius: 10
+                            color: (Config.clockUse12Hour !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
+                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                Config.clockUse12Hour = (Config.clockUse12Hour === false)
+                                if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                else if (typeof Config.save === "function") Config.save()
+                            }
+                        }
                     }
                 }
 
                 // TOGGLE AM/PM (DIGITAL & 12-HOUR ONLY)
                 RowLayout {
-                    spacing: 8
+                    Layout.fillWidth: true
+                    spacing: 12
                     visible: Config.clockUse12Hour && Config.clockStyle === "digital"
-                    Rectangle {
-                        implicitWidth: 18; implicitHeight: 18; radius: 4
-                        color: Config.clockShowAmPm ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
+                        spacing: 2
+
                         Text {
-                            anchors.centerIn: parent; text: "✓"; color: Config.bgBase
-                            visible: Config.clockShowAmPm; font.pixelSize: 11; font.bold: true
+                            Layout.fillWidth: true
+                            text: "Show AM/PM"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
+                            font.bold: true
+                            wrapMode: Text.WordWrap
                         }
-                        TapHandler { onTapped: Config.clockShowAmPm = !Config.clockShowAmPm }
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Show the AM/PM indicator next to the time (digital 12-hour mode only)"
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            wrapMode: Text.WordWrap
+                        }
                     }
-                    Text {
-                        text: "Show AM/PM"
-                        color: Config.textMain; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontCaption)
-                        TapHandler { onTapped: Config.clockShowAmPm = !Config.clockShowAmPm }
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+
+                    Rectangle {
+                        implicitWidth: 44; implicitHeight: 24; radius: 12
+                        color: (Config.clockShowAmPm !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            x: (Config.clockShowAmPm !== false) ? 22 : 2
+                            implicitWidth: 20; implicitHeight: 20; radius: 10
+                            color: (Config.clockShowAmPm !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
+                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                Config.clockShowAmPm = (Config.clockShowAmPm === false)
+                                if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                else if (typeof Config.save === "function") Config.save()
+                            }
+                        }
                     }
                 }
             }
