@@ -21,7 +21,7 @@ Rectangle {
         return null
     }
 
-    readonly property real maxAllowedWidth: parent ? Math.max(100, parent.width - 260) : 1920
+    readonly property real maxAllowedWidth: parent ? Math.max(100, parent.width - 320) : 1920
     readonly property real maxAllowedHeight: parent ? Math.max(100, parent.height - 260) : 1080
 
     readonly property real contentTargetWidth: Math.min(leftModules.implicitWidth + 8, maxAllowedWidth)
@@ -61,8 +61,8 @@ Rectangle {
         }
     ]
 
-    anchors.leftMargin: rootRef.isHorizontal ? 10 : 0
-    anchors.topMargin: !rootRef.isHorizontal ? 10 : 0
+    anchors.leftMargin: rootRef.isHorizontal ? 30 : 0
+    anchors.topMargin: !rootRef.isHorizontal ? 30 : 0
 
     property bool iconsFullyExpanded: false
 

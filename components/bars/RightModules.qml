@@ -26,7 +26,7 @@ Rectangle {
     }
 
     width: (rootRef && rootRef.isHorizontal) 
-        ? Math.min(centerContentLayout.implicitWidth + 8, (rootRef.width || 1920) - 100) 
+        ? Math.min(centerContentLayout.implicitWidth + 8, (rootRef.width || 1920) - 160) // Adjusted from 100 to 160
         : Math.max(36, centerContentLayout.implicitWidth + 4)
 
     height: (rootRef && rootRef.isHorizontal) 
@@ -65,8 +65,8 @@ Rectangle {
         }
     ]
 
-    anchors.rightMargin: (rootRef && rootRef.isHorizontal) ? 10 : 0
-    anchors.bottomMargin: (rootRef && !rootRef.isHorizontal) ? 10 : 0
+    anchors.rightMargin: (rootRef && rootRef.isHorizontal) ? 30 : 0
+    anchors.bottomMargin: (rootRef && !rootRef.isHorizontal) ? 30 : 0
 
     Loader {
         id: centerContentLayout
