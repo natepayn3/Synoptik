@@ -25,19 +25,22 @@ PanelWindow {
     Behavior on peekProgress { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
 
     readonly property real peekSpan: 44
-    readonly property real peekDepth: 4
-    readonly property real peekRadius: 2
-    readonly property real peekWing: 2
+    readonly property real peekDepth: 5          // Protrusion depth (4px to 5px keeps it tight)
+    readonly property real peekRadius: 3.5       // Corner roundness at the outer tip
+    readonly property real peekWing: 2           // Tamed flare (prevents bracket/horn effect)
     readonly property real peekTipRadius: 48
 
     readonly property real pkSpan: {
         if (!peekTargetItem) return peekSpan
-        let span = isHorizontal ? (peekTargetItem.width || peekTargetItem.implicitWidth || 32) : (peekTargetItem.height || peekTargetItem.implicitHeight || 32)
-        return (span || 32) + 12
+        let span = isHorizontal 
+            ? (peekTargetItem.width || peekTargetItem.implicitWidth || 32) 
+            : (peekTargetItem.height || peekTargetItem.implicitHeight || 32)
+        return (span || 32) + 8                  // Reduced span padding from +12 to +8 for tighter fit
     }
-    readonly property real pkDepth: 4 * (peekProgress || 0)
-    readonly property real pkWing: 2 * (peekProgress || 0)
-    readonly property real pkRad: Math.max(0.1, 3 * (peekProgress || 0))
+
+    readonly property real pkDepth: peekDepth * (peekProgress || 0)
+    readonly property real pkWing: peekWing * (peekProgress || 0)
+    readonly property real pkRad: Math.max(0.1, peekRadius * (peekProgress || 0))
 
     readonly property real pkCenter: (isHorizontal ? (popoutXOffset || 0) : (popoutYOffset || 0)) || 0
     readonly property real pkLeft: {
@@ -1972,6 +1975,7 @@ PanelWindow {
                 ActiveWindowCard {
                     id: activeWindowCard
                     rootRef: root
+                    onPopoutRequested: item => root.setPopoutPos(item)
 
                     readonly property real startBound: leftCard 
                         ? (root.isHorizontal ? (leftCard.x + leftCard.width) : (leftCard.y + leftCard.height)) 
