@@ -35,8 +35,8 @@ PanelWindow {
         let span = isHorizontal ? (peekTargetItem.width || peekTargetItem.implicitWidth || 32) : (peekTargetItem.height || peekTargetItem.implicitHeight || 32)
         return (span || 32) + 12
     }
-    readonly property real pkDepth: 6 * (peekProgress || 0)
-    readonly property real pkWing: 4 * (peekProgress || 0)
+    readonly property real pkDepth: 4 * (peekProgress || 0)
+    readonly property real pkWing: 2 * (peekProgress || 0)
     readonly property real pkRad: Math.max(0.1, 3 * (peekProgress || 0))
 
     readonly property real pkCenter: (isHorizontal ? (popoutXOffset || 0) : (popoutYOffset || 0)) || 0
