@@ -578,12 +578,18 @@ QtObject {
 
     function updateKeybind(action, mod, key) {
         let current = Object.assign({}, keybinds)
-        if (current[action]) {
-            current[action] = { mod: mod, key: key, cmd: current[action].cmd }
-            keybinds = current
-            syncHyprlandBorders()
-            saveSettings()
+        let defaultCmd = defaultKeybinds[action] ? defaultKeybinds[action].cmd : ""
+        let existingCmd = current[action] ? current[action].cmd : defaultCmd
+
+        current[action] = { 
+            mod: mod, 
+            key: key, 
+            cmd: existingCmd 
         }
+        
+        keybinds = current
+        syncHyprlandBorders()
+        saveSettings()
     }
 
     function resetKeybinds() {
