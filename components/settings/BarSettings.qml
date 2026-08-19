@@ -652,6 +652,57 @@ Flickable {
                         }
                     }
 
+                    // Hover Peek Tabs Toggle Row
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: peekRow.implicitHeight + 16
+                        radius: Config.cornerRadius / 2
+                        color: peekHover.containsMouse ? Qt.rgba(255, 255, 255, 0.06) : Qt.rgba(255, 255, 255, 0.03)
+                        border.width: 1
+                        border.color: Qt.rgba(255, 255, 255, 0.08)
+
+                        RowLayout {
+                            id: peekRow
+                            anchors.fill: parent
+                            anchors.margins: 12
+                            spacing: 12
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 2
+
+                                Text {
+                                    text: "Hover Peek Tabs"
+                                    color: Config.textMain
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontBody)
+                                    font.bold: true
+                                }
+
+                                Text {
+                                    text: "Extend rounded protrusion tabs when hovering over active bar modules."
+                                    color: Config.textMuted
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontCaption)
+                                    wrapMode: Text.WordWrap
+                                    Layout.fillWidth: true
+                                }
+                            }
+
+                            ToggleSwitch {
+                                checked: Config.enableHoverPeek
+                            }
+                        }
+
+                        MouseArea {
+                            id: peekHover
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: Config.enableHoverPeek = !Config.enableHoverPeek
+                        }
+                    }
+
                     // Auto-hide Status Bar Toggle Row
                     Rectangle {
                         Layout.fillWidth: true
