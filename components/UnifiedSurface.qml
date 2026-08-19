@@ -26,7 +26,7 @@ PanelWindow {
 
     readonly property real peekSpan: 50      // Increased default length
     readonly property real peekDepth: 6      // Depth extending into the screen
-    readonly property real peekRadius: 6     // Increased for much rounder corners
+    readonly property real peekRadius: 4     // Increased for much rounder corners
     readonly property real peekWing: 2
 
     readonly property real pkSpan: {
@@ -74,7 +74,7 @@ PanelWindow {
                 ? (peekTargetItem.width || peekTargetItem.implicitWidth || 32) 
                 : (peekTargetItem.height || peekTargetItem.implicitHeight || 32)
         }
-        return (span || 32) + 28
+        return (span || 32) + 20
     }
 
     function startPeek(item) {
