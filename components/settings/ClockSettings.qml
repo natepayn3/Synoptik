@@ -6,6 +6,44 @@ import ".."
 Item {
     id: root
 
+    // Reusable Geometric / Square Toggle Switch Component
+    component ToggleSwitch : Rectangle {
+        id: sw
+        property bool checked: false
+        
+        implicitWidth: 40
+        implicitHeight: 22
+        radius: 6
+        color: checked ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(0, 0, 0, 0.4)
+        border.width: sw.checked ? 2 : 1
+        border.color: checked ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
+
+        Behavior on color { ColorAnimation { duration: 140 } }
+        Behavior on border.color { ColorAnimation { duration: 140 } }
+
+        // Square Thumb / Slider
+        Rectangle {
+            id: thumb
+            x: sw.checked ? (sw.width - width - 3) : 3
+            anchors.verticalCenter: parent.verticalCenter
+            width: 16
+            height: 16
+            radius: 4
+            color: sw.checked ? Config.accent : Qt.rgba(255, 255, 255, 0.2)
+            border.width: 0
+            border.color: sw.checked ? Qt.lighter(Config.accent, 1.2) : Qt.rgba(255, 255, 255, 0.25)
+
+            Behavior on x { 
+                NumberAnimation { 
+                    duration: 160
+                    easing.type: Easing.OutCubic 
+                } 
+            }
+            Behavior on color { ColorAnimation { duration: 140 } }
+            Behavior on border.color { ColorAnimation { duration: 140 } }
+        }
+    }
+
     RowLayout {
         anchors.fill: parent
         spacing: 20
@@ -55,18 +93,8 @@ Item {
                     }
                 }
 
-                Rectangle {
-                    implicitWidth: 44; implicitHeight: 24; radius: 12
-                    color: (Config.showDesktopClock !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                    Behavior on color { ColorAnimation { duration: 150 } }
-
-                    Rectangle {
-                        anchors.verticalCenter: parent.verticalCenter
-                        x: (Config.showDesktopClock !== false) ? 22 : 2
-                        implicitWidth: 20; implicitHeight: 20; radius: 10
-                        color: (Config.showDesktopClock !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
-                        Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-                    }
+                ToggleSwitch {
+                    checked: Config.showDesktopClock !== false
 
                     MouseArea {
                         anchors.fill: parent
@@ -234,18 +262,8 @@ Item {
                         }
                     }
 
-                    Rectangle {
-                        implicitWidth: 44; implicitHeight: 24; radius: 12
-                        color: (Config.clockShowBorder !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                        Behavior on color { ColorAnimation { duration: 150 } }
-
-                        Rectangle {
-                            anchors.verticalCenter: parent.verticalCenter
-                            x: (Config.clockShowBorder !== false) ? 22 : 2
-                            implicitWidth: 20; implicitHeight: 20; radius: 10
-                            color: (Config.clockShowBorder !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
-                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-                        }
+                    ToggleSwitch {
+                        checked: Config.clockShowBorder !== false
 
                         MouseArea {
                             anchors.fill: parent
@@ -290,18 +308,8 @@ Item {
                         }
                     }
 
-                    Rectangle {
-                        implicitWidth: 44; implicitHeight: 24; radius: 12
-                        color: (Config.clockShowBackground !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                        Behavior on color { ColorAnimation { duration: 150 } }
-
-                        Rectangle {
-                            anchors.verticalCenter: parent.verticalCenter
-                            x: (Config.clockShowBackground !== false) ? 22 : 2
-                            implicitWidth: 20; implicitHeight: 20; radius: 10
-                            color: (Config.clockShowBackground !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
-                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-                        }
+                    ToggleSwitch {
+                        checked: Config.clockShowBackground !== false
 
                         MouseArea {
                             anchors.fill: parent
@@ -346,18 +354,8 @@ Item {
                         }
                     }
 
-                    Rectangle {
-                        implicitWidth: 44; implicitHeight: 24; radius: 12
-                        color: (Config.clockShowGlow !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                        Behavior on color { ColorAnimation { duration: 150 } }
-
-                        Rectangle {
-                            anchors.verticalCenter: parent.verticalCenter
-                            x: (Config.clockShowGlow !== false) ? 22 : 2
-                            implicitWidth: 20; implicitHeight: 20; radius: 10
-                            color: (Config.clockShowGlow !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
-                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-                        }
+                    ToggleSwitch {
+                        checked: Config.clockShowGlow !== false
 
                         MouseArea {
                             anchors.fill: parent
@@ -402,18 +400,8 @@ Item {
                         }
                     }
 
-                    Rectangle {
-                        implicitWidth: 44; implicitHeight: 24; radius: 12
-                        color: (Config.clockShowSeconds !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                        Behavior on color { ColorAnimation { duration: 150 } }
-
-                        Rectangle {
-                            anchors.verticalCenter: parent.verticalCenter
-                            x: (Config.clockShowSeconds !== false) ? 22 : 2
-                            implicitWidth: 20; implicitHeight: 20; radius: 10
-                            color: (Config.clockShowSeconds !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
-                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-                        }
+                    ToggleSwitch {
+                        checked: Config.clockShowSeconds !== false
 
                         MouseArea {
                             anchors.fill: parent
@@ -458,18 +446,8 @@ Item {
                         }
                     }
 
-                    Rectangle {
-                        implicitWidth: 44; implicitHeight: 24; radius: 12
-                        color: (Config.clockUse12Hour !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                        Behavior on color { ColorAnimation { duration: 150 } }
-
-                        Rectangle {
-                            anchors.verticalCenter: parent.verticalCenter
-                            x: (Config.clockUse12Hour !== false) ? 22 : 2
-                            implicitWidth: 20; implicitHeight: 20; radius: 10
-                            color: (Config.clockUse12Hour !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
-                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-                        }
+                    ToggleSwitch {
+                        checked: Config.clockUse12Hour !== false
 
                         MouseArea {
                             anchors.fill: parent
@@ -515,18 +493,8 @@ Item {
                         }
                     }
 
-                    Rectangle {
-                        implicitWidth: 44; implicitHeight: 24; radius: 12
-                        color: (Config.clockShowAmPm !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                        Behavior on color { ColorAnimation { duration: 150 } }
-
-                        Rectangle {
-                            anchors.verticalCenter: parent.verticalCenter
-                            x: (Config.clockShowAmPm !== false) ? 22 : 2
-                            implicitWidth: 20; implicitHeight: 20; radius: 10
-                            color: (Config.clockShowAmPm !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
-                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-                        }
+                    ToggleSwitch {
+                        checked: Config.clockShowAmPm !== false
 
                         MouseArea {
                             anchors.fill: parent

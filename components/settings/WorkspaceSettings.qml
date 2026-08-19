@@ -21,6 +21,44 @@ Flickable {
 
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
+    // Reusable Geometric / Square Toggle Switch Component
+    component ToggleSwitch : Rectangle {
+        id: sw
+        property bool checked: false
+        
+        implicitWidth: 40
+        implicitHeight: 22
+        radius: 6
+        color: checked ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(0, 0, 0, 0.4)
+        border.width: sw.checked ? 2 : 1
+        border.color: checked ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
+
+        Behavior on color { ColorAnimation { duration: 140 } }
+        Behavior on border.color { ColorAnimation { duration: 140 } }
+
+        // Square Thumb / Slider
+        Rectangle {
+            id: thumb
+            x: sw.checked ? (sw.width - width - 3) : 3
+            anchors.verticalCenter: parent.verticalCenter
+            width: 16
+            height: 16
+            radius: 4
+            color: sw.checked ? Config.accent : Qt.rgba(255, 255, 255, 0.2)
+            border.width: 0
+            border.color: sw.checked ? Qt.lighter(Config.accent, 1.2) : Qt.rgba(255, 255, 255, 0.25)
+
+            Behavior on x { 
+                NumberAnimation { 
+                    duration: 160
+                    easing.type: Easing.OutCubic 
+                } 
+            }
+            Behavior on color { ColorAnimation { duration: 140 } }
+            Behavior on border.color { ColorAnimation { duration: 140 } }
+        }
+    }
+
     // Interactive Preview State
     property int previewActiveWs: 2
     property bool previewOverviewActive: false
@@ -624,18 +662,8 @@ Flickable {
                         }
                     }
 
-                    Rectangle {
-                        implicitWidth: 44; implicitHeight: 24; radius: 12
-                        color: (Config.workspaceGlow !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                        Behavior on color { ColorAnimation { duration: 150 } }
-
-                        Rectangle {
-                            anchors.verticalCenter: parent.verticalCenter
-                            x: (Config.workspaceGlow !== false) ? 22 : 2
-                            implicitWidth: 20; implicitHeight: 20; radius: 10
-                            color: (Config.workspaceGlow !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
-                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-                        }
+                    ToggleSwitch {
+                        checked: Config.workspaceGlow !== false
 
                         MouseArea {
                             anchors.fill: parent
@@ -676,18 +704,8 @@ Flickable {
                         }
                     }
 
-                    Rectangle {
-                        implicitWidth: 44; implicitHeight: 24; radius: 12
-                        color: (Config.workspaceScroll !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                        Behavior on color { ColorAnimation { duration: 150 } }
-
-                        Rectangle {
-                            anchors.verticalCenter: parent.verticalCenter
-                            x: (Config.workspaceScroll !== false) ? 22 : 2
-                            implicitWidth: 20; implicitHeight: 20; radius: 10
-                            color: (Config.workspaceScroll !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
-                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-                        }
+                    ToggleSwitch {
+                        checked: Config.workspaceScroll !== false
 
                         MouseArea {
                             anchors.fill: parent
@@ -728,18 +746,8 @@ Flickable {
                         }
                     }
 
-                    Rectangle {
-                        implicitWidth: 44; implicitHeight: 24; radius: 12
-                        color: (Config.workspaceTooltips !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                        Behavior on color { ColorAnimation { duration: 150 } }
-
-                        Rectangle {
-                            anchors.verticalCenter: parent.verticalCenter
-                            x: (Config.workspaceTooltips !== false) ? 22 : 2
-                            implicitWidth: 20; implicitHeight: 20; radius: 10
-                            color: (Config.workspaceTooltips !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
-                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-                        }
+                    ToggleSwitch {
+                        checked: Config.workspaceTooltips !== false
 
                         MouseArea {
                             anchors.fill: parent
@@ -807,18 +815,8 @@ Flickable {
                         }
                     }
 
-                    Rectangle {
-                        implicitWidth: 44; implicitHeight: 24; radius: 12
-                        color: (Config.workspaceShowAddBtn !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                        Behavior on color { ColorAnimation { duration: 150 } }
-
-                        Rectangle {
-                            anchors.verticalCenter: parent.verticalCenter
-                            x: (Config.workspaceShowAddBtn !== false) ? 22 : 2
-                            implicitWidth: 20; implicitHeight: 20; radius: 10
-                            color: (Config.workspaceShowAddBtn !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
-                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-                        }
+                    ToggleSwitch {
+                        checked: Config.workspaceShowAddBtn !== false
 
                         MouseArea {
                             anchors.fill: parent
@@ -859,18 +857,8 @@ Flickable {
                         }
                     }
 
-                    Rectangle {
-                        implicitWidth: 44; implicitHeight: 24; radius: 12
-                        color: (Config.workspaceShowOverviewBtn !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                        Behavior on color { ColorAnimation { duration: 150 } }
-
-                        Rectangle {
-                            anchors.verticalCenter: parent.verticalCenter
-                            x: (Config.workspaceShowOverviewBtn !== false) ? 22 : 2
-                            implicitWidth: 20; implicitHeight: 20; radius: 10
-                            color: (Config.workspaceShowOverviewBtn !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
-                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-                        }
+                    ToggleSwitch {
+                        checked: Config.workspaceShowOverviewBtn !== false
 
                         MouseArea {
                             anchors.fill: parent
@@ -911,18 +899,8 @@ Flickable {
                         }
                     }
 
-                    Rectangle {
-                        implicitWidth: 44; implicitHeight: 24; radius: 12
-                        color: (Config.workspaceShowSpecial !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                        Behavior on color { ColorAnimation { duration: 150 } }
-
-                        Rectangle {
-                            anchors.verticalCenter: parent.verticalCenter
-                            x: (Config.workspaceShowSpecial !== false) ? 22 : 2
-                            implicitWidth: 20; implicitHeight: 20; radius: 10
-                            color: (Config.workspaceShowSpecial !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
-                            Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-                        }
+                    ToggleSwitch {
+                        checked: Config.workspaceShowSpecial !== false
 
                         MouseArea {
                             anchors.fill: parent

@@ -11,6 +11,44 @@ Item {
     property bool showBrowser: false
     property string currentBrowserPath: "file://" + Quickshell.env("HOME")
 
+    // Reusable Geometric / Square Toggle Switch Component
+    component ToggleSwitch : Rectangle {
+        id: sw
+        property bool checked: false
+        
+        implicitWidth: 40
+        implicitHeight: 22
+        radius: 6
+        color: checked ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(0, 0, 0, 0.4)
+        border.width: sw.checked ? 2 : 1
+        border.color: checked ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
+
+        Behavior on color { ColorAnimation { duration: 140 } }
+        Behavior on border.color { ColorAnimation { duration: 140 } }
+
+        // Square Thumb / Slider
+        Rectangle {
+            id: thumb
+            x: sw.checked ? (sw.width - width - 3) : 3
+            anchors.verticalCenter: parent.verticalCenter
+            width: 16
+            height: 16
+            radius: 4
+            color: sw.checked ? Config.accent : Qt.rgba(255, 255, 255, 0.2)
+            border.width: 0
+            border.color: sw.checked ? Qt.lighter(Config.accent, 1.2) : Qt.rgba(255, 255, 255, 0.25)
+
+            Behavior on x { 
+                NumberAnimation { 
+                    duration: 160
+                    easing.type: Easing.OutCubic 
+                } 
+            }
+            Behavior on color { ColorAnimation { duration: 140 } }
+            Behavior on border.color { ColorAnimation { duration: 140 } }
+        }
+    }
+
     function formatFileUrl(path) {
         if (!path) return ""
         if (path.startsWith("file://")) return path
@@ -105,18 +143,8 @@ Item {
                     }
                 }
 
-                Rectangle {
-                    implicitWidth: 44; implicitHeight: 24; radius: 12
-                    color: (Config.showMascot !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                    Behavior on color { ColorAnimation { duration: 150 } }
-
-                    Rectangle {
-                        anchors.verticalCenter: parent.verticalCenter
-                        x: (Config.showMascot !== false) ? 22 : 2
-                        implicitWidth: 20; implicitHeight: 20; radius: 10
-                        color: (Config.showMascot !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
-                        Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-                    }
+                ToggleSwitch {
+                    checked: Config.showMascot !== false
 
                     MouseArea {
                         anchors.fill: parent
@@ -161,18 +189,8 @@ Item {
                     }
                 }
 
-                Rectangle {
-                    implicitWidth: 44; implicitHeight: 24; radius: 12
-                    color: (Config.fetchOnlineQuotes !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                    Behavior on color { ColorAnimation { duration: 150 } }
-
-                    Rectangle {
-                        anchors.verticalCenter: parent.verticalCenter
-                        x: (Config.fetchOnlineQuotes !== false) ? 22 : 2
-                        implicitWidth: 20; implicitHeight: 20; radius: 10
-                        color: (Config.fetchOnlineQuotes !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
-                        Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-                    }
+                ToggleSwitch {
+                    checked: Config.fetchOnlineQuotes !== false
 
                     MouseArea {
                         anchors.fill: parent
@@ -527,7 +545,7 @@ Item {
                                 implicitWidth: 20
                                 implicitHeight: 20
                                 radius: Config.cornerRadius / 4
-                                color: deleteHover.hovered ? Qt.rgba(255, 255, 255, 0.12) : "transparent"
+                                color: deleteHover.hovered ? Qt.rgba(255, 255, 0.12) : "transparent"
                                 Layout.alignment: Qt.AlignVCenter
 
                                 Behavior on color { ColorAnimation { duration: 150 } }
