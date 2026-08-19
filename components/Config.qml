@@ -9,6 +9,23 @@ import "services"
 QtObject {
     id: root
 
+    // --- RETRO SCREEN SHADER STATE & PERSISTENCE ---
+    property bool pixelShaderEnabled: false
+    property real pixelShaderSize: 2.0
+    property real pixelShaderLevels: 32.0
+    property string pixelShaderPalette: "default"
+    property bool pixelShaderDither: true
+    property bool pixelShaderGrid: false
+    property bool pixelShaderBoost: true
+
+    onPixelShaderEnabledChanged: { if (isLoaded) saveSettings() }
+    onPixelShaderSizeChanged: { if (isLoaded) saveSettings() }
+    onPixelShaderLevelsChanged: { if (isLoaded) saveSettings() }
+    onPixelShaderPaletteChanged: { if (isLoaded) saveSettings() }
+    onPixelShaderDitherChanged: { if (isLoaded) saveSettings() }
+    onPixelShaderGridChanged: { if (isLoaded) saveSettings() }
+    onPixelShaderBoostChanged: { if (isLoaded) saveSettings() }
+
     // --- EXTRACTED BACKGROUND SERVICES ---
     property WallpaperService wallpaperService: WallpaperService { configRef: root }
     property QuoteService quoteService: QuoteService { configRef: root }
@@ -1826,6 +1843,13 @@ QtObject {
                 "notificationSoundPath": root.notificationSoundPath,
                 "windowSoundVolume": root.windowSoundVolume,
                 "enableHoverPeek": root.enableHoverPeek,
+                "pixelShaderEnabled": root.pixelShaderEnabled,
+                "pixelShaderSize": root.pixelShaderSize,
+                "pixelShaderLevels": root.pixelShaderLevels,
+                "pixelShaderPalette": root.pixelShaderPalette,
+                "pixelShaderDither": root.pixelShaderDither,
+                "pixelShaderGrid": root.pixelShaderGrid,
+                "pixelShaderBoost": root.pixelShaderBoost,
 
                 "showMirror": root.showMirror,
                 "mirrorShowPanel": root.mirrorShowPanel,
@@ -1962,7 +1986,9 @@ QtObject {
                             "playWindowSounds", "playNotificationSounds", "windowSoundPath", "notificationSoundPath", "windowSoundVolume",
                             "showMirror", "mirrorShowPanel", "mirrorMirrored", "mirrorKeepAspect", "mirrorExpanded", "mirrorPinned", "mirrorAnchorPos",
                             "playerExpanded", "playerPinned",
-                            "playerShowPanel", "playerKeepAspect", "playerX", "playerY", "playerAnchorPos", "enableHoverPeek"
+                            "playerShowPanel", "playerKeepAspect", "playerX", "playerY", "playerAnchorPos", "enableHoverPeek",
+                            "pixelShaderEnabled", "pixelShaderSize", "pixelShaderLevels", 
+                            "pixelShaderPalette", "pixelShaderDither", "pixelShaderGrid", "pixelShaderBoost"
                         ]
 
                         props.forEach(p => {
