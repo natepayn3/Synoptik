@@ -1687,6 +1687,9 @@ QtObject {
         let borderSize = root.borderThickness
         let gapsOut = (barFrameStyle === "screen") ? 32 : 20
         let roundingVal = Math.round(surfaceRadius)
+        let shaderPath = root.pixelShaderEnabled 
+            ? (Quickshell.env("HOME") + "/.config/hypr/shaders/pixelate.frag") 
+            : ""
 
         // Generates uniform literal binds with SUPER
         let bindLines = []
@@ -1722,7 +1725,8 @@ QtObject {
             "        }\n" +
             "    },\n" +
             "    decoration = {\n" +
-            "        rounding = " + roundingVal + "\n" +
+            "        rounding = " + roundingVal + ",\n" +
+            "        screen_shader = \"" + shaderPath + "\"\n" +
             "    }\n" +
             "})\n\n" +
             "hl.layer_rule({\n" +
