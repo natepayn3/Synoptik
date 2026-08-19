@@ -652,7 +652,7 @@ Flickable {
                         }
                     }
 
-                    // Hover Peek Tabs Toggle Row
+                    // Peek Panels Toggle Row
                     Rectangle {
                         Layout.fillWidth: true
                         implicitHeight: peekRow.implicitHeight + 16
@@ -672,7 +672,7 @@ Flickable {
                                 spacing: 2
 
                                 Text {
-                                    text: "Hover Peek Tabs"
+                                    text: "Peek Panels"
                                     color: Config.textMain
                                     font.family: Config.sysFont
                                     font.pixelSize: Config.size(Config.fontBody)
