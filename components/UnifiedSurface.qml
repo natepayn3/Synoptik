@@ -205,48 +205,50 @@ PanelWindow {
     readonly property real inH: actualScreenHeight - padT - padB
     readonly property real inRadi: Math.max(0.1, frameRadius)
 
+    // --- Dynamic Child Measurement Engine ---
     readonly property real rawChildWidth: {
-        let baseW = 340
-        if (root.activeView === "osd") {
-            baseW = volumeOsdModule.implicitWidth
-        } else if (root.activeView === "notifOsd") {
-            baseW = notifOsdModule.implicitWidth
-        } else if (root.activeView === "taskOverflow") {
-            baseW = taskOverflowModule.implicitWidth
-        } else {
-            for (let i = 0; i < contentContainer.children.length; i++) {
-                let child = contentContainer.children[i]
-                if (child.objectName !== "internalOsd" && child.objectName !== "internalNotifOsd" && child.objectName !== "internalTaskOverflow") {
-                    if (child.item && child.item.implicitWidth > 0) baseW = child.item.implicitWidth
-                    else if (child.implicitWidth > 0) baseW = child.implicitWidth
-                    break
-                }
+        if (root.activeView === "osd") return volumeOsdModule.implicitWidth
+        if (root.activeView === "notifOsd") return notifOsdModule.implicitWidth
+        if (root.activeView === "taskOverflow") return taskOverflowModule.implicitWidth
+
+        // 1. Check currently active/visible module item
+        for (let i = 0; i < contentContainer.children.length; i++) {
+            let child = contentContainer.children[i]
+            if (child.objectName === "internalOsd" || child.objectName === "internalNotifOsd" || child.objectName === "internalTaskOverflow") continue
+            
+            let target = child.item ? child.item : child
+            if (target && target.visible !== false && target.implicitWidth > 0) {
+                return target.implicitWidth
             }
         }
-        return baseW
+
+        // 2. Direct view dimension fallbacks
+        if (root.activeView === "calendar") return 680
+        if (root.activeView === "settings") return 620
+        if (root.activeView === "systemMonitor") return 540
+        return 340
     }
 
     readonly property real rawChildHeight: {
-        let baseH = 480
-        if (root.activeView === "osd") {
-            baseH = volumeOsdModule.implicitHeight
-        } else if (root.activeView === "notifOsd") {
-            baseH = notifOsdModule.implicitHeight
-        } else if (root.activeView === "taskOverflow") {
-            baseH = taskOverflowModule.implicitHeight
-        } else {
-            for (let i = 0; i < contentContainer.children.length; i++) {
-                let child = contentContainer.children[i]
-                if (child.objectName !== "internalOsd" && child.objectName !== "internalNotifOsd" && child.objectName !== "internalTaskOverflow") {
-                    if (child.item && child.item.implicitHeight > 0) baseH = child.item.implicitHeight
-                    else if (child.implicitHeight > 0) baseH = child.implicitHeight
-                    break
-                }
+        if (root.activeView === "osd") return volumeOsdModule.implicitHeight
+        if (root.activeView === "notifOsd") return notifOsdModule.implicitHeight
+        if (root.activeView === "taskOverflow") return taskOverflowModule.implicitHeight
+
+        for (let i = 0; i < contentContainer.children.length; i++) {
+            let child = contentContainer.children[i]
+            if (child.objectName === "internalOsd" || child.objectName === "internalNotifOsd" || child.objectName === "internalTaskOverflow") continue
+            
+            let target = child.item ? child.item : child
+            if (target && target.visible !== false && target.implicitHeight > 0) {
+                return target.implicitHeight
             }
         }
-        return baseH
+
+        if (root.activeView === "calendar") return 460
+        return 480
     }
 
+    // Explicit state variables declared in scope
     property real lastOpenWidth: rawChildWidth
     property real lastOpenHeight: rawChildHeight
 
@@ -427,14 +429,16 @@ PanelWindow {
     readonly property bool isFloatingStyle: Config.barFrameStyle === "floating" || isIsland
     readonly property real leftCardTargetWidth: leftCard ? (root.isHorizontal ? (leftCard.contentTargetWidth || leftCard.width) : 36) : 0
     readonly property real leftCardTargetHeight: leftCard ? (!root.isHorizontal ? (leftCard.contentTargetHeight || leftCard.height) : 36) : 0
+    readonly property real rightCardTargetWidth: rightCard ? (root.isHorizontal ? (rightCard.contentTargetWidth || rightCard.width) : 36) : 0
+    readonly property real rightCardTargetHeight: rightCard ? (!root.isHorizontal ? (rightCard.contentTargetHeight || rightCard.height) : 36) : 0
 
     readonly property real islandContentWidth: (root.isHorizontal ? leftCardTargetWidth : (leftCard ? leftCard.width : 0)) 
         + (activeWindowCard && activeWindowCard.visible ? 190 : 0) 
-        + (rightCard ? rightCard.width : 0) 
+        + (root.isHorizontal ? rightCardTargetWidth : (rightCard ? rightCard.width : 0)) 
         + 64
     readonly property real islandTargetWidth: Math.min(
         mainContainer.width - (root.currentMargin * 2),
-        Math.max(200, root.isOpen ? Math.max(islandContentWidth, root.targetWidth) : islandContentWidth)
+        Math.max(200, (root.isOpen && root.isHorizontal) ? Math.max(islandContentWidth, root.targetWidth) : islandContentWidth)
     )
 
     property real animatedIslandWidth: isIsland ? islandTargetWidth : (mainContainer.width - Math.ceil(root.borderWidth))
@@ -477,15 +481,31 @@ PanelWindow {
 
     readonly property real safeCornerMargin: isScreenFrame ? (root.inRadi + root.wingW) : (root.barRadius + root.wingW)
 
-    readonly property bool isLeftFlush: root.isIsland
-        ? (root.isHorizontal ? (pLeft <= (root.islandX + safeCornerMargin)) : (pLeft <= (root.islandY + safeCornerMargin)))
-        : (root.isScreenFrame && !isCentered && !peekActive && ((isHorizontal ? (popoutXOffset - targetWidth / 2.0) : (popoutYOffset - targetHeight / 2.0)) <= minPossibleLeft))
+    readonly property bool isPanelActive: root.isOpen || root.progress > 0.005
 
-    readonly property bool isRightFlush: root.isIsland
-        ? (root.isHorizontal ? (pRight >= (root.islandX + root.animatedIslandWidth - safeCornerMargin)) : (pRight >= (root.islandY + root.animatedIslandHeight - safeCornerMargin)))
-        : (root.isScreenFrame && !isCentered && !peekActive && ((isHorizontal ? (popoutXOffset + targetWidth / 2.0) : (popoutYOffset + targetHeight / 2.0)) >= maxPossibleRight))
+    readonly property bool isLeftFlush: isPanelActive && !peekActive && (root.isIsland
+        ? (root.isHorizontal 
+            ? (staticLeft <= (root.islandX + safeCornerMargin)) 
+            : (staticLeft <= (root.islandY + safeCornerMargin)))
+        : (root.isScreenFrame && !isCentered && (
+            (isHorizontal ? (popoutXOffset - targetWidth / 2.0) : (popoutYOffset - targetHeight / 2.0)) <= minPossibleLeft
+        )))
 
-    readonly property real targetCenteredLeft: Math.max(minPossibleLeft + safeCornerMargin, Math.min(maxPossibleRight - (isHorizontal ? targetWidth : targetHeight) - safeCornerMargin, ((isHorizontal ? mainContainer.width : mainContainer.height) - (isHorizontal ? targetWidth : targetHeight)) / 2.0))
+    readonly property bool isRightFlush: isPanelActive && !peekActive && (root.isIsland
+        ? (root.isHorizontal 
+            ? ((staticLeft + targetWidth) >= (root.islandX + root.animatedIslandWidth - safeCornerMargin)) 
+            : ((staticLeft + targetHeight) >= (root.islandY + root.animatedIslandHeight - safeCornerMargin)))
+        : (root.isScreenFrame && !isCentered && (
+            (isHorizontal ? (popoutXOffset + targetWidth / 2.0) : (popoutYOffset + targetHeight / 2.0)) >= maxPossibleRight
+        )))
+
+    readonly property real targetCenteredLeft: Math.max(
+        minPossibleLeft + safeCornerMargin,
+        Math.min(
+            maxPossibleRight - (isHorizontal ? targetWidth : targetHeight) - safeCornerMargin,
+            ((isHorizontal ? mainContainer.width : mainContainer.height) - (isHorizontal ? targetWidth : targetHeight)) / 2.0
+        )
+    )
 
     readonly property real staticLeft: {
         let span = isHorizontal ? targetWidth : targetHeight
@@ -500,7 +520,6 @@ PanelWindow {
             let rawLeft = offset - (span / 2.0)
             let rawRight = offset + (span / 2.0)
 
-            // When popout spans the full island, snap cleanly to capsule ends
             if (span >= barSpan - safeMargin) {
                 return barOrigin + ((barSpan - span) / 2.0)
             }
@@ -509,9 +528,11 @@ PanelWindow {
             return Math.max(barOrigin + safeMargin, Math.min(barEnd - safeMargin - span, rawLeft))
         }
 
-        if (isLeftFlush) return minPossibleLeft
-        if (isRightFlush) return maxPossibleRight - span
-        return Math.max(minPossibleLeft + safeMargin, Math.min(maxPossibleRight - span - safeMargin, offset - (span / 2.0)))
+        let rawLeft = offset - (span / 2.0)
+        let rawRight = offset + (span / 2.0)
+        if (root.isScreenFrame && !isCentered && rawLeft <= minPossibleLeft) return minPossibleLeft
+        if (root.isScreenFrame && !isCentered && rawRight >= maxPossibleRight) return maxPossibleRight - span
+        return Math.max(minPossibleLeft + safeMargin, Math.min(maxPossibleRight - span - safeMargin, rawLeft))
     }
 
     readonly property real staticRight: staticLeft + (isHorizontal ? targetWidth : targetHeight)
