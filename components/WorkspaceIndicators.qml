@@ -14,8 +14,11 @@ Item {
     signal popoutRequested(var item)
     readonly property var overviewButton: overviewBtn
 
-    implicitWidth: isVertical ? containerBox.implicitWidth : containerBox.implicitWidth
-    implicitHeight: isVertical ? containerBox.implicitHeight : containerBox.implicitHeight
+    // Measure children directly to ensure accurate footprint without layout distortion
+    implicitWidth: isVertical ? 32 : (containerBox.width + 4)
+    implicitHeight: isVertical ? (containerBox.height + 4) : 32
+    width: implicitWidth
+    height: implicitHeight
 
     function parseSpecialPayload(data) {
         if (!data) return "";
@@ -153,14 +156,8 @@ Item {
         id: containerBox
         anchors.horizontalCenter: root.isVertical ? parent.horizontalCenter : undefined
         anchors.verticalCenter: root.isVertical ? undefined : parent.verticalCenter
-        implicitWidth: root.isVertical
-            ? (mainLayout.implicitWidth + (Config.workspaceContainerStyle === "plain" ? 0 : 8))
-            : (mainLayout.implicitWidth + (Config.workspaceContainerStyle === "plain" ? 0 : 16))
-        implicitHeight: root.isVertical
-            ? (mainLayout.implicitHeight + (Config.workspaceContainerStyle === "plain" ? 0 : 16))
-            : 32
-        width: root.isVertical ? Math.min(32, implicitWidth) : implicitWidth
-        height: root.isVertical ? implicitHeight : 32
+        width: root.isVertical ? 32 : (mainLayout.childrenRect.width + (Config.workspaceContainerStyle === "plain" ? 0 : 20))
+        height: root.isVertical ? (mainLayout.childrenRect.height + (Config.workspaceContainerStyle === "plain" ? 0 : 20)) : 32
         radius: (Config.workspaceContainerStyle === "bordered") ? 8 : 10
 
         color: Config.workspaceContainerStyle === "capsule" 
@@ -198,7 +195,6 @@ Item {
                         property string appClass: root.appClassMap[wsId] || ""
                         readonly property string style: Config.workspaceStyle || "pill"
 
-                        // Dynamic Dimensions based on selected style & orientation
                         property int basePillW: {
                             if (root.isVertical) {
                                 if (style === "sliding") return isActive ? 12 : 20
@@ -211,7 +207,7 @@ Item {
                             if (style === "app_icons") return isActive ? (appClass !== "" ? 38 : 28) : 22
                             if (style === "window_pips") return isActive ? 34 : 22
                             if (style === "geometric") return isActive ? 30 : 12
-                            return isActive ? 28 : 10 // classic dynamic pill
+                            return isActive ? 28 : 10
                         }
 
                         property int basePillH: {
@@ -228,17 +224,17 @@ Item {
                             return 10
                         }
 
-                        implicitWidth: root.isVertical ? 28 : basePillW
-                        implicitHeight: root.isVertical ? basePillH : 28
+                        width: root.isVertical ? 28 : basePillW
+                        height: root.isVertical ? basePillH : 28
 
-                        Behavior on implicitWidth { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
-                        Behavior on implicitHeight { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+                        Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+                        Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
 
                         Item {
                             id: pillVisual
                             anchors.centerIn: parent
-                            implicitWidth: pillSlot.basePillW
-                            implicitHeight: pillSlot.basePillH
+                            width: pillSlot.basePillW
+                            height: pillSlot.basePillH
                             scale: pillHover.hovered ? 1.25 : 1.0
 
                             Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
@@ -285,12 +281,10 @@ Item {
                                 Behavior on color { ColorAnimation { duration: 140 } }
                                 Behavior on border.color { ColorAnimation { duration: 140 } }
 
-                                // Internal Badges / Numbers / Pips / Icons
                                 RowLayout {
                                     anchors.centerIn: parent
                                     spacing: 3
 
-                                    // 1. NUMERIC STYLE
                                     Text {
                                         visible: (pillSlot.style === "numeric")
                                         text: pillSlot.wsId
@@ -300,7 +294,6 @@ Item {
                                         color: pillSlot.isActive ? Config.bgBase : Config.textMain
                                     }
 
-                                    // 2. APP ICONS STYLE
                                     IconImage {
                                         visible: (pillSlot.style === "app_icons" && pillSlot.appClass !== "")
                                         source: {
@@ -325,7 +318,6 @@ Item {
                                         color: pillSlot.isActive ? Config.bgBase : Config.textMain
                                     }
 
-                                    // 3. WINDOW DENSITY PIPS
                                     Row {
                                         visible: (pillSlot.style === "window_pips")
                                         spacing: 2
@@ -341,9 +333,7 @@ Item {
                             }
                         }
 
-                        // Hover Tooltip
                         Rectangle {
-                            id: tooltipBox
                             z: 200
                             anchors.bottom: root.isVertical ? undefined : parent.top
                             anchors.bottomMargin: root.isVertical ? undefined : 6
@@ -385,7 +375,6 @@ Item {
                 }
             }
 
-            // Divider between workspaces & action buttons
             Rectangle {
                 implicitWidth: root.isVertical ? 16 : 1
                 implicitHeight: root.isVertical ? 1 : 16
@@ -398,7 +387,6 @@ Item {
                 flow: root.isVertical ? Flow.TopToBottom : Flow.LeftToRight
                 spacing: 4
 
-                // ADD BUTTON
                 Item {
                     implicitWidth: 28; implicitHeight: 28
                     visible: Config.workspaceShowAddBtn !== false
@@ -451,7 +439,6 @@ Item {
                     HoverHandler { id: addHover; cursorShape: Qt.PointingHandCursor }
                 }
 
-                // OVERVIEW BUTTON
                 Item {
                     id: overviewBtn
                     implicitWidth: 28; implicitHeight: 28
@@ -499,7 +486,6 @@ Item {
                     HoverHandler { id: overviewHover; cursorShape: Qt.PointingHandCursor }
                 }
 
-                // SPECIAL WORKSPACES
                 Item {
                     implicitWidth: 28; implicitHeight: 28
                     visible: Config.workspaceShowSpecial !== false && (root.isMagicOccupied || root.isMagicActive)
