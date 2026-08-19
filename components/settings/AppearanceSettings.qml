@@ -387,67 +387,7 @@ Flickable {
 
                 readonly property bool hasBorders: (Config.borderThickness !== undefined ? Config.borderThickness : 3) > 0
 
-                // 1. Auto-Color (Iris) Row
-                Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: 48
-                    radius: Config.cornerRadius / 2
-                    color: Config.enableIris ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : (irisHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
-                    border.width: Config.enableIris ? 1.5 : 1
-                    border.color: Config.enableIris ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
-
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 12; anchors.rightMargin: 12
-                        spacing: 10
-
-                        Rectangle {
-                            implicitWidth: 28; implicitHeight: 28; radius: 14
-                            color: Config.enableIris ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
-                            Text {
-                                anchors.centerIn: parent
-                                text: "palette"
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 15
-                                color: Config.enableIris ? Config.bgBase : Config.textMuted
-                            }
-                        }
-
-                        ColumnLayout {
-                            spacing: 1
-                            Text {
-                                text: "Auto-Color (Iris)"
-                                color: Config.enableIris ? Config.accent : Config.textMain
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontCaption)
-                                font.bold: true
-                            }
-                            Text {
-                                text: "Dynamically extract and apply theme colors from current wallpaper"
-                                color: Config.textMuted
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontMicro)
-                            }
-                        }
-
-                        Item { Layout.fillWidth: true }
-
-                        ToggleSwitch {
-                            checked: Config.enableIris
-                            Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
-                        }
-                    }
-
-                    MouseArea {
-                        id: irisHover
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: Config.enableIris = !Config.enableIris
-                    }
-                }
-
-                // 2. Animated Gradient Row
+                // 1. Animated Gradient Row
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: 48
@@ -510,7 +450,7 @@ Flickable {
                     }
                 }
 
-                // 3. Background Blur Row
+                // 2. Background Blur Row
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: 48
@@ -570,7 +510,7 @@ Flickable {
                     }
                 }
 
-                // 4. X-Ray Mode Row
+                // 3. X-Ray Mode Row
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: 48
@@ -633,7 +573,7 @@ Flickable {
                     }
                 }
 
-                // 5. Watermarks Row
+                // 4. Watermarks Row
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: 48
@@ -693,15 +633,15 @@ Flickable {
                     }
                 }
 
-                // 6. Floating / Bouncing Watermarks Row
+                // 5. Floating / Bouncing Watermarks Row
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: 48
                     radius: Config.cornerRadius / 2
-                    visible: Config.showWatermarks
-                    color: Config.bounceWatermarks ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : (wmBounceHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
-                    border.width: Config.bounceWatermarks ? 1.5 : 1
-                    border.color: Config.bounceWatermarks ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+                    opacity: Config.showWatermarks ? 1.0 : 0.4
+                    color: (Config.showWatermarks && Config.bounceWatermarks) ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : (wmBounceHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
+                    border.width: (Config.showWatermarks && Config.bounceWatermarks) ? 1.5 : 1
+                    border.color: (Config.showWatermarks && Config.bounceWatermarks) ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
 
                     RowLayout {
                         anchors.fill: parent
@@ -710,13 +650,13 @@ Flickable {
 
                         Rectangle {
                             implicitWidth: 28; implicitHeight: 28; radius: 14
-                            color: Config.bounceWatermarks ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+                            color: (Config.showWatermarks && Config.bounceWatermarks) ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
                             Text {
                                 anchors.centerIn: parent
                                 text: "animation"
                                 font.family: "Material Symbols Outlined"
                                 font.pixelSize: 15
-                                color: Config.bounceWatermarks ? Config.bgBase : Config.textMuted
+                                color: (Config.showWatermarks && Config.bounceWatermarks) ? Config.bgBase : Config.textMuted
                             }
                         }
 
@@ -724,13 +664,13 @@ Flickable {
                             spacing: 1
                             Text {
                                 text: "Floating Ambient Drift"
-                                color: Config.bounceWatermarks ? Config.accent : Config.textMain
+                                color: (Config.showWatermarks && Config.bounceWatermarks) ? Config.accent : Config.textMain
                                 font.family: Config.sysFont
                                 font.pixelSize: Config.size(Config.fontCaption)
                                 font.bold: true
                             }
                             Text {
-                                text: "Slowly drift and bounce watermarks organically within panel cards"
+                                text: "Watermarks slowly drift within panel cards (requires Watermarks)"
                                 color: Config.textMuted
                                 font.family: Config.sysFont
                                 font.pixelSize: Config.size(Config.fontMicro)
@@ -740,7 +680,7 @@ Flickable {
                         Item { Layout.fillWidth: true }
 
                         ToggleSwitch {
-                            checked: Config.bounceWatermarks
+                            checked: Config.showWatermarks && Config.bounceWatermarks
                             Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
                         }
                     }
@@ -750,7 +690,69 @@ Flickable {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: Config.bounceWatermarks = !Config.bounceWatermarks
+                        onClicked: {
+                            if (Config.showWatermarks) Config.bounceWatermarks = !Config.bounceWatermarks
+                        }
+                    }
+                }
+
+                // 6. Auto-Color (Iris) Row
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: 48
+                    radius: Config.cornerRadius / 2
+                    color: Config.enableIris ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : (irisHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
+                    border.width: Config.enableIris ? 1.5 : 1
+                    border.color: Config.enableIris ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 12; anchors.rightMargin: 12
+                        spacing: 10
+
+                        Rectangle {
+                            implicitWidth: 28; implicitHeight: 28; radius: 14
+                            color: Config.enableIris ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+                            Text {
+                                anchors.centerIn: parent
+                                text: "palette"
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 15
+                                color: Config.enableIris ? Config.bgBase : Config.textMuted
+                            }
+                        }
+
+                        ColumnLayout {
+                            spacing: 1
+                            Text {
+                                text: "Auto-Color (Iris)"
+                                color: Config.enableIris ? Config.accent : Config.textMain
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontCaption)
+                                font.bold: true
+                            }
+                            Text {
+                                text: "Dynamically extract and apply theme colors from current wallpaper"
+                                color: Config.textMuted
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontMicro)
+                            }
+                        }
+
+                        Item { Layout.fillWidth: true }
+
+                        ToggleSwitch {
+                            checked: Config.enableIris
+                            Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                        }
+                    }
+
+                    MouseArea {
+                        id: irisHover
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Config.enableIris = !Config.enableIris
                     }
                 }
             }
