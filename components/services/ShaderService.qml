@@ -33,10 +33,12 @@ QtObject {
         let glsl = ""
 
         if (mode === "pixelate") {
-            glsl = `#extension GL_OES_standard_derivatives : enable
+            glsl = `#version 300 es
 precision highp float;
-varying vec2 v_texcoord;
+
+in vec2 v_texcoord;
 uniform sampler2D tex;
+out vec4 fragColor;
 
 float get_bayer(vec2 coord) {
     int x = int(mod(coord.x, 4.0));
@@ -58,7 +60,7 @@ void main() {
     vec2 pixel_uv = vec2(abs(dFdx(v_texcoord.x)), abs(dFdy(v_texcoord.y)));
     vec2 step_size = pixel_uv * pixel_size;
     vec2 blockCoord = (floor(v_texcoord / step_size) + 0.5) * step_size;
-    vec4 baseColor = texture2D(tex, blockCoord);
+    vec4 baseColor = texture(tex, blockCoord);
 
     vec2 grid_pos = floor(v_texcoord / step_size);
     ${dither ? "float dither = (get_bayer(grid_pos) - 0.5) * (1.0 / color_levels);" : "float dither = 0.0;"}
@@ -75,50 +77,45 @@ void main() {
     ${palette === "amber" ? `float lum = dot(color, vec3(0.299, 0.587, 0.114));
     color = vec3(lum * 1.0, lum * 0.7, lum * 0.1);` : ""}
 
-    gl_FragColor = vec4(color, baseColor.a);
+    fragColor = vec4(color, baseColor.a);
 }`
         } else if (mode === "crt") {
-            glsl = `#extension GL_OES_standard_derivatives : enable
+            glsl = `#version 300 es
 precision highp float;
-varying vec2 v_texcoord;
-uniform sampler2D tex;
 
-// Balanced convex tube curve
+in vec2 v_texcoord;
+uniform sampler2D tex;
+out vec4 fragColor;
+
 vec2 curve(vec2 uv) {
-    uv = (uv - 0.5) * 2.0;
-    uv *= 1.05; // Gentle pre-zoom to minimize clipped corner deadzones
-    uv.x *= 1.0 + pow((abs(uv.y) / 5.2), 2.0);
-    uv.y *= 1.0 + pow((abs(uv.x) / 4.4), 2.0);
-    uv = (uv / 2.0) + 0.5;
-    return uv;
+    vec2 c = (uv - 0.5) * 2.0;
+    c *= 1.05;
+    c.x *= 1.0 + pow((abs(c.y) / 5.2), 2.0);
+    c.y *= 1.0 + pow((abs(c.x) / 4.4), 2.0);
+    return (c / 2.0) + 0.5;
 }
 
 void main() {
     vec2 uv = curve(v_texcoord);
 
-    // Bezel border clipping
     if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
-        gl_FragColor = vec4(0.01, 0.01, 0.01, 1.0);
+        fragColor = vec4(0.01, 0.01, 0.01, 1.0);
         return;
     }
 
-    // Dynamic screen pixel sizing
     vec2 pixel_uv = vec2(abs(dFdx(v_texcoord.x)), abs(dFdy(v_texcoord.y)));
     vec2 screen_pos = v_texcoord / pixel_uv;
 
-    // 1. Subtle chromatic edge aberration
     vec2 dist_from_center = uv - vec2(0.5);
     float ca = length(dist_from_center) * 0.002;
-    float r = texture2D(tex, uv + dist_from_center * ca).r;
-    float g = texture2D(tex, uv).g;
-    float b = texture2D(tex, uv - dist_from_center * ca).b;
+    float r = texture(tex, uv + dist_from_center * ca).r;
+    float g = texture(tex, uv).g;
+    float b = texture(tex, uv - dist_from_center * ca).b;
     vec3 color = vec3(r, g, b);
 
-    // 2. Medium horizontal scanlines
     float scanline = sin(screen_pos.y * 1.5) * 0.08;
     color -= scanline;
 
-    // 3. Phosphor mask triads
     int mask_col = int(mod(screen_pos.x, 3.0));
     vec3 mask = vec3(0.88);
     if (mask_col == 0)      mask = vec3(1.08, 0.88, 0.88);
@@ -126,20 +123,20 @@ void main() {
     else                    mask = vec3(0.88, 0.88, 1.08);
     color *= mask;
 
-    // 4. Subtle tube vignette
     float vig = uv.x * uv.y * (1.0 - uv.x) * (1.0 - uv.y);
     color *= clamp(pow(16.0 * vig, 0.25), 0.0, 1.0);
 
-    // 5. Contrast correction
     color = clamp((color - 0.5) * 1.08 + 0.5, 0.0, 1.0);
 
-    gl_FragColor = vec4(color, 1.0);
+    fragColor = vec4(color, 1.0);
 }`
         } else if (mode === "mac1bit") {
-            glsl = `#extension GL_OES_standard_derivatives : enable
+            glsl = `#version 300 es
 precision highp float;
-varying vec2 v_texcoord;
+
+in vec2 v_texcoord;
 uniform sampler2D tex;
+out vec4 fragColor;
 
 float get_bayer(vec2 coord) {
     int x = int(mod(coord.x, 4.0));
@@ -159,7 +156,7 @@ void main() {
     vec2 pixel_uv = vec2(abs(dFdx(v_texcoord.x)), abs(dFdy(v_texcoord.y)));
     vec2 step_size = pixel_uv * pixel_size;
     vec2 blockCoord = (floor(v_texcoord / step_size) + 0.5) * step_size;
-    vec4 baseColor = texture2D(tex, blockCoord);
+    vec4 baseColor = texture(tex, blockCoord);
 
     float lum = dot(baseColor.rgb, vec3(0.299, 0.587, 0.114));
     vec2 grid_pos = floor(v_texcoord / step_size);
@@ -168,7 +165,7 @@ void main() {
 
     vec3 ink = vec3(0.12, 0.12, 0.14);
     vec3 paper = vec3(0.92, 0.93, 0.90);
-    gl_FragColor = vec4(mix(ink, paper, bw), baseColor.a);
+    fragColor = vec4(mix(ink, paper, bw), baseColor.a);
 }`
         }
 
@@ -177,11 +174,14 @@ void main() {
             "os.makedirs(os.path.dirname(p), exist_ok=True)\n" +
             "with open(p, 'w') as f:\n" +
             "    f.write(" + JSON.stringify(glsl) + ")\n" +
+            "subprocess.run(['hyprctl', 'eval', 'hl.config({ decoration = { screen_shader = \"\" } })'])\n" +
             "cmd = 'hl.config({ decoration = { screen_shader = \"' + (p if " + (configRef.pixelShaderEnabled ? "True" : "False") + " else '') + '\" } })'\n" +
             "subprocess.run(['hyprctl', 'eval', cmd])\n"
 
         proc.script = py
         proc.running = true
-        configRef.syncHyprlandBorders()
+        if (typeof configRef.syncHyprlandBorders === "function") {
+            configRef.syncHyprlandBorders()
+        }
     }
 }
