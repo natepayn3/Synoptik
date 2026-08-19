@@ -143,15 +143,27 @@ Rectangle {
 
         Repeater {
             id: repeater
-            model: Config.leftCardOrder || ["power", "recorder", "mirror", "screenshot", "player", "wallpaper", "settings", "launcher", "audio", "batt", "network", "clipboard"]
+            model: Config.leftCardOrder || [
+                "power",
+                "recorder",
+                "mirror",
+                "network",
+                "clipboard",
+                "wallpaper",
+                "launcher",
+                "audio",
+                "settings",
+                "screenshot"
+            ]
 
             delegate: Loader {
                 readonly property string itemKey: modelData
                 
-                visible: {
-                    if (itemKey === "batt" && typeof shellRoot !== "undefined" && !shellRoot.hasBattery) return false
-                    return leftCard.showUnpinnedLoaders || Config.isPinned(itemKey)
-                }
+                visible: sourceComponent !== null && (
+                    (itemKey === "batt" && typeof shellRoot !== "undefined" && !shellRoot.hasBattery) 
+                        ? false 
+                        : (leftCard.showUnpinnedLoaders || Config.isPinned(itemKey))
+                )
 
                 opacity: {
                     if (Config.isPinned(itemKey)) return 1.0
@@ -165,15 +177,14 @@ Rectangle {
                         case "power": return powerComp
                         case "recorder": return recorderComp
                         case "mirror": return mirrorComp
-                        case "screenshot": return screenshotComp
-                        case "player": return playerComp
-                        case "wallpaper": return wallpaperComp
-                        case "settings": return settingsComp
-                        case "launcher": return launcherComp
-                        case "audio": return audioComp
-                        case "batt": return battComp
                         case "network": return networkComp
                         case "clipboard": return clipComp
+                        case "wallpaper": return wallpaperComp
+                        case "launcher": return launcherComp
+                        case "audio": return audioComp
+                        case "settings": return settingsComp
+                        case "screenshot": return screenshotComp
+                        case "batt": return battComp
                         default: return null
                     }
                 }
@@ -358,75 +369,6 @@ Rectangle {
                 cursorShape: Qt.PointingHandCursor 
                 onHoveredChanged: {
                     if (hovered && rootRef && rootRef.startPeek) rootRef.startPeek(btnRecorder)
-                    else if (!hovered && rootRef && rootRef.stopPeek) rootRef.stopPeek()
-                }
-            }
-        }
-    }
-
-    Component {
-        id: playerComp
-        Rectangle {
-            id: btnPlayer
-            implicitWidth: 32
-            implicitHeight: 32
-            radius: 10
-            color: Config.showPlayer ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-
-            Behavior on color { ColorAnimation { duration: 150 } }
-
-            Item {
-                anchors.centerIn: parent
-                implicitWidth: playerIconText.implicitWidth
-                implicitHeight: playerIconText.implicitHeight
-                scale: playerHover.hovered ? 1.25 : 1.0
-
-                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
-
-                Glow {
-                    anchors.fill: playerIconText
-                    source: playerIconText
-                    radius: playerHover.hovered ? 8 : 0
-                    samples: 16
-                    color: Config.accent
-                    spread: 0.2
-                    transparentBorder: true
-                    visible: playerHover.hovered
-
-                    Behavior on radius { NumberAnimation { duration: 180 } }
-                }
-
-                Text {
-                    id: playerIconText
-                    anchors.centerIn: parent
-                    text: Config.getIcon("player")
-                    color: (Config.showPlayer || playerHover.hovered) ? Config.accent : Config.textMain
-                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
-
-                    Behavior on color { ColorAnimation { duration: 150 } }
-                }
-            }
-
-            Rectangle {
-                anchors.top: parent.top; anchors.right: parent.right
-                anchors.topMargin: 2; anchors.rightMargin: 2
-                width: 5; height: 5; radius: 2.5
-                color: Config.accent
-                visible: !Config.leftCardCollapsed && Config.isPinned("player")
-            }
-
-            TapHandler { 
-                onTapped: {
-                    if (rootRef && rootRef.stopPeek) rootRef.stopPeek()
-                    Config.showPlayer = !Config.showPlayer 
-                }
-            }
-            TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("player") }
-            HoverHandler { 
-                id: playerHover
-                cursorShape: Qt.PointingHandCursor 
-                onHoveredChanged: {
-                    if (hovered && rootRef && rootRef.startPeek) rootRef.startPeek(btnPlayer)
                     else if (!hovered && rootRef && rootRef.stopPeek) rootRef.stopPeek()
                 }
             }
