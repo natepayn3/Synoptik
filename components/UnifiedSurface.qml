@@ -17,47 +17,6 @@ PanelWindow {
     default property alias content: contentContainer.data
 
     property bool isOpen: false
-
-    // --- Hover Peek State & Math ---
-    property bool isPeeking: false
-    property var peekTargetItem: null
-    property real peekProgress: isPeeking ? 1.0 : 0.0
-    Behavior on peekProgress { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
-
-    readonly property real peekSpan: 60
-    readonly property real peekDepth: 8          // Sticks out further into the screen
-    readonly property real peekRadius: 4.5       // Smooth outer corners
-    readonly property real peekWing: 2.5         // Subtle flare into the bar
-    readonly property real peekTipRadius: 48
-
-    readonly property real pkSpan: {
-        if (!peekTargetItem) return peekSpan
-        let span = isHorizontal 
-            ? (peekTargetItem.width || peekTargetItem.implicitWidth || 32) 
-            : (peekTargetItem.height || peekTargetItem.implicitHeight || 32)
-        return (span || 32) + 24                 // Stretches wider across the hovered module
-    }
-
-    readonly property real pkDepth: peekDepth * (peekProgress || 0)
-    readonly property real pkWing: peekWing * (peekProgress || 0)
-    readonly property real pkRad: Math.max(0.1, peekRadius * (peekProgress || 0))
-
-    readonly property real pkCenter: (isHorizontal ? (popoutXOffset || 0) : (popoutYOffset || 0)) || 0
-    readonly property real pkLeft: {
-        let center = pkCenter;
-        let safeMargin = isScreenFrame ? ((inRadi || 0) + pkWing) : ((barRadius || 0) + pkWing);
-        let minL = isScreenFrame ? ((isHorizontal ? (inX || 0) : (inY || 0)) + (halfB || 0)) : (halfB || 0);
-        let maxR = isScreenFrame ? ((isHorizontal ? ((inX || 0) + (inW || 0)) : ((inY || 0) + (inH || 0))) - (halfB || 0)) : ((isHorizontal ? (mainContainer ? mainContainer.width : 0) : (mainContainer ? mainContainer.height : 0)) - (halfB || 0));
-        
-        if (root.isIsland) {
-            let barOrigin = isHorizontal ? (islandX || 0) : (islandY || 0);
-            let barEnd = isHorizontal ? ((islandX || 0) + (animatedIslandWidth || 0)) : ((islandY || 0) + (animatedIslandHeight || 0));
-            return Math.max(barOrigin + safeMargin, Math.min(barEnd - safeMargin - pkSpan, center - (pkSpan / 2.0))) || 0;
-        }
-        return Math.max(minL + safeMargin, Math.min(maxR - safeMargin - pkSpan, center - (pkSpan / 2.0))) || 0;
-    }
-    readonly property real pkRight: (pkLeft + pkSpan) || 0
-    // --------------------------------
     
     readonly property real actualScreenWidth: screen ? screen.width : 1920
     readonly property real actualScreenHeight: screen ? screen.height : 1080
@@ -252,7 +211,6 @@ PanelWindow {
         if (isOpen) {
             root.playOpenSound()
             root.isBarRevealedByUser = true
-            root.isPeeking = false
             autoHideTimer.stop()
         } else {
             lastOpenWidth = rawChildWidth
@@ -264,39 +222,28 @@ PanelWindow {
         }
     }
 
-    // --- Dynamic Dimensions & Scaling ---
-    readonly property real peekW: isHorizontal ? pkSpan : pkDepth
-    readonly property real peekH: isHorizontal ? pkDepth : pkSpan
+    property real targetWidth: isOpen ? rawChildWidth : (isHorizontal ? (lastOpenWidth * 0.33) : (lastOpenWidth * 1.10))
+    property real targetHeight: isOpen ? rawChildHeight : (isHorizontal ? (lastOpenHeight * 1.10) : (lastOpenHeight * 0.33))
 
-    // Smooth transition from hover tab (0.0) to full popout (1.0)
-    property real openFactor: root.isOpen ? 1.0 : 0.0
-    Behavior on openFactor {
-        NumberAnimation { duration: 380; easing.type: Easing.OutBack; easing.overshoot: 0.75 }
+    Behavior on targetWidth {
+        NumberAnimation { duration: 350; easing.type: Easing.OutBack; easing.overshoot: 0.8 }
     }
 
-    readonly property real currentActiveW: root.isOpen ? rawChildWidth : lastOpenWidth
-    readonly property real currentActiveH: root.isOpen ? rawChildHeight : lastOpenHeight
-
-    readonly property real targetWidth: (peekW * (1.0 - openFactor)) + (currentActiveW * openFactor)
-    readonly property real targetHeight: (peekH * (1.0 - openFactor)) + (currentActiveH * openFactor)
+    Behavior on targetHeight {
+        NumberAnimation { duration: 350; easing.type: Easing.OutBack; easing.overshoot: 0.8 }
+    }
 
     property real progress: 0.0
     readonly property real animScale: Math.max(0.0, progress)
     readonly property real closeFactor: root.isOpen ? progress : Math.pow(progress, 1.2)
 
-    readonly property real currentHeight: (targetHeight * Math.pow(closeFactor, 1.8 * openFactor)) * animScale
-    readonly property real squishRatio: (openFactor > 0.1 && targetHeight > 0) ? (1.0 - (currentHeight / targetHeight)) : 0.0
-    readonly property real currentWidth: (targetWidth * (closeFactor + (0.3 * squishRatio * closeFactor * openFactor))) * animScale
+    readonly property real currentHeight: targetHeight * Math.pow(closeFactor, 1.8)
+    readonly property real squishRatio: targetHeight > 0 ? (1.0 - (currentHeight / targetHeight)) : 0.0
+    readonly property real currentWidth: root.isOpen ? (targetWidth * animScale) : (targetWidth * (closeFactor + (0.3 * squishRatio * closeFactor)))
 
-    readonly property real panelRadius: Config.surfaceRadius || 18
-    readonly property real panelWing: Config.surfaceRadius || 18
-    
-    readonly property real effectiveRadius: (peekRadius * (1.0 - openFactor)) + (panelRadius * openFactor)
-    readonly property real effectiveWing: (peekWing * (1.0 - openFactor)) + (panelWing * openFactor)
-
-    readonly property real wingW: effectiveWing * animScale
-    readonly property real wingH: effectiveWing * animScale
-    readonly property real radius: Math.max(0.1, effectiveRadius * animScale)
+    readonly property real wingW: (Config.surfaceRadius || 18) * animScale
+    readonly property real wingH: (Config.surfaceRadius || 18) * animScale
+    readonly property real radius: Math.max(0.1, (Config.surfaceRadius || 18) * animScale)
 
     readonly property real borderWidth: (Config.borderThickness !== undefined && Config.borderThickness !== null) ? Number(Config.borderThickness) : 0.0
     readonly property real halfB: borderWidth / 2.0
@@ -404,10 +351,7 @@ PanelWindow {
     readonly property real leftCardTargetWidth: leftCard ? (root.isHorizontal ? (leftCard.contentTargetWidth || leftCard.width) : 36) : 0
     readonly property real leftCardTargetHeight: leftCard ? (!root.isHorizontal ? (leftCard.contentTargetHeight || leftCard.height) : 36) : 0
 
-    readonly property real islandContentWidth: (root.isHorizontal ? leftCardTargetWidth : (leftCard ? leftCard.width : 0)) 
-        + (activeWindowCard && activeWindowCard.visible ? activeWindowCard.width : 0) 
-        + (rightCard ? rightCard.width : 0) 
-        + 104
+    readonly property real islandContentWidth: (root.isHorizontal ? leftCardTargetWidth : (leftCard ? leftCard.width : 0)) + (activeWindowCard && activeWindowCard.visible ? activeWindowCard.width : 0) + (rightCard ? rightCard.width : 0) + 44
     readonly property real islandTargetWidth: Math.min(
         mainContainer.width - (root.currentMargin * 2),
         Math.max(200, root.isOpen ? Math.max(islandContentWidth, root.targetWidth) : islandContentWidth)
@@ -418,10 +362,7 @@ PanelWindow {
         NumberAnimation { id: islandWidthAnim; duration: 250; easing.type: Easing.OutCubic }
     }
 
-    readonly property real islandContentHeight: (!root.isHorizontal ? leftCardTargetHeight : (leftCard ? leftCard.height : 0)) 
-        + (activeWindowCard && activeWindowCard.visible ? activeWindowCard.height : 0) 
-        + (rightCard ? rightCard.height : 0) 
-        + 104
+    readonly property real islandContentHeight: (!root.isHorizontal ? leftCardTargetHeight : (leftCard ? leftCard.height : 0)) + (activeWindowCard && activeWindowCard.visible ? activeWindowCard.height : 0) + (rightCard ? rightCard.height : 0) + 44
     readonly property real islandTargetHeight: Math.min(
         mainContainer.height - (root.currentMargin * 2),
         Math.max(200, (root.isOpen && !root.isHorizontal) ? Math.max(islandContentHeight, root.targetHeight) : islandContentHeight)
@@ -474,7 +415,10 @@ PanelWindow {
             let rawLeft = offset - (span / 2.0)
             let rawRight = offset + (span / 2.0)
 
-            if (span >= barSpan - safeMargin) return barOrigin + ((barSpan - span) / 2.0)
+            // Snap flush if within safe margin (two wings / corner radius span)
+            if (span >= barSpan - safeMargin) {
+                return barOrigin + ((barSpan - span) / 2.0)
+            }
             if (rawLeft <= barOrigin + safeMargin) return barOrigin
             if (rawRight >= barEnd - safeMargin) return barEnd - span
             return Math.max(barOrigin + safeMargin, Math.min(barEnd - safeMargin - span, rawLeft))
@@ -595,30 +539,13 @@ PanelWindow {
     }
 
     function setPopoutPos(item) {
-        if (!item || !mainContainer) return
+        if (!item) return
         root.isCentered = false
-        try {
-            if (isHorizontal) {
-                let mapped = item.mapToItem(mainContainer, (item.width || item.implicitWidth || 32) / 2, 0)
-                if (mapped && !isNaN(mapped.x)) root.popoutXOffset = mapped.x
-            } else {
-                let mapped = item.mapToItem(mainContainer, 0, (item.height || item.implicitHeight || 32) / 2)
-                if (mapped && !isNaN(mapped.y)) root.popoutYOffset = mapped.y
-            }
-        } catch (e) {
-            // Guard against unmapped / transitioning items
+        if (isHorizontal) {
+            root.popoutXOffset = item.mapToItem(mainContainer, item.width / 2, 0).x
+        } else {
+            root.popoutYOffset = item.mapToItem(mainContainer, 0, item.height / 2).y
         }
-    }
-
-    function startPeek(item) {
-        if (!item || root.isOpen || !item.visible) return
-        setPopoutPos(item)
-        root.peekTargetItem = item
-        root.isPeeking = true
-    }
-
-    function stopPeek() {
-        root.isPeeking = false
     }
 
     function closeOthers(except) {
@@ -780,43 +707,18 @@ PanelWindow {
         }
 
         states: [
-            State { 
-                name: "open"
-                when: root.isOpen
-                PropertyChanges { target: root; progress: 1.0 } 
-            },
-            State {
-                name: "peeking"
-                when: root.isPeeking && !root.isOpen
-                PropertyChanges { target: root; progress: 1.0 }
-            },
-            State { 
-                name: "closed"
-                when: !root.isOpen && !root.isPeeking
-                PropertyChanges { target: root; progress: 0.0 } 
-            }
+            State { name: "open"; when: root.isOpen; PropertyChanges { target: root; progress: 1.0 } },
+            State { name: "closed"; when: !root.isOpen; PropertyChanges { target: root; progress: 0.0 } }
         ]
 
         transitions: [
             Transition {
                 from: "closed"; to: "open"
-                NumberAnimation { target: root; property: "progress"; duration: 420; easing.type: Easing.OutBack; easing.overshoot: 0.7 }
+                NumberAnimation { target: root; property: "progress"; duration: 500; easing.type: Easing.OutBack; easing.overshoot: 0.7 }
             },
             Transition {
                 from: "open"; to: "closed"
                 NumberAnimation { target: root; property: "progress"; duration: 300; easing.type: Easing.InBack; easing.overshoot: 1.6 }
-            },
-            Transition {
-                from: "closed"; to: "peeking"
-                NumberAnimation { target: root; property: "progress"; duration: 160; easing.type: Easing.OutCubic }
-            },
-            Transition {
-                from: "peeking"; to: "closed"
-                NumberAnimation { target: root; property: "progress"; duration: 140; easing.type: Easing.OutCubic }
-            },
-            Transition {
-                from: "peeking"; to: "open"
-                ScriptAction { script: root.isPeeking = false }
             }
         ]
 
@@ -1230,7 +1132,7 @@ PanelWindow {
                     PathLine { 
                         x: root.isRightFlush 
                             ? (openShapeRightFloating.rX + root.halfB - root.currentWidth) 
-                            : (openShapeRightFloating.rX + root.halfB - root.wingW)
+                            : (openShapeRightFloating.rX + root.halfB)
                         y: root.isRightFlush 
                             ? (root.isLeftFlush ? (root.islandBarT + root.radius) : (root.pLeft + root.radius)) 
                             : (root.pRight + root.wingW) 
@@ -1654,7 +1556,7 @@ PanelWindow {
                         PathArc { x: root.rightBarPopL; y: root.pLeft + root.radius; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Counterclockwise } 
                         
                         PathLine { x: root.rightBarPopL; y: root.inY + root.inH - root.halfB - root.wingW } 
-                        PathCubic { x: root.rightBarPopL - root.wingW; y: root.inY + root.inH; control1X: root.rightBarPopL; control1Y: root.inY + root.inH - root.halfB; control2X: root.rightBarPopL - root.wingW * 0.5; control2Y: root.inY + root.inH } 
+                        PathCubic { x: root.rightBarPopL - root.wingW; y: root.inY + root.inH - root.halfB; control1X: root.rightBarPopL; control1Y: root.inY + root.inH - root.halfB - root.wingW * 0.5; control2X: root.rightBarPopL - root.wingW * 0.5; control2Y: root.inY + root.inH } 
                         
                         PathLine { x: root.inX + root.inRadi; y: root.inY + root.inH - root.halfB } 
                         PathArc { x: root.inX + root.halfB; y: root.inY + root.inH - root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
@@ -1784,7 +1686,7 @@ PanelWindow {
                         PathCubic { x: root.pLeft; y: root.inY + root.halfB + root.wingW; control1X: root.pLeft - root.wingW * 0.5; control1Y: root.inY + root.halfB; control2X: root.pLeft; control2Y: root.inY + root.halfB + root.wingW * 0.5 }
                         
                         PathLine { x: root.pLeft; y: root.topBarPopB - root.radius } 
-                        PathArc { x: root.pLeft + root.radius; y: root.topBarPopB; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Counterclockwise } 
+                        PathArc { x: root.pLeft + root.radius; y: root.topBarPopB; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Counterclockwise }
                         
                         PathLine { x: root.inX + root.inW - root.halfB - root.wingW; y: root.topBarPopB }
                         PathCubic { x: root.inX + root.inW - root.halfB; y: root.topBarPopB + root.wingW; control1X: root.inX + root.inW - root.halfB - root.wingW * 0.5; control1Y: root.topBarPopB; control2X: root.inX + root.inW - root.halfB; control2Y: root.topBarPopB + root.wingW * 0.5 }
@@ -1840,7 +1742,7 @@ PanelWindow {
                         PathArc { x: root.pRight - root.radius; y: root.bottomBarPopT; radiusX: root.radius; radiusY: root.radius; direction: PathArc.Counterclockwise } 
                         
                         PathLine { x: root.inX + root.wingW; y: root.bottomBarPopT } 
-                        PathCubic { x: root.inX; y: root.bottomBarPopT - root.wingW; control1X: root.inX + root.wingW * 0.5; control1Y: root.bottomBarPopT; control2X: root.inX; control2Y: root.bottomBarPopT - root.wingW * 0.5 } 
+                        PathCubic { x: root.inX; y: root.bottomBarPopT - root.wingW; control1X: root.inX + root.wingW * 0.5; control1Y: root.bottomBarPopT; control2X: root.inX; control2Y: root.bottomBarPopT - root.wingW * 0.5 }
                         
                         PathLine { x: root.inX; y: root.inY + root.inH } 
                     }
@@ -1859,7 +1761,7 @@ PanelWindow {
                         PathArc { x: root.pLeft + root.radius; y: root.bottomBarPopT; radiusX: root.radius; radiusY: root.radius; direction: PathArc.Clockwise } 
                         
                         PathLine { x: root.inX + root.inW - root.wingW; y: root.bottomBarPopT } 
-                        PathCubic { x: root.inX + root.inW; y: root.bottomBarPopT - root.wingW; control1X: root.inX + root.inW - root.wingW * 0.5; control1Y: root.bottomBarPopT; control2X: root.inX + root.inW; control2Y: root.bottomBarPopT - root.wingW * 0.5 } 
+                        PathCubic { x: root.inX + root.inW; y: root.bottomBarPopT - root.wingW; control1X: root.inX + root.inW - root.wingW * 0.5; control1Y: root.bottomBarPopT; control2X: root.inX + root.inW; control2Y: root.bottomBarPopT - root.wingW * 0.5 }
                         
                         PathLine { x: root.inX + root.inW; y: root.inY + root.inH } 
                     }
@@ -1905,7 +1807,7 @@ PanelWindow {
                         PathCubic { x: root.pRight; y: root.inY + root.inH - root.halfB - root.wingW; control1X: root.pRight + root.wingW * 0.5; control1Y: root.inY + root.inH - root.halfB; control2X: root.pRight; control2Y: root.inY + root.inH - root.halfB - root.wingW * 0.5 }
                         
                         PathLine { x: root.pRight; y: root.bottomBarPopT + root.radius } 
-                        PathArc { x: root.pRight - root.radius; y: root.bottomBarPopT; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Counterclockwise } 
+                        PathArc { x: root.pRight - root.radius; y: root.bottomBarPopT; radiusX: Math.max(0.1, root.radius); radiusY: Math.max(0.1, root.radius); direction: PathArc.Counterclockwise }
                         
                         PathLine { x: root.inX + root.halfB + root.wingW; y: root.bottomBarPopT }
                         PathCubic { x: root.inX + root.halfB; y: root.bottomBarPopT - root.wingH; control1X: root.inX + root.halfB + root.wingW * 0.5; control1Y: root.bottomBarPopT; control2X: root.inX + root.halfB; control2Y: root.bottomBarPopT - root.wingH * 0.5 }
@@ -1971,45 +1873,21 @@ PanelWindow {
                     rootRef: root
                     onPopoutRequested: item => root.setPopoutPos(item)
                 }
-                
                 ActiveWindowCard {
                     id: activeWindowCard
                     rootRef: root
-                    onPopoutRequested: item => root.setPopoutPos(item)
+                    maxAvailableSpan: root.isHorizontal
+                        ? Math.max(36, Math.min(190, mainContainer.width - (leftCard ? leftCard.width : 0) - (rightCard ? rightCard.width : 0) - 48))
+                        : Math.max(36, Math.min(190, mainContainer.height - (leftCard ? leftCard.height : 0) - (rightCard ? rightCard.height : 0) - 48))
 
-                    readonly property real startBound: leftCard 
-                        ? (root.isHorizontal ? (leftCard.x + leftCard.width) : (leftCard.y + leftCard.height)) 
-                        : 0
-                    readonly property real endBound: rightCard 
-                        ? (root.isHorizontal ? rightCard.x : rightCard.y) 
-                        : (root.isHorizontal ? parent.width : parent.height)
-
-                    // Calculate symmetric clearance around bar midpoint when centered to prevent module collisions
-                    readonly property real islandGap: Math.max(0, endBound - startBound - 24)
-                    readonly property real centeredGap: {
-                        let mid = (root.isHorizontal ? parent.width : parent.height) / 2
-                        let halfSpan = Math.max(0, Math.min(mid - startBound, endBound - mid) - 12)
-                        return halfSpan * 2
-                    }
-                    readonly property real availableGap: root.isIsland ? islandGap : centeredGap
-
-                    // Dynamic headroom limits
-                    maxAvailableSpan: Math.max(36, Math.min(root.isHorizontal ? 220 : 420, availableGap))
-
-                    // Explicitly center across the full bar length, preserving gap-centering only on Island
                     x: root.isHorizontal
-                        ? (root.isIsland 
-                            ? (startBound + ((endBound - startBound - activeWindowCard.width) / 2))
-                            : ((parent.width - activeWindowCard.width) / 2))
-                        : ((parent.width - activeWindowCard.width) / 2)
+                        ? Math.max(leftCard.x + leftCard.width + 12, Math.min(rightCard.x - activeWindowCard.width - 12, (parent.width - activeWindowCard.width) / 2))
+                        : (parent.width - activeWindowCard.width) / 2
 
                     y: root.isHorizontal
-                        ? ((parent.height - activeWindowCard.height) / 2)
-                        : (root.isIsland 
-                            ? (startBound + ((endBound - startBound - activeWindowCard.height) / 2))
-                            : ((parent.height - activeWindowCard.height) / 2))
+                        ? (parent.height - activeWindowCard.height) / 2
+                        : Math.max(leftCard.y + leftCard.height + 12, Math.min(rightCard.y - activeWindowCard.height - 12, (parent.height - activeWindowCard.height) / 2))
                 }
-
                 RightModules {
                     id: rightCard
                     rootRef: root
@@ -2073,7 +1951,7 @@ PanelWindow {
                 
                 clip: true
                 visible: root.progress > 0.01
-                opacity: root.isOpen ? 1.0 : 0.0
+                opacity: (root.isOpen && root.progress >= 0.95) ? 1.0 : 0.0
                 focus: true
 
                 Behavior on opacity {
