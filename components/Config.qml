@@ -1202,7 +1202,8 @@ QtObject {
         irisService.applyIrisColors(filePath)
     }
 
-    property bool enablePeek: true
+    property bool enableHoverPeek: true
+    onEnableHoverPeekChanged: { if (isLoaded) saveSettings() }
 
     readonly property bool isFloatingBar: barFrameStyle === "floating"
 
@@ -1824,6 +1825,7 @@ QtObject {
                 "windowSoundPath": root.windowSoundPath,
                 "notificationSoundPath": root.notificationSoundPath,
                 "windowSoundVolume": root.windowSoundVolume,
+                "enableHoverPeek": root.enableHoverPeek,
 
                 "showMirror": root.showMirror,
                 "mirrorShowPanel": root.mirrorShowPanel,
@@ -1960,7 +1962,7 @@ QtObject {
                             "playWindowSounds", "playNotificationSounds", "windowSoundPath", "notificationSoundPath", "windowSoundVolume",
                             "showMirror", "mirrorShowPanel", "mirrorMirrored", "mirrorKeepAspect", "mirrorExpanded", "mirrorPinned", "mirrorAnchorPos",
                             "playerExpanded", "playerPinned",
-                            "playerShowPanel", "playerKeepAspect", "playerX", "playerY", "playerAnchorPos"
+                            "playerShowPanel", "playerKeepAspect", "playerX", "playerY", "playerAnchorPos", "enableHoverPeek"
                         ]
 
                         props.forEach(p => {

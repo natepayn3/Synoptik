@@ -24,17 +24,17 @@ PanelWindow {
     property real peekProgress: isPeeking ? 1.0 : 0.0
     Behavior on peekProgress { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
 
-    readonly property real peekSpan: 44
-    readonly property real peekDepth: 8
-    readonly property real peekRadius: 4
-    readonly property real peekWing: 3
+    readonly property real peekSpan: 50      // Increased default length
+    readonly property real peekDepth: 6      // Depth extending into the screen
+    readonly property real peekRadius: 6     // Increased for much rounder corners
+    readonly property real peekWing: 2
 
     readonly property real pkSpan: {
         if (!peekTargetItem) return peekSpan
         let span = isHorizontal 
             ? (peekTargetItem.width || peekTargetItem.implicitWidth || 32) 
             : (peekTargetItem.height || peekTargetItem.implicitHeight || 32)
-        return (span || 32) + 16
+        return (span || 32) + 28             // Wider padding expansion over hovered modules
     }
     readonly property real pkDepth: peekDepth * (peekProgress || 0)
     readonly property real pkWing: peekWing * (peekProgress || 0)
@@ -57,7 +57,7 @@ PanelWindow {
     readonly property real pkRight: (pkLeft + pkSpan) || 0
 
     function startPeek(item) {
-        if (!item || root.isOpen || !item.visible) return
+        if (!Config.enableHoverPeek || !item || root.isOpen || !item.visible) return
         setPopoutPos(item)
         root.peekTargetItem = item
         root.isPeeking = true
@@ -407,7 +407,10 @@ PanelWindow {
     readonly property real leftCardTargetWidth: leftCard ? (root.isHorizontal ? (leftCard.contentTargetWidth || leftCard.width) : 36) : 0
     readonly property real leftCardTargetHeight: leftCard ? (!root.isHorizontal ? (leftCard.contentTargetHeight || leftCard.height) : 36) : 0
 
-    readonly property real islandContentWidth: (root.isHorizontal ? leftCardTargetWidth : (leftCard ? leftCard.width : 0)) + (activeWindowCard && activeWindowCard.visible ? activeWindowCard.width : 0) + (rightCard ? rightCard.width : 0) + 44
+    readonly property real islandContentWidth: (root.isHorizontal ? leftCardTargetWidth : (leftCard ? leftCard.width : 0)) 
+        + (activeWindowCard && activeWindowCard.visible ? 190 : 0) 
+        + (rightCard ? rightCard.width : 0) 
+        + 64
     readonly property real islandTargetWidth: Math.min(
         mainContainer.width - (root.currentMargin * 2),
         Math.max(200, root.isOpen ? Math.max(islandContentWidth, root.targetWidth) : islandContentWidth)
@@ -634,6 +637,12 @@ PanelWindow {
     Connections {
         target: Config
         ignoreUnknownSignals: true
+
+        function onEnableHoverPeekChanged() {
+            if (!Config.enableHoverPeek && root.isPeeking) {
+                root.stopPeek()
+            }
+        }
 
         function onBarPositionChanged() {
             if (root.isOpen && root.activeView !== "none") {
@@ -1932,17 +1941,27 @@ PanelWindow {
                 ActiveWindowCard {
                     id: activeWindowCard
                     rootRef: root
-                    maxAvailableSpan: root.isHorizontal
-                        ? Math.max(36, Math.min(190, mainContainer.width - (leftCard ? leftCard.width : 0) - (rightCard ? rightCard.width : 0) - 48))
-                        : Math.max(36, Math.min(190, mainContainer.height - (leftCard ? leftCard.height : 0) - (rightCard ? rightCard.height : 0) - 48))
+                    onPopoutRequested: item => root.setPopoutPos(item)
 
+                    // Factor in the 30px outer shell margins for both cards
+                    readonly property real leftBound: leftCard ? (root.isHorizontal ? (leftCard.width + 30) : (leftCard.height + 30)) : 30
+                    readonly property real rightBound: rightCard ? (root.isHorizontal ? (parent.width - rightCard.width - 30) : (parent.height - rightCard.height - 30)) : (root.isHorizontal ? parent.width : parent.height)
+                    readonly property real barSpan: root.isHorizontal ? parent.width : parent.height
+
+                    // Real available gap bounded cleanly between the padded card edges
+                    readonly property real availableGap: Math.max(36, rightBound - leftBound - 24)
+
+                    // Dynamically scale down width if space gets tight instead of overlapping
+                    maxAvailableSpan: Math.max(36, Math.min(190, availableGap))
+
+                    // Clamp position strictly between left and right bounds
                     x: root.isHorizontal
-                        ? Math.max(leftCard.x + leftCard.width + 12, Math.min(rightCard.x - activeWindowCard.width - 12, (parent.width - activeWindowCard.width) / 2))
-                        : (parent.width - activeWindowCard.width) / 2
+                        ? Math.max(leftBound + 12, Math.min(rightBound - activeWindowCard.width - 12, (barSpan - activeWindowCard.width) / 2))
+                        : ((parent.width - activeWindowCard.width) / 2)
 
                     y: root.isHorizontal
-                        ? (parent.height - activeWindowCard.height) / 2
-                        : Math.max(leftCard.y + leftCard.height + 12, Math.min(rightCard.y - activeWindowCard.height - 12, (parent.height - activeWindowCard.height) / 2))
+                        ? ((parent.height - activeWindowCard.height) / 2)
+                        : Math.max(leftBound + 12, Math.min(rightBound - activeWindowCard.height - 12, (barSpan - activeWindowCard.height) / 2))
                 }
                 RightModules {
                     id: rightCard
