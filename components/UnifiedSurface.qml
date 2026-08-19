@@ -17,6 +17,55 @@ PanelWindow {
     default property alias content: contentContainer.data
 
     property bool isOpen: false
+
+    // --- Hover Peek State & Math ---
+    property bool isPeeking: false
+    property var peekTargetItem: null
+    property real peekProgress: isPeeking ? 1.0 : 0.0
+    Behavior on peekProgress { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+
+    readonly property real peekSpan: 44
+    readonly property real peekDepth: 8
+    readonly property real peekRadius: 4
+    readonly property real peekWing: 3
+
+    readonly property real pkSpan: {
+        if (!peekTargetItem) return peekSpan
+        let span = isHorizontal 
+            ? (peekTargetItem.width || peekTargetItem.implicitWidth || 32) 
+            : (peekTargetItem.height || peekTargetItem.implicitHeight || 32)
+        return (span || 32) + 16
+    }
+    readonly property real pkDepth: peekDepth * (peekProgress || 0)
+    readonly property real pkWing: peekWing * (peekProgress || 0)
+    readonly property real pkRad: Math.max(0.1, peekRadius * (peekProgress || 0))
+
+    readonly property real pkCenter: (isHorizontal ? (popoutXOffset || 0) : (popoutYOffset || 0)) || 0
+    readonly property real pkLeft: {
+        let center = pkCenter
+        let safeMargin = isScreenFrame ? ((inRadi || 0) + pkWing) : ((barRadius || 0) + pkWing)
+        let minL = isScreenFrame ? ((isHorizontal ? (inX || 0) : (inY || 0)) + (halfB || 0)) : (halfB || 0)
+        let maxR = isScreenFrame ? ((isHorizontal ? ((inX || 0) + (inW || 0)) : ((inY || 0) + (inH || 0))) - (halfB || 0)) : ((isHorizontal ? (mainContainer ? mainContainer.width : 0) : (mainContainer ? mainContainer.height : 0)) - (halfB || 0))
+        
+        if (root.isIsland) {
+            let barOrigin = isHorizontal ? (islandX || 0) : (islandY || 0)
+            let barEnd = isHorizontal ? ((islandX || 0) + (animatedIslandWidth || 0)) : ((islandY || 0) + (animatedIslandHeight || 0))
+            return Math.max(barOrigin + safeMargin, Math.min(barEnd - safeMargin - pkSpan, center - (pkSpan / 2.0))) || 0
+        }
+        return Math.max(minL + safeMargin, Math.min(maxR - safeMargin - pkSpan, center - (pkSpan / 2.0))) || 0
+    }
+    readonly property real pkRight: (pkLeft + pkSpan) || 0
+
+    function startPeek(item) {
+        if (!item || root.isOpen || !item.visible) return
+        setPopoutPos(item)
+        root.peekTargetItem = item
+        root.isPeeking = true
+    }
+
+    function stopPeek() {
+        root.isPeeking = false
+    }
     
     readonly property real actualScreenWidth: screen ? screen.width : 1920
     readonly property real actualScreenHeight: screen ? screen.height : 1080
@@ -211,6 +260,7 @@ PanelWindow {
         if (isOpen) {
             root.playOpenSound()
             root.isBarRevealedByUser = true
+            root.isPeeking = false
             autoHideTimer.stop()
         } else {
             lastOpenWidth = rawChildWidth
@@ -237,13 +287,19 @@ PanelWindow {
     readonly property real animScale: Math.max(0.0, progress)
     readonly property real closeFactor: root.isOpen ? progress : Math.pow(progress, 1.2)
 
-    readonly property real currentHeight: targetHeight * Math.pow(closeFactor, 1.8)
-    readonly property real squishRatio: targetHeight > 0 ? (1.0 - (currentHeight / targetHeight)) : 0.0
-    readonly property real currentWidth: root.isOpen ? (targetWidth * animScale) : (targetWidth * (closeFactor + (0.3 * squishRatio * closeFactor)))
+    // Unmodified popout squish math
+    readonly property real popoutHeight: targetHeight * Math.pow(closeFactor, 1.8)
+    readonly property real squishRatio: targetHeight > 0 ? (1.0 - (popoutHeight / targetHeight)) : 0.0
+    readonly property real popoutWidth: root.isOpen ? (targetWidth * animScale) : (targetWidth * (closeFactor + (0.33 * squishRatio * closeFactor)))
 
-    readonly property real wingW: (Config.surfaceRadius || 18) * animScale
-    readonly property real wingH: (Config.surfaceRadius || 18) * animScale
-    readonly property real radius: Math.max(0.1, (Config.surfaceRadius || 18) * animScale)
+    // Dynamic switch to peek geometry without polluting the squish lifecycle
+    readonly property bool peekActive: root.isPeeking && !root.isOpen && root.progress <= 0.005
+    readonly property real currentWidth: peekActive ? (isHorizontal ? pkSpan : pkDepth) : popoutWidth
+    readonly property real currentHeight: peekActive ? (isHorizontal ? pkDepth : pkSpan) : popoutHeight
+
+    readonly property real wingW: peekActive ? pkWing : ((Config.surfaceRadius || 18) * animScale)
+    readonly property real wingH: peekActive ? pkWing : ((Config.surfaceRadius || 18) * animScale)
+    readonly property real radius: Math.max(0.1, peekActive ? pkRad : ((Config.surfaceRadius || 18) * animScale))
 
     readonly property real borderWidth: (Config.borderThickness !== undefined && Config.borderThickness !== null) ? Number(Config.borderThickness) : 0.0
     readonly property real halfB: borderWidth / 2.0
@@ -430,8 +486,8 @@ PanelWindow {
 
     readonly property real staticRight: staticLeft + (isHorizontal ? targetWidth : targetHeight)
 
-    readonly property real pLeft: staticLeft
-    readonly property real pRight: staticRight
+    readonly property real pLeft: peekActive ? pkLeft : staticLeft
+    readonly property real pRight: peekActive ? pkRight : staticRight
 
     property string activeView: "none"
 
@@ -780,7 +836,7 @@ PanelWindow {
             Shape {
                 id: closedShape
                 anchors.fill: parent
-                visible: root.progress <= 0.005 && !root.isScreenFrame
+                visible: root.progress <= 0.005 && !root.isPeeking && !root.isScreenFrame
 
                 readonly property real bX: (root.isIsland 
                     ? (root.isHorizontal ? root.islandX : (root.isRight ? (mainContainer.width - root.barH + root.halfB) : root.halfB))
@@ -822,7 +878,7 @@ PanelWindow {
             Shape {
                 id: openShapeLeftFloating
                 anchors.fill: parent
-                visible: root.barPosition === "left" && !root.isScreenFrame && root.progress > 0
+                visible: root.barPosition === "left" && !root.isScreenFrame && (root.progress > 0 || root.isPeeking)
 
                 ShapePath {
                     fillColor: Config.bgPanel
@@ -995,7 +1051,7 @@ PanelWindow {
             Shape {
                 id: openShapeTopFloating
                 anchors.fill: parent
-                visible: root.barPosition === "top" && !root.isScreenFrame && root.progress > 0
+                visible: root.barPosition === "top" && !root.isScreenFrame && (root.progress > 0 || root.isPeeking)
 
                 ShapePath {
                     fillColor: Config.bgPanel
@@ -1028,7 +1084,7 @@ PanelWindow {
             Shape {
                 id: openShapeBottomFloating
                 anchors.fill: parent
-                visible: root.barPosition === "bottom" && !root.isScreenFrame && root.progress > 0
+                visible: root.barPosition === "bottom" && !root.isScreenFrame && (root.progress > 0 || root.isPeeking)
                 readonly property real barTopY: mainContainer.height - root.barH + root.halfB
 
                 ShapePath {
@@ -1090,7 +1146,7 @@ PanelWindow {
             Shape {
                 id: openShapeRightFloating
                 anchors.fill: parent
-                visible: root.barPosition === "right" && !root.isScreenFrame && root.progress > 0
+                visible: root.barPosition === "right" && !root.isScreenFrame && (root.progress > 0 || root.isPeeking)
                 readonly property real rX: mainContainer.width - root.barH
 
                 ShapePath {
@@ -1282,7 +1338,7 @@ PanelWindow {
             Item {
                 id: sfOpenGroupLeft
                 anchors.fill: parent
-                visible: root.barPosition === "left" && root.isScreenFrame && root.progress > 0
+                visible: root.barPosition === "left" && root.isScreenFrame && (root.progress > 0 || root.isPeeking)
 
                 Rectangle { x: 0; y: 0; width: mainContainer.width; height: root.inY; color: Config.bgPanel }
                 Rectangle { x: 0; y: root.inY + root.inH; width: mainContainer.width; height: mainContainer.height - (root.inY + root.inH); color: Config.bgPanel }
@@ -1435,7 +1491,7 @@ PanelWindow {
             Item {
                 id: sfOpenGroupRight
                 anchors.fill: parent
-                visible: root.barPosition === "right" && root.isScreenFrame && root.progress > 0
+                visible: root.barPosition === "right" && root.isScreenFrame && (root.progress > 0 || root.isPeeking)
 
                 Rectangle { x: 0; y: 0; width: mainContainer.width; height: root.inY; color: Config.bgPanel }
                 Rectangle { x: 0; y: root.inY + root.inH; width: mainContainer.width; height: mainContainer.height - (root.inY + root.inH); color: Config.bgPanel }
@@ -1569,7 +1625,7 @@ PanelWindow {
             Item {
                 id: sfOpenGroupTop
                 anchors.fill: parent
-                visible: root.barPosition === "top" && root.isScreenFrame && root.progress > 0
+                visible: root.barPosition === "top" && root.isScreenFrame && (root.progress > 0 || root.isPeeking)
 
                 Rectangle { x: 0; y: 0; width: mainContainer.width; height: root.inY; color: Config.bgPanel }
                 Rectangle { x: 0; y: root.inY + root.inH; width: mainContainer.width; height: mainContainer.height - (root.inY + root.inH); color: Config.bgPanel }
@@ -1704,7 +1760,7 @@ PanelWindow {
             Item {
                 id: sfOpenGroupBottom
                 anchors.fill: parent
-                visible: root.barPosition === "bottom" && root.isScreenFrame && root.progress > 0
+                visible: root.barPosition === "bottom" && root.isScreenFrame && (root.progress > 0 || root.isPeeking)
 
                 Rectangle { x: 0; y: 0; width: mainContainer.width; height: root.inY; color: Config.bgPanel }
                 Rectangle { x: 0; y: root.inY + root.inH; width: mainContainer.width; height: mainContainer.height - (root.inY + root.inH); color: Config.bgPanel }
