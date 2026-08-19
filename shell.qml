@@ -535,11 +535,6 @@ ShellRoot {
         }
     }
 
-    MediaPlayer { 
-        id: globalMediaPlayerWidget
-        visible: Config.showPlayer
-    }
-
     Variants {
         model: Quickshell.screens
 
