@@ -177,10 +177,11 @@ void main() {
             "os.makedirs(os.path.dirname(p), exist_ok=True)\n" +
             "with open(p, 'w') as f:\n" +
             "    f.write(" + JSON.stringify(glsl) + ")\n" +
-            "cmd = 'hl.config({ decoration = { screen_shader = \"' + p + '\" } })'\n" +
+            "cmd = 'hl.config({ decoration = { screen_shader = \"' + (p if " + (configRef.pixelShaderEnabled ? "True" : "False") + " else '') + '\" } })'\n" +
             "subprocess.run(['hyprctl', 'eval', cmd])\n"
 
         proc.script = py
         proc.running = true
+        configRef.syncHyprlandBorders()
     }
 }
