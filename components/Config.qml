@@ -11,6 +11,7 @@ QtObject {
 
     // --- RETRO SCREEN SHADER STATE & PERSISTENCE ---
     property bool pixelShaderEnabled: false
+    property string pixelShaderMode: "pixelate"
     property real pixelShaderSize: 2.0
     property real pixelShaderLevels: 32.0
     property string pixelShaderPalette: "default"
@@ -18,18 +19,36 @@ QtObject {
     property bool pixelShaderGrid: false
     property bool pixelShaderBoost: true
 
-    onPixelShaderEnabledChanged: { if (isLoaded) saveSettings() }
-    onPixelShaderSizeChanged: { if (isLoaded) saveSettings() }
-    onPixelShaderLevelsChanged: { if (isLoaded) saveSettings() }
-    onPixelShaderPaletteChanged: { if (isLoaded) saveSettings() }
-    onPixelShaderDitherChanged: { if (isLoaded) saveSettings() }
-    onPixelShaderGridChanged: { if (isLoaded) saveSettings() }
-    onPixelShaderBoostChanged: { if (isLoaded) saveSettings() }
+    onPixelShaderEnabledChanged: { if (isLoaded) { saveSettings(); updateShader() } }
+    onPixelShaderModeChanged: { if (isLoaded) { saveSettings(); updateShader() } }
+    onPixelShaderSizeChanged: { if (isLoaded) { saveSettings(); updateShader() } }
+    onPixelShaderLevelsChanged: { if (isLoaded) { saveSettings(); updateShader() } }
+    onPixelShaderPaletteChanged: { if (isLoaded) { saveSettings(); updateShader() } }
+    onPixelShaderDitherChanged: { if (isLoaded) { saveSettings(); updateShader() } }
+    onPixelShaderGridChanged: { if (isLoaded) { saveSettings(); updateShader() } }
+    onPixelShaderBoostChanged: { if (isLoaded) { saveSettings(); updateShader() } }
 
     // --- EXTRACTED BACKGROUND SERVICES ---
     property WallpaperService wallpaperService: WallpaperService { configRef: root }
     property QuoteService quoteService: QuoteService { configRef: root }
     property IrisColorService irisService: IrisColorService { configRef: root }
+    property ShaderService shaderService: ShaderService { configRef: root }
+
+    // --- RETRO SHADER IPC HANDLER ---
+    property IpcHandler shaderIpc: IpcHandler {
+        target: "shader"
+
+        function toggle() {
+            root.pixelShaderEnabled = !root.pixelShaderEnabled
+            root.updateShader()
+        }
+    }
+
+    function updateShader() {
+        if (!isLoaded) return
+        saveSettings()
+        shaderService.updateShader()
+    }
 
     property bool showTaskOverflow: false
 
@@ -551,7 +570,8 @@ QtObject {
         "settings":          { mod: "SUPER",         key: "Space", cmd: "qs -c Synoptik ipc call settings toggle" },
         "workspaceoverview": { mod: "SUPER",         key: "TAB",   cmd: "qs -c Synoptik ipc call workspaceoverview toggle" },
         "clipboard":         { mod: "SUPER + SHIFT", key: "V",     cmd: "qs -c Synoptik ipc call clipboard toggle" },
-        "lockscreen":        { mod: "SUPER",         key: "L",     cmd: "qs -c Synoptik ipc call lockscreen toggle" }
+        "lockscreen":        { mod: "SUPER",         key: "L",     cmd: "qs -c Synoptik ipc call lockscreen toggle" },
+        "shader":            { mod: "CTRL + ALT",    key: "P",     cmd: "qs -c Synoptik ipc call shader toggle" }
     })
 
     property var keybinds: Object.assign({}, defaultKeybinds)
@@ -1664,7 +1684,7 @@ QtObject {
 
         // Generates uniform literal binds with SUPER
         let bindLines = []
-        let bindKeys = ["wallpaper", "launcher", "settings", "workspaceoverview", "clipboard", "lockscreen"]
+        let bindKeys = ["wallpaper", "launcher", "settings", "workspaceoverview", "clipboard", "lockscreen", "shader"]
         bindKeys.forEach(bk => {
             let b = (root.keybinds && root.keybinds[bk]) ? root.keybinds[bk] : root.defaultKeybinds[bk]
             if (b) {
@@ -1843,7 +1863,9 @@ QtObject {
                 "notificationSoundPath": root.notificationSoundPath,
                 "windowSoundVolume": root.windowSoundVolume,
                 "enableHoverPeek": root.enableHoverPeek,
+
                 "pixelShaderEnabled": root.pixelShaderEnabled,
+                "pixelShaderMode": root.pixelShaderMode,
                 "pixelShaderSize": root.pixelShaderSize,
                 "pixelShaderLevels": root.pixelShaderLevels,
                 "pixelShaderPalette": root.pixelShaderPalette,
@@ -1987,7 +2009,7 @@ QtObject {
                             "showMirror", "mirrorShowPanel", "mirrorMirrored", "mirrorKeepAspect", "mirrorExpanded", "mirrorPinned", "mirrorAnchorPos",
                             "playerExpanded", "playerPinned",
                             "playerShowPanel", "playerKeepAspect", "playerX", "playerY", "playerAnchorPos", "enableHoverPeek",
-                            "pixelShaderEnabled", "pixelShaderSize", "pixelShaderLevels", 
+                            "pixelShaderEnabled", "pixelShaderMode", "pixelShaderSize", "pixelShaderLevels", 
                             "pixelShaderPalette", "pixelShaderDither", "pixelShaderGrid", "pixelShaderBoost"
                         ]
 
@@ -2043,6 +2065,10 @@ QtObject {
                 root.resetDraftMonitorConfigs()
                 root.syncHyprlandBorders()
                 root.syncScreenFrame()
+
+                if (root.pixelShaderEnabled) {
+                    root.updateShader()
+                }
                 
                 root.stopStream()
 

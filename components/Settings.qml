@@ -839,7 +839,7 @@ Item {
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 9; visible: active; sourceComponent: ClockSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 19; visible: active; sourceComponent: SysInfoSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 10; visible: active; sourceComponent: KeyboardSettings {} }
-                    Loader { anchors.fill: parent; active: settingsRoot.activeSection === 20; visible: active; sourceComponent: PixelateConfigWidget {} }
+                    Loader { anchors.fill: parent; active: settingsRoot.activeSection === 20; visible: active; sourceComponent: ShaderSettings {} }
 
                     // Shell View (Section 11)
                     Loader {
