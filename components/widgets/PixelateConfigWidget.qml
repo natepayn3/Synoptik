@@ -231,7 +231,7 @@ void main() {
 
                                 readonly property bool isSelected: (Config.pixelShaderSize || 2.0) === modelData.val
                                 color: isSelected ? Qt.rgba(255, 255, 255, 0.12) : (szHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : Qt.rgba(255, 255, 255, 0.03))
-                                border.width: isSelected ? 1 : 0
+                                border.width: isSelected ? 2 : 0
                                 border.color: Config.accent
 
                                 Text {
@@ -286,7 +286,7 @@ void main() {
 
                                 readonly property bool isSelected: (Config.pixelShaderLevels || 32.0) === modelData.val
                                 color: isSelected ? Qt.rgba(255, 255, 255, 0.12) : (clHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : Qt.rgba(255, 255, 255, 0.03))
-                                border.width: isSelected ? 1 : 0
+                                border.width: isSelected ? 2 : 0
                                 border.color: Config.accent
 
                                 Text {
@@ -340,7 +340,7 @@ void main() {
 
                                 readonly property bool isSelected: (Config.pixelShaderPalette || "default") === modelData.id
                                 color: isSelected ? Qt.rgba(255, 255, 255, 0.12) : (palHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : Qt.rgba(255, 255, 255, 0.03))
-                                border.width: isSelected ? 1 : 0
+                                border.width: isSelected ? 2 : 0
                                 border.color: Config.accent
 
                                 Text {
