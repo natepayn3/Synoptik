@@ -250,11 +250,12 @@ Flickable {
                 Repeater {
                     model: [
                         { id: "launcher",          name: "App Launcher",        icon: "terminal_2" },
-                        { id: "settings",          name: "Settings Panel",       icon: "build" },
-                        { id: "wallpaper",         name: "Wallpaper Picker",     icon: "wall_art" },
-                        { id: "workspaceoverview", name: "Workspace Overview",  icon: "select_window_2" },
-                        { id: "clipboard",         name: "Clipboard Manager",    icon: "content_paste" },
-                        { id: "lockscreen",        name: "Lock Screen",          icon: "lock" }
+                        { id: "settings",          name: "Settings Panel",      icon: "build" },
+                        { id: "wallpaper",         name: "Wallpaper Picker",    icon: "wall_art" },
+                        { id: "workspaceoverview", name: "Workspace Overview", icon: "select_window_2" },
+                        { id: "clipboard",         name: "Clipboard Manager",   icon: "content_paste" },
+                        { id: "lockscreen",        name: "Lock Screen",         icon: "lock" },
+                        { id: "shader",            name: "Retro Screen Shader", icon: "videogame_asset" }
                     ]
 
                     delegate: Rectangle {
@@ -313,7 +314,9 @@ Flickable {
                                 Text {
                                     id: keyLabel
                                     anchors.centerIn: parent
-                                    property var bindData: Config.keybinds[modelData.id] || {}
+                                    property var bindData: (Config.keybinds && Config.keybinds[modelData.id] && Config.keybinds[modelData.id].key) 
+                                        ? Config.keybinds[modelData.id] 
+                                        : (Config.defaultKeybinds[modelData.id] || {})
                                     text: {
                                         if (rowCard.isRecording) return "RECORDING..."
                                         let m = bindData.mod || "SUPER"
@@ -333,6 +336,7 @@ Flickable {
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: {
                                         flickable.recordingId = modelData.id
+                                        keyListener.focus = true
                                         keyListener.forceActiveFocus()
                                     }
                                 }
@@ -347,6 +351,7 @@ Flickable {
                             z: -1
                             onClicked: {
                                 flickable.recordingId = modelData.id
+                                keyListener.focus = true
                                 keyListener.forceActiveFocus()
                             }
                         }
@@ -419,7 +424,7 @@ Flickable {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
                                 Config.showOsk = (Config.showOsk === false)
-                                if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                if (typeof Config.saveSettings === "function") Config.saveSettings()
                                 else if (typeof Config.save === "function") Config.save()
                             }
                         }
@@ -512,7 +517,7 @@ Flickable {
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: {
                                         Config.oskLayout = modelData.id
-                                        if (typeof Config.saveConfig === "function") Config.saveConfig()
+                                        if (typeof Config.saveSettings === "function") Config.saveSettings()
                                         else if (typeof Config.save === "function") Config.save()
                                     }
                                 }
