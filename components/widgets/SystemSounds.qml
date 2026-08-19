@@ -9,6 +9,44 @@ ColumnLayout {
     id: soundSettingsRoot
     spacing: Config.cardMargin
 
+    // Reusable Geometric / Square Toggle Switch Component
+    component ToggleSwitch : Rectangle {
+        id: sw
+        property bool checked: false
+        
+        implicitWidth: 40
+        implicitHeight: 22
+        radius: 6
+        color: checked ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(0, 0, 0, 0.4)
+        border.width: sw.checked ? 2 : 1
+        border.color: checked ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
+
+        Behavior on color { ColorAnimation { duration: 140 } }
+        Behavior on border.color { ColorAnimation { duration: 140 } }
+
+        // Square Thumb / Slider
+        Rectangle {
+            id: thumb
+            x: sw.checked ? (sw.width - width - 3) : 3
+            anchors.verticalCenter: parent.verticalCenter
+            width: 16
+            height: 16
+            radius: 4
+            color: sw.checked ? Config.accent : Qt.rgba(255, 255, 255, 0.2)
+            border.width: 0
+            border.color: sw.checked ? Qt.lighter(Config.accent, 1.2) : Qt.rgba(255, 255, 255, 0.25)
+
+            Behavior on x { 
+                NumberAnimation { 
+                    duration: 160
+                    easing.type: Easing.OutCubic 
+                } 
+            }
+            Behavior on color { ColorAnimation { duration: 140 } }
+            Behavior on border.color { ColorAnimation { duration: 140 } }
+        }
+    }
+
     readonly property var soundFiles: [
         "sound1.wav", "sound2.wav", "sound3.wav",
         "sound4.wav", "sound5.wav", "sound6.wav",
@@ -91,23 +129,8 @@ ColumnLayout {
                     Layout.fillWidth: true
                 }
 
-                // Toggle Switch matching WorkspaceSettings style
-                Rectangle {
-                    implicitWidth: 44
-                    implicitHeight: 24
-                    radius: 12
-                    color: (Config.playWindowSounds !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                    Behavior on color { ColorAnimation { duration: 150 } }
-
-                    Rectangle {
-                        anchors.verticalCenter: parent.verticalCenter
-                        x: (Config.playWindowSounds !== false) ? 22 : 2
-                        implicitWidth: 20
-                        implicitHeight: 20
-                        radius: 10
-                        color: (Config.playWindowSounds !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
-                        Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-                    }
+                ToggleSwitch {
+                    checked: Config.playWindowSounds !== false
 
                     MouseArea {
                         anchors.fill: parent
@@ -120,7 +143,6 @@ ColumnLayout {
                     }
                 }
             }
-
 
             GridLayout {
                 columns: 3
@@ -219,23 +241,8 @@ ColumnLayout {
                     Layout.fillWidth: true
                 }
 
-                // Toggle Switch matching WorkspaceSettings style
-                Rectangle {
-                    implicitWidth: 44
-                    implicitHeight: 24
-                    radius: 12
-                    color: (Config.playNotificationSounds !== false) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
-                    Behavior on color { ColorAnimation { duration: 150 } }
-
-                    Rectangle {
-                        anchors.verticalCenter: parent.verticalCenter
-                        x: (Config.playNotificationSounds !== false) ? 22 : 2
-                        implicitWidth: 20
-                        implicitHeight: 20
-                        radius: 10
-                        color: (Config.playNotificationSounds !== false) ? Config.bgBase : Qt.rgba(255, 255, 255, 0.8)
-                        Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
-                    }
+                ToggleSwitch {
+                    checked: Config.playNotificationSounds !== false
 
                     MouseArea {
                         anchors.fill: parent
