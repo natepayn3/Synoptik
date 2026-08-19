@@ -119,37 +119,6 @@ PanelWindow {
         }
     }
 
-    property Timer playerReopenTimer: Timer {
-        id: playerReopenTimer
-        interval: 120
-        repeat: false
-        onTriggered: {
-            if (Config.showPlayer) {
-                updatePlayerPopoutPos()
-                root.isOpen = true
-            }
-        }
-    }
-
-    function updatePlayerPopoutPos() {
-        if (root.activeView !== "player") return
-
-        let barCenter = isHorizontal 
-            ? (inX + (inW / 2.0)) 
-            : (inY + (inH / 2.0))
-
-        if (Config.playerAnchorPos === "top") {
-            if (isHorizontal) root.popoutXOffset = inX + (rawChildWidth / 2.0) + 12
-            else root.popoutYOffset = inY + (rawChildHeight / 2.0) + 12
-        } else if (Config.playerAnchorPos === "bottom") {
-            if (isHorizontal) root.popoutXOffset = (inX + inW) - (rawChildWidth / 2.0) - 12
-            else root.popoutYOffset = (inY + inH) - (rawChildHeight / 2.0) - 12
-        } else {
-            if (isHorizontal) root.popoutXOffset = barCenter
-            else root.popoutYOffset = barCenter
-        }
-    }
-
     function updateMirrorPopoutPos() {
         if (root.activeView !== "mirror") return
 
@@ -254,12 +223,10 @@ PanelWindow {
 
     onRawChildWidthChanged: {
         if (activeView === "mirror") updateMirrorPopoutPos()
-        if (activeView === "player") updatePlayerPopoutPos()
     }
 
     onRawChildHeightChanged: {
         if (activeView === "mirror") updateMirrorPopoutPos()
-        if (activeView === "player") updatePlayerPopoutPos()
     }
 
     SoundEffect {
@@ -417,7 +384,7 @@ PanelWindow {
 
     HyprlandFocusGrab {
         id: focusGrab
-        active: root.isOpen && root.activeView !== "osd" && root.activeView !== "notifOsd" && !(root.activeView === "player" && Config.playerPinned) && !(root.activeView === "mirror" && Config.mirrorPinned) && (!screen || screen.name === (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""))
+        active: root.isOpen && root.activeView !== "osd" && root.activeView !== "notifOsd" && !(root.activeView === "mirror" && Config.mirrorPinned) && (!screen || screen.name === (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""))
         windows: [root]
         onCleared: {
             root.closeOthers("none")
@@ -579,7 +546,6 @@ PanelWindow {
             case "network":        btn = leftCard ? (leftCard.getButton("network") || leftCard) : null; break
             case "battery":        btn = leftCard ? (leftCard.getButton("batt") || leftCard) : null; break
             case "clipboard":      btn = leftCard ? (leftCard.getButton("clipboard") || leftCard) : null; break
-            case "player":         btn = leftCard ? (leftCard.getButton("player") || leftCard) : null; break
 
             // Right Card & Center Modules
             case "workspacePreview": btn = rightCard ? (rightCard.getButton("overview") || rightCard) : null; break
@@ -589,9 +555,7 @@ PanelWindow {
         }
 
         // Snap popout offset to the active button position or anchor mode
-        if (activeView === "player") {
-            updatePlayerPopoutPos()
-        } else if (activeView === "mirror") {
+        if (activeView === "mirror") {
             updateMirrorPopoutPos()
         } else if (btn) {
             setPopoutPos(btn)
@@ -628,12 +592,10 @@ PanelWindow {
             else if (Config.showScreenRecorder) nextView = "screenRecorder"
             else if (Config.showControlCenter) nextView = "controlCenter"
             else if (Config.showMirror && !Config.mirrorPinned) nextView = "mirror"
-            else if (Config.showPlayer && !Config.playerPinned) nextView = "player"
             else if (typeof Config.showTaskOverflow !== "undefined" && Config.showTaskOverflow) nextView = "taskOverflow"
 
             // Pinned Fallback Panels (Active when no temporary unpinned panel is open)
             else if (Config.showMirror && Config.mirrorPinned) nextView = "mirror"
-            else if (Config.showPlayer && Config.playerPinned) nextView = "player"
         }
 
         if (nextView === "none") {
@@ -677,7 +639,6 @@ PanelWindow {
             if (except !== "mirror" && !Config.mirrorPinned) Config.showMirror = false
             if (except !== "controlCenter") Config.showControlCenter = false
             if (except !== "settings") Config.showSettings = false
-            if (except !== "player" && !Config.playerPinned) Config.showPlayer = false
             if (except !== "taskOverflow" && typeof Config.showTaskOverflow !== "undefined") Config.showTaskOverflow = false
         }
     }
@@ -729,21 +690,6 @@ PanelWindow {
                 if (btn) setPopoutPos(btn)
             }
             updateActiveView()
-        }
-        function onShowPlayerChanged() {
-            if (Config.showPlayer) {
-                closeOthers("player")
-            }
-            updateActiveView()
-            if (Config.showPlayer) {
-                updatePlayerPopoutPos()
-            }
-        }
-        function onPlayerAnchorPosChanged() {
-            if (activeView === "player") {
-                root.isOpen = false
-                playerReopenTimer.restart()
-            }
         }
         function onShowTaskOverflowChanged() {
             if (Config.showTaskOverflow) {
