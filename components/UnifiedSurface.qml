@@ -30,11 +30,8 @@ PanelWindow {
     readonly property real peekWing: 2
 
     readonly property real pkSpan: {
-        if (!peekTargetItem) return peekSpan
-        let span = isHorizontal 
-            ? (peekTargetItem.width || peekTargetItem.implicitWidth || 32) 
-            : (peekTargetItem.height || peekTargetItem.implicitHeight || 32)
-        return (span || 32) + 28             // Wider padding expansion over hovered modules
+        let flushExtra = (isScreenFrame && (isPeekLeftFlush || isPeekRightFlush)) ? 12 : 0
+        return basePeekSpan + flushExtra
     }
     readonly property real pkDepth: peekDepth * (peekProgress || 0)
     readonly property real pkWing: peekWing * (peekProgress || 0)
@@ -52,9 +49,33 @@ PanelWindow {
             let barEnd = isHorizontal ? ((islandX || 0) + (animatedIslandWidth || 0)) : ((islandY || 0) + (animatedIslandHeight || 0))
             return Math.max(barOrigin + safeMargin, Math.min(barEnd - safeMargin - pkSpan, center - (pkSpan / 2.0))) || 0
         }
+
+        // In screen frame mode flush states, snap to exact screen frame edge boundaries
+        if (root.isScreenFrame && root.isPeekLeftFlush) return minL
+        if (root.isScreenFrame && root.isPeekRightFlush) return maxR - pkSpan
         return Math.max(minL + safeMargin, Math.min(maxR - safeMargin - pkSpan, center - (pkSpan / 2.0))) || 0
     }
     readonly property real pkRight: (pkLeft + pkSpan) || 0
+
+    // Peek-specific flush helpers (no circular dependency — use raw center/span, not pLeft)
+    readonly property real _pkSafeMargin: isScreenFrame ? ((inRadi || 0) + pkWing) : ((barRadius || 0) + pkWing)
+    
+    readonly property bool isPeekLeftFlush: root.isScreenFrame && (
+        (pkCenter - (basePeekSpan / 2.0)) <= (minPossibleLeft + _pkSafeMargin + 8)
+    )
+    readonly property bool isPeekRightFlush: root.isScreenFrame && (
+        (pkCenter + (basePeekSpan / 2.0)) >= (maxPossibleRight - _pkSafeMargin - 8)
+    )
+
+    readonly property real basePeekSpan: {
+        let span = 32
+        if (peekTargetItem) {
+            span = isHorizontal 
+                ? (peekTargetItem.width || peekTargetItem.implicitWidth || 32) 
+                : (peekTargetItem.height || peekTargetItem.implicitHeight || 32)
+        }
+        return (span || 32) + 28
+    }
 
     function startPeek(item) {
         if (!Config.enableHoverPeek || !item || root.isOpen || !item.visible) return
@@ -421,7 +442,11 @@ PanelWindow {
         NumberAnimation { id: islandWidthAnim; duration: 250; easing.type: Easing.OutCubic }
     }
 
-    readonly property real islandContentHeight: (!root.isHorizontal ? leftCardTargetHeight : (leftCard ? leftCard.height : 0)) + (activeWindowCard && activeWindowCard.visible ? activeWindowCard.height : 0) + (rightCard ? rightCard.height : 0) + 44
+    readonly property real islandContentHeight: (!root.isHorizontal ? leftCardTargetHeight : (leftCard ? leftCard.height : 0)) 
+        + (activeWindowCard && activeWindowCard.visible ? 190 : 0) 
+        + (rightCard ? rightCard.height : 0) 
+        + 64
+
     readonly property real islandTargetHeight: Math.min(
         mainContainer.height - (root.currentMargin * 2),
         Math.max(200, (root.isOpen && !root.isHorizontal) ? Math.max(islandContentHeight, root.targetHeight) : islandContentHeight)
@@ -454,12 +479,12 @@ PanelWindow {
 
     readonly property bool isLeftFlush: root.isIsland
         ? (root.isHorizontal ? (pLeft <= (root.islandX + safeCornerMargin)) : (pLeft <= (root.islandY + safeCornerMargin)))
-        : (!isCentered && ((isHorizontal ? (popoutXOffset - (targetWidth / 2.0)) : (popoutYOffset - (targetHeight / 2.0))) <= (minPossibleLeft + safeCornerMargin)))
+        : (root.isScreenFrame && !isCentered && !peekActive && ((isHorizontal ? (popoutXOffset - targetWidth / 2.0) : (popoutYOffset - targetHeight / 2.0)) <= minPossibleLeft))
 
     readonly property bool isRightFlush: root.isIsland
         ? (root.isHorizontal ? (pRight >= (root.islandX + root.animatedIslandWidth - safeCornerMargin)) : (pRight >= (root.islandY + root.animatedIslandHeight - safeCornerMargin)))
-        : (!isCentered && ((isHorizontal ? (popoutXOffset + (targetWidth / 2.0)) : (popoutYOffset + (targetHeight / 2.0))) >= (maxPossibleRight - safeCornerMargin)))
-        
+        : (root.isScreenFrame && !isCentered && !peekActive && ((isHorizontal ? (popoutXOffset + targetWidth / 2.0) : (popoutYOffset + targetHeight / 2.0)) >= maxPossibleRight))
+
     readonly property real targetCenteredLeft: Math.max(minPossibleLeft + safeCornerMargin, Math.min(maxPossibleRight - (isHorizontal ? targetWidth : targetHeight) - safeCornerMargin, ((isHorizontal ? mainContainer.width : mainContainer.height) - (isHorizontal ? targetWidth : targetHeight)) / 2.0))
 
     readonly property real staticLeft: {
@@ -467,6 +492,7 @@ PanelWindow {
         let offset = isHorizontal ? popoutXOffset : popoutYOffset
         let safeMargin = root.safeCornerMargin
         if (isCentered) return targetCenteredLeft
+
         if (root.isIsland) {
             let barOrigin = isHorizontal ? root.islandX : root.islandY
             let barEnd = isHorizontal ? (root.islandX + root.animatedIslandWidth) : (root.islandY + root.animatedIslandHeight)
@@ -474,7 +500,7 @@ PanelWindow {
             let rawLeft = offset - (span / 2.0)
             let rawRight = offset + (span / 2.0)
 
-            // Snap flush if within safe margin (two wings / corner radius span)
+            // When popout spans the full island, snap cleanly to capsule ends
             if (span >= barSpan - safeMargin) {
                 return barOrigin + ((barSpan - span) / 2.0)
             }
@@ -482,6 +508,7 @@ PanelWindow {
             if (rawRight >= barEnd - safeMargin) return barEnd - span
             return Math.max(barOrigin + safeMargin, Math.min(barEnd - safeMargin - span, rawLeft))
         }
+
         if (isLeftFlush) return minPossibleLeft
         if (isRightFlush) return maxPossibleRight - span
         return Math.max(minPossibleLeft + safeMargin, Math.min(maxPossibleRight - span - safeMargin, offset - (span / 2.0)))
@@ -805,11 +832,11 @@ PanelWindow {
                 id: screenFrameCorners
                 Shape {
                     anchors.fill: parent
-                    readonly property bool popupActive: root.progress > 0.005
-                    readonly property bool hideTL: popupActive && ((root.barPosition === "left" && root.isLeftFlush) || (root.barPosition === "top" && root.isLeftFlush))
-                    readonly property bool hideTR: popupActive && ((root.barPosition === "right" && root.isLeftFlush) || (root.barPosition === "top" && root.isRightFlush))
-                    readonly property bool hideBL: popupActive && ((root.barPosition === "left" && root.isRightFlush) || (root.barPosition === "bottom" && root.isLeftFlush))
-                    readonly property bool hideBR: popupActive && ((root.barPosition === "right" && root.isRightFlush) || (root.barPosition === "bottom" && root.isRightFlush))
+                    readonly property bool popupActive: root.progress > 0.005 || root.peekActive
+                    readonly property bool hideTL: popupActive && ((root.barPosition === "left" && (root.isLeftFlush || (root.peekActive && root.isPeekLeftFlush))) || (root.barPosition === "top" && (root.isLeftFlush || (root.peekActive && root.isPeekLeftFlush))))
+                    readonly property bool hideTR: popupActive && ((root.barPosition === "right" && (root.isLeftFlush || (root.peekActive && root.isPeekLeftFlush))) || (root.barPosition === "top" && (root.isRightFlush || (root.peekActive && root.isPeekRightFlush))))
+                    readonly property bool hideBL: popupActive && ((root.barPosition === "left" && (root.isRightFlush || (root.peekActive && root.isPeekRightFlush))) || (root.barPosition === "bottom" && (root.isLeftFlush || (root.peekActive && root.isPeekLeftFlush))))
+                    readonly property bool hideBR: popupActive && ((root.barPosition === "right" && (root.isRightFlush || (root.peekActive && root.isPeekRightFlush))) || (root.barPosition === "bottom" && (root.isRightFlush || (root.peekActive && root.isPeekRightFlush))))
 
                     ShapePath {
                         fillColor: hideTL ? "transparent" : Config.bgPanel; strokeWidth: 0
@@ -1311,7 +1338,7 @@ PanelWindow {
             Item {
                 id: sfClosedGroup
                 anchors.fill: parent
-                visible: root.progress === 0 && root.isScreenFrame
+                visible: root.progress === 0 && !root.isPeeking && root.isScreenFrame
 
                 Rectangle { x: 0; y: 0; width: mainContainer.width; height: root.inY; color: Config.bgPanel }
                 Rectangle { x: 0; y: root.inY + root.inH; width: mainContainer.width; height: mainContainer.height - (root.inY + root.inH); color: Config.bgPanel }
@@ -1359,7 +1386,7 @@ PanelWindow {
                 // --- Center Floating Surface ---
                 Shape {
                     anchors.fill: parent
-                    visible: !root.isLeftFlush && !root.isRightFlush
+                    visible: !root.isLeftFlush && !root.isRightFlush && !(peekActive && root.isPeekLeftFlush) && !(peekActive && root.isPeekRightFlush)
                     ShapePath {
                         fillColor: Config.bgPanel
                         strokeWidth: 0
@@ -1377,7 +1404,7 @@ PanelWindow {
                 }
                 Shape {
                     anchors.fill: parent
-                    visible: root.isLeftFlush
+                    visible: root.isLeftFlush || (peekActive && root.isPeekLeftFlush)
                     ShapePath {
                         fillColor: Config.bgPanel
                         strokeWidth: 0
@@ -1394,7 +1421,7 @@ PanelWindow {
                 }
                 Shape {
                     anchors.fill: parent
-                    visible: root.isRightFlush
+                    visible: root.isRightFlush || (peekActive && root.isPeekRightFlush)
                     ShapePath {
                         fillColor: Config.bgPanel
                         strokeWidth: 0
@@ -1413,7 +1440,7 @@ PanelWindow {
                 // --- Inner Border Lines ---
                 Shape {
                     anchors.fill: parent
-                    visible: !root.isLeftFlush && !root.isRightFlush
+                    visible: !root.isLeftFlush && !root.isRightFlush && !(peekActive && root.isPeekLeftFlush) && !(peekActive && root.isPeekRightFlush)
                     ShapePath {
                         fillColor: "transparent"
                         strokeWidth: root.borderWidth
@@ -1443,7 +1470,7 @@ PanelWindow {
                 }
                 Shape {
                     anchors.fill: parent
-                    visible: root.isLeftFlush
+                    visible: root.isLeftFlush || (peekActive && root.isPeekLeftFlush)
                     ShapePath {
                         fillColor: "transparent"
                         strokeWidth: root.borderWidth
@@ -1469,7 +1496,7 @@ PanelWindow {
                 }
                 Shape {
                     anchors.fill: parent
-                    visible: root.isRightFlush
+                    visible: root.isRightFlush || (peekActive && root.isPeekRightFlush)
                     ShapePath {
                         fillColor: "transparent"
                         strokeWidth: root.borderWidth
@@ -1479,7 +1506,7 @@ PanelWindow {
 
                         startX: root.inX + root.inRadi
                         startY: root.inY + root.halfB
-                        PathLine { x: root.inX + root.inW - root.halfB; y: root.inY + root.halfB }
+                        PathLine { x: root.inX + root.inW - root.inRadi; y: root.inY + root.halfB }
                         PathArc { x: root.inX + root.inW - root.halfB; y: root.inY + root.inRadi; radiusX: root.inRadi; radiusY: root.inRadi; direction: PathArc.Clockwise }
                         
                         PathLine { x: root.inX + root.inW - root.halfB; y: root.inY + root.inH - root.inRadi }
@@ -1510,7 +1537,7 @@ PanelWindow {
                 Loader { anchors.fill: parent; sourceComponent: screenFrameCorners }
 
                 Shape {
-                    anchors.fill: parent; visible: !root.isLeftFlush && !root.isRightFlush
+                    anchors.fill: parent; visible: !root.isLeftFlush && !root.isRightFlush && !(peekActive && root.isPeekLeftFlush) && !(peekActive && root.isPeekRightFlush)
                     ShapePath {
                         fillColor: Config.bgPanel; strokeWidth: 0
                         startX: root.inX + root.inW; startY: root.pRight + root.wingW
@@ -1525,7 +1552,7 @@ PanelWindow {
                     }
                 }
                 Shape {
-                    anchors.fill: parent; visible: root.isLeftFlush
+                    anchors.fill: parent; visible: root.isLeftFlush || (peekActive && root.isPeekLeftFlush)
                     ShapePath {
                         fillColor: Config.bgPanel; strokeWidth: 0
                         startX: root.inX + root.inW; startY: root.pRight + root.wingW
@@ -1539,7 +1566,7 @@ PanelWindow {
                     }
                 }
                 Shape {
-                    anchors.fill: parent; visible: root.isRightFlush
+                    anchors.fill: parent; visible: root.isRightFlush || (peekActive && root.isPeekRightFlush)
                     ShapePath {
                         fillColor: Config.bgPanel; strokeWidth: 0
                         startX: root.inX + root.inW; startY: root.inY + root.inH
@@ -1558,7 +1585,7 @@ PanelWindow {
                 }
 
                 Shape {
-                    anchors.fill: parent; visible: !root.isLeftFlush && !root.isRightFlush
+                    anchors.fill: parent; visible: !root.isLeftFlush && !root.isRightFlush && !(peekActive && root.isPeekLeftFlush) && !(peekActive && root.isPeekRightFlush)
                     ShapePath {
                         fillColor: "transparent"; strokeWidth: root.borderWidth; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
                         startX: root.inX + root.inRadi; startY: root.inY + root.halfB
@@ -1581,7 +1608,7 @@ PanelWindow {
                     }
                 }
                 Shape {
-                    anchors.fill: parent; visible: root.isLeftFlush
+                    anchors.fill: parent; visible: root.isLeftFlush || (peekActive && root.isPeekLeftFlush)
                     ShapePath {
                         fillColor: "transparent"; strokeWidth: root.borderWidth; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
                         startX: root.inX + root.inRadi; startY: root.inY + root.halfB
@@ -1606,7 +1633,7 @@ PanelWindow {
                     }
                 }
                 Shape {
-                    anchors.fill: parent; visible: root.isRightFlush
+                    anchors.fill: parent; visible: root.isRightFlush || (peekActive && root.isPeekRightFlush)
                     ShapePath {
                         fillColor: "transparent"; strokeWidth: root.borderWidth; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
                         startX: root.inX + root.inRadi; startY: root.inY + root.halfB
@@ -1644,7 +1671,7 @@ PanelWindow {
                 Loader { anchors.fill: parent; sourceComponent: screenFrameCorners }
 
                 Shape {
-                    anchors.fill: parent; visible: !root.isLeftFlush && !root.isRightFlush
+                    anchors.fill: parent; visible: !root.isLeftFlush && !root.isRightFlush && !(peekActive && root.isPeekLeftFlush) && !(peekActive && root.isPeekRightFlush)
                     ShapePath {
                         fillColor: Config.bgPanel; strokeWidth: 0
                         startX: root.pLeft - root.wingW; startY: root.inY
@@ -1659,7 +1686,7 @@ PanelWindow {
                     }
                 }
                 Shape {
-                    anchors.fill: parent; visible: root.isLeftFlush
+                    anchors.fill: parent; visible: root.isLeftFlush || (peekActive && root.isPeekLeftFlush)
                     ShapePath {
                         fillColor: Config.bgPanel; strokeWidth: 0
                         startX: root.inX; startY: root.inY
@@ -1677,7 +1704,7 @@ PanelWindow {
                     }
                 }
                 Shape {
-                    anchors.fill: parent; visible: root.isRightFlush
+                    anchors.fill: parent; visible: root.isRightFlush || (peekActive && root.isPeekRightFlush)
                     ShapePath {
                         fillColor: Config.bgPanel; strokeWidth: 0
                         startX: root.pLeft - root.wingW; startY: root.inY
@@ -1696,7 +1723,7 @@ PanelWindow {
                 }
 
                 Shape {
-                    anchors.fill: parent; visible: !root.isLeftFlush && !root.isRightFlush
+                    anchors.fill: parent; visible: !root.isLeftFlush && !root.isRightFlush && !(peekActive && root.isPeekLeftFlush) && !(peekActive && root.isPeekRightFlush)
                     ShapePath {
                         fillColor: "transparent"; strokeWidth: root.borderWidth; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
                         startX: root.inX + root.inW - root.inRadi; startY: root.inY + root.halfB
@@ -1719,7 +1746,7 @@ PanelWindow {
                     }
                 }
                 Shape {
-                    anchors.fill: parent; visible: root.isLeftFlush
+                    anchors.fill: parent; visible: root.isLeftFlush || (peekActive && root.isPeekLeftFlush)
                     ShapePath {
                         fillColor: "transparent"; strokeWidth: root.borderWidth; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
                         startX: root.inX + root.inW - root.inRadi; startY: root.inY + root.halfB
@@ -1742,7 +1769,7 @@ PanelWindow {
                     }
                 }
                 Shape {
-                    anchors.fill: parent; visible: root.isRightFlush
+                    anchors.fill: parent; visible: root.isRightFlush || (peekActive && root.isPeekRightFlush)
                     ShapePath {
                         fillColor: "transparent"; strokeWidth: root.borderWidth; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
                         startX: root.inX + root.inRadi; startY: root.inY + root.halfB
@@ -1779,7 +1806,7 @@ PanelWindow {
                 Loader { anchors.fill: parent; sourceComponent: screenFrameCorners }
 
                 Shape {
-                    anchors.fill: parent; visible: !root.isLeftFlush && !root.isRightFlush
+                    anchors.fill: parent; visible: !root.isLeftFlush && !root.isRightFlush && !(peekActive && root.isPeekLeftFlush) && !(peekActive && root.isPeekRightFlush)
                     ShapePath {
                         fillColor: Config.bgPanel; strokeWidth: 0
                         startX: root.pLeft - root.wingW; startY: root.inY + root.inH
@@ -1795,7 +1822,7 @@ PanelWindow {
                 }
 
                 Shape {
-                    anchors.fill: parent; visible: root.isLeftFlush
+                    anchors.fill: parent; visible: root.isLeftFlush || (peekActive && root.isPeekLeftFlush)
                     ShapePath {
                         fillColor: Config.bgPanel; strokeWidth: 0
                         startX: root.inX; startY: root.inY + root.inH
@@ -1814,7 +1841,7 @@ PanelWindow {
                 }
 
                 Shape {
-                    anchors.fill: parent; visible: root.isRightFlush
+                    anchors.fill: parent; visible: root.isRightFlush || (peekActive && root.isPeekRightFlush)
                     ShapePath {
                         fillColor: Config.bgPanel; strokeWidth: 0
                         startX: root.inX + root.inW; startY: root.inY + root.inH
@@ -1833,7 +1860,7 @@ PanelWindow {
                 }
 
                 Shape {
-                    anchors.fill: parent; visible: !root.isLeftFlush && !root.isRightFlush
+                    anchors.fill: parent; visible: !root.isLeftFlush && !root.isRightFlush && !(peekActive && root.isPeekLeftFlush) && !(peekActive && root.isPeekRightFlush)
                     ShapePath {
                         fillColor: "transparent"; strokeWidth: root.borderWidth; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
                         startX: root.inX + root.inRadi; startY: root.inY + root.halfB
@@ -1857,7 +1884,7 @@ PanelWindow {
                 }
 
                 Shape {
-                    anchors.fill: parent; visible: root.isLeftFlush
+                    anchors.fill: parent; visible: root.isLeftFlush || (peekActive && root.isPeekLeftFlush)
                     ShapePath {
                         fillColor: "transparent"; strokeWidth: root.borderWidth; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
                         startX: root.inX + root.inRadi; startY: root.inY + root.halfB
@@ -1883,7 +1910,7 @@ PanelWindow {
                 }
 
                 Shape {
-                    anchors.fill: parent; visible: root.isRightFlush
+                    anchors.fill: parent; visible: root.isRightFlush || (peekActive && root.isPeekRightFlush)
                     ShapePath {
                         fillColor: "transparent"; strokeWidth: root.borderWidth; strokeColor: shellRoot.currentBorderColor; joinStyle: ShapePath.RoundJoin; capStyle: ShapePath.RoundCap
                         startX: root.inX + root.inRadi; startY: root.inY + root.halfB
