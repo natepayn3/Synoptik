@@ -87,7 +87,6 @@ Flickable {
         function applyWallpaper(filePath) {
             if (!filePath || filePath === "") return
             let cleanFilePath = (typeof filePath === "string" ? filePath : filePath.toString()).replace(/^file:\/\//, "")
-            root.currentWallpaperPath = cleanFilePath
             Config.applyWallpaperBackend(cleanFilePath, false)
         }
 
@@ -155,7 +154,7 @@ Flickable {
                             font.bold: true
                         }
                         Text {
-                            text: root.currentWallpaperPath !== "" ? root.currentWallpaperPath.split('/').pop() : "No wallpaper set"
+                            text: Config.activeWallpaperPath !== "" ? Config.activeWallpaperPath.split('/').pop() : "No wallpaper set"
                             color: Config.textMuted
                             font.family: Config.sysFont
                             font.pixelSize: Config.size(Config.fontMicro)
@@ -378,14 +377,17 @@ Flickable {
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 8
-                    visible: Config.enableWallpaperParallax
+                    opacity: Config.enableWallpaperParallax ? 1.0 : 0.4
+                    enabled: Config.enableWallpaperParallax
+
+                    Behavior on opacity { NumberAnimation { duration: 150 } }
 
                     // Option 1: Workspace Switch Parallax
                     Rectangle {
                         Layout.fillWidth: true
                         implicitHeight: 48
                         radius: Config.cornerRadius / 2
-                        color: Config.wallpaperWorkspaceParallax ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : (wsHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
+                        color: Config.wallpaperWorkspaceParallax ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : ((wsHover.containsMouse && Config.enableWallpaperParallax) ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
                         border.width: Config.wallpaperWorkspaceParallax ? 1.5 : 1
                         border.color: Config.wallpaperWorkspaceParallax ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
 
@@ -435,8 +437,8 @@ Flickable {
                             id: wsHover
                             anchors.fill: parent
                             hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: Config.wallpaperWorkspaceParallax = !Config.wallpaperWorkspaceParallax
+                            cursorShape: Config.enableWallpaperParallax ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onClicked: if (Config.enableWallpaperParallax) Config.wallpaperWorkspaceParallax = !Config.wallpaperWorkspaceParallax
                         }
                     }
 
@@ -445,7 +447,7 @@ Flickable {
                         Layout.fillWidth: true
                         implicitHeight: 48
                         radius: Config.cornerRadius / 2
-                        color: Config.wallpaperCursorParallax ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : (curHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
+                        color: Config.wallpaperCursorParallax ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : ((curHover.containsMouse && Config.enableWallpaperParallax) ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
                         border.width: Config.wallpaperCursorParallax ? 1.5 : 1
                         border.color: Config.wallpaperCursorParallax ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
 
@@ -495,8 +497,8 @@ Flickable {
                             id: curHover
                             anchors.fill: parent
                             hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: Config.wallpaperCursorParallax = !Config.wallpaperCursorParallax
+                            cursorShape: Config.enableWallpaperParallax ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onClicked: if (Config.enableWallpaperParallax) Config.wallpaperCursorParallax = !Config.wallpaperCursorParallax
                         }
                     }
 
@@ -540,7 +542,7 @@ Flickable {
                                         implicitWidth: intText.implicitWidth + 14
                                         implicitHeight: 26
                                         radius: 13
-                                        color: isSelected ? Config.accent : (intHover.hovered ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(255, 255, 255, 0.06))
+                                        color: isSelected ? Config.accent : ((intHover.hovered && Config.enableWallpaperParallax) ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(255, 255, 255, 0.06))
                                         border.width: isSelected ? 0 : 1
                                         border.color: isSelected ? "transparent" : Qt.rgba(255, 255, 255, 0.1)
 
@@ -548,14 +550,21 @@ Flickable {
                                             id: intText
                                             anchors.centerIn: parent
                                             text: modelData.label
-                                            color: isSelected ? Config.bgBase : (intHover.hovered ? Config.textMain : Config.textMuted)
+                                            color: isSelected ? Config.bgBase : ((intHover.hovered && Config.enableWallpaperParallax) ? Config.textMain : Config.textMuted)
                                             font.family: Config.sysFont
                                             font.pixelSize: Config.size(Config.fontMicro)
                                             font.bold: isSelected
                                         }
 
-                                        TapHandler { onTapped: Config.wallpaperParallaxIntensity = modelData.val }
-                                        HoverHandler { id: intHover; cursorShape: Qt.PointingHandCursor }
+                                        TapHandler { 
+                                            enabled: Config.enableWallpaperParallax
+                                            onTapped: Config.wallpaperParallaxIntensity = modelData.val 
+                                        }
+                                        HoverHandler { 
+                                            id: intHover
+                                            enabled: Config.enableWallpaperParallax
+                                            cursorShape: Qt.PointingHandCursor 
+                                        }
                                     }
                                 }
                             }
@@ -743,7 +752,10 @@ Flickable {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: Config.wallpaperTransitionType = modelData.name
+                                onClicked: {
+                                    Config.wallpaperTransitionType = modelData.name
+                                    if (typeof Config.saveSettings === "function") Config.saveSettings()
+                                }
                             }
                         }
                     }
@@ -841,7 +853,17 @@ Flickable {
                             readonly property string baseName: fileName.replace(/\.[^/.]+$/, "")
                             readonly property string fileExt: cleanPath.split('.').pop().toLowerCase()
                             readonly property bool isVideo: fileExt === "mp4" || fileExt === "webm"
-                            readonly property bool isCurrent: root.currentWallpaperPath === cleanPath
+                            readonly property bool isCurrent: {
+                                let activeGlobal = (Config.activeWallpaperPath || "").replace(/^file:\/\//, "")
+                                if (activeGlobal === cleanPath) return true
+
+                                // Check if currently displayed on any active monitor
+                                if (Config.activeMonitorWallpapers) {
+                                    let values = Object.values(Config.activeMonitorWallpapers).map(p => p.replace(/^file:\/\//, ""))
+                                    if (values.includes(cleanPath)) return true
+                                }
+                                return false
+                            }
 
                             readonly property string imageSource: isVideo ? 
                                 ("file://" + Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + baseName + ".jpg") : 
@@ -909,14 +931,19 @@ Flickable {
                                     anchors.fill: parent
                                     radius: Config.cornerRadius / 2
                                     color: "transparent"
-                                    border.width: delegateItem.isCurrent ? 2.5 : (cardHover.hovered ? 1.5 : 0)
+                                    border.width: delegateItem.isCurrent ? 2.5 : (cardHover.containsMouse ? 1.5 : 0)
                                     border.color: Config.accent
                                 }
 
-                                TapHandler {
-                                    onTapped: wallpaperBackend.applyWallpaper(delegateItem.fullPath)
+                                MouseArea {
+                                    id: cardHover
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        wallpaperBackend.applyWallpaper(delegateItem.fullPath)
+                                    }
                                 }
-                                HoverHandler { id: cardHover; cursorShape: Qt.PointingHandCursor }
                             }
                         }
                     }
