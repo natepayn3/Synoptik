@@ -44,9 +44,7 @@ QtObject {
         }
     }
 
-    // Debounce timer for shader updates. Rapid changes (e.g. dragging the
-    // pixel size slider) collapse into a single shaderService.updateShader()
-    // call instead of spawning a new python3 process on every tick.
+    // Debounce timer for shader updates
     property Timer shaderDebounce: Timer {
         interval: 200
         repeat: false
@@ -61,137 +59,120 @@ QtObject {
 
     property bool showTaskOverflow: false
 
-    // --- CAMERA / MIRROR ---
-    property MediaDevices mirrorMediaDevices: MediaDevices {}
-
-    property bool mirrorCameraActive: false
-
-    property CaptureSession mirrorCaptureSession: CaptureSession {
-        id: globalMirrorCaptureSession
-        camera: Camera {
-            id: globalMirrorCamera
-            cameraDevice: root.mirrorMediaDevices.defaultVideoInput
-            active: root.mirrorCameraActive && !!cameraDevice
-
-            onActiveChanged: {
-                if (active) {
-                    root.mirrorLoading = false
-                    root.mirrorError = ""
-                }
-            }
-
-            function applyRawFormat() {
-                if (!cameraDevice) {
-                    root.mirrorLoading = false
-                    root.mirrorError = "No camera device found"
-                    root.mirrorCameraActive = false
-                    return
-                }
-                let formats = cameraDevice.videoFormats
-                if (formats && formats.length > 0) {
-                    let bestFormat = undefined
-                    let bestScore = -1
-                    for (let i = 0; i < formats.length; ++i) {
-                        let f = formats[i]
-                        let fpsTarget = Math.min(f.maxFrameRate, 30)
-                        let width = f.resolution.width
-                        let widthScore = width <= 1280 ? width : (1280 - (width - 1280)) 
-                        let score = (fpsTarget * 10000) + widthScore
-                        if (score > bestScore) {
-                            bestScore = score
-                            bestFormat = f
-                        }
-                    }
-                    if (bestFormat) cameraFormat = bestFormat
-                }
-                root.mirrorCameraActive = root.showMirror
-            }
-        }
-    }
-
+    // --- CAMERA / MIRROR (LAZY LOADED) ---
+    property bool showMirror: false
+    property bool mirrorShowPanel: true
+    property bool mirrorMirrored: true
+    property bool mirrorKeepAspect: true
+    property bool mirrorExpanded: false
+    property bool mirrorPinned: false
+    property string mirrorAnchorPos: "center"
     property bool mirrorLoading: false
     property string mirrorError: ""
 
-    property Timer mirrorActivateTimer: Timer {
-        id: mirrorActivateTimer
-        interval: 150
-        repeat: false
-        onTriggered: {
-            if (root.showMirror) {
-                if (globalMirrorCamera.cameraDevice) {
-                    globalMirrorCamera.applyRawFormat()
-                    mirrorReadyTimer.restart()
-                } else {
-                    root.mirrorLoading = false
-                    root.mirrorError = "No camera device found"
-                    root.mirrorCameraActive = false
+    // Lazy load the QtMultimedia backend only when mirror is visible
+    property Loader mirrorLoader: Loader {
+        id: mirrorLoader
+        active: root.showMirror
+
+        sourceComponent: Component {
+            QtObject {
+                id: mirrorBackend
+
+                property MediaDevices mediaDevices: MediaDevices {}
+
+                property CaptureSession captureSession: CaptureSession {
+                    id: globalMirrorCaptureSession
+                    camera: Camera {
+                        id: globalMirrorCamera
+                        cameraDevice: mirrorBackend.mediaDevices.defaultVideoInput
+                        active: true
+
+                        onActiveChanged: {
+                            if (active) {
+                                root.mirrorLoading = false
+                                root.mirrorError = ""
+                            }
+                        }
+
+                        function applyRawFormat() {
+                            if (!cameraDevice) {
+                                root.mirrorLoading = false
+                                root.mirrorError = "No camera device found"
+                                return
+                            }
+                            let formats = cameraDevice.videoFormats
+                            if (formats && formats.length > 0) {
+                                let bestFormat = undefined
+                                let bestScore = -1
+                                for (let i = 0; i < formats.length; ++i) {
+                                    let f = formats[i]
+                                    let fpsTarget = Math.min(f.maxFrameRate, 30)
+                                    let width = f.resolution.width
+                                    let widthScore = width <= 1280 ? width : (1280 - (width - 1280)) 
+                                    let score = (fpsTarget * 10000) + widthScore
+                                    if (score > bestScore) {
+                                        bestScore = score
+                                        bestFormat = f
+                                    }
+                                }
+                                if (bestFormat) cameraFormat = bestFormat
+                            }
+                        }
+
+                        Component.onCompleted: applyRawFormat()
+                    }
+                }
+
+                property Connections deviceWatcher: Connections {
+                    target: mirrorBackend.mediaDevices
+                    function onDefaultVideoInputChanged() {
+                        if (mirrorBackend.mediaDevices.defaultVideoInput) {
+                            root.mirrorError = ""
+                            mirrorBackend.captureSession.camera.applyRawFormat()
+                        } else {
+                            root.mirrorLoading = false
+                            root.mirrorError = "No camera device found"
+                        }
+                    }
                 }
             }
         }
-    }
 
-    property Timer mirrorReadyTimer: Timer {
-        id: mirrorReadyTimer
-        interval: 500
-        repeat: false
-        onTriggered: {
-            if (root.showMirror) {
-                root.mirrorLoading = false
-                if (!globalMirrorCamera.active) {
-                    root.mirrorError = globalMirrorCamera.cameraDevice ? "Camera failed to start" : "No camera device found"
-                }
-            }
-        }
-    }
-
-    property Timer mirrorDeactivateTimer: Timer {
-        id: mirrorDeactivateTimer
-        interval: 450
-        repeat: false
-        onTriggered: {
-            if (!root.showMirror) {
-                root.mirrorCameraActive = false
-            }
-        }
-    }
-
-    property Connections mirrorShowConnection: Connections {
-        target: root
-        function onShowMirrorChanged() {
-            if (root.showMirror) {
-                mirrorDeactivateTimer.stop()
+        onActiveChanged: {
+            if (active) {
                 root.mirrorLoading = true
                 root.mirrorError = ""
-                if (!root.mirrorMediaDevices.defaultVideoInput) {
-                    root.mirrorLoading = false
-                    root.mirrorError = "No camera device found"
-                    root.mirrorCameraActive = false
-                } else {
-                    mirrorActivateTimer.restart()
-                }
             } else {
-                mirrorActivateTimer.stop()
-                mirrorReadyTimer.stop()
                 root.mirrorLoading = false
-                mirrorDeactivateTimer.restart()
+                root.mirrorError = ""
             }
         }
     }
 
-    property Connections mirrorDeviceConnection: Connections {
-        target: root.mirrorMediaDevices
-        function onDefaultVideoInputChanged() {
-            if (root.showMirror) {
-                if (root.mirrorMediaDevices.defaultVideoInput) {
-                    root.mirrorError = ""
-                    globalMirrorCamera.applyRawFormat()
-                } else {
-                    root.mirrorLoading = false
-                    root.mirrorError = "No camera device found"
-                }
-            }
+    // Accessors for external consumers
+    readonly property CaptureSession mirrorCaptureSession: mirrorLoader.item ? mirrorLoader.item.captureSession : null
+    readonly property MediaDevices mirrorMediaDevices: mirrorLoader.item ? mirrorLoader.item.mediaDevices : null
+
+    function cycleMirrorAnchor(direction) {
+        if (direction === "up" || direction === "left" || direction === "prev") {
+            if (mirrorAnchorPos === "bottom") mirrorAnchorPos = "center"
+            else if (mirrorAnchorPos === "center") mirrorAnchorPos = "top"
+            else mirrorAnchorPos = "bottom"
+        } else if (direction === "down" || direction === "right" || direction === "next") {
+            if (mirrorAnchorPos === "top") mirrorAnchorPos = "center"
+            else if (mirrorAnchorPos === "center") mirrorAnchorPos = "bottom"
+            else mirrorAnchorPos = "top"
         }
     }
+
+    onShowMirrorChanged: { if (isLoaded) saveSettings() }
+    onMirrorShowPanelChanged: { if (isLoaded) saveSettings() }
+    onMirrorMirroredChanged: { if (isLoaded) saveSettings() }
+    onMirrorKeepAspectChanged: { if (isLoaded) saveSettings() }
+    onMirrorExpandedChanged: { if (isLoaded) saveSettings() }
+    onMirrorPinnedChanged: { if (isLoaded) saveSettings() }
+    onMirrorAnchorPosChanged: { if (isLoaded) saveSettings() }
 
     // --- INITIALIZATION GUARD ---
     property bool isLoaded: false
@@ -311,35 +292,6 @@ QtObject {
     onWorkspaceShowSpecialChanged: { if (isLoaded) saveSettings() }
     onWorkspaceContainerStyleChanged: { if (isLoaded) saveSettings() }
 
-    // --- MIRROR WIDGET CONFIGURATION ---
-    property bool showMirror: false
-    property bool mirrorShowPanel: true
-    property bool mirrorMirrored: true
-    property bool mirrorKeepAspect: true
-    property bool mirrorExpanded: false
-    property bool mirrorPinned: false
-    property string mirrorAnchorPos: "center"
-
-    function cycleMirrorAnchor(direction) {
-        if (direction === "up" || direction === "left" || direction === "prev") {
-            if (mirrorAnchorPos === "bottom") mirrorAnchorPos = "center"
-            else if (mirrorAnchorPos === "center") mirrorAnchorPos = "top"
-            else mirrorAnchorPos = "bottom"
-        } else if (direction === "down" || direction === "right" || direction === "next") {
-            if (mirrorAnchorPos === "top") mirrorAnchorPos = "center"
-            else if (mirrorAnchorPos === "center") mirrorAnchorPos = "bottom"
-            else mirrorAnchorPos = "top"
-        }
-    }
-
-    onShowMirrorChanged: { if (isLoaded) saveSettings() }
-    onMirrorShowPanelChanged: { if (isLoaded) saveSettings() }
-    onMirrorMirroredChanged: { if (isLoaded) saveSettings() }
-    onMirrorKeepAspectChanged: { if (isLoaded) saveSettings() }
-    onMirrorExpandedChanged: { if (isLoaded) saveSettings() }
-    onMirrorPinnedChanged: { if (isLoaded) saveSettings() }
-    onMirrorAnchorPosChanged: { if (isLoaded) saveSettings() }
-
     // --- CAFFEINE STATE & TIMER ---
     property bool caffeineHasHypridle: false
     property int caffeineState: 0
@@ -383,9 +335,10 @@ QtObject {
         onExited: root.caffeineCheckStatusProc.running = true
     }
 
+    // Only polls when hypridle is present and caffeine override is active
     property Timer caffeinePoller: Timer {
-        interval: 2000
-        running: root.caffeineHasHypridle
+        interval: 5000
+        running: root.caffeineHasHypridle && root.caffeineState !== 0
         repeat: true
         onTriggered: {
             if (!root.caffeineExecProc.running && !root.caffeineCheckStatusProc.running) {
@@ -852,9 +805,10 @@ QtObject {
         zipcode: root.locationQuery
     }
 
+    // Only poll weather if loaded and a valid location query exists
     property Timer weatherTimer: Timer {
         interval: 900000
-        running: root.isLoaded
+        running: root.isLoaded && root.locationQuery.trim().length > 0
         repeat: true
         onTriggered: root.weather.fetchWeather(true)
     }
@@ -1064,7 +1018,7 @@ QtObject {
     onLocationQueryChanged: {
         if (root.weather) {
             root.weather.zipcode = root.locationQuery;
-            if (root.isLoaded) {
+            if (root.isLoaded && root.locationQuery.trim().length > 0) {
                 root.weather.fetchWeather(true);
                 root.saveSettings();
             }
@@ -1442,10 +1396,20 @@ QtObject {
             "    set -l base_name (string replace -r '\\.[^.]+$' '' (path basename $f)); " +
             "    set -l target \"$cache_dir/$base_name.jpg\"; " +
             "    if not test -f $target; " +
-            "        ffmpeg -y -ss 00:00:01 -i $f -vframes 1 -vf 'scale=320:180:force_original_aspect_ratio=increase,crop=320:180' $target >/dev/null 2>&1 &; " +
+            "        if string match -rq '\\.(mp4|webm)$' $f; " +
+            "            nice -n 19 ffmpeg -y -ss 00:00:01 -i $f -vframes 1 -vf 'scale=960:-1:flags=lanczos' -q:v 2 $target >/dev/null 2>&1 &; " +
+            "        else; " +
+            "            nice -n 19 ffmpeg -y -i $f -vf 'scale=960:-1:flags=lanczos' -q:v 2 $target >/dev/null 2>&1 &; " +
+            "        end; " +
             "    end; " +
-            "end"
+            "end; " +
+            "wait"
         ]
+        onExited: {
+            if (root.wallpaperService) {
+                root.wallpaperService.thumbEpoch++
+            }
+        }
     }
 
     function refreshWallpapers() {
@@ -1725,7 +1689,7 @@ QtObject {
                     root.updateShader()
                 }
 
-                if (root.weather) {
+                if (root.weather && root.locationQuery.trim().length > 0) {
                     root.weather.fetchWeather(true)
                 }
 
