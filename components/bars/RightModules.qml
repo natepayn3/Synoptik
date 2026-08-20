@@ -9,6 +9,25 @@ Rectangle {
     property var rootRef
     signal popoutRequested(var item)
 
+    function getButton(name) {
+        let layout = centerContentLayout.item
+        if (!layout) return rightCard
+
+        switch (name) {
+            case "cc":
+            case "controlCenter":
+                return layout.ccBtn || rightCard
+            case "clock":
+            case "calendar":
+                return layout.clockBtn || rightCard
+            case "overview":
+            case "workspacePreview":
+                return layout.overviewBtn || rightCard
+            default:
+                return rightCard
+        }
+    }
+
     // Direct binding to loaded layout implicitWidth
     readonly property real contentWidth: centerContentLayout.item ? centerContentLayout.item.implicitWidth : 0
     readonly property real contentHeight: centerContentLayout.item ? centerContentLayout.item.implicitHeight : 0
