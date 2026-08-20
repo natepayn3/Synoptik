@@ -442,10 +442,10 @@ Item {
                                     root.activeHoveredPath = ""
                                 }
                                 onClicked: (mouse) => {
-                                    bladeContainer.forceActiveFocus()
-                                    root.activeIndex = index
                                     let activeOnly = (mouse.modifiers & Qt.ControlModifier) !== 0
                                     wallpaperBackend.triggerBackendRun(filePath, activeOnly)
+                                    root.activeIndex = index
+                                    bladeContainer.forceActiveFocus()
                                 }
                                 onWheel: (wheel) => {
                                     let delta = wheel.angleDelta.y !== 0 ? wheel.angleDelta.y : wheel.angleDelta.x

@@ -764,6 +764,10 @@ QtObject {
                     let parsed = JSON.parse(this.text)
                     if (parsed && typeof parsed === "object") {
                         root.activeMonitorWallpapers = parsed
+                        let keys = Object.keys(parsed)
+                        if (keys.length > 0 && parsed[keys[0]]) {
+                            root.activeWallpaperPath = parsed[keys[0]]
+                        }
                     }
                 } catch (e) {}
             }

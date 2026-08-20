@@ -8,17 +8,9 @@ import Quickshell.Io
 Scope {
     id: parallaxScope
 
-    // Global cursor position shared across all screen delegates.
-    // Initialized to -1 so delegates default to 0.5 (centered) until
-    // the first mousemove event arrives.
     property real globalCursorX: -1
     property real globalCursorY: -1
 
-    // Polls Hyprland's command socket (socket1) for cursor position at 10fps.
-    // Hyprland v0.56 does not emit mousemove events on socket2 over windows,
-    // so we query directly. Python stdlib sockets avoid subprocess fork overhead
-    // per tick. One process total (not per screen). The 260ms NumberAnimation
-    // on smoothCursorOffset makes 10fps input visually identical to 30fps.
     Process {
         id: cursorTrackerProc
         running: Config.enableWallpaperParallax && Config.wallpaperCursorParallax
@@ -44,7 +36,6 @@ Scope {
         ]
         stdout: SplitParser {
             onRead: data => {
-                // data arrives as "1234, 567" from hyprctl cursorpos format
                 let parts = data.trim().split(",")
                 if (parts.length >= 2) {
                     let cx = parseFloat(parts[0].trim())
@@ -86,7 +77,6 @@ Scope {
                 return currentWpPath.startsWith("file://") ? currentWpPath : ("file://" + currentWpPath)
             }
 
-            // Remounts a fresh surface on Background layer when switching from video to image
             visible: Config.enableWallpaperParallax && 
                      (Config.wallpaperWorkspaceParallax || Config.wallpaperCursorParallax) && 
                      !isVideo && 
@@ -133,8 +123,6 @@ Scope {
                 NumberAnimation { duration: 450; easing.type: Easing.OutCubic }
             }
 
-            // Normalize global cursor coordinates to this screen's [0.0, 1.0] space.
-            // Returns 0.5 (centered) until the first mousemove event is received.
             readonly property real cursorNormX: {
                 if (parallaxScope.globalCursorX < 0 || !modelData) return 0.5
                 let hMon = Hyprland.monitorFor(modelData)
@@ -159,7 +147,6 @@ Scope {
             Behavior on smoothCursorOffsetX { NumberAnimation { duration: 260; easing.type: Easing.OutQuad } }
             Behavior on smoothCursorOffsetY { NumberAnimation { duration: 260; easing.type: Easing.OutQuad } }
 
-
             Item {
                 id: wallpaperCanvas
                 anchors.centerIn: parent
@@ -172,6 +159,17 @@ Scope {
                     y: wpWindow.smoothCursorOffsetY
                 }
 
+                // Cross-fade support between wallpaper transitions
+                Image {
+                    id: imgBackdrop
+                    anchors.fill: parent
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                    cache: true
+                    smooth: true
+                    mipmap: true
+                }
+
                 Image {
                     id: imgPrimary
                     anchors.fill: parent
@@ -181,6 +179,16 @@ Scope {
                     cache: true
                     smooth: true
                     mipmap: true
+
+                    onSourceChanged: {
+                        crossFadeAnim.restart()
+                    }
+
+                    SequentialAnimation {
+                        id: crossFadeAnim
+                        PropertyAction { target: imgBackdrop; property: "source"; value: imgPrimary.source }
+                        NumberAnimation { target: imgPrimary; property: "opacity"; from: 0.0; to: 1.0; duration: 400; easing.type: Easing.InOutQuad }
+                    }
                 }
 
                 Rectangle {
