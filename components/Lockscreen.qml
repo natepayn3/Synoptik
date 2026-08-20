@@ -72,19 +72,19 @@ Scope {
         }
     }
 
-    // Media Control via MPRIS / Playerctl
+    // Media Control via Event-Driven MPRIS Follow Stream (Fix #17)
     property string currentTrackTitle: ""
     property string currentTrackArtist: ""
     property string currentTrackStatus: "Stopped"
     property bool hasActiveMedia: currentTrackStatus === "Playing" || currentTrackStatus === "Paused"
 
     Process {
-        id: mediaInfoProc
-        command: ["playerctl", "metadata", "--format", "{{title}}|||{{artist}}|||{{status}}"]
+        id: mediaFollowProc
+        command: ["stdbuf", "-oL", "playerctl", "metadata", "--format", "{{title}}|||{{artist}}|||{{status}}", "--follow"]
         running: lockscreenScope.sessionLocked
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let out = this.text.trim()
+        stdout: SplitParser {
+            onRead: data => {
+                let out = data.trim()
                 if (out.length > 0) {
                     let parts = out.split("|||")
                     lockscreenScope.currentTrackTitle = parts[0] || ""
@@ -98,54 +98,21 @@ Scope {
         }
     }
 
-    Timer {
-        id: mediaPollTimer
-        interval: 2500
-        running: lockscreenScope.sessionLocked
-        repeat: true
-        onTriggered: lockscreenScope.refreshMedia()
-    }
-
-    function refreshMedia() {
-        mediaInfoProc.running = false
-        mediaInfoProc.running = true
-    }
-
     function mediaPlayPause() {
-        // Instant optimistic toggle for immediate 0ms UI feedback
         if (lockscreenScope.currentTrackStatus === "Playing") {
             lockscreenScope.currentTrackStatus = "Paused"
         } else if (lockscreenScope.currentTrackStatus === "Paused") {
             lockscreenScope.currentTrackStatus = "Playing"
         }
-
-        // Pause polling timer during transition to avoid stale DBus bounceback
-        mediaPollTimer.stop()
         Quickshell.execDetached(["playerctl", "play-pause"])
-        mediaSyncTimer.restart()
     }
 
     function mediaPrevious() {
-        mediaPollTimer.stop()
         Quickshell.execDetached(["playerctl", "previous"])
-        mediaSyncTimer.restart()
     }
 
     function mediaNext() {
-        mediaPollTimer.stop()
         Quickshell.execDetached(["playerctl", "next"])
-        mediaSyncTimer.restart()
-    }
-
-    // Debounce sync so DBus finishes updating before re-checking true status
-    Timer {
-        id: mediaSyncTimer
-        interval: 650
-        repeat: false
-        onTriggered: {
-            lockscreenScope.refreshMedia()
-            mediaPollTimer.restart()
-        }
     }
 
     // PAM Authentication Context
