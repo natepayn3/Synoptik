@@ -17,11 +17,21 @@ Item {
     property var localPins: []
     property var iconMap: ({})
 
-    // Index system icon themes in background for seamless icon pack recognition
+    // Cached system icon indexer (loads ~/.cache/quickshell_icon_map.json or builds in background)
     Process {
         id: iconIndexer
         command: ["python3", "-c", `
 import os, json
+
+cache_file = os.path.expanduser("~/.cache/quickshell_icon_map.json")
+if os.path.exists(cache_file):
+    try:
+        with open(cache_file, "r") as f:
+            print(f.read())
+            exit(0)
+    except Exception:
+        pass
+
 dirs = [
     os.path.expanduser("~/.local/share/icons"),
     os.path.expanduser("~/.icons"),
@@ -44,14 +54,24 @@ for d in dirs:
                 name = os.path.splitext(f)[0]
                 if name not in icon_map:
                     icon_map[name] = os.path.join(root, f)
-print(json.dumps(icon_map))
+
+dumped = json.dumps(icon_map)
+try:
+    with open(cache_file, "w") as f:
+        f.write(dumped)
+except Exception:
+    pass
+print(dumped)
         `]
         running: true
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
-                    appLauncherModule.iconMap = JSON.parse(this.text);
-                    appLauncherModule.updateModel();
+                    let clean = this.text.trim()
+                    if (clean) {
+                        appLauncherModule.iconMap = JSON.parse(clean);
+                        appLauncherModule.updateModel();
+                    }
                 } catch(e) {}
             }
         }
@@ -200,7 +220,6 @@ print(json.dumps(icon_map))
         
         spacing: appLauncherModule.cardMargin
 
-        // Pure Opacity Fade Animation Logic & Visibility Guard
         opacity: Config.showAppLauncher ? 1.0 : 0.0
         visible: Config.showAppLauncher || opacity > 0.0
         Behavior on opacity {
@@ -222,7 +241,6 @@ print(json.dumps(icon_map))
 
             Behavior on border.color { ColorAnimation { duration: 150 } }
 
-            // GRAPHIC WATERMARK
             Watermark {
                 icon: Config.getIcon("launcher")
                 iconSize: 150
