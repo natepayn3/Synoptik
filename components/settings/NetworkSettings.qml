@@ -25,7 +25,7 @@ Item {
     property var lastTime: 0
     property var lastTextUpdateTime: 0
     property int maxGraphPoints: 40
-    property int updateInterval: 220
+    property int updateInterval: 250
 
     // Visual Grid & Smooth Dynamic Scaling
     property int matrixRows: 10
@@ -81,6 +81,16 @@ Item {
         seedGraphModel()
     }
 
+    onVisibleChanged: {
+        if (root.visible) {
+            seedGraphModel()
+            vpnListPopulator.running = false
+            vpnListPopulator.running = true
+            localNetQuery.running = false
+            localNetQuery.running = true
+        }
+    }
+
     FrameAnimation {
         id: frameGraphSync
         running: root.visible
@@ -93,7 +103,7 @@ Item {
 
     Timer {
         interval: 3000
-        running: true
+        running: root.visible
         repeat: true
         triggeredOnStart: true
         onTriggered: {
@@ -107,7 +117,7 @@ Item {
     // Graph Data Ticker
     Timer {
         interval: root.updateInterval
-        running: true
+        running: root.visible
         repeat: true
         triggeredOnStart: true
         onTriggered: {
@@ -215,7 +225,7 @@ Item {
         localNetToggleProc.running = true
     }
 
-    // High frequency bandwidth background sampler
+    // High frequency bandwidth background sampler (gated on visibility + 0.25s sleep)
     Process {
         id: bandwidthStreamProc
         command: ["python3", "-u", "-c", `
@@ -233,9 +243,9 @@ while True:
                     break
     except Exception:
         pass
-    time.sleep(0.12)
+    time.sleep(0.25)
         `]
-        running: true
+        running: root.visible
         stdout: SplitParser {
             onRead: data => {
                 let textStr = data.trim()
