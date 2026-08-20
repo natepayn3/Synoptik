@@ -175,46 +175,41 @@ PanelWindow {
     readonly property real inRadi: Math.max(0.1, frameRadius)
 
     // --- Dynamic Child Measurement Engine ---
+    property Item activeDrawerItem: null
+
     readonly property real rawChildWidth: {
         if (root.activeView === "osd") return volumeOsdModule.implicitWidth
         if (root.activeView === "notifOsd") return notifOsdModule.implicitWidth
         if (root.activeView === "taskOverflow") return taskOverflowModule.implicitWidth
-
-        // 1. Check currently active/visible module item
-        for (let i = 0; i < contentContainer.children.length; i++) {
-            let child = contentContainer.children[i]
-            if (child.objectName === "internalOsd" || child.objectName === "internalNotifOsd" || child.objectName === "internalTaskOverflow") continue
-            
-            let target = child.item ? child.item : child
-            if (target && target.visible !== false && target.implicitWidth > 0) {
-                return target.implicitWidth
-            }
+        if (root.activeDrawerItem && root.activeDrawerItem.implicitWidth > 0) {
+            return root.activeDrawerItem.implicitWidth
         }
 
-        // 2. Direct view dimension fallbacks
-        if (root.activeView === "calendar") return 680
-        if (root.activeView === "settings") return 620
-        if (root.activeView === "systemMonitor") return 540
-        return 340
+        // Direct O(1) dimension fallback lookup table
+        switch (root.activeView) {
+            case "calendar":      return 680
+            case "settings":      return 620
+            case "systemMonitor": return 540
+            default:              return 340
+        }
     }
 
     readonly property real rawChildHeight: {
         if (root.activeView === "osd") return volumeOsdModule.implicitHeight
         if (root.activeView === "notifOsd") return notifOsdModule.implicitHeight
         if (root.activeView === "taskOverflow") return taskOverflowModule.implicitHeight
-
-        for (let i = 0; i < contentContainer.children.length; i++) {
-            let child = contentContainer.children[i]
-            if (child.objectName === "internalOsd" || child.objectName === "internalNotifOsd" || child.objectName === "internalTaskOverflow") continue
-            
-            let target = child.item ? child.item : child
-            if (target && target.visible !== false && target.implicitHeight > 0) {
-                return target.implicitHeight
-            }
+        if (root.activeDrawerItem && root.activeDrawerItem.implicitHeight > 0) {
+            return root.activeDrawerItem.implicitHeight
         }
 
-        if (root.activeView === "calendar") return 460
-        return 480
+        switch (root.activeView) {
+            case "calendar":         return 460
+            case "settings":         return 520
+            case "systemMonitor":    return 500
+            case "workspacePreview": return 260
+            case "controlCenter":    return 480
+            default:                 return 480
+        }
     }
 
     // Explicit state variables declared in scope
