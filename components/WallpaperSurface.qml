@@ -20,14 +20,29 @@ Scope {
     Process {
         id: cursorTrackerProc
         running: Config.enableWallpaperParallax && Config.wallpaperCursorParallax
+        // Connect to Hyprland's event socket using Python stdlib — no socat needed.
+        // -u = unbuffered stdout so each mousemove line is flushed immediately.
         command: [
-            "sh", "-c",
-            "socat - UNIX-CONNECT:/run/user/$(id -u)/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock 2>/dev/null | " +
-            "grep --line-buffered '^mousemove>>'"
+            "python3", "-u", "-c",
+            "import socket, os\n" +
+            "sig = os.environ.get('HYPRLAND_INSTANCE_SIGNATURE', '')\n" +
+            "path = f'/run/user/{os.getuid()}/hypr/{sig}/.socket2.sock'\n" +
+            "s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)\n" +
+            "s.connect(path)\n" +
+            "buf = b''\n" +
+            "while True:\n" +
+            "    chunk = s.recv(4096)\n" +
+            "    if not chunk: break\n" +
+            "    buf += chunk\n" +
+            "    while b'\\n' in buf:\n" +
+            "        line, buf = buf.split(b'\\n', 1)\n" +
+            "        t = line.decode('utf-8', errors='ignore').strip()\n" +
+            "        if t.startswith('mousemove>>'):\n" +
+            "            print(t, flush=True)\n"
         ]
         stdout: SplitParser {
             onRead: data => {
-                // data is guaranteed to start with "mousemove>>" due to grep filter
+                // data arrives as "mousemove>>1423,876"
                 let coords = data.trim().slice(11).split(",")
                 if (coords.length >= 2) {
                     let cx = parseFloat(coords[0])
