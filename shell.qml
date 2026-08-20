@@ -517,7 +517,7 @@ ShellRoot {
         delegate: ClockWidget {
             required property var modelData
             screen: modelData
-            visible: Config.showDesktopClock && Config.isClockEnabledForScreen(modelData.name)
+            visible: Config.showDesktopClock && (modelData ? Config.isClockEnabledForScreen(modelData.name) : true)
         }
     }
     Variants {
@@ -526,7 +526,7 @@ ShellRoot {
         delegate: SystemInfoWidget {
             required property var modelData
             screen: modelData
-            visible: (Config.showDesktopSysInfo !== false) && (Config.isSysInfoEnabledForScreen ? Config.isSysInfoEnabledForScreen(modelData.name) : true)
+            visible: (Config.showDesktopSysInfo !== false) && (modelData ? (Config.isSysInfoEnabledForScreen ? Config.isSysInfoEnabledForScreen(modelData.name) : true) : true)
         }
     }
 }
