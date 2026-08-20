@@ -83,11 +83,12 @@ FocusScope {
         }
     }
 
+    // Hidden Input: Zero size so it NEVER intercepts clicks for child buttons
     TextInput {
         id: hiddenInput
-        anchors.fill: parent
+        width: 0
+        height: 0
         opacity: 0
-        z: 10
         focus: true
         cursorVisible: false
         inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
@@ -116,16 +117,6 @@ FocusScope {
         Keys.onEnterPressed: {
             if (barRoot.password.length > 0 && !barRoot.isAuthenticating) {
                 barRoot.submitPassword(barRoot.password)
-            }
-        }
-
-        MouseArea {
-            anchors.fill: parent
-            z: 1
-            cursorShape: Qt.IBeamCursor
-            onPressed: (mouse) => {
-                barRoot.forceFocus()
-                mouse.accepted = false
             }
         }
     }
@@ -184,7 +175,6 @@ FocusScope {
                 anchors.leftMargin: 16
                 anchors.rightMargin: 10
                 spacing: 10
-                z: 2
 
                 Rectangle {
                     implicitWidth: 36
@@ -207,10 +197,17 @@ FocusScope {
                     }
                 }
 
+                // Middle interactive text / shape area
                 Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
                     clip: true
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.IBeamCursor
+                        onPressed: barRoot.forceFocus()
+                    }
 
                     Row {
                         anchors.verticalCenter: parent.verticalCenter
@@ -318,6 +315,7 @@ FocusScope {
                     }
                 }
 
+                // Clear Button (Now receives direct click and hover events)
                 Rectangle {
                     id: clearBtn
                     visible: barRoot.password.length > 0 && !barRoot.isAuthenticating
@@ -350,6 +348,7 @@ FocusScope {
                     }
                 }
 
+                // Submit Button
                 Rectangle {
                     id: submitBtn
                     implicitWidth: 40
