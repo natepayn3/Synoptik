@@ -902,7 +902,7 @@ QtObject {
     onRightCardCollapsedChanged: { if (isLoaded) saveSettings() }
 
     // --- DYNAMIC MODULE ORDERING ---
-    property var leftCardOrder: ["power", "recorder", "mirror", "screenshot", "player", "wallpaper", "settings", "launcher", "audio", "batt", "network", "clipboard"]
+    property var leftCardOrder: ["power", "settings", "wallpaper", "launcher", "recorder", "mirror", "audio", "batt", "network", "clipboard", "screenshot"]
     property var rightCardOrder: ["clock", "cc"]
 
     function moveModule(cardKey, iconId, direction) {
