@@ -489,6 +489,7 @@ ShellRoot {
                 focus: true
 
                 onLoaded: {
+                    mainSurface.activeDrawerItem = item
                     if (item && typeof item.forceActiveFocus === "function") {
                         item.forceActiveFocus()
                     }
