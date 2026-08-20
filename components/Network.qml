@@ -31,9 +31,9 @@ Item {
     
     property var lastTextUpdateTime: 0
     property int maxGraphPoints: 40
-    property int updateInterval: 220
+    property int updateInterval: 250
 
-    // Frame sync tracking for jitter-free scrolling
+    // Frame sync tracking for buttery smooth sub-pixel horizontal scrolling
     property real lastPushTimestamp: Date.now()
     property real scrollProgress: 0.0
 
@@ -80,7 +80,7 @@ Item {
         fetchNetInfoProc.running = true
     }
 
-    // High refresh frame rate synchronization loop
+    // Smooth sub-pixel horizontal glide loop (only runs when network card is visible)
     FrameAnimation {
         id: frameGraphSync
         running: Config.showNetwork
@@ -133,7 +133,7 @@ Item {
         }
     }
 
-    // Background Bandwidth Stream via /proc/net/dev
+    // Bandwidth Stream via /proc/net/dev (relaxed sleep from 0.12s to 0.25s to stop IPC thrashing)
     Process {
         id: bandwidthStreamProc
         command: ["python3", "-u", "-c", `
@@ -151,7 +151,7 @@ while True:
                     break
     except Exception:
         pass
-    time.sleep(0.12)
+    time.sleep(0.25)
         `]
         running: Config.showNetwork
         
