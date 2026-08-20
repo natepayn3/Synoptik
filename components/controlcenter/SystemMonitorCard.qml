@@ -42,14 +42,53 @@ Item {
 
     onActiveCategoryChanged: updateFilteredModel()
 
+    // Compound (PID + Category) in-place model synchronizer
+    function syncModelInPlace(targetModel, newItems) {
+        // 1. Remove stale entries
+        for (let i = targetModel.count - 1; i >= 0; i--) {
+            let entry = targetModel.get(i)
+            let match = newItems.find(item => item.pid === entry.pid && item.category === entry.category)
+            if (!match) {
+                targetModel.remove(i)
+            }
+        }
+
+        // 2. Update existing entries or append new ones
+        for (let j = 0; j < newItems.length; j++) {
+            let incoming = newItems[j]
+            let foundIdx = -1
+            for (let k = 0; k < targetModel.count; k++) {
+                let existing = targetModel.get(k)
+                if (existing.pid === incoming.pid && existing.category === incoming.category) {
+                    foundIdx = k
+                    break
+                }
+            }
+
+            if (foundIdx !== -1) {
+                let existing = targetModel.get(foundIdx)
+                if (existing.metric !== incoming.metric) targetModel.setProperty(foundIdx, "metric", incoming.metric)
+                if (existing.name !== incoming.name) targetModel.setProperty(foundIdx, "name", incoming.name)
+            } else {
+                targetModel.append(incoming)
+            }
+        }
+    }
+
     function updateFilteredModel() {
-        filteredProcessModel.clear()
+        let subset = []
         for (let i = 0; i < globalProcessModel.count; i++) {
             let item = globalProcessModel.get(i)
             if (item.category === cardRoot.activeCategory) {
-                filteredProcessModel.append(item)
+                subset.push({
+                    "category": item.category,
+                    "metric": item.metric,
+                    "name": item.name,
+                    "pid": item.pid
+                })
             }
         }
+        syncModelInPlace(filteredProcessModel, subset)
     }
 
     Timer {
@@ -62,11 +101,12 @@ Item {
             cpuStatReader.reload()
             memInfoReader.reload()
             
-            // Trigger disk & GPU collection process
+            // Collect GPU, Disk, and Temp
             if (!diskGpuProc.running) {
                 diskGpuProc.running = true
             }
             
+            // Only query top processes when the card is actively opened
             if (cardRoot.panelExpanded && !processListView.isHoveringRow && !allProcessesFetcher.running) {
                 allProcessesFetcher.running = true
             }
@@ -132,21 +172,17 @@ Item {
         id: diskGpuProc
         command: [
             "fish", "-c",
-            // 1. GPU Utilization (checks AMD sysfs first, falls back to nvidia-smi if Nvidia device exists)
             "set -l gpu (cat /sys/class/drm/card*/device/gpu_busy_percent 2>/dev/null | sort -nr | head -n1 | string trim); " +
             "if test -z \"$gpu\" -a -e /dev/nvidiactl; and command -q nvidia-smi; " +
                 "set gpu (nvidia-smi --query-gpu=utilization.gpu,utilization.decoder --format=csv,noheader,nounits 2>/dev/null | awk -F', ' '{print ($1 > $2 ? $1 : $2)}' | head -n1 | string trim); " +
             "end; " +
             "test -n \"$gpu\"; and echo $gpu; or echo 0; " +
 
-            // 2. Disk Usage
             "df / | awk 'NR==2 {print $5}' | sed 's/%//'; " +
 
-            // 3. CPU Temperature
             "set -l cpu_t (cat (find /sys/class/hwmon -maxdepth 1 -name 'hwmon*' 2>/dev/null)/temp1_input 2>/dev/null | head -n1); " +
             "test -n \"$cpu_t\"; and math -s0 \"$cpu_t / 1000\"; or echo 0; " +
 
-            // 4. GPU Temperature (checks amdgpu sysfs first, falls back to nvidia-smi)
             "set -l gtemp (cat (find /sys/class/hwmon -maxdepth 1 -name 'hwmon*' 2>/dev/null)/temp1_input 2>/dev/null | head -n1); " +
             "if test -z \"$gtemp\" -a -e /dev/nvidiactl; and command -q nvidia-smi; " +
                 "set gtemp (nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits 2>/dev/null | head -n1 | string trim); " +
@@ -154,8 +190,6 @@ Item {
             "else; " +
                 "test -n \"$gtemp\"; and math -s0 \"$gtemp / 1000\"; or echo 0; " +
             "end; " +
-
-            // 5. RAM Temperature placeholder
             "echo 0"
         ]
         running: false
@@ -186,7 +220,7 @@ Item {
         command: [
             "/bin/fish", "-c",
             "echo '___CAT___|CPU'; " +
-            "ps -eo pid,pcpu,comm --sort=-pcpu | head -n 11 | tail -n +2 | awk -v cores=(nproc) '{print $1\"|\"$2/cores\"|\"$3}'; " +
+            "ps -eo pid,pcpu,comm --sort=-pcpu | head -n 41 | tail -n +2 | awk -v cores=(nproc) '{print $1\"|\"$2/cores\"|\"$3}'; " +
             "echo '___CAT___|GPU'; " +
             "set -l g_devs (find /dev/dri -maxdepth 1 -name 'renderD*' 2>/dev/null); " +
             "set -l g_pids; " +
@@ -194,12 +228,12 @@ Item {
                 "set g_pids (fuser $g_devs 2>/dev/null | string match -ra '\\d+' | sort -u); " +
             "end; " +
             "if test (count $g_pids) -gt 0; " +
-                "ps -p (string join ',' $g_pids) -o pid,pmem,comm --sort=-pmem 2>/dev/null | head -n 11 | tail -n +2 | awk '{print $1\"|\"$2\"%|\"$3}'; " +
+                "ps -p (string join ',' $g_pids) -o pid,pmem,comm --sort=-pmem 2>/dev/null | head -n 41 | tail -n +2 | awk '{print $1\"|\"$2\"%|\"$3}'; " +
             "else if test -e /dev/nvidiactl; and command -q nvidia-smi; " +
-                "nvidia-smi --query-compute-apps=pid,used_memory,process_name --format=csv,noheader,nounits 2>/dev/null | head -n 10 | awk -F', ' '{print $1\"|\"$2\" MB|\"$3}'; " +
+                "nvidia-smi --query-compute-apps=pid,used_memory,process_name --format=csv,noheader,nounits 2>/dev/null | awk -F', ' '{print $1\"|\"$2\" MB|\"$3}'; " +
             "end; " +
             "echo '___CAT___|RAM'; " +
-            "ps -eo pid,pmem,comm --sort=-pmem | head -n 11 | tail -n +2 | awk '{print $1\"|\"$2\"|\"$3}'"
+            "ps -eo pid,pmem,comm --sort=-pmem | head -n 41 | tail -n +2 | awk '{print $1\"|\"$2\"|\"$3}'"
         ]
         running: false
         stdout: StdioCollector {
@@ -239,10 +273,7 @@ Item {
                     }
                 }
 
-                globalProcessModel.clear()
-                for (let item of parsedItems) {
-                    globalProcessModel.append(item)
-                }
+                syncModelInPlace(globalProcessModel, parsedItems)
                 cardRoot.updateFilteredModel()
             }
         }
