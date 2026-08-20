@@ -3,7 +3,6 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import Qt5Compat.GraphicalEffects
 import Quickshell
-import "../widgets"
 import "../lockscreen"
 import ".."
 
@@ -179,17 +178,6 @@ Flickable {
                     maskStyle: Config.lockscreenMaskStyle || "shapes"
                     paletteMode: Config.lockscreenShapePalette || "vibrant"
                     placeholderText: "Type to test password bar..."
-
-                    // Overlay MouseArea to catch direct settings view clicks and force focus
-                    MouseArea {
-                        anchors.fill: parent
-                        z: 20
-                        acceptedButtons: Qt.AllButtons
-                        onPressed: (mouse) => {
-                            previewPassBar.forceFocus()
-                            mouse.accepted = false
-                        }
-                    }
 
                     onSubmitPassword: (pass) => {
                         previewPassBar.isAuthenticating = true
