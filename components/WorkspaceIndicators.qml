@@ -47,6 +47,19 @@ Item {
     property bool isPrivateOccupied: false
     property bool isPrivateActive: activeSpecialName === "private"
 
+    // Single-shot debounce timer collapsing multi-event bursts into 1 execution pass (Fix #13)
+    property Timer rebuildDebounceTimer: Timer {
+        interval: 16
+        repeat: false
+        onTriggered: root.rebuildWorkspaceData()
+    }
+
+    function queueRebuild() {
+        if (!rebuildDebounceTimer.running) {
+            rebuildDebounceTimer.restart()
+        }
+    }
+
     function rebuildWorkspaceData() {
         let occupied = {};
         let counts = {};
@@ -114,25 +127,22 @@ Item {
 
     Connections {
         target: Hyprland.workspaces
-        function onValuesChanged() { root.rebuildWorkspaceData(); }
+        function onValuesChanged() { root.queueRebuild(); }
     }
 
     Connections {
         target: Hyprland.toplevels
-        function onValuesChanged() { root.rebuildWorkspaceData(); }
+        function onValuesChanged() { root.queueRebuild(); }
     }
 
     Connections {
         target: Hyprland
-        function onFocusedWorkspaceChanged() { root.rebuildWorkspaceData(); }
+        function onFocusedWorkspaceChanged() { root.queueRebuild(); }
         function onRawEvent(event) {
             if (event.name === "activespecial") {
                 let cleanName = root.parseSpecialPayload(event.data);
                 root.activeSpecialName = cleanName;
-                root.rebuildWorkspaceData();
-            }
-            if (event.name === "destroyworkspace" || event.name === "createworkspace" || event.name === "openwindow" || event.name === "closewindow") {
-                root.rebuildWorkspaceData();
+                root.queueRebuild();
             }
         }
     }
