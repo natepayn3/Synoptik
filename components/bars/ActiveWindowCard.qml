@@ -15,12 +15,16 @@ Rectangle {
     readonly property string barPos: rootRef ? (rootRef.barPosition || "top") : "top"
     readonly property bool isHoriz: rootRef ? rootRef.isHorizontal : true
 
-    // Target the focused/activated client on this monitor display
+    // Direct O(1) focused client resolution without O(n) toplevel list traversal (Fix #14)
     readonly property var activeClient: {
-        let clients = Hyprland.toplevels.values.filter(c => !activeScreenName || !c.monitor || c.monitor.name === activeScreenName)
-        let active = clients.find(c => c.activated)
-        if (active) return active
-        if (Hyprland.activeToplevel && (!activeScreenName || !Hyprland.activeToplevel.monitor || Hyprland.activeToplevel.monitor.name === activeScreenName)) {
+        let top = Hyprland.activeToplevel
+        if (top) {
+            let matchesScreen = !activeScreenName || !top.monitor || top.monitor.name === activeScreenName
+            if (matchesScreen && top.activated) return top
+        }
+
+        // Fallback to the monitor's focused workspace active window if activeToplevel is on another monitor
+        if (rootRef && rootRef.screen && Hyprland.focusedMonitor && Hyprland.focusedMonitor.name === activeScreenName) {
             return Hyprland.activeToplevel
         }
         return null
@@ -158,7 +162,6 @@ Rectangle {
 
         IconImage {
             id: iconVert
-            // Bottom (row 1) for left bar (-90° bottom-to-top), Top (row 0) for right bar (90° top-to-bottom)
             Layout.row: activeWinCard.barPos === "left" ? 1 : 0
             Layout.preferredWidth: 20
             Layout.preferredHeight: 20
