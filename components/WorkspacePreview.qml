@@ -5,6 +5,7 @@ import QtQuick.Controls
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
+import Quickshell.Widgets
 import Quickshell.Io
 
 FocusScope {
@@ -20,7 +21,30 @@ FocusScope {
 
     property var liveClientJson: []
     property var liveMonitorJson: []
-    property var resolvedIconPaths: ({})
+    
+    // In-memory persistent cache for class -> iconPath (Fix #16)
+    property var appIconCache: ({})
+
+    function resolveAppIcon(cls) {
+        if (!cls) return ""
+        if (appIconCache[cls]) return appIconCache[cls]
+
+        let iconPath = ""
+        let entry = DesktopEntries.heuristicLookup(cls)
+        if (entry && entry.icon) {
+            iconPath = Quickshell.iconPath(entry.icon, true)
+        }
+        if (!iconPath) {
+            iconPath = Quickshell.iconPath(cls, true) || Quickshell.iconPath(cls.toLowerCase(), true) || ""
+        }
+        if (!iconPath) {
+            iconPath = Quickshell.iconPath("application-x-executable", true) || ""
+        }
+
+        appIconCache[cls] = iconPath
+        return iconPath
+    }
+
     property int highlightedIndex: 0
     property bool contentReady: false
     property string selectedWindowAddress: ""
@@ -71,13 +95,9 @@ FocusScope {
     }
 
     function switchWorkspace(targetWs) {
-        // 1. Force Hyprland to release any active layer-shell input captures
         Hyprland.dispatch("hl.dsp.release_input_capture()");
-
-        // 2. Dispatch workspace focus using the exact Lua signature
         Hyprland.dispatch("hl.dsp.focus({ workspace = " + targetWs + " })");
 
-        // 3. Close the preview drawer
         if (typeof Config.showWorkspacePreview !== "undefined") {
             Config.showWorkspacePreview = false;
         }
@@ -96,15 +116,12 @@ FocusScope {
 
         let formatted = formatWindowRef(windowAddr);
         if (formatted !== "") {
-            // Focus specific window by address matcher, then move to workspace using Hyprland Lua syntax
             Hyprland.dispatch("hl.dsp.focus({ window = \"" + formatted + "\" })");
             Hyprland.dispatch("hl.dsp.window.move({ workspace = " + targetWs + " })");
         } else {
-            // Move active window to target workspace using Hyprland Lua syntax
             Hyprland.dispatch("hl.dsp.window.move({ workspace = " + targetWs + " })");
         }
 
-        // Refresh live client and workspace data
         clientQueryProcess.running = true;
         Hyprland.refreshWorkspaces();
         Hyprland.refreshToplevels();
@@ -155,12 +172,10 @@ FocusScope {
             contentReady = false
             renderDelayTimer.restart()
 
-            // Refresh Wayland state
             Hyprland.refreshToplevels()
             Hyprland.refreshWorkspaces()
             clientQueryProcess.running = true
             
-            // Sync highlight to current workspace
             let currentId = Hyprland.focusedWorkspace ? Hyprland.focusedWorkspace.id : 1
             let idx = activeWorkspaces.indexOf(currentId)
             highlightedIndex = idx !== -1 ? idx : 0
@@ -175,7 +190,6 @@ FocusScope {
             contentReady = false
             renderDelayTimer.restart()
             
-            // Refresh Wayland state
             Hyprland.refreshToplevels()
             Hyprland.refreshWorkspaces()
             clientQueryProcess.running = true
@@ -188,7 +202,6 @@ FocusScope {
         repeat: false
         onTriggered: {
             overviewFlyout.contentReady = true
-            // Grab focus only after the layer-shell surface is fully realized
             overviewFlyout.forceActiveFocus() 
         }
     }
@@ -222,7 +235,6 @@ FocusScope {
                 if (!cleanText || cleanText === "[]") return;
                 try { 
                     overviewFlyout.liveClientJson = JSON.parse(cleanText);
-                    triggerIconLookups();
                 } catch(e) {}
             }
         }
@@ -238,75 +250,6 @@ FocusScope {
                 if (!cleanText || cleanText === "[]") return;
                 try { 
                     overviewFlyout.liveMonitorJson = JSON.parse(cleanText);
-                } catch(e) {}
-            }
-        }
-    }
-
-    Process {
-        id: iconFinderProcess
-        running: false
-        
-        command: ["python", "-c", `
-import os, sys, json
-
-class_list = json.loads(sys.argv[1])
-app_dirs = [
-    os.path.expanduser("~/.local/share/applications"),
-    "/usr/share/applications"
-]
-
-resolved_map = {}
-
-for target_class in class_list:
-    target = target_class.lower().strip()
-    resolved_icon = ""
-    
-    for base_dir in app_dirs:
-        if resolved_icon: break
-        if not os.path.isdir(base_dir): continue
-        
-        for f in os.listdir(base_dir):
-            if not f.endswith(".desktop"): continue
-            f_lower = f.lower()
-            
-            is_match = target in f_lower
-            if is_match or target.replace(".", "-") in f_lower:
-                path = os.path.join(base_dir, f)
-                try:
-                    with open(path, "r", errors="ignore") as file_handle:
-                        icon_name = ""
-                        wm_class_match = False
-                        
-                        for line in file_handle:
-                            if line.startswith("Icon="):
-                                icon_name = line.split("=")[1].strip()
-                            elif line.startswith("StartupWMClass="):
-                                if target == line.split("=")[1].strip().lower():
-                                    wm_class_match = True
-                        
-                        if icon_name and (is_match or wm_class_match):
-                            resolved_icon = icon_name
-                            break
-                except Exception:
-                    continue
-
-    resolved_map[target_class] = "image://icon/" + (resolved_icon if resolved_icon else target)
-
-print(json.dumps(resolved_map))
-`, JSON.stringify(getUnresolvedClasses())]
-        
-        stdout: StdioCollector {
-            onTextChanged: {
-                let cleanText = text.trim();
-                if (!cleanText || cleanText === "{}") return;
-                try {
-                    let parsed = JSON.parse(cleanText);
-                    let updatedPaths = Object.assign({}, overviewFlyout.resolvedIconPaths);
-                    for (let cls in parsed) {
-                        updatedPaths[cls] = parsed[cls];
-                    }
-                    overviewFlyout.resolvedIconPaths = updatedPaths;
                 } catch(e) {}
             }
         }
@@ -332,7 +275,6 @@ print(json.dumps(resolved_map))
 
             Behavior on border.color { ColorAnimation { duration: 150 } }
 
-            // GRAPHIC WATERMARK
             Watermark {
                 icon: Config.getIcon("overview")
                 iconSize: 150
@@ -495,7 +437,7 @@ print(json.dumps(resolved_map))
                                             model: viewportFrame.workspaceWindows
                                             delegate: Image {
                                                 property string currentClass: (modelData && modelData.class) ? modelData.class : ""
-                                                property string resolvedPath: (currentClass !== "" && overviewFlyout.resolvedIconPaths) ? (overviewFlyout.resolvedIconPaths[currentClass] || "") : ""
+                                                property string resolvedPath: overviewFlyout.resolveAppIcon(currentClass)
                                                 
                                                 visible: modelData && currentClass !== "" && modelData.mapped && resolvedPath !== ""
                                                 source: resolvedPath
@@ -740,7 +682,6 @@ print(json.dumps(resolved_map))
                                 }
                             }
 
-                            // Handle precise pointer inputs without blocking Wayland layer-shell events
                             TapHandler {
                                 id: tileNormalTapHandler
                                 acceptedModifiers: Qt.NoModifier
@@ -759,7 +700,6 @@ print(json.dumps(resolved_map))
                                 }
                             }
 
-                            // Handle hover states safely
                             HoverHandler {
                                 id: tileHover
                                 cursorShape: Qt.PointingHandCursor
@@ -767,7 +707,7 @@ print(json.dumps(resolved_map))
                                 onHoveredChanged: {
                                     if (hovered) {
                                         overviewFlyout.highlightedIndex = wsTile.index
-                                        overviewFlyout.forceActiveFocus() // Re-grab keyboard focus on mouse enter
+                                        overviewFlyout.forceActiveFocus()
                                     }
                                 }
                             }
@@ -821,24 +761,6 @@ print(json.dumps(resolved_map))
                 elide: Text.ElideRight
                 horizontalAlignment: Text.AlignHCenter
             }
-        }
-    }
-
-    function getUnresolvedClasses() {
-        let windows = overviewFlyout.liveClientJson || [];
-        let list = [];
-        for (let i = 0; i < windows.length; i++) {
-            let cls = windows[i].class;
-            if (cls && !overviewFlyout.resolvedIconPaths[cls] && !list.includes(cls)) {
-                list.push(cls);
-            }
-        }
-        return list;
-    }
-
-    function triggerIconLookups() {
-        if (getUnresolvedClasses().length > 0 && !iconFinderProcess.running) {
-            iconFinderProcess.running = true;
         }
     }
 }
