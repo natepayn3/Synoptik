@@ -14,39 +14,41 @@ Scope {
     property real globalCursorX: -1
     property real globalCursorY: -1
 
-    // Single event-driven cursor tracker: subscribes to Hyprland's event
-    // socket and filters only "mousemove>>" lines. Zero polling overhead —
-    // output is produced only when the mouse actually moves.
+    // Polls Hyprland's command socket (socket1) for cursor position at 10fps.
+    // Hyprland v0.56 does not emit mousemove events on socket2 over windows,
+    // so we query directly. Python stdlib sockets avoid subprocess fork overhead
+    // per tick. One process total (not per screen). The 260ms NumberAnimation
+    // on smoothCursorOffset makes 10fps input visually identical to 30fps.
     Process {
         id: cursorTrackerProc
         running: Config.enableWallpaperParallax && Config.wallpaperCursorParallax
-        // Connect to Hyprland's event socket using Python stdlib — no socat needed.
-        // -u = unbuffered stdout so each mousemove line is flushed immediately.
         command: [
             "python3", "-u", "-c",
-            "import socket, os\n" +
+            "import socket, os, time\n" +
             "sig = os.environ.get('HYPRLAND_INSTANCE_SIGNATURE', '')\n" +
-            "path = f'/run/user/{os.getuid()}/hypr/{sig}/.socket2.sock'\n" +
-            "s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)\n" +
-            "s.connect(path)\n" +
-            "buf = b''\n" +
+            "path = f'/run/user/{os.getuid()}/hypr/{sig}/.socket.sock'\n" +
             "while True:\n" +
-            "    chunk = s.recv(4096)\n" +
-            "    if not chunk: break\n" +
-            "    buf += chunk\n" +
-            "    while b'\\n' in buf:\n" +
-            "        line, buf = buf.split(b'\\n', 1)\n" +
-            "        t = line.decode('utf-8', errors='ignore').strip()\n" +
-            "        if t.startswith('mousemove>>'):\n" +
-            "            print(t, flush=True)\n"
+            "    s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)\n" +
+            "    try:\n" +
+            "        s.connect(path)\n" +
+            "        s.sendall(b'cursorpos')\n" +
+            "        data = b''\n" +
+            "        while True:\n" +
+            "            c = s.recv(256)\n" +
+            "            if not c: break\n" +
+            "            data += c\n" +
+            "        print(data.decode('utf-8', errors='ignore').strip(), flush=True)\n" +
+            "    except Exception: pass\n" +
+            "    finally: s.close()\n" +
+            "    time.sleep(0.1)\n"
         ]
         stdout: SplitParser {
             onRead: data => {
-                // data arrives as "mousemove>>1423,876"
-                let coords = data.trim().slice(11).split(",")
-                if (coords.length >= 2) {
-                    let cx = parseFloat(coords[0])
-                    let cy = parseFloat(coords[1])
+                // data arrives as "1234, 567" from hyprctl cursorpos format
+                let parts = data.trim().split(",")
+                if (parts.length >= 2) {
+                    let cx = parseFloat(parts[0].trim())
+                    let cy = parseFloat(parts[1].trim())
                     if (!isNaN(cx) && !isNaN(cy)) {
                         parallaxScope.globalCursorX = cx
                         parallaxScope.globalCursorY = cy
