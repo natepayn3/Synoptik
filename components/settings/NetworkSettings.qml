@@ -16,13 +16,37 @@ Item {
 
     property string downloadSpeed: "0 B/s"
     property string uploadSpeed: "0 B/s"
+    property real currentRxSpeed: 0.0
+    property real currentTxSpeed: 0.0
+    property real maxSessionRx: 1024 * 1024
+    property real maxSessionTx: 1024 * 512
     property var lastRxBytes: 0
     property var lastTxBytes: 0
     property var lastTime: 0
-    property real currentInstantSpeed: 0.0
     property var lastTextUpdateTime: 0
-    property int maxGraphPoints: 30
-    property int updateInterval: 500
+    property int maxGraphPoints: 40
+    property int updateInterval: 220
+
+    // Visual Grid & Smooth Dynamic Scaling
+    property int matrixRows: 10
+    property real pixelRadius: 2.5
+    property color colorDownload: Config.accent
+    property color colorUpload: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.65)
+    property real activityPulse: Math.min(1.0, (currentRxSpeed + currentTxSpeed) / (1024 * 1024 * 2))
+
+    Behavior on activityPulse {
+        NumberAnimation { duration: 180; easing.type: Easing.OutQuad }
+    }
+
+    property real smoothPeakRx: 1024 * 512
+    property real smoothPeakTx: 1024 * 256
+
+    Behavior on smoothPeakRx {
+        NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+    }
+    Behavior on smoothPeakTx {
+        NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+    }
 
     // Local Network State Tracking
     property string localIfName: "---"
@@ -35,22 +59,21 @@ Item {
     property real lastPushTimestamp: Date.now()
     property real scrollProgress: 0.0
 
-    // Interpolated peak to prevent jarring Y-axis snapping
-    property real smoothPeakSpeed: 1024 * 1024
-
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
-
-    Behavior on smoothPeakSpeed {
-        NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
-    }
 
     ListModel { id: vpnListModel }
     ListModel { id: graphHistoryModel }
 
+    function formatRate(bytesPerSec) {
+        if (bytesPerSec < 1024) return Math.max(0, bytesPerSec).toFixed(0) + " B/s"
+        if (bytesPerSec < 1048576) return (bytesPerSec / 1024).toFixed(1) + " KB/s"
+        return (bytesPerSec / 1048576).toFixed(1) + " MB/s"
+    }
+
     function seedGraphModel() {
         graphHistoryModel.clear()
-        for (let i = 0; i < root.maxGraphPoints; i++) {
-            graphHistoryModel.append({ "speedValue": 0.0 })
+        for (let i = 0; i < root.maxGraphPoints + 1; i++) {
+            graphHistoryModel.append({ "rxValue": 0.0, "txValue": 0.0 })
         }
     }
 
@@ -64,7 +87,7 @@ Item {
         onTriggered: {
             let elapsed = Date.now() - root.lastPushTimestamp
             root.scrollProgress = Math.min(elapsed / root.updateInterval, 1.0)
-            sparklineCanvas.requestPaint()
+            pixelCanvas.requestPaint()
         }
     }
 
@@ -81,23 +104,30 @@ Item {
         }
     }
 
+    // Graph Data Ticker
     Timer {
         interval: root.updateInterval
         running: true
         repeat: true
         triggeredOnStart: true
         onTriggered: {
-            graphHistoryModel.append({ "speedValue": root.currentInstantSpeed })
-            if (graphHistoryModel.count > root.maxGraphPoints) {
+            graphHistoryModel.append({
+                "rxValue": root.currentRxSpeed,
+                "txValue": root.currentTxSpeed
+            })
+            if (graphHistoryModel.count > root.maxGraphPoints + 1) {
                 graphHistoryModel.remove(0)
             }
 
-            let currentMax = 1024 * 1024
+            let maxRx = 1024 * 128
+            let maxTx = 1024 * 64
             for (let i = 0; i < graphHistoryModel.count; i++) {
-                let v = graphHistoryModel.get(i).speedValue
-                if (v > currentMax) currentMax = v
+                let item = graphHistoryModel.get(i)
+                if (item.rxValue > maxRx) maxRx = item.rxValue
+                if (item.txValue > maxTx) maxTx = item.txValue
             }
-            root.smoothPeakSpeed = currentMax
+            root.smoothPeakRx = maxRx
+            root.smoothPeakTx = maxTx
             root.lastPushTimestamp = Date.now()
             root.scrollProgress = 0.0
         }
@@ -106,35 +136,35 @@ Item {
     // LOCAL NETWORK STATUS QUERY
     Process {
         id: localNetQuery
-        command: ["fish", "-c", "
+        command: ["fish", "-c", `
             set dev (nmcli -g DEVICE,TYPE,STATE device | awk -F: '$2 ~ /ethernet|wifi/ {print $1; exit}')
-            if test -z \"$dev\"
+            if test -z "$dev"
                 set dev (ip route show | awk '/default/ {print $5}' | head -n1)
             end
 
-            if test -n \"$dev\"
+            if test -n "$dev"
                 set ip (ip -4 addr show dev $dev 2>/dev/null | awk '/inet / {print $2}' | cut -d/ -f1)
                 set mac (cat /sys/class/net/$dev/address 2>/dev/null)
                 set conn (nmcli -g GENERAL.CONNECTION device show $dev 2>/dev/null)
                 set state (nmcli -g GENERAL.STATE device show $dev 2>/dev/null)
                 
-                if test -z \"$ip\"
+                if test -z "$ip"
                     set ip 'Disconnected'
                 end
-                if test -z \"$mac\"
+                if test -z "$mac"
                     set mac '---'
                 end
-                if test -z \"$conn\"
+                if test -z "$conn"
                     set conn '--'
                 end
-                if test -z \"$state\"
+                if test -z "$state"
                     set state 'disconnected'
                 end
-                echo \"$dev|$ip|$mac|$state|$conn\"
+                echo "$dev|$ip|$mac|$state|$conn"
             else
                 echo 'none|Disconnected|---|disconnected|--'
             end
-        "]
+        `]
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
@@ -185,28 +215,29 @@ Item {
         localNetToggleProc.running = true
     }
 
+    // High frequency bandwidth background sampler
     Process {
         id: bandwidthStreamProc
-        command: ["fish", "-c", "
-            set dev (nmcli -g DEVICE,TYPE,STATE device | awk -F: '$2 ~ /ethernet|wifi/ {print $1; exit}')
-            if test -z \"$dev\"
-                set dev (ip route show | awk '/default/ {print $5}' | head -n1)
-            end
-            while true
-                if test -n \"$dev\"
-                    cat /proc/net/dev | grep \"$dev\"
-                end
-                sleep 0.1
-            end
-        "]
+        command: ["python3", "-u", "-c", `
+import time, subprocess
+try:
+    dev = subprocess.check_output("ip route show | awk '/default/ {print $5}' | head -n1", shell=True).decode().strip()
+except Exception:
+    dev = ""
+while True:
+    try:
+        with open("/proc/net/dev", "r") as f:
+            for line in f:
+                if dev and dev in line:
+                    print(line.strip(), flush=True)
+                    break
+    except Exception:
+        pass
+    time.sleep(0.12)
+        `]
         running: true
         stdout: SplitParser {
             onRead: data => {
-                let formatBytes = function(bytes) {
-                    if (bytes < 1024) return bytes.toFixed(0) + " B/s"
-                    if (bytes < 1048576) return (bytes / 1024).toFixed(1) + " KB/s"
-                    return (bytes / 1048576).toFixed(1) + " MB/s"
-                }
                 let textStr = data.trim()
                 if (!textStr) return
                 let rawLineParts = textStr.split(":")
@@ -217,17 +248,24 @@ Item {
                 let rx = parseInt(parts[0]) 
                 let tx = parseInt(parts[8]) 
                 let now = Date.now()
+
                 if (root.lastTime > 0) {
                     let elapsed = (now - root.lastTime) / 1000
                     if (elapsed > 0) {
-                        let rxSpeed = (rx - root.lastRxBytes) / elapsed
-                        let txSpeed = (tx - root.lastTxBytes) / elapsed
-                        if (now - root.lastTextUpdateTime >= 1000) {
-                            root.downloadSpeed = formatBytes(rxSpeed)
-                            root.uploadSpeed = formatBytes(txSpeed)
+                        let rxSpeed = Math.max(0, (rx - root.lastRxBytes) / elapsed)
+                        let txSpeed = Math.max(0, (tx - root.lastTxBytes) / elapsed)
+
+                        root.currentRxSpeed = rxSpeed
+                        root.currentTxSpeed = txSpeed
+
+                        if (rxSpeed > root.maxSessionRx) root.maxSessionRx = rxSpeed
+                        if (txSpeed > root.maxSessionTx) root.maxSessionTx = txSpeed
+
+                        if (now - root.lastTextUpdateTime >= 200) {
+                            root.downloadSpeed = root.formatRate(rxSpeed)
+                            root.uploadSpeed = root.formatRate(txSpeed)
                             root.lastTextUpdateTime = now
                         }
-                        root.currentInstantSpeed = rxSpeed + txSpeed
                     }
                 }
                 root.lastRxBytes = rx
@@ -272,21 +310,23 @@ Item {
             }
 
             // ==========================================
-            // 1. REAL-TIME BANDWIDTH MONITOR CARD
+            // 1. REAL-TIME PIXEL WAVE MATRIX MONITOR CARD
             // ==========================================
             Rectangle {
                 Layout.fillWidth: true
-                implicitHeight: 140
+                implicitHeight: matrixCardContent.implicitHeight + 28
                 radius: Config.cornerRadius
                 color: Qt.rgba(255, 255, 255, 0.05)
                 border.width: 1
-                border.color: Qt.rgba(255, 255, 255, 0.1)
+                border.color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.12 + (root.activityPulse * 0.2))
 
                 ColumnLayout {
+                    id: matrixCardContent
                     anchors.fill: parent
                     anchors.margins: 14
-                    spacing: 10
+                    spacing: 12
 
+                    // Metrics & Peak Stats Row
                     RowLayout {
                         Layout.fillWidth: true
                         spacing: 20
@@ -301,7 +341,7 @@ Item {
                             }
                             ColumnLayout {
                                 spacing: 1
-                                Text { text: "DOWNLOAD"; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro); color: Config.textMuted; font.bold: true }
+                                Text { text: "DOWNLOAD"; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro); color: root.colorDownload; font.bold: true }
                                 Text { text: root.downloadSpeed; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontBody); font.bold: true; color: Config.textMain }
                             }
                         }
@@ -312,22 +352,22 @@ Item {
                             Rectangle {
                                 implicitWidth: 32; implicitHeight: 32; radius: 16
                                 color: Qt.rgba(255, 255, 255, 0.08)
-                                Text { anchors.centerIn: parent; text: "arrow_upward"; font.family: "Material Symbols Outlined"; font.pixelSize: 16; color: Config.textMuted }
+                                Text { anchors.centerIn: parent; text: "arrow_upward"; font.family: "Material Symbols Outlined"; font.pixelSize: 16; color: root.colorUpload }
                             }
                             ColumnLayout {
                                 spacing: 1
-                                Text { text: "UPLOAD"; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro); color: Config.textMuted; font.bold: true }
+                                Text { text: "UPLOAD"; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontMicro); color: root.colorUpload; font.bold: true }
                                 Text { text: root.uploadSpeed; font.family: Config.sysFont; font.pixelSize: Config.size(Config.fontBody); font.bold: true; color: Config.textMain }
                             }
                         }
 
                         Item { Layout.fillWidth: true }
 
-                        // Peak indicator badge
+                        // Peak session badge
                         Rectangle {
-                            implicitWidth: peakLabel.implicitWidth + 12
-                            implicitHeight: 22
-                            radius: 11
+                            implicitWidth: peakLabel.implicitWidth + 14
+                            implicitHeight: 24
+                            radius: 12
                             color: Qt.rgba(255, 255, 255, 0.06)
                             border.width: 1
                             border.color: Qt.rgba(255, 255, 255, 0.1)
@@ -335,7 +375,7 @@ Item {
                             Text {
                                 id: peakLabel
                                 anchors.centerIn: parent
-                                text: `Peak: ${(root.smoothPeakSpeed / (1024 * 1024)).toFixed(1)} MB/s`
+                                text: `↓ ${root.formatRate(root.maxSessionRx)}  ↑ ${root.formatRate(root.maxSessionTx)}`
                                 font.family: Config.sysFont
                                 font.pixelSize: 9
                                 font.bold: true
@@ -344,15 +384,26 @@ Item {
                         }
                     }
 
-                    // Canvas Sparkline Graph
+                    // 2D Glowing Rounded Pixel Waves
                     Item {
-                        id: canvasWrapper
+                        id: pixelCanvasWrapper
                         Layout.fillWidth: true
-                        Layout.fillHeight: true
+                        implicitHeight: 140
                         clip: true
 
+                        Glow {
+                            anchors.fill: pixelCanvas
+                            source: pixelCanvas
+                            radius: 10
+                            samples: 16
+                            color: Config.accent
+                            spread: 0.25
+                            transparentBorder: true
+                            visible: Config.clockShowGlow !== undefined ? Config.clockShowGlow : true
+                        }
+
                         Canvas {
-                            id: sparklineCanvas
+                            id: pixelCanvas
                             anchors.fill: parent
                             renderTarget: Canvas.Image
                             renderStrategy: Canvas.Threaded
@@ -363,57 +414,59 @@ Item {
                                 let h = height
                                 ctx.clearRect(0, 0, w, h)
 
-                                let totalPoints = graphHistoryModel.count
-                                if (totalPoints < 2) return
+                                let count = graphHistoryModel.count
+                                if (count === 0) return
 
-                                let activePeak = root.smoothPeakSpeed
-                                let step = w / (root.maxGraphPoints - 1)
-                                let xOffset = root.scrollProgress * step
+                                let cols = root.maxGraphPoints
+                                let rows = root.matrixRows
+                                let gap = 2.5
+                                let sectionGap = 14
+                                let rad = root.pixelRadius
 
-                                // 1. Fill region
-                                ctx.beginPath()
-                                ctx.moveTo(0, h)
+                                let cellW = Math.floor((w - ((cols - 1) * gap)) / cols)
+                                let graphH = Math.floor((h - sectionGap) / 2)
+                                let cellH = Math.floor((graphH - ((rows - 1) * gap)) / rows)
 
-                                for (let i = 0; i < totalPoints; i++) {
-                                    let nodeValue = graphHistoryModel.get(i).speedValue
-                                    let scaleRatio = nodeValue / activePeak
-                                    let coordX = (i * step) - xOffset
-                                    let coordY = h - (scaleRatio * (h - 4))
-                                    ctx.lineTo(coordX, coordY)
+                                let stepX = cellW + gap
+                                let xOffset = root.scrollProgress * stepX
+
+                                function fillRoundedRect(x, y, rw, rh, r, fillStyle) {
+                                    ctx.fillStyle = fillStyle
+                                    ctx.beginPath()
+                                    ctx.moveTo(x + r, y)
+                                    ctx.lineTo(x + rw - r, y)
+                                    ctx.quadraticCurveTo(x + rw, y, x + rw, y + r)
+                                    ctx.lineTo(x + rw, y + rh - r)
+                                    ctx.quadraticCurveTo(x + rw, y + rh, x + rw - r, y + rh)
+                                    ctx.lineTo(x + r, y + rh)
+                                    ctx.quadraticCurveTo(x, y + rh, x, y + rh - r)
+                                    ctx.lineTo(x, y + r)
+                                    ctx.quadraticCurveTo(x, y, x + r, y)
+                                    ctx.closePath()
+                                    ctx.fill()
                                 }
 
-                                ctx.lineTo(((totalPoints - 1) * step) - xOffset, h)
-                                ctx.closePath()
-                                ctx.fillStyle = "rgba(255, 255, 255, 0.05)"
-                                ctx.fill()
+                                function drawMatrixWave(startY, peakVal, activeColor, valueKey) {
+                                    for (let c = 0; c < count; c++) {
+                                        let val = graphHistoryModel.get(c)[valueKey]
+                                        let activeBlocks = Math.min(rows, Math.ceil((val / peakVal) * rows))
+                                        let posX = (c * stepX) - xOffset
 
-                                // Path helper for line rendering
-                                function buildLinePath() {
-                                    ctx.beginPath()
-                                    for (let j = 0; j < totalPoints; j++) {
-                                        let nodeValue = graphHistoryModel.get(j).speedValue
-                                        let scaleRatio = nodeValue / activePeak
-                                        let coordX = (j * step) - xOffset
-                                        let coordY = h - (scaleRatio * (h - 4))
-                                        if (j === 0) ctx.moveTo(coordX, coordY)
-                                        else ctx.lineTo(coordX, coordY)
+                                        if (posX + cellW < 0 || posX > w) continue
+
+                                        for (let r = 0; r < rows; r++) {
+                                            let posY = startY + graphH - ((r + 1) * (cellH + gap))
+                                            let style = (r < activeBlocks && val > 0) ? activeColor : "rgba(255, 255, 255, 0.035)"
+                                            fillRoundedRect(posX, posY, cellW, cellH, rad, style)
+                                        }
                                     }
                                 }
 
-                                // 2. Glow pass (blurred background line)
-                                buildLinePath()
-                                ctx.strokeStyle = Config.accent
-                                ctx.lineWidth = 2
-                                ctx.lineCap = "round"
-                                ctx.lineJoin = "round"
-                                ctx.shadowColor = Config.accent
-                                ctx.shadowBlur = 8
-                                ctx.stroke()
+                                // 1. Download Matrix Wave (Top)
+                                drawMatrixWave(0, root.smoothPeakRx, root.colorDownload, "rxValue")
 
-                                // 3. Crisp foreground line pass
-                                buildLinePath()
-                                ctx.shadowBlur = 0
-                                ctx.stroke()
+                                // 2. Upload Matrix Wave (Bottom)
+                                drawMatrixWave(graphH + sectionGap, root.smoothPeakTx, root.colorUpload, "txValue")
                             }
                         }
                     }
@@ -500,7 +553,6 @@ Item {
                         }
                     }
 
-                    // Spacer to push disconnect button to the right
                     Item { Layout.fillWidth: true }
 
                     // Interface Quick Toggle Action
@@ -653,7 +705,6 @@ Item {
                                 anchors.margins: 10
                                 spacing: 12
 
-                                // VPN Key Icon Badge
                                 Rectangle {
                                     implicitWidth: 36
                                     implicitHeight: 36
@@ -671,7 +722,6 @@ Item {
                                     }
                                 }
 
-                                // Profile Name & Status
                                 ColumnLayout {
                                     Layout.fillWidth: true
                                     spacing: 2
@@ -689,7 +739,6 @@ Item {
                                             Layout.maximumWidth: 320
                                         }
 
-                                        // ACTIVE BADGE
                                         Rectangle {
                                             visible: isActive
                                             implicitWidth: vpnActiveBadgeText.implicitWidth + 8
@@ -719,15 +768,12 @@ Item {
                                     }
                                 }
 
-                                // Spacer to push action buttons to the right
                                 Item { Layout.fillWidth: true }
 
-                                // Action Buttons
                                 RowLayout {
                                     spacing: 6
                                     Layout.alignment: Qt.AlignRight
 
-                                    // CONNECT / DISCONNECT BUTTON
                                     Rectangle {
                                         implicitWidth: Math.max(vpnActionRow.implicitWidth + 24, 76)
                                         implicitHeight: 30
@@ -771,7 +817,6 @@ Item {
                                         HoverHandler { id: vpnActionHover; cursorShape: Qt.PointingHandCursor }
                                     }
 
-                                    // DELETE PROFILE BUTTON
                                     Rectangle {
                                         implicitWidth: 30
                                         implicitHeight: 30
