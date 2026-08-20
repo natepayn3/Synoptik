@@ -52,108 +52,7 @@ QtObject {
 
     property bool showTaskOverflow: false
 
-    // --- MEDIA PLAYER URL STORAGE ---
-    property var savedUrls: []
-    
-    onSavedUrlsChanged: { if (isLoaded) saveSettings() }
-
-    function addSavedUrl(url, title) {
-        if (!url || url.trim() === "") return
-        let cleanUrl = url.trim()
-        
-        if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
-            cleanUrl = "https://" + cleanUrl
-        }
-        
-        let list = savedUrls ? savedUrls.slice() : []
-        let existingIdx = list.findIndex(item => (typeof item === 'string' ? item : item.url) === cleanUrl)
-        let displayTitle = title || cleanUrl
-
-        if (existingIdx !== -1) {
-            let existingItem = list[existingIdx]
-            if (!title && typeof existingItem === 'object' && existingItem.title) {
-                displayTitle = existingItem.title
-            }
-            list.splice(existingIdx, 1)
-        }
-        
-        list.unshift({ url: cleanUrl, title: displayTitle })
-        savedUrls = list
-    }
-
-    function removeSavedUrl(index) {
-        if (!savedUrls || index < 0 || index >= savedUrls.length) return
-        let list = savedUrls.slice()
-        let removedItem = list.splice(index, 1)[0]
-        let removedUrl = typeof removedItem === 'string' ? removedItem : removedItem.url
-        savedUrls = list
-        
-        if (embeddedStreamUrl !== "" && activeChannelName === removedUrl) {
-            stopStream()
-        }
-    }
-
-    // --- MEDIA PLAYER WIDGET CONFIGURATION ---
-    property bool showPlayer: false
-    property bool playerShowPanel: true
-    property bool playerKeepAspect: true
-    property bool playerExpanded: false
-    property bool playerPinned: false
-    property real playerX: -1
-    property real playerY: -1
-
-    property string playerAnchorPos: "center"
-
-    function cyclePlayerAnchor(direction) {
-        if (direction === "up" || direction === "left" || direction === "prev") {
-            if (playerAnchorPos === "bottom") playerAnchorPos = "center"
-            else if (playerAnchorPos === "center") playerAnchorPos = "top"
-            else playerAnchorPos = "bottom"
-        } else if (direction === "down" || direction === "right" || direction === "next") {
-            if (playerAnchorPos === "top") playerAnchorPos = "center"
-            else if (playerAnchorPos === "center") playerAnchorPos = "bottom"
-            else playerAnchorPos = "top"
-        }
-    }
-
-    onShowPlayerChanged: { if (isLoaded) saveSettings() }
-    onPlayerShowPanelChanged: { if (isLoaded) saveSettings() }
-    onPlayerKeepAspectChanged: { if (isLoaded) saveSettings() }
-    onPlayerExpandedChanged: { if (isLoaded) saveSettings() }
-    onPlayerPinnedChanged: { if (isLoaded) saveSettings() }
-    onPlayerAnchorPosChanged: { if (isLoaded) saveSettings() }
-
-    // --- BACKGROUND MEDIA PLAYER ENGINE ---
-    property string embeddedStreamUrl: ""
-    property string activeChannelName: ""
-    property string activeStreamTitle: ""
-    property string activeStreamThumbnail: ""
-    
-    property string prefetchStreamUrl: ""
-    property string prefetchThumbnail: ""
-    property int prefetchIndex: -1
-
-    property var currentPlaylist: []
-    property int activePlaylistIndex: 0
-    property bool isLoadingStream: false
-
-    readonly property bool isConnecting: isLoadingStream || (embeddedStreamUrl !== "" && inlinePlayer.playbackState !== MediaPlayer.PlayingState)
-
-    readonly property string cookiePath: Quickshell.shellDir + "/cookies.txt"
-
-    property MediaPlayer inlinePlayer: MediaPlayer {
-        id: globalPlayer
-        source: root.embeddedStreamUrl
-        audioOutput: AudioOutput {}
-        loops: 1
-
-        onMediaStatusChanged: {
-            if (mediaStatus === MediaPlayer.EndOfMedia && root.embeddedStreamUrl !== "" && !root.isLoadingStream) {
-                root.nextTrack()
-            }
-        }
-    }
-
+    // --- CAMERA / MIRROR ---
     property MediaDevices mirrorMediaDevices: MediaDevices {}
 
     property bool mirrorCameraActive: false
@@ -283,259 +182,6 @@ QtObject {
                 }
             }
         }
-    }
-
-    property Process cacheCleaner: Process {
-        command: ["fish", "-c", "rm -rf /tmp/synoptik_media 2>/dev/null"]
-    }
-
-    property Process prefetchExtractor: Process {
-        id: prefetchedProc
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let lines = this.text ? this.text.trim().split("\n") : []
-                if (lines.length > 0 && (lines[lines.length - 1].startsWith("http") || lines[lines.length - 1].startsWith("file://"))) {
-                    let thumb = lines.length >= 2 ? lines[lines.length - 2] : ""
-                    root.prefetchThumbnail = (thumb && thumb.startsWith("http")) ? thumb : ""
-                    root.prefetchStreamUrl = lines[lines.length - 1]
-                }
-            }
-        }
-    }
-
-    property Process playlistFetcher: Process {
-        id: plFetcher
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let lines = this.text ? this.text.trim().split("\n") : []
-                let items = []
-                let plTitle = ""
-                
-                for (let i = 0; i < lines.length; i++) {
-                    let parts = lines[i].split("|||")
-                    if (parts.length === 3) {
-                        if (plTitle === "") plTitle = parts[0]
-                        items.push({ id: parts[1], title: parts[2] })
-                    }
-                }
-                
-                if (items.length > 0) {
-                    root.currentPlaylist = items
-                    root.activeStreamTitle = plTitle
-                    root.addSavedUrl(root.activeChannelName, plTitle)
-                    root.resolveTrack(root.activePlaylistIndex)
-                } else {
-                    root.isLoadingStream = false
-                }
-            }
-        }
-    }
-
-    property Process streamExtractor: Process {
-        id: extractor
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let lines = this.text ? this.text.trim().split("\n") : []
-                if (lines.length === 0 || lines[0] === "") {
-                    root.isLoadingStream = false
-                    return
-                }
-                
-                let targetUrl = lines[lines.length - 1]
-                if (targetUrl.startsWith("http") || targetUrl.startsWith("file://")) {
-                    if (lines.length >= 3 && !lines[0].startsWith("http") && lines[0] !== "NA") {
-                        root.activeStreamTitle = lines[0]
-                    }
-                    let thumb = lines.length >= 2 ? lines[lines.length - 2] : ""
-                    root.activeStreamThumbnail = (thumb && thumb.startsWith("http")) ? thumb : ""
-                    root.embeddedStreamUrl = targetUrl
-                    
-                    if (root.activeStreamTitle !== "" && root.activeChannelName !== "") {
-                        root.addSavedUrl(root.activeChannelName, root.activeStreamTitle)
-                    }
-                    root.inlinePlayer.play()
-
-                    if (root.currentPlaylist.length > 0 && root.activePlaylistIndex < root.currentPlaylist.length - 1) {
-                        root.prefetchTrack(root.activePlaylistIndex + 1)
-                    }
-                }
-                root.isLoadingStream = false
-            }
-        }
-    }
-
-    function prefetchTrack(index) {
-        if (index < 0 || index >= currentPlaylist.length) return
-        prefetchIndex = index
-        prefetchStreamUrl = ""
-        prefetchThumbnail = ""
-        
-        let track = currentPlaylist[index]
-        let vidId = track.id
-        if (vidId.startsWith("http")) {
-            let match = vidId.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)
-            if (match && match[1]) vidId = match[1]
-        }
-
-        let isMusicTrack = track.isMusic || activeChannelName.includes("music.youtube.com")
-        let envPrefix = "set -x AV_LOG_FORCE_NOCOLOR 1; set -x FFREPORT quiet; set -x QT_LOGGING_RULES '*.debug=false;qt.multimedia*=false'; "
-
-        if (isMusicTrack) {
-            let trackTarget = "https://music.youtube.com/watch?v=" + vidId
-            let cmd = 'mkdir -p /tmp/synoptik_media; ' +
-                      'set -l out (yt-dlp --no-simulate --print "%(title)s\n%(thumbnail)s\n%(ext)s" --cookies "' + root.cookiePath + '" --extractor-args "youtube:player_client=android_music,web_music,mweb,default" -f "bestaudio[ext=m4a]/ba" -o "/tmp/synoptik_media/%(id)s.%(ext)s" "' + trackTarget + '" 2>/dev/null); ' +
-                      'if test -n "$out"; ' +
-                      '  set -l fp "/tmp/synoptik_media/' + vidId + '.$out[-1]"; ' +
-                      '  if test -f "$fp"; ' +
-                      '    echo "$out[1]"; echo "$out[2]"; echo "file://$fp"; ' +
-                      '  end; ' +
-                      'end'
-            prefetchExtractor.command = ["fish", "-c", envPrefix + cmd]
-        } else {
-            let trackTarget = "https://www.youtube.com/watch?v=" + vidId
-            let cmd = 'set -l out (yt-dlp --print "%(title)s\n%(thumbnail)s\n%(url)s" --cookies "' + root.cookiePath + '" --extractor-args "youtube:player_client=android,web" -f "bv*+ba/b" "' + trackTarget + '" 2>/dev/null); ' +
-                      'if test -n "$out"; ' +
-                      '  echo "$out[1]"; echo "$out[2]"; echo "$out[-1]"; ' +
-                      'end'
-            prefetchExtractor.command = ["fish", "-c", envPrefix + cmd]
-        }
-        
-        prefetchExtractor.running = true
-    }
-
-    function resolveTrack(index) {
-        if (index < 0 || index >= currentPlaylist.length) {
-            isLoadingStream = false
-            return
-        }
-        
-        let track = currentPlaylist[index]
-        let vidId = track.id
-        if (vidId.startsWith("http")) {
-            let match = vidId.match(/(?:v=|\/)([a-zA-Z0-9_-]{11})/)
-            if (match && match[1]) vidId = match[1]
-        }
-
-        if (index === prefetchIndex && prefetchStreamUrl !== "") {
-            activePlaylistIndex = index
-            activeStreamThumbnail = prefetchThumbnail
-            embeddedStreamUrl = prefetchStreamUrl
-            inlinePlayer.play()
-            isLoadingStream = false
-            
-            if (index < currentPlaylist.length - 1) {
-                prefetchTrack(index + 1)
-            }
-            return
-        }
-
-        activePlaylistIndex = index
-        isLoadingStream = true
-        inlinePlayer.stop()
-        if (prefetchExtractor.running) prefetchExtractor.running = false
-
-        let isMusicTrack = track.isMusic || activeChannelName.includes("music.youtube.com")
-        let envPrefix = "set -x AV_LOG_FORCE_NOCOLOR 1; set -x FFREPORT quiet; set -x QT_LOGGING_RULES '*.debug=false;qt.multimedia*=false'; "
-
-        if (isMusicTrack) {
-            let trackTarget = "https://music.youtube.com/watch?v=" + vidId
-            let cmd = 'mkdir -p /tmp/synoptik_media; ' +
-                      'set -l out (yt-dlp --no-simulate --print "%(title)s\n%(thumbnail)s\n%(ext)s" --cookies "' + root.cookiePath + '" --extractor-args "youtube:player_client=android_music,web_music,mweb,default" -f "bestaudio[ext=m4a]/ba" -o "/tmp/synoptik_media/%(id)s.%(ext)s" "' + trackTarget + '" 2>/dev/null); ' +
-                      'if test -n "$out"; ' +
-                      '  set -l fp "/tmp/synoptik_media/' + vidId + '.$out[-1]"; ' +
-                      '  if test -f "$fp"; ' +
-                      '    echo "$out[1]"; echo "$out[2]"; echo "file://$fp"; ' +
-                      '  end; ' +
-                      'end'
-            streamExtractor.command = ["fish", "-c", envPrefix + cmd]
-        } else {
-            let trackTarget = "https://www.youtube.com/watch?v=" + vidId
-            let cmd = 'set -l out (yt-dlp --print "%(title)s\n%(thumbnail)s\n%(url)s" --cookies "' + root.cookiePath + '" --extractor-args "youtube:player_client=android,web" -f "bv*+ba/b" "' + trackTarget + '" 2>/dev/null); ' +
-                      'if test -n "$out"; ' +
-                      '  echo "$out[1]"; echo "$out[2]"; echo "$out[-1]"; ' +
-                      'end'
-            streamExtractor.command = ["fish", "-c", envPrefix + cmd]
-        }
-        
-        streamExtractor.running = true
-    }
-
-    function nextTrack() {
-        if (currentPlaylist.length > 0 && activePlaylistIndex < currentPlaylist.length - 1) {
-            resolveTrack(activePlaylistIndex + 1)
-        }
-    }
-
-    function prevTrack() {
-        if (currentPlaylist.length > 0 && activePlaylistIndex > 0) {
-            resolveTrack(activePlaylistIndex - 1)
-        }
-    }
-
-    function loadDirectStream(targetUrl, resetIndex = true) {
-        if (!targetUrl || targetUrl.trim() === "") {
-            stopStream()
-            return
-        }
-
-        let cleanUrl = targetUrl.trim()
-        if (!cleanUrl.startsWith("http://") && !cleanUrl.startsWith("https://")) {
-            cleanUrl = "https://" + cleanUrl
-        }
-
-        if (resetIndex) {
-            activePlaylistIndex = 0
-            currentPlaylist = []
-        }
-
-        activeChannelName = cleanUrl
-        activeStreamTitle = ""
-        activeStreamThumbnail = ""
-        isLoadingStream = true
-        inlinePlayer.stop()
-        embeddedStreamUrl = ""
-        
-        let envPrefix = "set -x AV_LOG_FORCE_NOCOLOR 1; set -x FFREPORT quiet; set -x QT_LOGGING_RULES '*.debug=false;qt.multimedia*=false'; "
-
-        if (cleanUrl.includes("twitch.tv")) {
-            let cmd = 'set -l out (yt-dlp --print "%(title)s\n%(thumbnail)s\n%(url)s" -f "best/bestvideo+bestaudio" "' + cleanUrl + '" 2>/dev/null); ' +
-                      'if test -n "$out"; echo "$out[1]"; echo "$out[2]"; echo "$out[-1]"; end'
-            streamExtractor.command = ["fish", "-c", envPrefix + cmd]
-            streamExtractor.running = true
-
-        } else if (cleanUrl.match(/(?:watch\?v=|youtu\.be\/|shorts\/)([a-zA-Z0-9_-]{11})/) && !cleanUrl.includes("list=")) {
-            let match = cleanUrl.match(/(?:watch\?v=|youtu\.be\/|shorts\/)([a-zA-Z0-9_-]{11})/)
-            let vidId = (match && match[1]) ? match[1] : cleanUrl
-            currentPlaylist = [{ id: vidId, title: cleanUrl, isMusic: cleanUrl.includes("music.youtube.com") }]
-            resolveTrack(0)
-
-        } else {
-            let cmd = 'yt-dlp --print "%(playlist_title,title)s|||%(id)s|||%(title)s" --extractor-args "youtube:player_client=android,web" --flat-playlist "' + cleanUrl + '" 2>/dev/null'
-            playlistFetcher.command = ["fish", "-c", envPrefix + cmd]
-            playlistFetcher.running = true
-        }
-    }
-
-    function stopStream() {
-        inlinePlayer.stop()
-        embeddedStreamUrl = ""
-        activeChannelName = ""
-        activeStreamTitle = ""
-        activeStreamThumbnail = ""
-        currentPlaylist = []
-        prefetchStreamUrl = ""
-        prefetchThumbnail = ""
-        prefetchIndex = -1
-        isLoadingStream = false
-        if (streamExtractor.running) streamExtractor.running = false
-        if (playlistFetcher.running) playlistFetcher.running = false
-        if (prefetchExtractor.running) prefetchExtractor.running = false
-        
-        cacheCleaner.running = false
-        cacheCleaner.running = true
     }
 
     // --- INITIALIZATION GUARD ---
@@ -840,7 +486,6 @@ QtObject {
         "power": "electrical_services",
         "recorder": "videocam",
         "mirror": "photo_camera",
-        "player": "play_circle",
         "screenshot": "crop",
         "wallpaper": "wall_art",
         "settings": "build",
@@ -1691,7 +1336,6 @@ QtObject {
             ? (Quickshell.env("HOME") + "/.config/hypr/shaders/pixelate.frag") 
             : ""
 
-        // Generates uniform literal binds with SUPER
         let bindLines = []
         let bindKeys = ["wallpaper", "launcher", "settings", "workspaceoverview", "clipboard", "lockscreen", "shader"]
         bindKeys.forEach(bk => {
@@ -1819,7 +1463,6 @@ QtObject {
 
             var data = {
                 "lastSettingsSection": root.lastSettingsSection,
-                "savedUrls": root.savedUrls,
                 "monitorConfigs": root.monitorConfigs,
                 "selectedWallpaperMonitors": root.selectedWallpaperMonitors,
                 "wallpaperTransitionType": root.wallpaperTransitionType,
@@ -1890,12 +1533,6 @@ QtObject {
                 "mirrorExpanded": root.mirrorExpanded,
                 "mirrorPinned": root.mirrorPinned,
                 "mirrorAnchorPos": root.mirrorAnchorPos,
-
-                "playerShowPanel": root.playerShowPanel,
-                "playerKeepAspect": root.playerKeepAspect,
-                "playerX": root.playerX,
-                "playerY": root.playerY,
-                "playerAnchorPos": root.playerAnchorPos,
 
                 "leftCardOrder": root.leftCardOrder,
                 "leftCardCollapsed": root.leftCardCollapsed,
@@ -1991,7 +1628,7 @@ QtObject {
                         var parsed = JSON.parse(text)
 
                         let props = [
-                            "lastSettingsSection", "savedUrls",
+                            "lastSettingsSection",
                             "monitorConfigs", "selectedWallpaperMonitors", "wallpaperTransitionType", "activeWallpaperPath",
                             "enableWallpaperParallax", "wallpaperWorkspaceParallax", "wallpaperCursorParallax", "wallpaperParallaxIntensity",
                             "slideshowActive", "slideshowMinutes",
@@ -2017,8 +1654,7 @@ QtObject {
                             "leftCardOrder", "rightCardOrder", "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides",
                             "playWindowSounds", "playNotificationSounds", "windowSoundPath", "notificationSoundPath", "windowSoundVolume",
                             "showMirror", "mirrorShowPanel", "mirrorMirrored", "mirrorKeepAspect", "mirrorExpanded", "mirrorPinned", "mirrorAnchorPos",
-                            "playerExpanded", "playerPinned",
-                            "playerShowPanel", "playerKeepAspect", "playerX", "playerY", "playerAnchorPos", "enableHoverPeek",
+                            "enableHoverPeek",
                             "pixelShaderEnabled", "pixelShaderMode", "pixelShaderSize", "pixelShaderLevels", 
                             "pixelShaderPalette", "pixelShaderDither", "pixelShaderGrid", "pixelShaderBoost"
                         ]
@@ -2040,7 +1676,7 @@ QtObject {
                             root.keybinds = cleaned
                         }
 
-                        let defaultLeft = ["power", "recorder", "mirror", "screenshot", "player", "wallpaper", "settings", "launcher", "audio", "batt", "network", "clipboard"]
+                        let defaultLeft = ["power", "recorder", "mirror", "screenshot", "wallpaper", "settings", "launcher", "audio", "batt", "network", "clipboard"]
                         let currentLeft = Array.isArray(root.leftCardOrder) ? root.leftCardOrder.slice() : []
                         defaultLeft.forEach(mod => {
                             if (!currentLeft.includes(mod)) currentLeft.push(mod)
@@ -2079,8 +1715,6 @@ QtObject {
                 if (root.pixelShaderEnabled) {
                     root.updateShader()
                 }
-                
-                root.stopStream()
 
                 if (root.weather) {
                     root.weather.fetchWeather(true)
@@ -2092,7 +1726,6 @@ QtObject {
         
         Component.onCompleted: {
             loader.running = true
-            cacheCleaner.running = true
         }
     }
 
