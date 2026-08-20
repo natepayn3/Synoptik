@@ -43,6 +43,8 @@ Rectangle {
     clip: true
     radius: Config.cornerRadius / 2
     color: Qt.rgba(255, 255, 255, 0.05)
+    border.width: 1
+    border.color: Qt.rgba(255, 255, 255, 0.1)
 
     Behavior on width { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
     Behavior on height { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }

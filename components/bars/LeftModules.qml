@@ -31,6 +31,8 @@ Rectangle {
     height: (rootRef && rootRef.isHorizontal) ? 36 : Math.max(36, contentTargetHeight)
     radius: Config.cornerRadius / 2
     color: Qt.rgba(255, 255, 255, 0.05)
+    border.width: 1
+    border.color: Qt.rgba(255, 255, 255, 0.1)
     clip: true
 
     Behavior on width { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }

@@ -47,8 +47,8 @@ Rectangle {
 
     radius: Config.cornerRadius / 2
     color: (Config.showTaskOverflow || cardHover.hovered) ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(255, 255, 255, 0.05)
-    border.color: (Config.showTaskOverflow || cardHover.hovered) ? Config.accent : "transparent"
-    border.width: (Config.showTaskOverflow || cardHover.hovered) ? 2 : 0
+    border.width: (Config.showTaskOverflow || cardHover.hovered) ? 2 : 1
+    border.color: (Config.showTaskOverflow || cardHover.hovered) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
     clip: true
 
     Behavior on color { ColorAnimation { duration: 150 } }
