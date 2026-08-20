@@ -28,17 +28,20 @@ PanelWindow {
     mask: Region { item: infoContainer }
 
     // --- SYSTEM METRICS STATE ---
+    // Static / Hardware Metadata (Fetched once at startup)
     property string hostUser: "---"
     property string osDistro: "---"
     property string kernelVer: "---"
-    property string sysUptime: "---"
     property string packageCount: "---"
     property string wmCompositor: "---"
     property string boardModel: "---"
     property string cpuModel: "---"
     property string cpuCores: "---"
-    property string loadAvg: "---"
     property string gpuModel: "---"
+
+    // Dynamic Runtime Telemetry (Polled at interval)
+    property string sysUptime: "---"
+    property string loadAvg: "---"
     property string localIp: "---"
     property string gatewayIp: "---"
     property string dnsServer: "---"
@@ -52,9 +55,9 @@ PanelWindow {
     property string diskHomeText: "---"
     property real diskHomePct: 0.0
 
-    // --- ASYNC FISH TELEMETRY DISPATCHER ---
+    // --- 1. ONE-TIME STATIC HARDWARE & SYSTEM QUERY ---
     Process {
-        id: sysInfoProc
+        id: staticSysInfoProc
         running: false
         command: [
             "fish", "-c",
@@ -63,7 +66,6 @@ PanelWindow {
             "set -l os (grep -m1 '^PRETTY_NAME=' /etc/os-release 2>/dev/null | cut -d= -f2 | string trim -c '\"'); " +
             "test -z \"$os\"; and set os 'Arch Linux'; " +
             "set -l k (uname -r); " +
-            "set -l upt (uptime -p 2>/dev/null | string replace 'up ' ''); " +
             "set -l pkgs (pacman -Qq 2>/dev/null | count); " +
             "test \"$pkgs\" = \"0\"; and set pkgs '---'; " +
             "set -l wm (echo 'Hyprland '(hyprctl version 2>/dev/null | grep -m1 'Tag:' | awk '{print $2}')); " +
@@ -73,24 +75,12 @@ PanelWindow {
             "test -z \"$board\"; and set board 'Generic Board'; " +
             "set -l cpu (grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d: -f2 | string trim | string replace -r '[(][^)]*[)]' '' | string replace -r ' @.*' ''); " +
             "set -l cores (nproc 2>/dev/null); " +
-            "set -l load (awk '{print $1\", \"$2\", \"$3}' /proc/loadavg 2>/dev/null); " +
             "set -l raw_gpu (lspci 2>/dev/null | grep -iE 'vga|3d|display' | grep -i 'nvidia' | head -n1); " +
             "test -z \"$raw_gpu\"; and set raw_gpu (lspci 2>/dev/null | grep -iE 'vga|3d|display' | head -n1); " +
             "set -l gpu (echo $raw_gpu | string match -r '\\[([^\\]]+)\\]' | tail -n1); " +
             "test -z \"$gpu\"; and set gpu (echo $raw_gpu | cut -d: -f3 | string trim | string replace -r '[(][^)]*[)]' '' | string replace -r 'Corporation ' '' | string replace -r 'NVIDIA ' ''); " +
             "test -z \"$gpu\"; and set gpu 'Integrated'; " +
-            "set -l ip (ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}'); " +
-            "test -z \"$ip\"; and set ip (hostname -I 2>/dev/null | awk '{print $1}'); " +
-            "test -z \"$ip\"; and set ip '127.0.0.1'; " +
-            "set -l gw (ip -4 route show default 2>/dev/null | awk '{print $3; exit}'); " +
-            "test -z \"$gw\"; and set gw '---'; " +
-            "set -l dns (awk '/nameserver/ {print $2; exit}' /etc/resolv.conf 2>/dev/null); " +
-            "test -z \"$dns\"; and set dns '---'; " +
-            "set -l mem (free -b | awk '/Mem:/ {printf \"{\\\"used\\\":%.1f,\\\"total\\\":%.1f,\\\"pct\\\":%.1f}\", $3/1073741824, $2/1073741824, ($3/$2)*100}'); " +
-            "set -l swap (free -b | awk '/Swap:/ {if ($2>0) printf \"{\\\"used\\\":%.1f,\\\"total\\\":%.1f,\\\"pct\\\":%.1f}\", $3/1073741824, $2/1073741824, ($3/$2)*100; else print \"null\"}'); " +
-            "set -l diskRoot (df -h / 2>/dev/null | awk 'NR==2 {gsub(/%/,\"\",$5); printf \"{\\\"used\\\":\\\"%s\\\",\\\"total\\\":\\\"%s\\\",\\\"pct\\\":%s}\", $3, $2, $5}'); " +
-            "set -l diskHome (df -h /home 2>/dev/null | awk 'NR==2 {gsub(/%/,\"\",$5); printf \"{\\\"used\\\":\\\"%s\\\",\\\"total\\\":\\\"%s\\\",\\\"pct\\\":%s}\", $3, $2, $5}'); " +
-            "printf '{\"user\":\"%s\",\"host\":\"%s\",\"os\":\"%s\",\"kernel\":\"%s\",\"uptime\":\"%s\",\"pkgs\":\"%s\",\"wm\":\"%s\",\"board\":\"%s\",\"cpu\":\"%s\",\"cores\":\"%s\",\"load\":\"%s\",\"gpu\":\"%s\",\"ip\":\"%s\",\"gw\":\"%s\",\"dns\":\"%s\",\"mem\":%s,\"swap\":%s,\"diskRoot\":%s,\"diskHome\":%s}\\n' \"$u\" \"$h\" \"$os\" \"$k\" \"$upt\" \"$pkgs\" \"$wm\" \"$board\" \"$cpu\" \"$cores\" \"$load\" \"$gpu\" \"$ip\" \"$gw\" \"$dns\" \"$mem\" \"$swap\" \"$diskRoot\" \"$diskHome\""
+            "printf '{\"user\":\"%s\",\"host\":\"%s\",\"os\":\"%s\",\"kernel\":\"%s\",\"pkgs\":\"%s\",\"wm\":\"%s\",\"board\":\"%s\",\"cpu\":\"%s\",\"cores\":\"%s\",\"gpu\":\"%s\"}\\n' \"$u\" \"$h\" \"$os\" \"$k\" \"$pkgs\" \"$wm\" \"$board\" \"$cpu\" \"$cores\" \"$gpu\""
         ]
 
         stdout: StdioCollector {
@@ -102,14 +92,47 @@ PanelWindow {
                     sysInfoWindow.hostUser = (d.user && d.host) ? `${d.user}@${d.host}` : "localhost"
                     sysInfoWindow.osDistro = d.os || "Linux"
                     sysInfoWindow.kernelVer = d.kernel || "Linux"
-                    sysInfoWindow.sysUptime = d.uptime || "Just booted"
                     sysInfoWindow.packageCount = d.pkgs ? `${d.pkgs} (pacman)` : "---"
                     sysInfoWindow.wmCompositor = d.wm || "Hyprland"
                     sysInfoWindow.boardModel = d.board || "Generic Board"
                     sysInfoWindow.cpuModel = d.cpu || "Generic CPU"
                     sysInfoWindow.cpuCores = d.cores ? `${d.cores} threads` : "---"
-                    sysInfoWindow.loadAvg = d.load || "---"
                     sysInfoWindow.gpuModel = d.gpu || "Integrated GPU"
+                } catch(e) {}
+            }
+        }
+    }
+
+    // --- 2. LIGHTWEIGHT DYNAMIC RUNTIME TELEMETRY ---
+    Process {
+        id: dynamicSysInfoProc
+        running: false
+        command: [
+            "fish", "-c",
+            "set -l upt (uptime -p 2>/dev/null | string replace 'up ' ''); " +
+            "set -l load (awk '{print $1\", \"$2\", \"$3}' /proc/loadavg 2>/dev/null); " +
+            "set -l ip (ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}'); " +
+            "test -z \"$ip\"; and set ip (hostname -I 2>/dev/null | awk '{print $1}'); " +
+            "test -z \"$ip\"; and set ip '127.0.0.1'; " +
+            "set -l gw (ip -4 route show default 2>/dev/null | awk '{print $3; exit}'); " +
+            "test -z \"$gw\"; and set gw '---'; " +
+            "set -l dns (awk '/nameserver/ {print $2; exit}' /etc/resolv.conf 2>/dev/null); " +
+            "test -z \"$dns\"; and set dns '---'; " +
+            "set -l mem (free -b | awk '/Mem:/ {printf \"{\\\"used\\\":%.1f,\\\"total\\\":%.1f,\\\"pct\\\":%.1f}\", $3/1073741824, $2/1073741824, ($3/$2)*100}'); " +
+            "set -l swap (free -b | awk '/Swap:/ {if ($2>0) printf \"{\\\"used\\\":%.1f,\\\"total\\\":%.1f,\\\"pct\\\":%.1f}\", $3/1073741824, $2/1073741824, ($3/$2)*100; else print \"null\"}'); " +
+            "set -l diskRoot (df -h / 2>/dev/null | awk 'NR==2 {gsub(/%/,\"\",$5); printf \"{\\\"used\\\":\\\"%s\\\",\\\"total\\\":\\\"%s\\\",\\\"pct\\\":%s}\", $3, $2, $5}'); " +
+            "set -l diskHome (df -h /home 2>/dev/null | awk 'NR==2 {gsub(/%/,\"\",$5); printf \"{\\\"used\\\":\\\"%s\\\",\\\"total\\\":\\\"%s\\\",\\\"pct\\\":%s}\", $3, $2, $5}'); " +
+            "printf '{\"uptime\":\"%s\",\"load\":\"%s\",\"ip\":\"%s\",\"gw\":\"%s\",\"dns\":\"%s\",\"mem\":%s,\"swap\":%s,\"diskRoot\":%s,\"diskHome\":%s}\\n' \"$upt\" \"$load\" \"$ip\" \"$gw\" \"$dns\" \"$mem\" \"$swap\" \"$diskRoot\" \"$diskHome\""
+        ]
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let txt = this.text ? this.text.trim() : ""
+                if (!txt) return
+                try {
+                    let d = JSON.parse(txt)
+                    sysInfoWindow.sysUptime = d.uptime || "Just booted"
+                    sysInfoWindow.loadAvg = d.load || "---"
                     sysInfoWindow.localIp = d.ip || "127.0.0.1"
                     sysInfoWindow.gatewayIp = d.gw || "---"
                     sysInfoWindow.dnsServer = d.dns || "---"
@@ -138,12 +161,20 @@ PanelWindow {
         }
     }
 
+    Component.onCompleted: {
+        staticSysInfoProc.running = true
+        dynamicSysInfoProc.running = true
+    }
+
     Timer {
         interval: Config.sysInfoRefreshInterval || 3000
         running: sysInfoWindow.visible
         repeat: true
-        triggeredOnStart: true
-        onTriggered: sysInfoProc.running = true
+        onTriggered: {
+            if (!dynamicSysInfoProc.running) {
+                dynamicSysInfoProc.running = true
+            }
+        }
     }
 
     Item {
