@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import Quickshell.Hyprland
 import ".."
 
 QtObject {
@@ -11,6 +12,20 @@ QtObject {
     property bool isFetchingOnline: false
 
     property int thumbEpoch: 0
+
+    // Ensure daemon starts silently at shell initialization
+    property Process daemonStarter: Process {
+        id: daemonStarterProc
+        running: true
+        command: [
+            "fish", "-c",
+            "if not pgrep -x 'awww-daemon' > /dev/null; " +
+            "    set -l wayland_disp (test -n \"$WAYLAND_DISPLAY\"; and echo \"$WAYLAND_DISPLAY\"; or echo \"wayland-1\"); " +
+            "    rm -f /run/user/(id -u)/$wayland_disp-awww-daemon.sock; " +
+            "    nohup awww-daemon >/dev/null 2>&1 & disown; " +
+            "end"
+        ]
+    }
 
     property Process slideshowRunner: Process {
         id: bgSlideshowProc
@@ -49,13 +64,27 @@ QtObject {
         id: wpApplyProc
         running: false
         property string pendingIrisPath: ""
+        property string pendingWpPath: ""
+        property var pendingTargets: []
 
         onExited: (exitCode, exitStatus) => {
-            if (exitCode === 0) {
-                if (configRef && configRef.enableIris && pendingIrisPath !== "") {
+            if (exitCode === 0 && configRef) {
+                if (pendingTargets.length > 0) {
+                    let updatedMap = Object.assign({}, configRef.activeMonitorWallpapers)
+                    for (let i = 0; i < pendingTargets.length; i++) {
+                        updatedMap[pendingTargets[i]] = pendingWpPath
+                    }
+                    configRef.activeMonitorWallpapers = updatedMap
+                } else {
+                    configRef.activeWallpaperPath = pendingWpPath
+                    configRef.activeMonitorWallpapers = ({})
+                }
+
+                if (configRef.enableIris && pendingIrisPath !== "") {
                     configRef.applyIrisColors(pendingIrisPath)
                     pendingIrisPath = ""
                 }
+                configRef.refreshActiveWallpapers()
             }
         }
     }
@@ -64,48 +93,50 @@ QtObject {
         if (!filePath || !configRef) return
 
         let cleanFilePath = (typeof filePath === "string" ? filePath : filePath.toString()).replace(/^file:\/\//, "")
-        configRef.activeWallpaperPath = cleanFilePath
-
         let ext = cleanFilePath.split('.').pop().toLowerCase()
         let isVid = (ext === "mp4" || ext === "webm")
-        let useParallax = configRef.enableWallpaperParallax && (configRef.wallpaperWorkspaceParallax || configRef.wallpaperCursorParallax)
-        let waylandDisplay = Quickshell.env("WAYLAND_DISPLAY") || "wayland-1"
-        let sockPath = "/run/user/" + Quickshell.env("UID") + "/" + waylandDisplay + "-awww-daemon.sock"
-        let targets = activeOnly ? [] : (configRef.selectedWallpaperMonitors || []).filter(mon => Quickshell.screens.some(s => s.name === mon))
-        let transition = configRef.wallpaperTransitionType || "fade"
+        let transition = (configRef.wallpaperTransitionType && configRef.wallpaperTransitionType !== "") ? configRef.wallpaperTransitionType : "fade"
 
-        // Wipe stale per-monitor overrides when setting global wallpaper
-        if (!activeOnly && targets.length === 0) {
-            configRef.activeMonitorWallpapers = ({})
+        // Determine targets:
+        // 1. activeOnly (Ctrl+Click in Wallpaper.qml) -> Focused Monitor
+        // 2. selectedWallpaperMonitors (Target Displays toggle) -> Selected list
+        // 3. Otherwise empty -> All monitors
+        let targets = []
+        if (activeOnly) {
+            let focusedMon = (Hyprland.focusedMonitor && Hyprland.focusedMonitor.name) ? Hyprland.focusedMonitor.name : ""
+            if (focusedMon !== "") {
+                targets = [focusedMon]
+            }
+        } else if (configRef.selectedWallpaperMonitors && configRef.selectedWallpaperMonitors.length > 0) {
+            targets = configRef.selectedWallpaperMonitors.slice()
         }
+
+        wpApplyProc.pendingWpPath = cleanFilePath
+        wpApplyProc.pendingTargets = targets
 
         let script = ""
 
         if (isVid) {
-            // Kill existing daemons by exact binary name so fish script does not self-terminate
-            script += "killall -9 -q awww-daemon awww mpvpaper 2>/dev/null; rm -f " + sockPath + "; "
-            if (activeOnly) {
-                script += "set TARGET_MON (hyprctl monitors -j | jq -r '.[] | select(.focused) | .name'); "
-                script += "nohup mpvpaper -vs -o 'input-terminal=no loop-file=inf no-audio panscan=1.0 video-unscaled=no' \"$TARGET_MON\" '" + cleanFilePath + "' < /dev/null >/dev/null 2>&1 & disown; "
+            script += "killall -q -9 awww-daemon awww mpvpaper 2>/dev/null; "
+            if (targets.length > 0) {
+                for (let i = 0; i < targets.length; i++) {
+                    script += "nohup mpvpaper -vs -o 'input-terminal=no loop-file=inf no-audio panscan=1.0 video-unscaled=no' '" + targets[i] + "' '" + cleanFilePath + "' < /dev/null >/dev/null 2>&1 & disown; "
+                }
             } else {
                 script += "nohup mpvpaper -vs -o 'input-terminal=no loop-file=inf no-audio panscan=1.0 video-unscaled=no' '*' '" + cleanFilePath + "' < /dev/null >/dev/null 2>&1 & disown; "
             }
-        } else if (useParallax) {
-            // Parallax Mode: WallpaperSurface renders on Background; kill external daemons
-            script += "killall -9 -q mpvpaper awww-daemon awww 2>/dev/null; rm -f " + sockPath + "; "
         } else {
-            // Fallback static mode when parallax is disabled
-            script += "killall -9 -q mpvpaper 2>/dev/null; "
-            script += "if not pgrep -x 'awww-daemon' > /dev/null; rm -f " + sockPath + "; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.5; end; "
-            if (activeOnly) {
-                script += "set TARGET_MON (hyprctl monitors -j | jq -r '.[] | select(.focused) | .name'); "
-                script += "awww img -o \"$TARGET_MON\" '" + cleanFilePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; "
-            } else if (targets.length > 0) {
+            script += "if pgrep -x 'mpvpaper' > /dev/null; killall -q mpvpaper; end; "
+            script += "if not pgrep -x 'awww-daemon' > /dev/null; nohup awww-daemon >/dev/null 2>&1 & disown; sleep 0.1; end; "
+
+            let transArgs = "--transition-type " + transition + " --transition-step 30 --transition-fps 60"
+
+            if (targets.length > 0) {
                 for (let i = 0; i < targets.length; i++) {
-                    script += "awww img -o \"" + targets[i] + "\" '" + cleanFilePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; "
+                    script += "awww img -o \"" + targets[i] + "\" '" + cleanFilePath + "' " + transArgs + "; "
                 }
             } else {
-                script += "awww img '" + cleanFilePath + "' --transition-type " + transition + " --transition-step 16 --transition-duration 1; "
+                script += "awww img '" + cleanFilePath + "' " + transArgs + "; "
             }
         }
 
@@ -115,16 +146,18 @@ QtObject {
                 let baseName = fileName.replace(/\.[^/.]+$/, "")
                 let thumbPath = Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + baseName + ".jpg"
                 wpApplyProc.pendingIrisPath = thumbPath
-                script += "test -f '" + thumbPath + "'; or ffmpeg -y -ss 00:00:01 -i '" + cleanFilePath + "' -vframes 1 -vf 'scale=600:-1' '" + thumbPath + "' >/dev/null 2>&1; "
-                script += "iris '" + thumbPath + "'; "
+                script += "nohup fish -c 'test -f \"" + thumbPath + "\"; or ffmpeg -y -ss 00:00:01 -i \"" + cleanFilePath + "\" -vframes 1 -vf scale=600:-1 \"" + thumbPath + "\" >/dev/null 2>&1; iris \"" + thumbPath + "\"' >/dev/null 2>&1 & disown; "
             } else {
                 wpApplyProc.pendingIrisPath = cleanFilePath
-                script += "iris '" + cleanFilePath + "'; "
+                script += "nohup iris '" + cleanFilePath + "' >/dev/null 2>&1 & disown; "
             }
         }
 
+        if (wpApplyProc.running) {
+            wpApplyProc.running = false
+        }
+
         wpApplyProc.command = ["fish", "-c", script]
-        wpApplyProc.running = false
         wpApplyProc.running = true
     }
 
@@ -132,8 +165,11 @@ QtObject {
         if (!configRef) return
         let current = configRef.selectedWallpaperMonitors ? configRef.selectedWallpaperMonitors.slice() : []
         let idx = current.indexOf(screenName)
-        if (idx >= 0) current.splice(idx, 1)
-        else current.push(screenName)
+        if (idx >= 0) {
+            current.splice(idx, 1)
+        } else {
+            current.push(screenName)
+        }
         configRef.selectedWallpaperMonitors = current
         configRef.saveSettings()
     }
