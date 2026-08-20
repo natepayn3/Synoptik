@@ -47,7 +47,7 @@ Item {
     property bool isPrivateOccupied: false
     property bool isPrivateActive: activeSpecialName === "private"
 
-    // Single-shot debounce timer collapsing multi-event bursts into 1 execution pass (Fix #13)
+    // Single-shot debounce timer collapsing multi-event bursts into 1 execution pass
     property Timer rebuildDebounceTimer: Timer {
         interval: 16
         repeat: false
@@ -86,7 +86,7 @@ Item {
             } else if (ws.name) {
                 let cleanName = ws.name.replace(/^special:/, "");
                 if (cleanName === "magic") magicOcc = true;
-                if (cleanName === "music") musicOcc = true;
+                if (cleanName === "music") magicOcc = true;
                 if (cleanName === "private") privateOcc = true;
             }
         }
@@ -149,18 +149,6 @@ Item {
 
     Component.onCompleted: root.rebuildWorkspaceData()
 
-    // Mouse Wheel Quick-Switch
-    WheelHandler {
-        enabled: Config.workspaceScroll !== false
-        onWheel: (event) => {
-            if (event.angleDelta.y > 0 || event.angleDelta.x < 0) {
-                Hyprland.dispatch("hl.dsp.focus({ workspace = \"m-1\" })")
-            } else if (event.angleDelta.y < 0 || event.angleDelta.x > 0) {
-                Hyprland.dispatch("hl.dsp.focus({ workspace = \"m+1\" })")
-            }
-        }
-    }
-
     // Outer Capsule / Frame Container
     Rectangle {
         id: containerBox
@@ -181,6 +169,21 @@ Item {
 
         Behavior on color { ColorAnimation { duration: 150 } }
         Behavior on border.color { ColorAnimation { duration: 150 } }
+
+        // Mouse Wheel Quick-Switch
+        MouseArea {
+            anchors.fill: parent
+            enabled: Config.workspaceScroll !== false
+            acceptedButtons: Qt.NoButton // Only catch scroll deltas; let clicks pass to pills
+
+            onWheel: (wheel) => {
+                if (wheel.angleDelta.y > 0 || wheel.angleDelta.x < 0) {
+                    Hyprland.dispatch("hl.dsp.focus({ workspace = \"m-1\" })");
+                } else if (wheel.angleDelta.y < 0 || wheel.angleDelta.x > 0) {
+                    Hyprland.dispatch("hl.dsp.focus({ workspace = \"m+1\" })");
+                }
+            }
+        }
 
         Flow {
             id: mainLayout
@@ -377,7 +380,7 @@ Item {
                             onTapped: {
                                 if (typeof Config.showWorkspacePreview !== "undefined") Config.showWorkspacePreview = false;
                                 root.activeSpecialName = "";
-                                Hyprland.dispatch("hl.dsp.focus({ workspace = \"" + pillSlot.wsId + "\" })");
+                                Quickshell.execDetached(["hyprctl", "dispatch", "workspace", "" + pillSlot.wsId]);
                             }
                         }
                         HoverHandler { id: pillHover; cursorShape: Qt.PointingHandCursor }
@@ -443,7 +446,7 @@ Item {
                         onTapped: {
                             let maxWs = root.workspaceList.length > 0 ? Math.max(...root.workspaceList) : 0;
                             root.activeSpecialName = "";
-                            Hyprland.dispatch("hl.dsp.focus({ workspace = \"" + (maxWs + 1) + "\" })");
+                            Quickshell.execDetached(["hyprctl", "dispatch", "workspace", "" + (maxWs + 1)]);
                         }
                     }
                     HoverHandler { id: addHover; cursorShape: Qt.PointingHandCursor }
@@ -539,7 +542,7 @@ Item {
                             Behavior on color { ColorAnimation { duration: 150 } }
                         }
                     }
-                    TapHandler { onTapped: Hyprland.dispatch("hl.dsp.workspace.toggle_special(\"magic\")") }
+                    TapHandler { onTapped: Quickshell.execDetached(["hyprctl", "dispatch", "togglespecialworkspace", "magic"]) }
                     HoverHandler { id: magicHover; cursorShape: Qt.PointingHandCursor }
                 }
 
@@ -586,7 +589,7 @@ Item {
                             Behavior on color { ColorAnimation { duration: 150 } }
                         }
                     }
-                    TapHandler { onTapped: Hyprland.dispatch("hl.dsp.workspace.toggle_special(\"music\")") }
+                    TapHandler { onTapped: Quickshell.execDetached(["hyprctl", "dispatch", "togglespecialworkspace", "music"]) }
                     HoverHandler { id: musicHover; cursorShape: Qt.PointingHandCursor }
                 }
 
@@ -633,7 +636,7 @@ Item {
                             Behavior on color { ColorAnimation { duration: 150 } }
                         }
                     }
-                    TapHandler { onTapped: Hyprland.dispatch("hl.dsp.workspace.toggle_special(\"private\")") }
+                    TapHandler { onTapped: Quickshell.execDetached(["hyprctl", "dispatch", "togglespecialworkspace", "private"]) }
                     HoverHandler { id: privateHover; cursorShape: Qt.PointingHandCursor }
                 }
             }
