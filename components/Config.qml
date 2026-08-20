@@ -44,10 +44,19 @@ QtObject {
         }
     }
 
+    // Debounce timer for shader updates. Rapid changes (e.g. dragging the
+    // pixel size slider) collapse into a single shaderService.updateShader()
+    // call instead of spawning a new python3 process on every tick.
+    property Timer shaderDebounce: Timer {
+        interval: 200
+        repeat: false
+        onTriggered: shaderService.updateShader()
+    }
+
     function updateShader() {
         if (!isLoaded) return
         saveSettings()
-        shaderService.updateShader()
+        shaderDebounce.restart()
     }
 
     property bool showTaskOverflow: false
