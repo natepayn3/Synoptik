@@ -10,30 +10,6 @@ QtObject {
     property var onlineResults: []
     property bool isFetchingOnline: false
 
-    property Process batchThumbProcess: Process {
-        id: thumbBatchProc
-        command: [
-            "fish", "-c",
-            "set -l cache_dir $HOME/.cache/wallpaper-thumbs; " +
-            "test -d $cache_dir; or mkdir -p $cache_dir; " +
-            "for f in ~/Pictures/Wallpapers/*.{jpg,jpeg,png,webp,mp4,webm}; " +
-            "    test -f $f; or continue; " +
-            "    set -l base_name (string replace -r '\\.[^.]+$' '' (path basename $f)); " +
-            "    set -l thumb_path \"$cache_dir/$base_name.jpg\"; " +
-            "    if not test -f $thumb_path; " +
-            "        if string match -rq '\\.(mp4|webm)$' $f; " +
-            "            ffmpeg -y -ss 00:00:01 -i $f -vframes 1 -vf 'scale=480:-1' $thumb_path >/dev/null 2>&1 &; " +
-            "        else; " +
-            "            ffmpeg -y -i $f -vf 'scale=480:-1' $thumb_path >/dev/null 2>&1 &; " +
-            "        end; " +
-            "    end; " +
-            "end; " +
-            "wait"
-        ]
-        running: true
-        onExited: wallpaperService.thumbEpoch++
-    }
-
     property int thumbEpoch: 0
 
     property Process slideshowRunner: Process {
