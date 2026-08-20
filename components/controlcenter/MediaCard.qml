@@ -32,25 +32,20 @@ Item {
         if (!visible) panelExpanded = false
     }
 
-    readonly property real collapsedX: {
-        let sum = 0
-        let p = cardRoot
-        while (p && p !== controlCenterPanel) {
-            sum += p.x
-            p = p.parent
-        }
-        return sum
+    // Cached coordinates replacing live parent-chain binding walk (Fix #18)
+    property real cachedCollapsedX: 0
+    property real cachedCollapsedY: 0
+
+    function updateCollapsedCoords() {
+        if (!controlCenterPanel || cardRoot.panelExpanded) return
+        let pt = cardRoot.mapToItem(controlCenterPanel, 0, 0)
+        cachedCollapsedX = pt.x
+        cachedCollapsedY = pt.y
     }
 
-    readonly property real collapsedY: {
-        let sum = 0
-        let p = cardRoot
-        while (p && p !== controlCenterPanel) {
-            sum += p.y
-            p = p.parent
-        }
-        return sum
-    }
+    onXChanged: updateCollapsedCoords()
+    onYChanged: updateCollapsedCoords()
+    Component.onCompleted: updateCollapsedCoords()
 
     Rectangle {
         id: visualBackground
@@ -58,8 +53,8 @@ Item {
         z: cardRoot.panelExpanded ? 1000 : 100
         clip: true
 
-        x: cardRoot.panelExpanded ? cardRoot.cardMargin : cardRoot.collapsedX
-        y: cardRoot.panelExpanded ? cardRoot.cardMargin : cardRoot.collapsedY
+        x: cardRoot.panelExpanded ? cardRoot.cardMargin : cardRoot.cachedCollapsedX
+        y: cardRoot.panelExpanded ? cardRoot.cardMargin : cardRoot.cachedCollapsedY
         width: cardRoot.panelExpanded ? (controlCenterPanel ? (controlCenterPanel.width - (cardRoot.cardMargin * 2)) : 400) : cardRoot.width
         height: cardRoot.panelExpanded ? (controlCenterPanel ? (controlCenterPanel.height - (cardRoot.cardMargin * 2)) : 500) : cardRoot.implicitHeight
 
@@ -136,6 +131,11 @@ Item {
                         anchors.fill: parent
                         antialiasing: true
                         
+                        readonly property bool isVisualizerActive: cardRoot.visible 
+                            && !cardRoot.panelExpanded 
+                            && collapsedView.opacity > 0.05 
+                            && cardRoot.mediaStatus === "Playing"
+
                         property real rotationAngle: 0.0
 
                         PropertyAnimation on rotationAngle {
@@ -143,18 +143,18 @@ Item {
                             to: 2 * Math.PI
                             duration: 20000
                             loops: Animation.Infinite
-                            running: cardRoot.visible && cardRoot.mediaStatus === "Playing"
+                            running: visualizerCanvas.isVisualizerActive
                         }
 
-                        onRotationAngleChanged: requestPaint()
-                        onWidthChanged: requestPaint()
-                        onHeightChanged: requestPaint()
+                        onRotationAngleChanged: if (isVisualizerActive) requestPaint()
+                        onWidthChanged: if (isVisualizerActive) requestPaint()
+                        onHeightChanged: if (isVisualizerActive) requestPaint()
                         
                         onPaint: {
                             var ctx = getContext("2d");
                             ctx.clearRect(0, 0, width, height);
                             
-                            if (!cardRoot.cavaBars || cardRoot.cavaBars.length === 0) return;
+                            if (!visualizerCanvas.isVisualizerActive || !cardRoot.cavaBars || cardRoot.cavaBars.length === 0) return;
                             
                             var centerX = width / 2;
                             var centerY = height / 2;
@@ -197,7 +197,11 @@ Item {
 
                         Connections {
                             target: cardRoot
-                            function onCavaBarsChanged() { visualizerCanvas.requestPaint(); }
+                            function onCavaBarsChanged() {
+                                if (visualizerCanvas.isVisualizerActive) {
+                                    visualizerCanvas.requestPaint();
+                                }
+                            }
                         }
                     }
 
@@ -488,11 +492,16 @@ Item {
                             Layout.preferredHeight: 50
                             antialiasing: true
 
+                            readonly property bool isExpandedActive: cardRoot.visible 
+                                && cardRoot.panelExpanded 
+                                && expandedView.opacity > 0.05 
+                                && cardRoot.mediaStatus === "Playing"
+
                             onPaint: {
                                 var ctx = getContext("2d");
                                 ctx.clearRect(0, 0, width, height);
 
-                                if (!cardRoot.cavaBars || cardRoot.cavaBars.length === 0) return;
+                                if (!expandedCavaCanvas.isExpandedActive || !cardRoot.cavaBars || cardRoot.cavaBars.length === 0) return;
 
                                 var bars = cardRoot.cavaBars;
                                 var barCount = Math.min(bars.length, 24);
@@ -520,7 +529,11 @@ Item {
 
                             Connections {
                                 target: cardRoot
-                                function onCavaBarsChanged() { expandedCavaCanvas.requestPaint(); }
+                                function onCavaBarsChanged() { 
+                                    if (expandedCavaCanvas.isExpandedActive) {
+                                        expandedCavaCanvas.requestPaint(); 
+                                    }
+                                }
                             }
                         }
 
