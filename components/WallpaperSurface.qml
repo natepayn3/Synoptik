@@ -8,6 +8,39 @@ import Quickshell.Io
 Scope {
     id: parallaxScope
 
+    // Global cursor position shared across all screen delegates.
+    // Initialized to -1 so delegates default to 0.5 (centered) until
+    // the first mousemove event arrives.
+    property real globalCursorX: -1
+    property real globalCursorY: -1
+
+    // Single event-driven cursor tracker: subscribes to Hyprland's event
+    // socket and filters only "mousemove>>" lines. Zero polling overhead —
+    // output is produced only when the mouse actually moves.
+    Process {
+        id: cursorTrackerProc
+        running: Config.enableWallpaperParallax && Config.wallpaperCursorParallax
+        command: [
+            "sh", "-c",
+            "socat - UNIX-CONNECT:/run/user/$(id -u)/hypr/$HYPRLAND_INSTANCE_SIGNATURE/.socket2.sock 2>/dev/null | " +
+            "grep --line-buffered '^mousemove>>'"
+        ]
+        stdout: SplitParser {
+            onRead: data => {
+                // data is guaranteed to start with "mousemove>>" due to grep filter
+                let coords = data.trim().slice(11).split(",")
+                if (coords.length >= 2) {
+                    let cx = parseFloat(coords[0])
+                    let cy = parseFloat(coords[1])
+                    if (!isNaN(cx) && !isNaN(cy)) {
+                        parallaxScope.globalCursorX = cx
+                        parallaxScope.globalCursorY = cy
+                    }
+                }
+            }
+        }
+    }
+
     Variants {
         model: Quickshell.screens
 
@@ -83,8 +116,22 @@ Scope {
                 NumberAnimation { duration: 450; easing.type: Easing.OutCubic }
             }
 
-            property real cursorNormX: 0.5
-            property real cursorNormY: 0.5
+            // Normalize global cursor coordinates to this screen's [0.0, 1.0] space.
+            // Returns 0.5 (centered) until the first mousemove event is received.
+            readonly property real cursorNormX: {
+                if (parallaxScope.globalCursorX < 0 || !modelData) return 0.5
+                let hMon = Hyprland.monitorFor(modelData)
+                let monX = hMon ? hMon.x : 0
+                let sw = (hMon && hMon.width) ? hMon.width : (modelData.width || 1920)
+                return Math.max(0.0, Math.min(1.0, (parallaxScope.globalCursorX - monX) / sw))
+            }
+            readonly property real cursorNormY: {
+                if (parallaxScope.globalCursorY < 0 || !modelData) return 0.5
+                let hMon = Hyprland.monitorFor(modelData)
+                let monY = hMon ? hMon.y : 0
+                let sh = (hMon && hMon.height) ? hMon.height : (modelData.height || 1080)
+                return Math.max(0.0, Math.min(1.0, (parallaxScope.globalCursorY - monY) / sh))
+            }
 
             readonly property real targetCursorOffsetX: Config.wallpaperCursorParallax ? (cursorNormX - 0.5) * (-overscanX * 0.35) : 0.0
             readonly property real targetCursorOffsetY: Config.wallpaperCursorParallax ? (cursorNormY - 0.5) * (-overscanY * 0.45) : 0.0
@@ -95,39 +142,6 @@ Scope {
             Behavior on smoothCursorOffsetX { NumberAnimation { duration: 260; easing.type: Easing.OutQuad } }
             Behavior on smoothCursorOffsetY { NumberAnimation { duration: 260; easing.type: Easing.OutQuad } }
 
-            Process {
-                id: cursorTrackerProc
-                running: wpWindow.visible && Config.enableWallpaperParallax && Config.wallpaperCursorParallax
-                command: [
-                    "fish", "-c",
-                    "while true; hyprctl cursorpos; sleep 0.033; end"
-                ]
-
-                stdout: SplitParser {
-                    onRead: data => {
-                        if (!data || data.length === 0) return
-                        let parts = data.trim().split(",")
-                        if (parts.length >= 2) {
-                            let cx = parseFloat(parts[0].trim())
-                            let cy = parseFloat(parts[1].trim())
-
-                            if (!isNaN(cx) && !isNaN(cy) && wpWindow.modelData) {
-                                let hMon = Hyprland.monitorFor(wpWindow.modelData)
-                                let monX = hMon ? hMon.x : 0
-                                let monY = hMon ? hMon.y : 0
-                                let sw = (hMon && hMon.width) ? hMon.width : (wpWindow.modelData.width || 1920)
-                                let sh = (hMon && hMon.height) ? hMon.height : (wpWindow.modelData.height || 1080)
-
-                                let relX = (cx - monX) / sw
-                                let relY = (cy - monY) / sh
-
-                                wpWindow.cursorNormX = Math.max(0.0, Math.min(1.0, relX))
-                                wpWindow.cursorNormY = Math.max(0.0, Math.min(1.0, relY))
-                            }
-                        }
-                    }
-                }
-            }
 
             Item {
                 id: wallpaperCanvas
