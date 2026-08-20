@@ -18,27 +18,45 @@ Item {
     property string interfaceName: ""
     property string ssid: ""
 
-    // --- Live Bandwidth Properties ---
+    // --- Live Bandwidth & Activity Tracking ---
     property string downloadSpeed: "0 B/s"
     property string uploadSpeed: "0 B/s"
+    property real currentRxSpeed: 0.0
+    property real currentTxSpeed: 0.0
+    property real maxSessionRx: 1024 * 1024
+    property real maxSessionTx: 1024 * 512
     property var lastRxBytes: 0
     property var lastTxBytes: 0
     property var lastTime: 0
     
-    property real currentInstantSpeed: 0.0
     property var lastTextUpdateTime: 0
-    property int maxGraphPoints: 30
-    property int updateInterval: 500
+    property int maxGraphPoints: 40
+    property int updateInterval: 220
 
     // Frame sync tracking for jitter-free scrolling
     property real lastPushTimestamp: Date.now()
     property real scrollProgress: 0.0
 
-    // Interpolated peak to prevent jarring Y-axis snapping
-    property real smoothPeakSpeed: 1024 * 1024
+    // Visual Grid Parameters
+    property int matrixRows: 10
+    property real pixelRadius: 2.5
+    property color colorDownload: Config.accent
+    property color colorUpload: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.65)
+    property real activityPulse: Math.min(1.0, (currentRxSpeed + currentTxSpeed) / (1024 * 1024 * 2))
 
-    Behavior on smoothPeakSpeed {
-        NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
+    Behavior on activityPulse {
+        NumberAnimation { duration: 180; easing.type: Easing.OutQuad }
+    }
+
+    // Cubic interpolated peak values for normalized matrix height scaling
+    property real smoothPeakRx: 1024 * 512
+    property real smoothPeakTx: 1024 * 256
+
+    Behavior on smoothPeakRx {
+        NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+    }
+    Behavior on smoothPeakTx {
+        NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
     }
 
     ListModel { id: graphHistoryModel }
@@ -51,8 +69,8 @@ Item {
 
     function seedGraphModel() {
         graphHistoryModel.clear()
-        for (let i = 0; i < root.maxGraphPoints; i++) {
-            graphHistoryModel.append({ "speedValue": 0.0 })
+        for (let i = 0; i < root.maxGraphPoints + 1; i++) {
+            graphHistoryModel.append({ "rxValue": 0.0, "txValue": 0.0 })
         }
     }
 
@@ -62,14 +80,14 @@ Item {
         fetchNetInfoProc.running = true
     }
 
-    // Frame-synchronized animation loop
+    // High refresh frame rate synchronization loop
     FrameAnimation {
         id: frameGraphSync
         running: Config.showNetwork
         onTriggered: {
             let elapsed = Date.now() - root.lastPushTimestamp
             root.scrollProgress = Math.min(elapsed / root.updateInterval, 1.0)
-            sparklineCanvas.requestPaint()
+            pixelCanvas.requestPaint()
         }
     }
 
@@ -93,17 +111,23 @@ Item {
         repeat: true
         triggeredOnStart: true
         onTriggered: {
-            graphHistoryModel.append({ "speedValue": root.currentInstantSpeed })
-            if (graphHistoryModel.count > root.maxGraphPoints) {
+            graphHistoryModel.append({
+                "rxValue": root.currentRxSpeed,
+                "txValue": root.currentTxSpeed
+            })
+            if (graphHistoryModel.count > root.maxGraphPoints + 1) {
                 graphHistoryModel.remove(0)
             }
 
-            let currentMax = 1024 * 1024
+            let maxRx = 1024 * 128
+            let maxTx = 1024 * 64
             for (let i = 0; i < graphHistoryModel.count; i++) {
-                let v = graphHistoryModel.get(i).speedValue
-                if (v > currentMax) currentMax = v
+                let item = graphHistoryModel.get(i)
+                if (item.rxValue > maxRx) maxRx = item.rxValue
+                if (item.txValue > maxTx) maxTx = item.txValue
             }
-            root.smoothPeakSpeed = currentMax
+            root.smoothPeakRx = maxRx
+            root.smoothPeakTx = maxTx
             root.lastPushTimestamp = Date.now()
             root.scrollProgress = 0.0
         }
@@ -127,7 +151,7 @@ while True:
                     break
     except Exception:
         pass
-    time.sleep(0.25)
+    time.sleep(0.12)
         `]
         running: Config.showNetwork
         
@@ -152,13 +176,17 @@ while True:
                         let rxSpeed = Math.max(0, (rx - root.lastRxBytes) / elapsed)
                         let txSpeed = Math.max(0, (tx - root.lastTxBytes) / elapsed)
                         
-                        if (now - root.lastTextUpdateTime >= 400) {
+                        root.currentRxSpeed = rxSpeed
+                        root.currentTxSpeed = txSpeed
+
+                        if (rxSpeed > root.maxSessionRx) root.maxSessionRx = rxSpeed
+                        if (txSpeed > root.maxSessionTx) root.maxSessionTx = txSpeed
+
+                        if (now - root.lastTextUpdateTime >= 200) {
                             root.downloadSpeed = root.formatRate(rxSpeed)
                             root.uploadSpeed = root.formatRate(txSpeed)
                             root.lastTextUpdateTime = now
                         }
-
-                        root.currentInstantSpeed = rxSpeed + txSpeed
                     }
                 }
 
@@ -202,43 +230,64 @@ while True:
         id: mainLayout
         anchors.fill: parent
         anchors.margins: root.cardMargin
-        spacing: root.cardMargin / 2
+        spacing: root.cardMargin * 0.75
 
         // ==========================================
-        // CARD 1: TITLE, STATUS & SPARKLINE GRAPH
+        // CARD 1: EXPANDED TITLE & 10-ROW WAVE MATRIX
         // ==========================================
         Rectangle {
             Layout.fillWidth: true
-            implicitWidth: 360
+            implicitWidth: 380
             implicitHeight: topCardContent.implicitHeight + (root.cardMargin * 2)
             radius: Config.cornerRadius
-            color: Qt.rgba(1, 1, 1, 0.05)
+            color: Qt.rgba(1, 1, 1, 0.04)
+            border.color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.12 + (root.activityPulse * 0.2))
+            border.width: 1
             clip: true
 
-            // GRAPHIC WATERMARK
+            // Reactive Background Glow
+            Rectangle {
+                anchors.top: parent.top
+                anchors.horizontalCenter: parent.horizontalCenter
+                width: parent.width * 0.8
+                height: 35
+                radius: width / 2
+                color: Config.accent
+                opacity: 0.04 + (root.activityPulse * 0.08)
+            }
+
             Watermark {
                 icon: root.activeVpnName !== "" ? "vpn_key" : Config.getIcon("network")
-                iconSize: 150
+                iconSize: 180
                 seed: 19
             }
 
             ColumnLayout {
                 id: topCardContent
                 anchors.fill: parent
-                anchors.margins: root.cardMargin
-                spacing: root.cardMargin
+                anchors.margins: root.cardMargin * 1.2
+                spacing: 12
 
                 // Header Row
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 8
+                    spacing: 10
 
-                    Text {
-                        text: root.activeVpnName !== "" ? "vpn_key" : Config.getIcon("network")
-                        font.family: "Material Symbols Outlined"
-                        font.pixelSize: Config.size(Config.fontTitle)
-                        color: Config.textMain
-                        Layout.alignment: Qt.AlignVCenter
+                    Rectangle {
+                        implicitWidth: 30
+                        implicitHeight: 30
+                        radius: 8
+                        color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.15)
+                        border.color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.3)
+                        border.width: 1
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: root.activeVpnName !== "" ? "vpn_key" : Config.getIcon("network")
+                            font.family: "Material Symbols Outlined"
+                            font.pixelSize: 16
+                            color: Config.accent
+                        }
                     }
 
                     Item {
@@ -249,10 +298,10 @@ while True:
                         Glow {
                             anchors.fill: netTitleText
                             source: netTitleText
-                            radius: 8
+                            radius: 10
                             samples: 16
                             color: Config.accent
-                            spread: 0.2
+                            spread: 0.25
                             transparentBorder: true
                             visible: Config.clockShowGlow
                         }
@@ -266,6 +315,7 @@ while True:
                             font.pixelSize: Config.size(Config.fontTitle)
                             font.bold: true
                             font.italic: true
+                            font.letterSpacing: 1.5
                         }
                     }
 
@@ -273,9 +323,11 @@ while True:
                     Rectangle {
                         visible: root.activeVpnName !== ""
                         implicitWidth: vpnBadgeRow.implicitWidth + 12
-                        implicitHeight: 22
-                        radius: Config.cornerRadius / 2
+                        implicitHeight: 24
+                        radius: 6
                         color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2)
+                        border.color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.35)
+                        border.width: 1
 
                         RowLayout {
                             id: vpnBadgeRow
@@ -296,37 +348,61 @@ while True:
                                 font.bold: true
                                 color: Config.accent
                                 elide: Text.ElideRight
-                                Layout.maximumWidth: 120
+                                Layout.maximumWidth: 110
                             }
                         }
                     }
                 }
 
-                // Connection Subtitle Track Row (similar to % Available in Battery)
-                Text {
-                    text: {
-                        if (root.ssid && root.localIp) return root.ssid + " • " + root.localIp
-                        if (root.ssid) return root.ssid
-                        if (root.localIp) return root.localIp + (root.interfaceName ? (" • " + root.interfaceName) : "")
-                        return "Connected"
-                    }
-                    color: Config.textMain
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontSubhead)
-                    font.bold: true
-                    elide: Text.ElideRight
+                // Subtitle Connection Info & Interface Tag
+                RowLayout {
                     Layout.fillWidth: true
+                    spacing: 6
+
+                    Rectangle {
+                        implicitWidth: 6
+                        implicitHeight: 6
+                        radius: 3
+                        color: Config.accent
+                    }
+
+                    Text {
+                        text: {
+                            if (root.ssid && root.localIp) return root.ssid + "  •  " + root.localIp
+                            if (root.ssid) return root.ssid
+                            if (root.localIp) return root.localIp + (root.interfaceName ? ("  •  " + root.interfaceName) : "")
+                            return "Connected"
+                        }
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontSubhead)
+                        font.bold: true
+                        elide: Text.ElideRight
+                        Layout.fillWidth: true
+                    }
                 }
 
-                // Frame-Synchronized Smooth Canvas
+                // Tall Matrix Container (150px Height)
                 Item {
-                    id: sparklineCanvasWrapper
+                    id: pixelCanvasWrapper
                     Layout.fillWidth: true
-                    implicitHeight: 44
+                    implicitHeight: 150
                     clip: true
 
+                    // Glowing backdrop pass matching header bloom
+                    Glow {
+                        anchors.fill: pixelCanvas
+                        source: pixelCanvas
+                        radius: 10
+                        samples: 16
+                        color: Config.accent
+                        spread: 0.25
+                        transparentBorder: true
+                        visible: Config.clockShowGlow
+                    }
+
                     Canvas {
-                        id: sparklineCanvas
+                        id: pixelCanvas
                         anchors.fill: parent
                         renderTarget: Canvas.Image
                         renderStrategy: Canvas.Threaded
@@ -337,57 +413,62 @@ while True:
                             let h = height
                             ctx.clearRect(0, 0, w, h)
 
-                            let totalPoints = graphHistoryModel.count
-                            if (totalPoints < 2) return
+                            let count = graphHistoryModel.count
+                            if (count === 0) return
 
-                            let activePeak = root.smoothPeakSpeed
-                            let step = w / (root.maxGraphPoints - 1)
-                            let xOffset = root.scrollProgress * step
+                            let cols = root.maxGraphPoints
+                            let rows = root.matrixRows
+                            let gap = 2.5
+                            let sectionGap = 16
+                            let rad = root.pixelRadius
 
-                            // 1. Fill region
-                            ctx.beginPath()
-                            ctx.moveTo(0, h)
+                            // Layout geometry
+                            let cellW = Math.floor((w - ((cols - 1) * gap)) / cols)
+                            let graphH = Math.floor((h - sectionGap) / 2)
+                            let cellH = Math.floor((graphH - ((rows - 1) * gap)) / rows)
+                            
+                            let stepX = cellW + gap
+                            let xOffset = root.scrollProgress * stepX
 
-                            for (let i = 0; i < totalPoints; i++) {
-                                let nodeValue = graphHistoryModel.get(i).speedValue
-                                let scaleRatio = nodeValue / activePeak
-                                let coordX = (i * step) - xOffset
-                                let coordY = h - (scaleRatio * (h - 4))
-                                ctx.lineTo(coordX, coordY)
+                            // Smooth rounded rectangle primitive
+                            function fillRoundedRect(x, y, rw, rh, r, fillStyle) {
+                                ctx.fillStyle = fillStyle
+                                ctx.beginPath()
+                                ctx.moveTo(x + r, y)
+                                ctx.lineTo(x + rw - r, y)
+                                ctx.quadraticCurveTo(x + rw, y, x + rw, y + r)
+                                ctx.lineTo(x + rw, y + rh - r)
+                                ctx.quadraticCurveTo(x + rw, y + rh, x + rw - r, y + rh)
+                                ctx.lineTo(x + r, y + rh)
+                                ctx.quadraticCurveTo(x, y + rh, x, y + rh - r)
+                                ctx.lineTo(x, y + r)
+                                ctx.quadraticCurveTo(x, y, x + r, y)
+                                ctx.closePath()
+                                ctx.fill()
                             }
 
-                            ctx.lineTo(((totalPoints - 1) * step) - xOffset, h)
-                            ctx.closePath()
-                            ctx.fillStyle = "rgba(255, 255, 255, 0.05)"
-                            ctx.fill()
+                            // Dynamic channel renderer with uniform active accent styling
+                            function drawMatrixWave(startY, peakVal, activeColor, valueKey) {
+                                for (let c = 0; c < count; c++) {
+                                    let val = graphHistoryModel.get(c)[valueKey]
+                                    let activeBlocks = Math.min(rows, Math.ceil((val / peakVal) * rows))
+                                    let posX = (c * stepX) - xOffset
 
-                            // Path helper for line rendering
-                            function buildLinePath() {
-                                ctx.beginPath()
-                                for (let j = 0; j < totalPoints; j++) {
-                                    let nodeValue = graphHistoryModel.get(j).speedValue
-                                    let scaleRatio = nodeValue / activePeak
-                                    let coordX = (j * step) - xOffset
-                                    let coordY = h - (scaleRatio * (h - 4))
-                                    if (j === 0) ctx.moveTo(coordX, coordY)
-                                    else ctx.lineTo(coordX, coordY)
+                                    if (posX + cellW < 0 || posX > w) continue
+
+                                    for (let r = 0; r < rows; r++) {
+                                        let posY = startY + graphH - ((r + 1) * (cellH + gap))
+                                        let style = (r < activeBlocks && val > 0) ? activeColor : "rgba(255, 255, 255, 0.035)"
+                                        fillRoundedRect(posX, posY, cellW, cellH, rad, style)
+                                    }
                                 }
                             }
 
-                            // 2. Glow pass (blurred background line)
-                            buildLinePath()
-                            ctx.strokeStyle = Config.accent
-                            ctx.lineWidth = 2
-                            ctx.lineCap = "round"
-                            ctx.lineJoin = "round"
-                            ctx.shadowColor = Config.accent
-                            ctx.shadowBlur = 8
-                            ctx.stroke()
+                            // 1. Download Channel (Top Wave)
+                            drawMatrixWave(0, root.smoothPeakRx, root.colorDownload, "rxValue")
 
-                            // 3. Crisp foreground line pass
-                            buildLinePath()
-                            ctx.shadowBlur = 0
-                            ctx.stroke()
+                            // 2. Upload Channel (Bottom Wave)
+                            drawMatrixWave(graphH + sectionGap, root.smoothPeakTx, root.colorUpload, "txValue")
                         }
                     }
                 }
@@ -395,85 +476,133 @@ while True:
         }
 
         // ==========================================
-        // SUB-STATS CARDS ROW (Matching Battery.qml)
+        // CARD 2 & 3: EXPANDED STATS & PEAK METRICS
         // ==========================================
         RowLayout {
             Layout.fillWidth: true
-            spacing: root.cardMargin / 2
+            spacing: root.cardMargin * 0.75
 
-            // Card 2: Download Stats Card
+            // Download Sub-Card
             Rectangle {
                 Layout.fillWidth: true
-                implicitHeight: 64
+                implicitHeight: 88
                 radius: Config.cornerRadius
-                color: Qt.rgba(1, 1, 1, 0.05)
+                color: Qt.rgba(1, 1, 1, 0.04)
+                border.color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.12)
+                border.width: 1
                 clip: true
 
-                // GRAPHIC WATERMARK
                 Watermark {
                     icon: "arrow_downward"
-                    iconSize: 80
+                    iconSize: 100
                     seed: 20
                 }
 
                 ColumnLayout {
-                    anchors.centerIn: parent
+                    anchors.fill: parent
+                    anchors.margins: 10
                     spacing: 2
 
-                    Text {
-                        text: "DOWNLOAD"
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                        font.bold: true
+                    RowLayout {
                         Layout.alignment: Qt.AlignHCenter
+                        spacing: 4
+
+                        Text {
+                            text: "arrow_downward"
+                            font.family: "Material Symbols Outlined"
+                            font.pixelSize: 13
+                            color: root.colorDownload
+                        }
+
+                        Text {
+                            text: "DOWNLOAD"
+                            color: root.colorDownload
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                            font.bold: true
+                            font.letterSpacing: 1
+                        }
                     }
 
                     Text {
                         text: root.downloadSpeed
                         color: Config.textMain
                         font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontCaption)
+                        font.pixelSize: Config.size(Config.fontHeadline || Config.fontTitle)
                         font.bold: true
+                        Layout.alignment: Qt.AlignHCenter
+                    }
+
+                    Text {
+                        text: "PEAK " + root.formatRate(root.maxSessionRx)
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontNano || Config.fontMicro)
+                        font.bold: true
+                        opacity: 0.65
                         Layout.alignment: Qt.AlignHCenter
                     }
                 }
             }
 
-            // Card 3: Upload Stats Card
+            // Upload Sub-Card
             Rectangle {
                 Layout.fillWidth: true
-                implicitHeight: 64
+                implicitHeight: 88
                 radius: Config.cornerRadius
-                color: Qt.rgba(1, 1, 1, 0.05)
+                color: Qt.rgba(1, 1, 1, 0.04)
+                border.color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.12)
+                border.width: 1
                 clip: true
 
-                // GRAPHIC WATERMARK
                 Watermark {
                     icon: "arrow_upward"
-                    iconSize: 80
+                    iconSize: 100
                     seed: 21
                 }
 
                 ColumnLayout {
-                    anchors.centerIn: parent
+                    anchors.fill: parent
+                    anchors.margins: 10
                     spacing: 2
 
-                    Text {
-                        text: "UPLOAD"
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                        font.bold: true
+                    RowLayout {
                         Layout.alignment: Qt.AlignHCenter
+                        spacing: 4
+
+                        Text {
+                            text: "arrow_upward"
+                            font.family: "Material Symbols Outlined"
+                            font.pixelSize: 13
+                            color: root.colorUpload
+                        }
+
+                        Text {
+                            text: "UPLOAD"
+                            color: root.colorUpload
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                            font.bold: true
+                            font.letterSpacing: 1
+                        }
                     }
 
                     Text {
                         text: root.uploadSpeed
                         color: Config.textMain
                         font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontCaption)
+                        font.pixelSize: Config.size(Config.fontHeadline || Config.fontTitle)
                         font.bold: true
+                        Layout.alignment: Qt.AlignHCenter
+                    }
+
+                    Text {
+                        text: "PEAK " + root.formatRate(root.maxSessionTx)
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontNano || Config.fontMicro)
+                        font.bold: true
+                        opacity: 0.65
                         Layout.alignment: Qt.AlignHCenter
                     }
                 }
