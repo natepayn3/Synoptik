@@ -9,30 +9,18 @@ Rectangle {
     property var rootRef
     signal popoutRequested(var item)
 
-    function getButton(key) {
-        if (key === "clock" || key === "calendar") {
-            let layout = centerContentLayout.item
-            if (layout && layout.clockBtn) return layout.clockBtn
-        }
-        if (key === "cc" || key === "controlCenter") {
-            let layout = centerContentLayout.item
-            if (layout && layout.ccBtn) return layout.ccBtn
-        }
-        if (key === "overview" || key === "workspaces" || key === "workspacePreview") {
-            let layout = centerContentLayout.item
-            if (layout && layout.overviewBtn) return layout.overviewBtn
-        }
-        return rightCard
-    }
+    // Direct binding to loaded layout implicitWidth
+    readonly property real contentWidth: centerContentLayout.item ? centerContentLayout.item.implicitWidth : 0
+    readonly property real contentHeight: centerContentLayout.item ? centerContentLayout.item.implicitHeight : 0
 
     width: (rootRef && rootRef.isHorizontal) 
-        ? Math.min(centerContentLayout.implicitWidth + 16, 400)
-        : Math.max(36, centerContentLayout.implicitWidth + 4)
+        ? Math.max(36, contentWidth + 24)
+        : Math.max(36, contentWidth + 4)
 
     height: (rootRef && rootRef.isHorizontal) 
         ? 36
-        : Math.min(centerContentLayout.implicitHeight + 8, (rootRef.height || 1080) - 100)
-    
+        : Math.min(contentHeight + 16, (rootRef.height || 1080) - 100)
+
     clip: true
     radius: Config.cornerRadius / 2
     color: Qt.rgba(255, 255, 255, 0.05)
@@ -85,7 +73,6 @@ Rectangle {
         RowLayout {
             id: horizLayout
             spacing: 8
-            anchors.fill: parent
 
             readonly property var ccBtn: btnCCHoriz
             readonly property var clockBtn: btnClockHoriz
