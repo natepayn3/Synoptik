@@ -79,20 +79,10 @@ ShellRoot {
         return activeMon === "" || Config.isBarEnabledForScreen(activeMon)
     }
 
-    // Check if wf-recorder is active
-    Process {
-        id: recordStatusProc
-        command: ["pgrep", "-x", "wf-recorder"]
-        running: true
-        onExited: (code, status) => {
-            shellRoot.isRecording = (code === 0)
-        }
-    }
-
-    // Detect if BAT0 or BAT1 exists
+    // --- 1. BATTERY TELEMETRY (FileView on sysfs) ---
     Process {
         id: battDetectProc
-        command: ["fish", "-c", "test -d /sys/class/power_supply/BAT0 && echo 'BAT0'; or test -d /sys/class/power_supply/BAT1 && echo 'BAT1'"]
+        command: ["fish", "-c", "test -d /sys/class/power_supply/BAT0; and echo 'BAT0'; or test -d /sys/class/power_supply/BAT1; and echo 'BAT1'"]
         running: true
         stdout: StdioCollector {
             onStreamFinished: {
@@ -100,8 +90,6 @@ ShellRoot {
                 if (name.length > 0) {
                     shellRoot.hasBattery = true
                     shellRoot.battName = name
-                    battStateProc.running = false
-                    battStateProc.running = true
                 } else {
                     shellRoot.hasBattery = false
                 }
@@ -109,23 +97,50 @@ ShellRoot {
         }
     }
 
-    // Read Battery Capacity and Charging Status
+    FileView {
+        id: battCapacityReader
+        path: shellRoot.hasBattery ? ("/sys/class/power_supply/" + shellRoot.battName + "/capacity") : ""
+        onTextChanged: {
+            let cap = parseInt(text().trim())
+            if (!isNaN(cap)) shellRoot.battCapacity = cap
+        }
+    }
+
+    FileView {
+        id: battStatusReader
+        path: shellRoot.hasBattery ? ("/sys/class/power_supply/" + shellRoot.battName + "/status") : ""
+        onTextChanged: {
+            let st = text().trim()
+            if (st.length > 0) shellRoot.battStatus = st
+        }
+    }
+
+    // Periodic reload for sysfs capacity poll (virtual sysfs does not emit inotify)
+    Timer {
+        interval: 30000
+        running: shellRoot.hasBattery
+        repeat: true
+        onTriggered: {
+            battCapacityReader.reload()
+            battStatusReader.reload()
+        }
+    }
+
+    // --- 2. WI-FI & NETWORK TELEMETRY (Event-driven via nmcli monitor) ---
     Process {
-        id: battStateProc
-        running: false
-        command: ["fish", "-c", "cat /sys/class/power_supply/" + shellRoot.battName + "/capacity; and cat /sys/class/power_supply/" + shellRoot.battName + "/status"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let lines = this.text.trim().split("\n")
-                if (lines.length >= 2) {
-                    shellRoot.battCapacity = parseInt(lines[0]) || 0
-                    shellRoot.battStatus = lines[1].trim()
-                }
+        id: networkMonitorProc
+        command: ["nmcli", "monitor"]
+        running: true
+        stdout: SplitParser {
+            onRead: data => {
+                wifiStateProc.running = false
+                wifiStateProc.running = true
+                vpnStateProc.running = false
+                vpnStateProc.running = true
             }
         }
     }
 
-    // Wi-Fi Status Query
     Process {
         id: wifiStateProc
         command: ["nmcli", "radio", "wifi"]
@@ -158,7 +173,43 @@ ShellRoot {
         }
     }
 
-    // Audio Status Query via PipeWire
+    Process {
+        id: vpnStateProc
+        command: ["nmcli", "-t", "-f", "TYPE,STATE", "connection", "show", "--active"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let text = this.text.trim()
+                shellRoot.vpnActive = text.includes("vpn") || text.includes("wireguard") || text.includes("tun")
+            }
+        }
+    }
+
+    // --- 3. BLUETOOTH TELEMETRY (Event-driven stream via bluetoothctl) ---
+    Process {
+        id: btMonitorProc
+        command: ["stdbuf", "-oL", "bluetoothctl", "monitor"]
+        running: true
+        stdout: SplitParser {
+            onRead: data => {
+                btStateProc.running = false
+                btStateProc.running = true
+            }
+        }
+    }
+
+    Process {
+        id: btStateProc
+        command: ["sh", "-c", "bluetoothctl show 2>/dev/null | grep -q 'Powered: yes' && echo 'ON' || echo 'OFF'"]
+        running: true
+        stdout: StdioCollector {
+            onStreamFinished: {
+                shellRoot.btPowered = this.text.trim() === "ON"
+            }
+        }
+    }
+
+    // --- 4. AUDIO TELEMETRY (Event-driven via PipeWire / pactl) ---
     Process {
         id: audioStateProc
         command: ["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"]
@@ -177,7 +228,6 @@ ShellRoot {
         }
     }
 
-    // Event-driven Audio Poller via Pactl Subscribe
     Process {
         id: audioSubscribeProc
         command: ["stdbuf", "-oL", "pactl", "subscribe"]
@@ -192,46 +242,26 @@ ShellRoot {
         }
     }
 
-    // Bluetooth Status Query
+    // --- 5. RECORDING STATUS ---
     Process {
-        id: btStateProc
-        command: ["sh", "-c", "bluetoothctl show | grep -q 'Powered: yes' && echo 'ON' || echo 'OFF'"]
-        running: true
-        stdout: StdioCollector {
-            onStreamFinished: {
-                shellRoot.btPowered = this.text.trim() === "ON"
-            }
+        id: recordStatusProc
+        command: ["pgrep", "-x", "wf-recorder"]
+        running: false
+        onExited: (code, status) => {
+            shellRoot.isRecording = (code === 0)
         }
     }
 
-    // Network / VPN Connection Query
-    Process {
-        id: vpnStateProc
-        command: ["nmcli", "-t", "-f", "TYPE,STATE", "connection", "show", "--active"]
-        running: true
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let text = this.text.trim()
-                shellRoot.vpnActive = text.includes("vpn") || text.includes("wireguard") || text.includes("tun")
-            }
-        }
-    }
-
-    // Global Status Poller Timer (10-second interval, audio is event-driven)
+    // Fallback sync check (relaxed to 60s since monitors handle real-time events)
     Timer {
-        interval: 10000
+        interval: 60000
         running: true
         repeat: true
-        triggeredOnStart: true
         onTriggered: {
-            recordStatusProc.running = false; recordStatusProc.running = true
             wifiStateProc.running = false; wifiStateProc.running = true
             btStateProc.running = false; btStateProc.running = true
             vpnStateProc.running = false; vpnStateProc.running = true
-            if (shellRoot.hasBattery) {
-                battStateProc.running = false
-                battStateProc.running = true
-            }
+            recordStatusProc.running = false; recordStatusProc.running = true
         }
     }
 
