@@ -68,6 +68,8 @@ Item {
         color: cardRoot.panelExpanded
             ? Qt.rgba(Config.bgBase.r, Config.bgBase.g, Config.bgBase.b, 1.0)
             : (cardHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.04))
+        border.width: 1
+        border.color: Qt.rgba(255, 255, 255, 0.1)
 
         Behavior on x { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
         Behavior on y { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
@@ -75,6 +77,7 @@ Item {
         Behavior on height { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
         Behavior on opacity { NumberAnimation { duration: 150 } }
         Behavior on color { ColorAnimation { duration: 150 } }
+        Behavior on border.color { ColorAnimation { duration: 150 } }
 
         HoverHandler {
             id: cardHover

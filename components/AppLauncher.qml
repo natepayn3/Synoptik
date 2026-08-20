@@ -216,7 +216,11 @@ print(json.dumps(icon_map))
             implicitHeight: cardContentLayout.implicitHeight + (appLauncherModule.cardMargin * 2)
             radius: Config.cornerRadius
             color: Qt.rgba(255, 255, 255, 0.05)
+            border.width: 1
+            border.color: Qt.rgba(255, 255, 255, 0.1)
             clip: true
+
+            Behavior on border.color { ColorAnimation { duration: 150 } }
 
             // GRAPHIC WATERMARK
             Watermark {

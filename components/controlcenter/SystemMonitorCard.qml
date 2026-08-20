@@ -377,12 +377,15 @@ Item {
         radius: Config.cornerRadius
         
         color: cardHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.04)
+        border.width: 1
+        border.color: Qt.rgba(255, 255, 255, 0.1)
 
         Behavior on x { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
         Behavior on y { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
         Behavior on width { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
         Behavior on height { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
         Behavior on color { ColorAnimation { duration: 150 } }
+        Behavior on border.color { ColorAnimation { duration: 150 } }
 
         Rectangle {
             anchors.fill: parent

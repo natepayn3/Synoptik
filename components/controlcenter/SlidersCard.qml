@@ -13,7 +13,13 @@ Rectangle {
     Layout.preferredWidth: parent ? parent.width : 356
     implicitHeight: sliderLayout.implicitHeight + (cardMargin * 2)
     radius: Config.cornerRadius
+    color: cardHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.04)
+    border.width: 1
+    border.color: Qt.rgba(255, 255, 255, 0.1)
     clip: true
+
+    Behavior on border.color { ColorAnimation { duration: 150 } }
+    Behavior on color { ColorAnimation { duration: 150 } }
 
     // GRAPHIC WATERMARK
     Watermark {
@@ -22,9 +28,6 @@ Rectangle {
         baseRotation: -15
         seed: 2
     }
-
-    color: cardHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.04)
-    Behavior on color { ColorAnimation { duration: 150 } }
 
     // --- BRIGHTNESS PROPERTIES ---
     property int currentBrightness: 100

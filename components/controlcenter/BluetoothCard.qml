@@ -97,6 +97,8 @@ Item {
         color: cardRoot.panelExpanded
             ? Qt.rgba(Config.bgBase.r, Config.bgBase.g, Config.bgBase.b, 1.0)
             : ((cardHover.hovered && cardRoot.hasHardware) ? Qt.rgba(Config.bgBase.r, Config.bgBase.g, Config.bgBase.b, 0.85) : Qt.rgba(0, 0, 0, 0.25))
+        border.width: 1
+        border.color: cardRoot.panelExpanded ? Qt.rgba(255, 255, 255, 0.1) : "transparent"
 
         opacity: cardRoot.hasHardware ? 1.0 : 0.4
         enabled: cardRoot.hasHardware
@@ -107,6 +109,7 @@ Item {
         Behavior on height { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
         Behavior on opacity { NumberAnimation { duration: 150 } }
         Behavior on color { ColorAnimation { duration: 150 } }
+        Behavior on border.color { ColorAnimation { duration: 150 } }
 
         HoverHandler {
             id: cardHover
