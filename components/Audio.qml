@@ -18,6 +18,20 @@ Item {
     property int inputVolume: 50
     property bool isInputMuted: false
 
+    Component.onCompleted: {
+        audioQueryProc.running = true
+    }
+
+    Connections {
+        target: Config
+        function onShowAudioChanged() {
+            if (Config.showAudio) {
+                audioQueryProc.running = false
+                audioQueryProc.running = true
+            }
+        }
+    }
+
     ColumnLayout {
         id: mainLayout
         anchors.fill: parent
@@ -610,13 +624,20 @@ Item {
         }
     }
 
+    // Fast path: Update volume and mute state immediately (0ms delay)
+    function triggerFastVolumeRead() {
+        if (!volumeReadProc.running) volumeReadProc.running = true
+        if (!micReadProc.running) micReadProc.running = true
+    }
+
+    // Slow path: Only re-scan device lists (wpctl status) when sinks/sources change
     Timer {
         id: debounceAudioTimer
-        interval: 150 
-        running: false
+        interval: 200
+        repeat: false
         onTriggered: {
-            volumeReadProc.running = true
-            micReadProc.running = true
+            audioQueryProc.running = false
+            audioQueryProc.running = true
         }
     }
 
@@ -626,7 +647,13 @@ Item {
         running: true
         stdout: SplitParser {
             onRead: data => {
-                if (data.includes("sink") || data.includes("source")) {
+                // Instant update for volume/mute changes on sinks and sources
+                if (data.includes("change")) {
+                    audioModule.triggerFastVolumeRead()
+                }
+
+                // Debounced update only when hardware devices are plugged/unplugged or defaults switch
+                if (data.includes("new") || data.includes("remove") || data.includes("server")) {
                     debounceAudioTimer.restart()
                 }
             }
@@ -730,13 +757,4 @@ Item {
     Process { id: volumeWriteProc; running: false }
     Process { id: muteWriteProc; running: false }
     Process { id: sinkSetProc; running: false; onExited: audioQueryProc.running = true }
-
-    Timer {
-        id: pollTimer
-        interval: 3000
-        running: Config.showAudio
-        repeat: true
-        triggeredOnStart: true
-        onTriggered: audioQueryProc.running = true
-    }
 }
