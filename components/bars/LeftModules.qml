@@ -10,15 +10,17 @@ Rectangle {
     property var rootRef
     signal popoutRequested(var item)
 
+    // Direct O(1) button registry (Fix #23)
+    property var buttonMap: ({})
+
+    function registerButton(key, item) {
+        buttonMap[key] = item
+    }
+
     function getButton(key) {
         if (Config.leftCardCollapsed && !Config.isPinned(key)) return null
-        for (let i = 0; i < repeater.count; i++) {
-            let loader = repeater.itemAt(i)
-            if (loader && loader.itemKey === key && loader.item && loader.visible) {
-                return loader.item
-            }
-        }
-        return null
+        let btn = buttonMap[key]
+        return (btn && btn.visible) ? btn : null
     }
 
     readonly property real maxAllowedWidth: parent ? Math.max(100, parent.width - 320) : 1920
@@ -173,6 +175,12 @@ Rectangle {
                 }
 
                 Behavior on opacity { NumberAnimation { duration: 320; easing.type: Easing.InOutQuad } }
+
+                onLoaded: {
+                    if (item) {
+                        leftCard.registerButton(itemKey, item)
+                    }
+                }
 
                 sourceComponent: {
                     switch(itemKey) {
