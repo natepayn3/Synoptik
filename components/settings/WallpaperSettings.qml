@@ -391,10 +391,21 @@ Flickable {
                             font.bold: true
                         }
                         Text {
-                            text: "Sync wallpapers from your account into ~/Pictures/Wallpapers"
+                            id: syncSubtitle
+                            text: 'Sync wallpapers from your <a href="https://wallhaven.cc">wallhaven.cc</a> account into ~/Pictures/Wallpapers'
+                            textFormat: Text.StyledText
                             color: Config.textMuted
+                            linkColor: Config.accent
                             font.family: Config.sysFont
                             font.pixelSize: Config.size(Config.fontMicro)
+
+                            onLinkActivated: function(link) {
+                                Qt.openUrlExternally(link)
+                            }
+
+                            HoverHandler {
+                                cursorShape: syncSubtitle.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            }
                         }
                     }
                 }
@@ -410,7 +421,12 @@ Flickable {
                         radius: Config.cornerRadius / 2
                         color: Qt.rgba(0, 0, 0, 0.4)
                         border.width: 1
-                        border.color: userField.activeFocus ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                        border.color: userField.activeFocus ? Config.accent : (userHover.hovered ? Qt.rgba(255, 255, 255, 0.25) : Qt.rgba(255, 255, 255, 0.1))
+
+                        HoverHandler {
+                            id: userHover
+                            cursorShape: Qt.IBeamCursor
+                        }
 
                         TextInput {
                             id: userField
@@ -446,7 +462,12 @@ Flickable {
                         radius: Config.cornerRadius / 2
                         color: Qt.rgba(0, 0, 0, 0.4)
                         border.width: 1
-                        border.color: keyField.activeFocus ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                        border.color: keyField.activeFocus ? Config.accent : (keyHover.hovered ? Qt.rgba(255, 255, 255, 0.25) : Qt.rgba(255, 255, 255, 0.1))
+
+                        HoverHandler {
+                            id: keyHover
+                            cursorShape: Qt.IBeamCursor
+                        }
 
                         TextInput {
                             id: keyField
