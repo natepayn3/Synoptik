@@ -9,6 +9,13 @@ import "services"
 QtObject {
     id: root
 
+    // --- WALLHAVEN INTEGRATION ---
+    property string wallhavenUsername: ""
+    property string wallhavenApiKey: ""
+
+    onWallhavenUsernameChanged: { if (isLoaded) saveSettings() }
+    onWallhavenApiKeyChanged: { if (isLoaded) saveSettings() }
+
     // --- RETRO SCREEN SHADER STATE & PERSISTENCE ---
     property bool pixelShaderEnabled: false
     property string pixelShaderMode: "pixelate"
@@ -1580,7 +1587,10 @@ QtObject {
                 "workspaceShowAddBtn": root.workspaceShowAddBtn,
                 "workspaceShowOverviewBtn": root.workspaceShowOverviewBtn,
                 "workspaceShowSpecial": root.workspaceShowSpecial,
-                "workspaceContainerStyle": root.workspaceContainerStyle
+                "workspaceContainerStyle": root.workspaceContainerStyle,
+
+                "wallhavenUsername": root.wallhavenUsername,
+                "wallhavenApiKey": root.wallhavenApiKey
             }
 
             var jsonStr = JSON.stringify(data, null, 2)
@@ -1631,7 +1641,7 @@ QtObject {
                             "leftCardOrder", "rightCardOrder", "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides",
                             "playWindowSounds", "playNotificationSounds", "windowSoundPath", "notificationSoundPath", "windowSoundVolume",
                             "showMirror", "mirrorShowPanel", "mirrorMirrored", "mirrorKeepAspect", "mirrorExpanded", "mirrorPinned", "mirrorAnchorPos",
-                            "enableHoverPeek",
+                            "enableHoverPeek", "wallhavenUsername", "wallhavenApiKey",
                             "pixelShaderEnabled", "pixelShaderMode", "pixelShaderSize", "pixelShaderLevels", 
                             "pixelShaderPalette", "pixelShaderDither", "pixelShaderGrid", "pixelShaderBoost"
                         ]
