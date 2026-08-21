@@ -16,14 +16,12 @@ echo "STATUS:Connecting to Wallhaven..."
 # 1. Fetch user collections list
 COLLECTIONS_JSON=$(curl -s -H "X-API-Key: $API_KEY" "https://wallhaven.cc/api/v1/collections/$USERNAME?apikey=$API_KEY")
 
-# Check for API error response (e.g. 401 Unauthorized)
 API_ERROR=$(echo "$COLLECTIONS_JSON" | jq -r '.error // empty')
 if [ -n "$API_ERROR" ]; then
     echo "STATUS:Error: $API_ERROR"
     exit 1
 fi
 
-# Extract collection IDs
 COLLECTION_IDS=$(echo "$COLLECTIONS_JSON" | jq -r '.data[].id // empty')
 
 if [ -z "$COLLECTION_IDS" ]; then
@@ -31,15 +29,33 @@ if [ -z "$COLLECTION_IDS" ]; then
     exit 0
 fi
 
-# 2. Collect wallpaper download URLs from all collections
+# 2. Iterate through all collections and all paginated pages
 ALL_URLS=()
+
 for cid in $COLLECTION_IDS; do
-    echo "STATUS:Fetching collection #$cid..."
-    PAGE_DATA=$(curl -s -H "X-API-Key: $API_KEY" "https://wallhaven.cc/api/v1/collections/$USERNAME/$cid?apikey=$API_KEY")
-    URLS=$(echo "$PAGE_DATA" | jq -r '.data[].path // empty')
-    
-    for u in $URLS; do
-        [ -n "$u" ] && ALL_URLS+=("$u")
+    PAGE=1
+    while : ; do
+        echo "STATUS:Querying collection #$cid (page $PAGE)..."
+        # purity=111 fetches SFW, Sketchy, and NSFW (if account API key permits it)
+        PAGE_DATA=$(curl -s -H "X-API-Key: $API_KEY" "https://wallhaven.cc/api/v1/collections/$USERNAME/$cid?apikey=$API_KEY&purity=111&page=$PAGE")
+        
+        URLS=$(echo "$PAGE_DATA" | jq -r '.data[].path // empty')
+        
+        # Stop looping if page is empty
+        if [ -z "$URLS" ]; then
+            break
+        fi
+
+        for u in $URLS; do
+            [ -n "$u" ] && ALL_URLS+=("$u")
+        done
+
+        LAST_PAGE=$(echo "$PAGE_DATA" | jq -r '.meta.last_page // 1')
+        if [ "$PAGE" -ge "$LAST_PAGE" ]; then
+            break
+        fi
+
+        PAGE=$((PAGE + 1))
     done
 done
 
@@ -52,7 +68,7 @@ fi
 echo "STATUS:Downloading $TOTAL wallpapers..."
 CURRENT=0
 
-# 3. Download files
+# 3. Download files sequentially
 for url in "${ALL_URLS[@]}"; do
     FILENAME=$(basename "$url")
     DEST="$TARGET_DIR/$FILENAME"
