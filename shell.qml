@@ -82,12 +82,12 @@ ShellRoot {
     // --- 1. BATTERY TELEMETRY (FileView on sysfs) ---
     Process {
         id: battDetectProc
-        command: ["fish", "-c", "test -d /sys/class/power_supply/BAT0; and echo 'BAT0'; or test -d /sys/class/power_supply/BAT1; and echo 'BAT1'"]
+        command: ["fish", "-c", "if test -d /sys/class/power_supply/BAT0; echo BAT0; else if test -d /sys/class/power_supply/BAT1; echo BAT1; end"]
         running: true
         stdout: StdioCollector {
             onStreamFinished: {
-                let name = this.text.trim()
-                if (name.length > 0) {
+                let name = this.text.trim().split("\n")[0]
+                if (name && name.length > 0) {
                     shellRoot.hasBattery = true
                     shellRoot.battName = name
                 } else {
