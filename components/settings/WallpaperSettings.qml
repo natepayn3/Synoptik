@@ -853,17 +853,7 @@ Flickable {
                             readonly property string baseName: fileName.replace(/\.[^/.]+$/, "")
                             readonly property string fileExt: cleanPath.split('.').pop().toLowerCase()
                             readonly property bool isVideo: fileExt === "mp4" || fileExt === "webm"
-                            readonly property bool isCurrent: {
-                                let activeGlobal = (Config.activeWallpaperPath || "").replace(/^file:\/\//, "")
-                                if (activeGlobal === cleanPath) return true
-
-                                // Check if currently displayed on any active monitor
-                                if (Config.activeMonitorWallpapers) {
-                                    let values = Object.values(Config.activeMonitorWallpapers).map(p => p.replace(/^file:\/\//, ""))
-                                    if (values.includes(cleanPath)) return true
-                                }
-                                return false
-                            }
+                            readonly property bool isCurrent: root.currentWallpaperPath === cleanPath
 
                             readonly property string imageSource: isVideo ? 
                                 ("file://" + Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + baseName + ".jpg") : 
@@ -942,6 +932,7 @@ Flickable {
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: {
                                         wallpaperBackend.applyWallpaper(delegateItem.fullPath)
+                                        root.currentWallpaperPath = delegateItem.cleanPath
                                     }
                                 }
                             }
