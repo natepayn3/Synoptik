@@ -60,17 +60,22 @@ ColumnLayout {
         Layout.fillWidth: true
 
         Text {
+            id: iconHelpText
             textFormat: Text.StyledText
-            text: "Click any icon in the bar mockup to select it, or search installed Material Symbols below. You can also browse glyph names on <a href=\"https://fonts.google.com/icons\" style=\"color: " + Config.accent + "; text-decoration: none;\">fonts.google.com/icons</a>."
+            text: 'Click any icon in the bar mockup to select it, or search installed Material Symbols below. You can also browse glyph names on <a href="https://fonts.google.com/icons">fonts.google.com/icons</a>.'
             color: Config.textMuted
+            linkColor: Config.accent
             font.family: Config.sysFont
             font.pixelSize: Config.size(Config.fontCaption)
             Layout.fillWidth: true
             wrapMode: Text.WordWrap
-            onLinkActivated: link => Quickshell.execDetached(["xdg-open", link])
+
+            onLinkActivated: function(link) {
+                Qt.openUrlExternally(link)
+            }
 
             HoverHandler {
-                cursorShape: parent.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor
+                cursorShape: iconHelpText.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor
             }
         }
     }
