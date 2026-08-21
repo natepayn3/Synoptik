@@ -320,7 +320,238 @@ Flickable {
         }
 
         // ==========================================
-        // 2. WALLPAPER PARALLAX & DEPTH CARD
+        // 2. WALLHAVEN ACCOUNT & SYNC CARD
+        // ==========================================
+        Rectangle {
+            id: syncCard
+            Layout.fillWidth: true
+            implicitHeight: syncCol.implicitHeight + 28
+            radius: Config.cornerRadius
+            color: Qt.rgba(255, 255, 255, 0.05)
+            border.width: 1
+            border.color: Qt.rgba(255, 255, 255, 0.1)
+
+            property bool isSyncing: false
+            property real syncProgress: 0.0
+            property string statusMessage: "Idle"
+
+            Process {
+                id: syncProcess
+                command: [
+                    Quickshell.env("HOME") + "/.config/quickshell/Synoptik/scripts/wallhaven_sync.sh",
+                    Config.wallhavenApiKey || "",
+                    Config.wallhavenUsername || "",
+                    Quickshell.env("HOME") + "/Pictures/Wallpapers"
+                ]
+
+                stdout: SplitParser {
+                    onRead: data => {
+                        let line = data.trim()
+                        if (line.startsWith("PROGRESS:")) {
+                            let parts = line.split(":")
+                            let current = parseInt(parts[1])
+                            let total = parseInt(parts[2])
+                            if (total > 0) syncCard.syncProgress = current / total
+                            syncCard.statusMessage = `Downloading ${current}/${total}...`
+                        } else if (line.startsWith("STATUS:")) {
+                            syncCard.statusMessage = line.replace("STATUS:", "")
+                        }
+                    }
+                }
+
+                onExited: (exitCode) => {
+                    syncCard.isSyncing = false
+                    if (exitCode === 0) {
+                        syncCard.syncProgress = 1.0
+                        syncCard.statusMessage = "Sync complete"
+                        if (typeof Config.reloadWallpapers === "function") {
+                            Config.reloadWallpapers()
+                        }
+                    } else {
+                        syncCard.statusMessage = "Sync failed"
+                    }
+                }
+            }
+
+            ColumnLayout {
+                id: syncCol
+                anchors.fill: parent
+                anchors.margins: 14
+                spacing: 12
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    ColumnLayout {
+                        spacing: 2
+                        Text {
+                            text: "WALLHAVEN SYNC"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
+                            font.bold: true
+                        }
+                        Text {
+                            text: "Sync wallpapers from your account into ~/Pictures/Wallpapers"
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                        }
+                    }
+                }
+
+                // Account Credentials
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: 36
+                        radius: Config.cornerRadius / 2
+                        color: Qt.rgba(0, 0, 0, 0.4)
+                        border.width: 1
+                        border.color: userField.activeFocus ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+
+                        TextInput {
+                            id: userField
+                            anchors.fill: parent
+                            anchors.leftMargin: 10
+                            anchors.rightMargin: 10
+                            verticalAlignment: TextInput.AlignVCenter
+                            text: Config.wallhavenUsername || ""
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: 11
+                            selectByMouse: true
+
+                            Text {
+                                text: "Wallhaven Username"
+                                visible: !userField.text && !userField.activeFocus
+                                color: Config.textMuted
+                                font.family: Config.sysFont
+                                font.pixelSize: 11
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+
+                            onTextChanged: {
+                                Config.wallhavenUsername = text
+                                if (typeof Config.saveConfig === "function") Config.saveConfig()
+                            }
+                        }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: 36
+                        radius: Config.cornerRadius / 2
+                        color: Qt.rgba(0, 0, 0, 0.4)
+                        border.width: 1
+                        border.color: keyField.activeFocus ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+
+                        TextInput {
+                            id: keyField
+                            anchors.fill: parent
+                            anchors.leftMargin: 10
+                            anchors.rightMargin: 10
+                            verticalAlignment: TextInput.AlignVCenter
+                            echoMode: TextInput.Password
+                            text: Config.wallhavenApiKey || ""
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: 11
+                            selectByMouse: true
+
+                            Text {
+                                text: "Wallhaven API Key"
+                                visible: !keyField.text && !keyField.activeFocus
+                                color: Config.textMuted
+                                font.family: Config.sysFont
+                                font.pixelSize: 11
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+
+                            onTextChanged: {
+                                Config.wallhavenApiKey = text
+                                if (typeof Config.saveConfig === "function") Config.saveConfig()
+                            }
+                        }
+                    }
+                }
+
+                // Sync Trigger & Progress
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+
+                    Rectangle {
+                        implicitWidth: 100
+                        implicitHeight: 30
+                        radius: Config.cornerRadius / 2
+                        color: syncCard.isSyncing ? Qt.rgba(255, 255, 255, 0.1) : Config.accent
+
+                        RowLayout {
+                            anchors.centerIn: parent
+                            spacing: 4
+
+                            Text {
+                                text: syncCard.isSyncing ? "sync" : "cloud_download"
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 14
+                                color: syncCard.isSyncing ? Config.textMuted : Config.bgBase
+                            }
+
+                            Text {
+                                text: syncCard.isSyncing ? "Syncing" : "Sync"
+                                font.family: Config.sysFont
+                                font.pixelSize: 11
+                                font.bold: true
+                                color: syncCard.isSyncing ? Config.textMuted : Config.bgBase
+                            }
+                        }
+
+                        TapHandler {
+                            enabled: !syncCard.isSyncing
+                            onTapped: {
+                                syncCard.isSyncing = true
+                                syncCard.syncProgress = 0.0
+                                syncCard.statusMessage = "Connecting..."
+                                syncProcess.running = true
+                            }
+                        }
+                        HoverHandler { cursorShape: syncCard.isSyncing ? Qt.ArrowCursor : Qt.PointingHandCursor }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: 6
+                        radius: 3
+                        color: Qt.rgba(0, 0, 0, 0.4)
+                        clip: true
+
+                        Rectangle {
+                            width: parent.width * syncCard.syncProgress
+                            height: parent.height
+                            radius: 3
+                            color: Config.accent
+
+                            Behavior on width {
+                                NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: syncCard.statusMessage
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                    }
+                }
+            }
+        }
+
+        // ==========================================
+        // 3. WALLPAPER PARALLAX & DEPTH CARD
         // ==========================================
         Rectangle {
             Layout.fillWidth: true
@@ -559,7 +790,7 @@ Flickable {
         }
 
         // ==========================================
-        // 3. TARGET OUTPUT MONITORS CARD
+        // 4. TARGET OUTPUT MONITORS CARD
         // ==========================================
         Rectangle {
             Layout.fillWidth: true
@@ -665,7 +896,7 @@ Flickable {
         }
 
         // ==========================================
-        // 4. TRANSITION EFFECT CARD
+        // 5. TRANSITION EFFECT CARD
         // ==========================================
         Rectangle {
             Layout.fillWidth: true
@@ -748,7 +979,7 @@ Flickable {
         }
 
         // ==========================================
-        // 5. WALLPAPER LIBRARY GALLERY CARD
+        // 6. WALLPAPER LIBRARY GALLERY CARD
         // ==========================================
         Rectangle {
             Layout.fillWidth: true
