@@ -203,6 +203,12 @@ else
     end
 end
 
+# Make all backend helper scripts executable
+if test -d "$TARGET_DIR/scripts"
+    say "Setting executable permissions on backend scripts..."
+    chmod +x "$TARGET_DIR"/scripts/*
+end
+
 set HYPR_LUA "$HOME/.config/hypr/hyprland.lua"
 set LUA_DIRECTIVE "-- Load custom isolated dynamic border style configuration\nrequire(\"hypr_style\")"
 
