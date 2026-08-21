@@ -245,17 +245,6 @@ while True:
             border.width: 1
             clip: true
 
-            // Reactive Background Glow
-            Rectangle {
-                anchors.top: parent.top
-                anchors.horizontalCenter: parent.horizontalCenter
-                width: parent.width * 0.8
-                height: 35
-                radius: width / 2
-                color: Config.accent
-                opacity: 0.04 + (root.activityPulse * 0.08)
-            }
-
             Watermark {
                 icon: root.activeVpnName !== "" ? "vpn_key" : Config.getIcon("network")
                 iconSize: 180
