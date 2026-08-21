@@ -9,6 +9,8 @@ import ".."
 Item {
     id: cardRoot
 
+    readonly property bool isStopped: mediaStatus === "Stopped" || mediaTitle === "Not Playing" || mediaTitle === ""
+
     Layout.fillWidth: true
     implicitHeight: mediaContainer.implicitHeight
     Layout.preferredHeight: implicitHeight
@@ -80,33 +82,89 @@ Item {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
-        implicitHeight: contentCluster.implicitHeight + (cardRoot.cardMargin * 2)
+        implicitHeight: cardRoot.isStopped ? 48 : (contentCluster.implicitHeight + (cardRoot.cardMargin * 2))
         radius: Config.cornerRadius
         clip: true
+
+        Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutQuad } }
+        Behavior on color { ColorAnimation { duration: 150 } }
+        Behavior on border.color { ColorAnimation { duration: 150 } }
 
         color: cardHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.04)
         border.width: 1
         border.color: Qt.rgba(255, 255, 255, 0.1)
 
-        Behavior on color { ColorAnimation { duration: 150 } }
-        Behavior on border.color { ColorAnimation { duration: 150 } }
-
         HoverHandler { id: cardHover }
 
         Watermark {
             icon: Config.getIcon("cc")
-            iconSize: 150
+            iconSize: cardRoot.isStopped ? 60 : 150
             seed: 1
         }
 
-        // Balanced Cluster
+        // ==========================================
+        // 1. MINIMAL COMPACT BAR (WHEN STOPPED)
+        // ==========================================
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 16
+            anchors.rightMargin: 16
+            visible: cardRoot.isStopped
+            opacity: cardRoot.isStopped ? 1.0 : 0.0
+            spacing: 12
+            Behavior on opacity { NumberAnimation { duration: 150 } }
+
+            Text {
+                text: "music_off"
+                font.family: "Material Symbols Outlined"
+                font.pixelSize: 20
+                color: Config.textMuted
+                Layout.alignment: Qt.AlignVCenter
+            }
+
+            Text {
+                text: "No Media Playing"
+                color: Config.textMuted
+                font.family: Config.sysFont
+                font.pixelSize: Config.size(Config.fontCaption)
+                font.bold: true
+                Layout.fillWidth: true
+                Layout.alignment: Qt.AlignVCenter
+            }
+
+            // Standby Play Trigger
+            Item {
+                implicitWidth: 32
+                implicitHeight: 32
+                Layout.alignment: Qt.AlignVCenter
+
+                Text {
+                    anchors.centerIn: parent
+                    text: "play_arrow"
+                    font.family: "Material Symbols Outlined"
+                    font.pixelSize: 22
+                    color: idlePlayHover.hovered ? Config.accent : Config.textMuted
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                }
+
+                TapHandler { onTapped: cardRoot.sendCommand(["playerctl", "play-pause"]) }
+                HoverHandler { id: idlePlayHover; cursorShape: Qt.PointingHandCursor }
+            }
+        }
+
+        // ==========================================
+        // 2. ACTIVE MEDIA VIEW (WHEN PLAYING / PAUSED)
+        // ==========================================
         RowLayout {
             id: contentCluster
             anchors.centerIn: parent
             width: Math.min(parent.width - (cardRoot.cardMargin * 2), 620)
             spacing: 24
+            visible: !cardRoot.isStopped
+            opacity: !cardRoot.isStopped ? 1.0 : 0.0
+            Behavior on opacity { NumberAnimation { duration: 150 } }
 
-            // --- 1. LEFT: CIRCULAR VISUALIZER & ART ---
+            // --- CIRCULAR VISUALIZER & ART ---
             Item {
                 id: artContainer
                 implicitWidth: 130
@@ -229,7 +287,7 @@ Item {
                 }
             }
 
-            // --- 2. RIGHT: METADATA, PROGRESS & CONTROLS ---
+            // --- METADATA, PROGRESS & CONTROLS ---
             ColumnLayout {
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignVCenter
@@ -264,7 +322,7 @@ Item {
                             implicitHeight: 16
                             radius: 8
                             color: Qt.rgba(255, 255, 255, 0.08)
-                            visible: cardRoot.mediaStatus !== "Stopped" && cardRoot.activePlayerName !== ""
+                            visible: cardRoot.activePlayerName !== ""
 
                             Text {
                                 id: playerBadgeText
