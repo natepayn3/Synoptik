@@ -181,13 +181,31 @@ Scope {
                     mipmap: true
 
                     onSourceChanged: {
-                        crossFadeAnim.restart()
+                        // Only trigger cross-fade if transitioning to a valid image
+                        if (imgPrimary.source.toString() !== "") {
+                            crossFadeAnim.restart()
+                        } else {
+                            imgBackdrop.source = ""
+                        }
                     }
 
                     SequentialAnimation {
                         id: crossFadeAnim
-                        PropertyAction { target: imgBackdrop; property: "source"; value: imgPrimary.source }
-                        NumberAnimation { target: imgPrimary; property: "opacity"; from: 0.0; to: 1.0; duration: 400; easing.type: Easing.InOutQuad }
+                        ScriptAction {
+                            script: {
+                                if (imgPrimary.source.toString() !== "") {
+                                    imgBackdrop.source = imgPrimary.source
+                                }
+                            }
+                        }
+                        NumberAnimation { 
+                            target: imgPrimary
+                            property: "opacity"
+                            from: 0.0
+                            to: 1.0
+                            duration: 400
+                            easing.type: Easing.InOutQuad 
+                        }
                     }
                 }
 
