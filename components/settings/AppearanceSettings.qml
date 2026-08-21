@@ -363,7 +363,7 @@ Flickable {
                 id: fxCol
                 anchors.fill: parent
                 anchors.margins: 14
-                spacing: 10
+                spacing: 14
 
                 RowLayout {
                     Layout.fillWidth: true
@@ -388,371 +388,257 @@ Flickable {
                 readonly property bool hasBorders: (Config.borderThickness !== undefined ? Config.borderThickness : 3) > 0
 
                 // 1. Animated Gradient Row
-                Rectangle {
+                RowLayout {
                     Layout.fillWidth: true
-                    implicitHeight: 48
-                    radius: Config.cornerRadius / 2
+                    spacing: 12
                     opacity: fxCol.hasBorders ? 1.0 : 0.4
-                    color: (fxCol.hasBorders && Config.animateGradient) ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : (gradHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
-                    border.width: (fxCol.hasBorders && Config.animateGradient) ? 1.5 : 1
-                    border.color: (fxCol.hasBorders && Config.animateGradient) ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
 
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 12; anchors.rightMargin: 12
-                        spacing: 10
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
+                        spacing: 2
 
-                        Rectangle {
-                            implicitWidth: 28; implicitHeight: 28; radius: 14
-                            color: (fxCol.hasBorders && Config.animateGradient) ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
-                            Text {
-                                anchors.centerIn: parent
-                                text: "gradient"
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 15
-                                color: (fxCol.hasBorders && Config.animateGradient) ? Config.bgBase : Config.textMuted
-                            }
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Animated Gradient Borders"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
+                            font.bold: true
+                            wrapMode: Text.WordWrap
                         }
-
-                        ColumnLayout {
-                            spacing: 1
-                            Text {
-                                text: "Animated Gradient Borders"
-                                color: (fxCol.hasBorders && Config.animateGradient) ? Config.accent : Config.textMain
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontCaption)
-                                font.bold: true
-                            }
-                            Text {
-                                text: "Smooth animated color sweep along window borders (requires Border > 0px)"
-                                color: Config.textMuted
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontMicro)
-                            }
-                        }
-
-                        Item { Layout.fillWidth: true }
-
-                        ToggleSwitch {
-                            checked: fxCol.hasBorders && Config.animateGradient
-                            Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Smooth animated color sweep along window borders (requires Border > 0px)"
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            wrapMode: Text.WordWrap
                         }
                     }
 
-                    MouseArea {
-                        id: gradHover
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            if (fxCol.hasBorders) Config.animateGradient = !Config.animateGradient
+                    ToggleSwitch {
+                        checked: fxCol.hasBorders && Config.animateGradient
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: fxCol.hasBorders ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onClicked: {
+                                if (fxCol.hasBorders) Config.animateGradient = !Config.animateGradient
+                            }
                         }
                     }
                 }
 
                 // 2. Background Blur Row
-                Rectangle {
+                RowLayout {
                     Layout.fillWidth: true
-                    implicitHeight: 48
-                    radius: Config.cornerRadius / 2
-                    color: Config.enableBlur ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : (blurHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
-                    border.width: Config.enableBlur ? 1.5 : 1
-                    border.color: Config.enableBlur ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+                    spacing: 12
 
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 12; anchors.rightMargin: 12
-                        spacing: 10
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
+                        spacing: 2
 
-                        Rectangle {
-                            implicitWidth: 28; implicitHeight: 28; radius: 14
-                            color: Config.enableBlur ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
-                            Text {
-                                anchors.centerIn: parent
-                                text: "blur_on"
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 15
-                                color: Config.enableBlur ? Config.bgBase : Config.textMuted
-                            }
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Background Blur"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
+                            font.bold: true
+                            wrapMode: Text.WordWrap
                         }
-
-                        ColumnLayout {
-                            spacing: 1
-                            Text {
-                                text: "Background Blur"
-                                color: Config.enableBlur ? Config.accent : Config.textMain
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontCaption)
-                                font.bold: true
-                            }
-                            Text {
-                                text: "Hardware-accelerated frosted glass backdrop filtering"
-                                color: Config.textMuted
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontMicro)
-                            }
-                        }
-
-                        Item { Layout.fillWidth: true }
-
-                        ToggleSwitch {
-                            checked: Config.enableBlur
-                            Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Hardware-accelerated frosted glass backdrop filtering"
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            wrapMode: Text.WordWrap
                         }
                     }
 
-                    MouseArea {
-                        id: blurHover
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: Config.enableBlur = !Config.enableBlur
+                    ToggleSwitch {
+                        checked: Config.enableBlur
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: Config.enableBlur = !Config.enableBlur
+                        }
                     }
                 }
 
                 // 3. X-Ray Mode Row
-                Rectangle {
+                RowLayout {
                     Layout.fillWidth: true
-                    implicitHeight: 48
-                    radius: Config.cornerRadius / 2
+                    spacing: 12
                     opacity: Config.enableBlur ? 1.0 : 0.4
-                    color: (Config.enableBlur && Config.enableXray) ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : (xrayHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
-                    border.width: (Config.enableBlur && Config.enableXray) ? 1.5 : 1
-                    border.color: (Config.enableBlur && Config.enableXray) ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
 
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 12; anchors.rightMargin: 12
-                        spacing: 10
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
+                        spacing: 2
 
-                        Rectangle {
-                            implicitWidth: 28; implicitHeight: 28; radius: 14
-                            color: (Config.enableBlur && Config.enableXray) ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
-                            Text {
-                                anchors.centerIn: parent
-                                text: "visibility"
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 15
-                                color: (Config.enableBlur && Config.enableXray) ? Config.bgBase : Config.textMuted
-                            }
+                        Text {
+                            Layout.fillWidth: true
+                            text: "X-Ray Mode"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
+                            font.bold: true
+                            wrapMode: Text.WordWrap
                         }
-
-                        ColumnLayout {
-                            spacing: 1
-                            Text {
-                                text: "X-Ray Mode"
-                                color: (Config.enableBlur && Config.enableXray) ? Config.accent : Config.textMain
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontCaption)
-                                font.bold: true
-                            }
-                            Text {
-                                text: "Ultra-translucent window pass-through layer (requires Blur)"
-                                color: Config.textMuted
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontMicro)
-                            }
-                        }
-
-                        Item { Layout.fillWidth: true }
-
-                        ToggleSwitch {
-                            checked: Config.enableBlur && Config.enableXray
-                            Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Ultra-translucent window pass-through layer (requires Blur)"
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            wrapMode: Text.WordWrap
                         }
                     }
 
-                    MouseArea {
-                        id: xrayHover
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            if (Config.enableBlur) Config.enableXray = !Config.enableXray
+                    ToggleSwitch {
+                        checked: Config.enableBlur && Config.enableXray
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Config.enableBlur ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onClicked: {
+                                if (Config.enableBlur) Config.enableXray = !Config.enableXray
+                            }
                         }
                     }
                 }
 
                 // 4. Watermarks Row
-                Rectangle {
+                RowLayout {
                     Layout.fillWidth: true
-                    implicitHeight: 48
-                    radius: Config.cornerRadius / 2
-                    color: Config.showWatermarks ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : (wmHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
-                    border.width: Config.showWatermarks ? 1.5 : 1
-                    border.color: Config.showWatermarks ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+                    spacing: 12
 
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 12; anchors.rightMargin: 12
-                        spacing: 10
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
+                        spacing: 2
 
-                        Rectangle {
-                            implicitWidth: 28; implicitHeight: 28; radius: 14
-                            color: Config.showWatermarks ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
-                            Text {
-                                anchors.centerIn: parent
-                                text: "branding_watermark"
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 15
-                                color: Config.showWatermarks ? Config.bgBase : Config.textMuted
-                            }
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Shell Watermarks"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
+                            font.bold: true
+                            wrapMode: Text.WordWrap
                         }
-
-                        ColumnLayout {
-                            spacing: 1
-                            Text {
-                                text: "Shell Watermarks"
-                                color: Config.showWatermarks ? Config.accent : Config.textMain
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontCaption)
-                                font.bold: true
-                            }
-                            Text {
-                                text: "Show decorative branding glyphs on lockscreen and shell panels"
-                                color: Config.textMuted
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontMicro)
-                            }
-                        }
-
-                        Item { Layout.fillWidth: true }
-
-                        ToggleSwitch {
-                            checked: Config.showWatermarks
-                            Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Show decorative branding glyphs on lockscreen and shell panels"
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            wrapMode: Text.WordWrap
                         }
                     }
 
-                    MouseArea {
-                        id: wmHover
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: Config.showWatermarks = !Config.showWatermarks
+                    ToggleSwitch {
+                        checked: Config.showWatermarks
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: Config.showWatermarks = !Config.showWatermarks
+                        }
                     }
                 }
 
                 // 5. Floating / Bouncing Watermarks Row
-                Rectangle {
+                RowLayout {
                     Layout.fillWidth: true
-                    implicitHeight: 48
-                    radius: Config.cornerRadius / 2
+                    spacing: 12
                     opacity: Config.showWatermarks ? 1.0 : 0.4
-                    color: (Config.showWatermarks && Config.bounceWatermarks) ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : (wmBounceHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
-                    border.width: (Config.showWatermarks && Config.bounceWatermarks) ? 1.5 : 1
-                    border.color: (Config.showWatermarks && Config.bounceWatermarks) ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
 
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 12; anchors.rightMargin: 12
-                        spacing: 10
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
+                        spacing: 2
 
-                        Rectangle {
-                            implicitWidth: 28; implicitHeight: 28; radius: 14
-                            color: (Config.showWatermarks && Config.bounceWatermarks) ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
-                            Text {
-                                anchors.centerIn: parent
-                                text: "animation"
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 15
-                                color: (Config.showWatermarks && Config.bounceWatermarks) ? Config.bgBase : Config.textMuted
-                            }
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Floating Ambient Drift"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
+                            font.bold: true
+                            wrapMode: Text.WordWrap
                         }
-
-                        ColumnLayout {
-                            spacing: 1
-                            Text {
-                                text: "Floating Ambient Drift"
-                                color: (Config.showWatermarks && Config.bounceWatermarks) ? Config.accent : Config.textMain
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontCaption)
-                                font.bold: true
-                            }
-                            Text {
-                                text: "Watermarks slowly drift within panel cards (requires Watermarks)"
-                                color: Config.textMuted
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontMicro)
-                            }
-                        }
-
-                        Item { Layout.fillWidth: true }
-
-                        ToggleSwitch {
-                            checked: Config.showWatermarks && Config.bounceWatermarks
-                            Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Watermarks slowly drift within panel cards (requires Watermarks)"
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            wrapMode: Text.WordWrap
                         }
                     }
 
-                    MouseArea {
-                        id: wmBounceHover
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            if (Config.showWatermarks) Config.bounceWatermarks = !Config.bounceWatermarks
+                    ToggleSwitch {
+                        checked: Config.showWatermarks && Config.bounceWatermarks
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Config.showWatermarks ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onClicked: {
+                                if (Config.showWatermarks) Config.bounceWatermarks = !Config.bounceWatermarks
+                            }
                         }
                     }
                 }
 
                 // 6. Auto-Color (Iris) Row
-                Rectangle {
+                RowLayout {
                     Layout.fillWidth: true
-                    implicitHeight: 48
-                    radius: Config.cornerRadius / 2
-                    color: Config.enableIris ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : (irisHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
-                    border.width: Config.enableIris ? 1.5 : 1
-                    border.color: Config.enableIris ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+                    spacing: 12
 
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 12; anchors.rightMargin: 12
-                        spacing: 10
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
+                        spacing: 2
 
-                        Rectangle {
-                            implicitWidth: 28; implicitHeight: 28; radius: 14
-                            color: Config.enableIris ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
-                            Text {
-                                anchors.centerIn: parent
-                                text: "palette"
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 15
-                                color: Config.enableIris ? Config.bgBase : Config.textMuted
-                            }
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Auto-Color (Iris)"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
+                            font.bold: true
+                            wrapMode: Text.WordWrap
                         }
-
-                        ColumnLayout {
-                            spacing: 1
-                            Text {
-                                text: "Auto-Color (Iris)"
-                                color: Config.enableIris ? Config.accent : Config.textMain
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontCaption)
-                                font.bold: true
-                            }
-                            Text {
-                                text: "Dynamically extract and apply theme colors from current wallpaper"
-                                color: Config.textMuted
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontMicro)
-                            }
-                        }
-
-                        Item { Layout.fillWidth: true }
-
-                        ToggleSwitch {
-                            checked: Config.enableIris
-                            Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Dynamically extract and apply theme colors from current wallpaper"
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            wrapMode: Text.WordWrap
                         }
                     }
 
-                    MouseArea {
-                        id: irisHover
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: Config.enableIris = !Config.enableIris
+                    ToggleSwitch {
+                        checked: Config.enableIris
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: Config.enableIris = !Config.enableIris
+                        }
                     }
                 }
             }

@@ -143,7 +143,7 @@ Flickable {
                 id: activeCol
                 anchors.fill: parent
                 anchors.margins: 14
-                spacing: 12
+                spacing: 14
 
                 RowLayout {
                     Layout.fillWidth: true
@@ -334,7 +334,7 @@ Flickable {
                 id: parallaxCol
                 anchors.fill: parent
                 anchors.margins: 14
-                spacing: 10
+                spacing: 14
 
                 // Header
                 RowLayout {
@@ -358,187 +358,130 @@ Flickable {
                 }
 
                 // 1. Master Toggle Row
-                Rectangle {
+                RowLayout {
                     Layout.fillWidth: true
-                    implicitHeight: 48
-                    radius: Config.cornerRadius / 2
-                    color: Config.enableWallpaperParallax ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : (masterHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
-                    border.width: Config.enableWallpaperParallax ? 1.5 : 1
-                    border.color: Config.enableWallpaperParallax ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+                    spacing: 12
 
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 12; anchors.rightMargin: 12
-                        spacing: 10
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
+                        spacing: 2
 
-                        Rectangle {
-                            implicitWidth: 28; implicitHeight: 28; radius: 14
-                            color: Config.enableWallpaperParallax ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
-                            Text {
-                                anchors.centerIn: parent
-                                text: "auto_awesome_motion"
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 15
-                                color: Config.enableWallpaperParallax ? Config.bgBase : Config.textMuted
-                            }
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Wallpaper Parallax"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
+                            font.bold: true
+                            wrapMode: Text.WordWrap
                         }
-
-                        ColumnLayout {
-                            spacing: 1
-                            Text {
-                                text: "Wallpaper Parallax"
-                                color: Config.enableWallpaperParallax ? Config.accent : Config.textMain
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontCaption)
-                                font.bold: true
-                            }
-                            Text {
-                                text: "Enable depth motion and responsive canvas translation"
-                                color: Config.textMuted
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontMicro)
-                            }
-                        }
-
-                        Item { Layout.fillWidth: true }
-
-                        ToggleSwitch {
-                            checked: Config.enableWallpaperParallax
-                            Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Enable depth motion and responsive canvas translation"
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            wrapMode: Text.WordWrap
                         }
                     }
 
-                    MouseArea {
-                        id: masterHover
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: Config.enableWallpaperParallax = !Config.enableWallpaperParallax
+                    ToggleSwitch {
+                        checked: Config.enableWallpaperParallax
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: Config.enableWallpaperParallax = !Config.enableWallpaperParallax
+                        }
                     }
                 }
 
                 // 2. Workspace Switch Parallax Row
-                Rectangle {
+                RowLayout {
                     Layout.fillWidth: true
-                    implicitHeight: 48
-                    radius: Config.cornerRadius / 2
+                    spacing: 12
                     opacity: Config.enableWallpaperParallax ? 1.0 : 0.4
-                    color: (Config.enableWallpaperParallax && Config.wallpaperWorkspaceParallax) ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : (wsHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
-                    border.width: (Config.enableWallpaperParallax && Config.wallpaperWorkspaceParallax) ? 1.5 : 1
-                    border.color: (Config.enableWallpaperParallax && Config.wallpaperWorkspaceParallax) ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
 
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 12; anchors.rightMargin: 12
-                        spacing: 10
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
+                        spacing: 2
 
-                        Rectangle {
-                            implicitWidth: 28; implicitHeight: 28; radius: 14
-                            color: (Config.enableWallpaperParallax && Config.wallpaperWorkspaceParallax) ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
-                            Text {
-                                anchors.centerIn: parent
-                                text: "view_carousel"
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 15
-                                color: (Config.enableWallpaperParallax && Config.wallpaperWorkspaceParallax) ? Config.bgBase : Config.textMuted
-                            }
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Workspace Switch Parallax"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
+                            font.bold: true
+                            wrapMode: Text.WordWrap
                         }
-
-                        ColumnLayout {
-                            spacing: 1
-                            Text {
-                                text: "Workspace Switch Parallax"
-                                color: (Config.enableWallpaperParallax && Config.wallpaperWorkspaceParallax) ? Config.accent : Config.textMain
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontCaption)
-                                font.bold: true
-                            }
-                            Text {
-                                text: "Smoothly pans wallpaper across workspace transitions (requires Parallax)"
-                                color: Config.textMuted
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontMicro)
-                            }
-                        }
-
-                        Item { Layout.fillWidth: true }
-
-                        ToggleSwitch {
-                            checked: Config.enableWallpaperParallax && Config.wallpaperWorkspaceParallax
-                            Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Smoothly pans wallpaper across workspace transitions (requires Parallax)"
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            wrapMode: Text.WordWrap
                         }
                     }
 
-                    MouseArea {
-                        id: wsHover
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            if (Config.enableWallpaperParallax) Config.wallpaperWorkspaceParallax = !Config.wallpaperWorkspaceParallax
+                    ToggleSwitch {
+                        checked: Config.enableWallpaperParallax && Config.wallpaperWorkspaceParallax
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Config.enableWallpaperParallax ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onClicked: {
+                                if (Config.enableWallpaperParallax) Config.wallpaperWorkspaceParallax = !Config.wallpaperWorkspaceParallax
+                            }
                         }
                     }
                 }
 
                 // 3. Cursor Motion Parallax Row
-                Rectangle {
+                RowLayout {
                     Layout.fillWidth: true
-                    implicitHeight: 48
-                    radius: Config.cornerRadius / 2
+                    spacing: 12
                     opacity: Config.enableWallpaperParallax ? 1.0 : 0.4
-                    color: (Config.enableWallpaperParallax && Config.wallpaperCursorParallax) ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : (curHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
-                    border.width: (Config.enableWallpaperParallax && Config.wallpaperCursorParallax) ? 1.5 : 1
-                    border.color: (Config.enableWallpaperParallax && Config.wallpaperCursorParallax) ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
 
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 12; anchors.rightMargin: 12
-                        spacing: 10
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredWidth: 1
+                        Layout.minimumWidth: 0
+                        spacing: 2
 
-                        Rectangle {
-                            implicitWidth: 28; implicitHeight: 28; radius: 14
-                            color: (Config.enableWallpaperParallax && Config.wallpaperCursorParallax) ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
-                            Text {
-                                anchors.centerIn: parent
-                                text: "near_me"
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 15
-                                color: (Config.enableWallpaperParallax && Config.wallpaperCursorParallax) ? Config.bgBase : Config.textMuted
-                            }
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Cursor Motion Parallax"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
+                            font.bold: true
+                            wrapMode: Text.WordWrap
                         }
-
-                        ColumnLayout {
-                            spacing: 1
-                            Text {
-                                text: "Cursor Motion Parallax"
-                                color: (Config.enableWallpaperParallax && Config.wallpaperCursorParallax) ? Config.accent : Config.textMain
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontCaption)
-                                font.bold: true
-                            }
-                            Text {
-                                text: "Floats and tilts wallpaper depth in real-time with mouse (requires Parallax)"
-                                color: Config.textMuted
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontMicro)
-                            }
-                        }
-
-                        Item { Layout.fillWidth: true }
-
-                        ToggleSwitch {
-                            checked: Config.enableWallpaperParallax && Config.wallpaperCursorParallax
-                            Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                        Text {
+                            Layout.fillWidth: true
+                            text: "Floats and tilts wallpaper depth in real-time with mouse (requires Parallax)"
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            wrapMode: Text.WordWrap
                         }
                     }
 
-                    MouseArea {
-                        id: curHover
-                        anchors.fill: parent
-                        hoverEnabled: true
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            if (Config.enableWallpaperParallax) Config.wallpaperCursorParallax = !Config.wallpaperCursorParallax
+                    ToggleSwitch {
+                        checked: Config.enableWallpaperParallax && Config.wallpaperCursorParallax
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Config.enableWallpaperParallax ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onClicked: {
+                                if (Config.enableWallpaperParallax) Config.wallpaperCursorParallax = !Config.wallpaperCursorParallax
+                            }
                         }
                     }
                 }
