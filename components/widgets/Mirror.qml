@@ -35,6 +35,37 @@ Item {
         })
     }
 
+    // Attach localOutput to the global Config session dynamically
+    function attachSession() {
+        if (Config.mirrorCaptureSession) {
+            Config.mirrorCaptureSession.videoOutput = localOutput
+            if (Config.mirrorCaptureSession.camera) {
+                Config.mirrorCaptureSession.camera.active = mirrorRoot.visible && Config.showMirror
+            }
+            if (typeof Config.mirrorLoading !== "undefined") {
+                Config.mirrorLoading = false
+                Config.mirrorError = ""
+            }
+        }
+    }
+
+    onVisibleChanged: {
+        if (visible) attachSession()
+    }
+
+    Connections {
+        target: Config
+        ignoreUnknownSignals: true
+        function onMirrorCaptureSessionChanged() {
+            mirrorRoot.attachSession()
+        }
+        function onShowMirrorChanged() {
+            if (Config.mirrorCaptureSession && Config.mirrorCaptureSession.camera) {
+                Config.mirrorCaptureSession.camera.active = Config.showMirror
+            }
+        }
+    }
+
     ColumnLayout {
         id: mainColumn
         anchors.fill: parent
@@ -266,9 +297,7 @@ Item {
                             }
 
                             Component.onCompleted: {
-                                if (Config.mirrorCaptureSession) {
-                                    Config.mirrorCaptureSession.videoOutput = localOutput
-                                }
+                                mirrorRoot.attachSession()
                             }
                             Component.onDestruction: {
                                 if (Config.mirrorCaptureSession && Config.mirrorCaptureSession.videoOutput === localOutput) {
@@ -286,7 +315,7 @@ Item {
                         z: 90
                         radius: Config.cornerRadius / 2
                         visible: opacity > 0
-                        opacity: (Config.mirrorLoading || Config.mirrorError !== "") ? 1.0 : 0.0
+                        opacity: (Config.mirrorLoading || (Config.mirrorError && Config.mirrorError !== "")) ? 1.0 : 0.0
 
                         Behavior on opacity {
                             NumberAnimation { duration: 300; easing.type: Easing.InOutQuad }
@@ -304,8 +333,8 @@ Item {
                                 Text {
                                     id: spinnerIcon
                                     anchors.centerIn: parent
-                                    text: Config.mirrorError !== "" ? "videocam_off" : "progress_activity"
-                                    color: Config.mirrorError !== "" ? "#ff5555" : Config.accent
+                                    text: (Config.mirrorError && Config.mirrorError !== "") ? "videocam_off" : "progress_activity"
+                                    color: (Config.mirrorError && Config.mirrorError !== "") ? "#ff5555" : Config.accent
                                     font.family: "Material Symbols Outlined"
                                     font.pixelSize: 32
                                     font.bold: true
@@ -315,15 +344,15 @@ Item {
                                         to: 360
                                         duration: 1100
                                         loops: Animation.Infinite
-                                        running: Config.mirrorLoading && Config.mirrorError === ""
+                                        running: Config.mirrorLoading && (!Config.mirrorError || Config.mirrorError === "")
                                     }
                                 }
                             }
 
                             Text {
                                 Layout.alignment: Qt.AlignHCenter
-                                text: Config.mirrorError !== "" ? Config.mirrorError : "Loading..."
-                                color: Config.mirrorError !== "" ? "#ff8888" : Config.textMain
+                                text: (Config.mirrorError && Config.mirrorError !== "") ? Config.mirrorError : "Loading..."
+                                color: (Config.mirrorError && Config.mirrorError !== "") ? "#ff8888" : Config.textMain
                                 font.family: Config.sysFont
                                 font.pixelSize: Config.size(Config.fontBody)
                                 font.bold: true
