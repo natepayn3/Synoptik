@@ -19,7 +19,7 @@ curl -fsSL https://raw.githubusercontent.com/natepayn3/Synoptik/main/install.sh 
 
  </h1>
 
-  
+[![SYNOPTIK - quickshell config for Hyprland](https://img.youtube.com/vi/Cv7NUWnxySg/maxresdefault.jpg)](https://www.youtube.com/watch?v=Cv7NUWnxySg)
 
  <p align="center" style="margin-top: 10px; margin-bottom: 15px;">
 
