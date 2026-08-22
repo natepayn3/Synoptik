@@ -8,7 +8,8 @@ Item {
 
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
-    property bool isRecording: false
+    // Bound directly to the global singleton so states sync across all bar cards
+    property bool isRecording: Boolean(Config.isRecording)
 
     readonly property string pos: Config.barPosition || "top"
     readonly property bool isVert: pos === "left" || pos === "right"
@@ -17,10 +18,10 @@ Item {
     implicitWidth: mainCard.implicitWidth + (cardMargin * 2)
     implicitHeight: mainCard.implicitHeight + (cardMargin * 2)
 
-    // Periodically check pgrep to update local recording state
+    // Periodically check pgrep to keep state persistent
     Timer {
         interval: 1000
-        running: root.visible || root.isRecording
+        running: true
         repeat: true
         triggeredOnStart: true
         onTriggered: checkProc.running = true
@@ -32,7 +33,9 @@ Item {
         running: false
 
         onExited: (code, status) => {
-            root.isRecording = (code === 0)
+            let active = (code === 0)
+            root.isRecording = active
+            Config.isRecording = active
         }
     }
 
@@ -43,9 +46,12 @@ Item {
         let dateStr = Qt.formatDateTime(new Date(), "yyyy-MM-dd_hh-mm-ss")
         let savePath = home + "/Videos/recording_" + dateStr + ".mp4"
 
+        // Capture area selection and launch wf-recorder
         let script = "mkdir -p ~/Videos; set -l geom (slurp -b '#00000000' -c '#ef4444' -w 2); test -n \"$geom\"; and exec wf-recorder -f \"" + savePath + "\" -g \"$geom\""
 
         Quickshell.execDetached(["fish", "-c", script])
+        Config.isRecording = true
+        root.isRecording = true
     }
 
     function triggerFullscreenSelect() {
@@ -59,11 +65,15 @@ Item {
         let script = "mkdir -p ~/Videos; set -l mon (hyprctl monitors -j | jq -r '.[] | select(.focused).name'); exec wf-recorder -o $mon -f \"" + savePath + "\""
 
         Quickshell.execDetached(["fish", "-c", script])
+        Config.isRecording = true
+        root.isRecording = true
     }
 
     function stopRecording() {
+        // Send SIGINT to gracefully close recording file
         Quickshell.execDetached(["fish", "-c", "pkill -2 wf-recorder"])
         root.isRecording = false
+        Config.isRecording = false
         Config.showScreenRecorder = false
     }
 
@@ -89,7 +99,7 @@ Item {
 
             Behavior on border.color { ColorAnimation { duration: 150 } }
 
-            // GRAPHIC WATERMARK
+            // Watermark decoration
             Watermark {
                 icon: Config.getIcon("recorder")
                 iconSize: 120
