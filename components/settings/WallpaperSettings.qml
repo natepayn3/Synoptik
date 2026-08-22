@@ -631,7 +631,7 @@ Flickable {
                         }
                         Text {
                             Layout.fillWidth: true
-                            text: "Enable depth motion and responsive canvas translation"
+                            text: "Enable depth motion and responsive canvas translation (disables transitions)"
                             color: Config.textMuted
                             font.family: Config.sysFont
                             font.pixelSize: Config.size(Config.fontCaption)
