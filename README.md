@@ -6,6 +6,8 @@ curl -fsSL https://raw.githubusercontent.com/natepayn3/Synoptik/main/install.sh 
 ```
 
 > _Use the above link to install this shell to ensure that it can update itself!_
+>
+> _I have included a hypridle.conf file with the ipc's for the screensaver and lockscreen.  The install.sh script will automatically append the necessary hyprland.lua settings for you, but make sure your existing settings do not conflict with .config/hypr/hypr_style.lua_
 
 ***
 
