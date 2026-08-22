@@ -46,8 +46,8 @@ Item {
         let dateStr = Qt.formatDateTime(new Date(), "yyyy-MM-dd_hh-mm-ss")
         let savePath = home + "/Videos/recording_" + dateStr + ".mp4"
 
-        // Capture area selection and launch wf-recorder
-        let script = "mkdir -p ~/Videos; set -l geom (slurp -b '#00000000' -c '#ef4444' -w 2); test -n \"$geom\"; and exec wf-recorder -f \"" + savePath + "\" -g \"$geom\""
+        // Resolve default output monitor dynamically for portable system audio capture
+        let script = "mkdir -p ~/Videos; set -l geom (slurp -b '#00000000' -c '#ef4444' -w 2); test -n \"$geom\"; and set -l sink (pactl get-default-sink 2>/dev/null); set -l audio_flag (test -n \"$sink\"; and echo \"--audio=$sink.monitor\"; or echo \"--audio=@DEFAULT_AUDIO_SINK@.monitor\"); exec wf-recorder $audio_flag -f \"" + savePath + "\" -g \"$geom\""
 
         Quickshell.execDetached(["fish", "-c", script])
         Config.isRecording = true
@@ -61,8 +61,8 @@ Item {
         let dateStr = Qt.formatDateTime(new Date(), "yyyy-MM-dd_hh-mm-ss")
         let savePath = home + "/Videos/recording_" + dateStr + ".mp4"
 
-        // Queries focused Hyprland display and targets it via -o
-        let script = "mkdir -p ~/Videos; set -l mon (hyprctl monitors -j | jq -r '.[] | select(.focused).name'); exec wf-recorder -o $mon -f \"" + savePath + "\""
+        // Resolve default output monitor and active Hyprland output dynamically
+        let script = "mkdir -p ~/Videos; set -l mon (hyprctl monitors -j | jq -r '.[] | select(.focused).name'); set -l sink (pactl get-default-sink 2>/dev/null); set -l audio_flag (test -n \"$sink\"; and echo \"--audio=$sink.monitor\"; or echo \"--audio=@DEFAULT_AUDIO_SINK@.monitor\"); exec wf-recorder $audio_flag -o $mon -f \"" + savePath + "\""
 
         Quickshell.execDetached(["fish", "-c", script])
         Config.isRecording = true
