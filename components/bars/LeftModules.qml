@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Qt5Compat.GraphicalEffects
 import Quickshell
+import Quickshell.Io
 import ".."
 
 Rectangle {
@@ -324,6 +325,26 @@ Rectangle {
             radius: 10
             color: Config.showScreenRecorder ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
 
+            // Local recording state polled continuously
+            property bool isRecording: false
+
+            Timer {
+                interval: 1000
+                running: true
+                repeat: true
+                triggeredOnStart: true
+                onTriggered: recorderCheckProc.running = true
+            }
+
+            Process {
+                id: recorderCheckProc
+                command: ["pgrep", "-x", "wf-recorder"]
+                running: false
+                onExited: (code, status) => {
+                    btnRecorder.isRecording = (code === 0)
+                }
+            }
+
             Behavior on color { ColorAnimation { duration: 150 } }
 
             Item {
@@ -337,21 +358,22 @@ Rectangle {
                 Glow {
                     anchors.fill: recordIconText
                     source: recordIconText
-                    radius: recordHover.hovered ? 8 : 0
+                    radius: (btnRecorder.isRecording || recordHover.hovered) ? 8 : 0
                     samples: 16
-                    color: Config.accent
-                    spread: 0.2
+                    color: btnRecorder.isRecording ? "#ef4444" : Config.accent
+                    spread: btnRecorder.isRecording ? 0.35 : 0.2
                     transparentBorder: true
-                    visible: recordHover.hovered
+                    visible: btnRecorder.isRecording || recordHover.hovered
 
                     Behavior on radius { NumberAnimation { duration: 180 } }
+                    Behavior on color { ColorAnimation { duration: 150 } }
                 }
 
                 Text {
                     id: recordIconText
                     anchors.centerIn: parent
-                    text: (typeof shellRoot !== "undefined" && shellRoot.isRecording) ? "radio_button_checked" : Config.getIcon("recorder")
-                    color: (typeof shellRoot !== "undefined" && shellRoot.isRecording) ? "#ef4444" : ((Config.showScreenRecorder || recordHover.hovered) ? Config.accent : Config.textMain)
+                    text: btnRecorder.isRecording ? "radio_button_checked" : Config.getIcon("recorder")
+                    color: btnRecorder.isRecording ? "#ef4444" : ((Config.showScreenRecorder || recordHover.hovered) ? Config.accent : Config.textMain)
                     font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
 
                     Behavior on color { ColorAnimation { duration: 150 } }
@@ -362,7 +384,7 @@ Rectangle {
                 anchors.top: parent.top; anchors.right: parent.right
                 anchors.topMargin: 2; anchors.rightMargin: 2
                 width: 5; height: 5; radius: 2.5
-                color: Config.accent
+                color: btnRecorder.isRecording ? "#ef4444" : Config.accent
                 visible: !Config.leftCardCollapsed && Config.isPinned("recorder")
             }
 
@@ -437,10 +459,10 @@ Rectangle {
             }
 
             TapHandler { 
-                onTapped: {
+                onTapped: { 
                     if (rootRef && rootRef.stopPeek) rootRef.stopPeek()
                     Config.showMirror = !Config.showMirror 
-                }
+                } 
             }
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("mirror") }
             HoverHandler { 
