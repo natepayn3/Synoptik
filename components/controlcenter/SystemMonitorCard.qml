@@ -307,6 +307,11 @@ Item {
 
         Shape {
             anchors.fill: parent
+            preferredRendererType: Shape.CurveRenderer
+            asynchronous: true
+            layer.enabled: true
+            layer.samples: 4
+            layer.smooth: true
 
             ShapePath {
                 fillColor: "transparent"
