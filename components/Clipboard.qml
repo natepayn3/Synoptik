@@ -14,8 +14,17 @@ Item {
     implicitHeight: mainLayout.implicitHeight + (cardMargin * 2)
 
     property string filterText: ""
+    property bool contentReady: false
 
     ListModel { id: clipModel }
+
+    // Delay timer before revealing the inner layout
+    Timer {
+        id: delayTimer
+        interval: 350
+        repeat: false
+        onTriggered: clipRoot.contentReady = true
+    }
 
     function refreshClipboard() {
         fetchProc.running = false
@@ -23,6 +32,7 @@ Item {
     }
 
     Component.onCompleted: {
+        delayTimer.start()
         refreshClipboard()
     }
 
@@ -30,7 +40,12 @@ Item {
         target: Config
         function onShowClipboardChanged() {
             if (Config.showClipboard) {
+                clipRoot.contentReady = false
+                delayTimer.restart()
                 refreshClipboard()
+            } else {
+                clipRoot.contentReady = false
+                delayTimer.stop()
             }
         }
     }
@@ -172,6 +187,12 @@ Item {
         anchors.margins: clipRoot.cardMargin
         spacing: clipRoot.cardMargin / 2
 
+        // Smoothly fade the content in once the delay triggers
+        opacity: clipRoot.contentReady ? 1.0 : 0.0
+        Behavior on opacity {
+            NumberAnimation { duration: 180; easing.type: Easing.OutQuad }
+        }
+
         Rectangle {
             id: mainCard
             Layout.fillWidth: true
@@ -185,7 +206,6 @@ Item {
 
             Behavior on border.color { ColorAnimation { duration: 150 } }
 
-            // GRAPHIC WATERMARK
             Watermark {
                 icon: Config.getIcon("clipboard")
                 iconSize: 150
@@ -233,7 +253,6 @@ Item {
                         }
                     }
 
-                    // ITEM COUNT BADGE
                     Rectangle {
                         implicitWidth: countText.implicitWidth + 12
                         implicitHeight: 20
@@ -287,7 +306,6 @@ Item {
                     }
                 }
 
-                // SEARCH BAR
                 Rectangle {
                     Layout.fillWidth: true
                     implicitHeight: 32
@@ -419,7 +437,6 @@ Item {
                                 asynchronous: true
                             }
 
-                            // Inline Comment: Explicit left-side MouseArea to copy without overlapping the delete button
                             MouseArea {
                                 anchors {
                                     left: parent.left
@@ -435,7 +452,6 @@ Item {
                                 }
                             }
 
-                            // Inline Comment: Per-item delete button with awk tab-field matching
                             Rectangle {
                                 id: deleteBtn
                                 anchors {
@@ -462,7 +478,6 @@ Item {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: {
-                                        // Inline Comment: Extract exact line by ID column via awk and pipe to cliphist delete
                                         deleteSingleProc.command = ["fish", "-c", "cliphist list | awk -F '\\t' '$1 == \"" + itemId + "\"' | cliphist delete; and rm -f /tmp/cliphist/" + itemId + ".png"]
                                         deleteSingleProc.running = false
                                         deleteSingleProc.running = true
