@@ -28,7 +28,6 @@ Rectangle {
         }
     }
 
-    // Direct binding to loaded layout implicitWidth
     readonly property real contentWidth: centerContentLayout.item ? centerContentLayout.item.implicitWidth : 0
     readonly property real contentHeight: centerContentLayout.item ? centerContentLayout.item.implicitHeight : 0
 
@@ -173,54 +172,172 @@ Rectangle {
                 radius: 10
                 color: Config.showCalendar ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
                 Layout.alignment: Qt.AlignVCenter
+                clip: true
 
                 Behavior on color { ColorAnimation { duration: 150 } }
+
+                property real currentSecond: new Date().getSeconds() + (new Date().getMilliseconds() / 1000)
+                Timer {
+                    interval: 50
+                    running: true
+                    repeat: true
+                    onTriggered: btnClockHoriz.currentSecond = new Date().getSeconds() + (new Date().getMilliseconds() / 1000)
+                }
+
+                // Masked Health Bar Container (Matches exact button radius)
+                Item {
+                    id: horizFillMaskSource
+                    anchors.fill: parent
+                    z: 0
+
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.top: parent.top
+                        anchors.bottom: parent.bottom
+                        width: parent.width * (btnClockHoriz.currentSecond / 60)
+                        color: Config.accent
+                        opacity: clockHorizHover.hovered ? 0.22 : 0.12
+
+                        Behavior on opacity { NumberAnimation { duration: 150 } }
+
+                        // Leading edge highlight
+                        Rectangle {
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            width: 1
+                            color: Config.accent
+                            opacity: 0.6
+                            visible: parent.width > 2
+                        }
+                    }
+
+                    layer.enabled: true
+                    layer.effect: OpacityMask {
+                        maskSource: Rectangle {
+                            width: horizFillMaskSource.width
+                            height: horizFillMaskSource.height
+                            radius: btnClockHoriz.radius
+                        }
+                    }
+                }
 
                 Item {
                     anchors.centerIn: parent
                     implicitWidth: dateRow.implicitWidth
                     implicitHeight: dateRow.implicitHeight
-                    scale: clockHorizHover.hovered ? 1.08 : 1.0
+                    scale: clockHorizHover.hovered ? 1.05 : 1.0
+                    z: 1
 
                     Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
-
-                    Glow {
-                        anchors.fill: dateRow
-                        source: dateRow
-                        radius: clockHorizHover.hovered ? 8 : 0
-                        samples: 16
-                        color: Config.accent
-                        spread: 0.2
-                        transparentBorder: true
-                        visible: clockHorizHover.hovered
-
-                        Behavior on radius { NumberAnimation { duration: 180 } }
-                    }
 
                     RowLayout {
                         id: dateRow
                         anchors.centerIn: parent
                         spacing: 8
 
-                        Text {
-                            text: (shellRoot.vertHour || (new Date().getHours() % 12 || 12).toString()) + ":" + (shellRoot.vertMinute || Qt.formatTime(new Date(), "mm"))
-                            color: (Config.showCalendar || clockHorizHover.hovered) ? Config.accent : Config.textMain
-                            font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: Config.size(Config.fontTitle)
+                        // Cascading Depth Time
+                        Row {
+                            id: overlappingTimeRow
+                            Layout.alignment: Qt.AlignVCenter
+                            spacing: -2.5
+
+                            readonly property string timeString: (shellRoot.vertHour || (new Date().getHours() % 12 || 12).toString()) + ":" + (shellRoot.vertMinute || Qt.formatTime(new Date(), "mm"))
+
+                            Repeater {
+                                model: overlappingTimeRow.timeString.length
+
+                                Text {
+                                    text: overlappingTimeRow.timeString[index]
+                                    color: (Config.showCalendar || clockHorizHover.hovered) ? Config.accent : Config.textMain
+                                    font.family: Config.sysFont
+                                    font.weight: Font.Bold
+                                    font.pixelSize: Math.round(Config.size(Config.fontTitle))
+                                    renderType: Config.textRenderType
+                                    z: overlappingTimeRow.timeString.length - index
+
+                                    opacity: Math.max(0.85, 1.0 - (index * 0.035))
+                                    scale: 1.0 - (index * 0.008)
+                                    transformOrigin: Item.BottomLeft
+
+                                    layer.enabled: true
+                                    layer.effect: DropShadow {
+                                        horizontalOffset: 1
+                                        verticalOffset: 0
+                                        radius: 2
+                                        samples: 8
+                                        color: Qt.rgba(0, 0, 0, 0.35)
+                                    }
+                                }
+                            }
+                        }
+
+                        // Micro Accent Capsule
+                        Rectangle {
+                            implicitWidth: apText.implicitWidth + 5
+                            implicitHeight: apText.implicitHeight + 1
+                            radius: 3
+                            color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.18)
+                            border.width: 1
+                            border.color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.35)
+                            Layout.alignment: Qt.AlignVCenter
+                            Layout.leftMargin: -2
+
+                            Text {
+                                id: apText
+                                anchors.centerIn: parent
+                                text: (shellRoot.vertAmPm || Qt.formatTime(new Date(), "ap")).toUpperCase()
+                                color: Config.accent
+                                font.family: Config.sysFont
+                                font.weight: Font.Bold
+                                font.pixelSize: Math.max(8, Math.round(Config.size(Config.fontSubhead) - 3))
+                                renderType: Config.textRenderType
+                            }
+                        }
+
+                        // Divider
+                        Rectangle {
+                            implicitWidth: 1.5
+                            implicitHeight: 12
+                            radius: 1
+                            color: Qt.rgba(255, 255, 255, 0.15)
                             Layout.alignment: Qt.AlignVCenter
                         }
 
-                        Text {
-                            text: shellRoot.vertAmPm || Qt.formatTime(new Date(), "ap").toLowerCase()
-                            color: Config.accent
-                            font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: Config.size(Config.fontSubhead)
+                        // Cascading Depth Date
+                        Row {
+                            id: overlappingDateRow
                             Layout.alignment: Qt.AlignVCenter
-                        }
+                            spacing: -2.5
 
-                        Text {
-                            text: (shellRoot.vertMonth || Qt.formatDate(new Date(), "MMM")) + " " + (shellRoot.vertDay || Qt.formatDate(new Date(), "d"))
-                            color: (Config.showCalendar || clockHorizHover.hovered) ? Config.accent : Config.textMuted
-                            font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: Config.size(Config.fontSubhead)
-                            Layout.alignment: Qt.AlignVCenter
+                            readonly property string dateString: (shellRoot.vertMonth || Qt.formatDate(new Date(), "MMM")) + " " + (shellRoot.vertDay || Qt.formatDate(new Date(), "d"))
+
+                            Repeater {
+                                model: overlappingDateRow.dateString.length
+
+                                Text {
+                                    text: overlappingDateRow.dateString[index]
+                                    color: (Config.showCalendar || clockHorizHover.hovered) ? Config.accent : Config.textMuted
+                                    font.family: Config.sysFont
+                                    font.weight: Font.Bold
+                                    font.pixelSize: Math.round(Config.size(Config.fontSubhead))
+                                    renderType: Config.textRenderType
+                                    z: overlappingDateRow.dateString.length - index
+
+                                    opacity: Math.max(0.85, 1.0 - (index * 0.03))
+                                    scale: 1.0 - (index * 0.008)
+                                    transformOrigin: Item.BottomLeft
+
+                                    layer.enabled: true
+                                    layer.effect: DropShadow {
+                                        horizontalOffset: 1
+                                        verticalOffset: 0
+                                        radius: 2
+                                        samples: 8
+                                        color: Qt.rgba(0, 0, 0, 0.3)
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -249,7 +366,7 @@ Rectangle {
         id: vertRightComp
         ColumnLayout {
             id: vertLayout
-            spacing: 8
+            spacing: 6
             anchors.fill: parent
 
             readonly property var ccBtn: btnCCVert
@@ -326,77 +443,223 @@ Rectangle {
             Rectangle {
                 id: btnClockVert
                 implicitWidth: 32
-                implicitHeight: dateColumn.implicitHeight + 16
+                implicitHeight: dateColumn.implicitHeight + 10
                 radius: 10
                 color: Config.showCalendar ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
                 Layout.alignment: Qt.AlignHCenter
+                clip: true
 
                 Behavior on color { ColorAnimation { duration: 150 } }
+
+                property real currentSecond: new Date().getSeconds() + (new Date().getMilliseconds() / 1000)
+                Timer {
+                    interval: 50
+                    running: true
+                    repeat: true
+                    onTriggered: btnClockVert.currentSecond = new Date().getSeconds() + (new Date().getMilliseconds() / 1000)
+                }
+
+                // Masked Health Bar Container (Matches exact vertical button radius)
+                Item {
+                    id: vertFillMaskSource
+                    anchors.fill: parent
+                    z: 0
+
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.bottom: parent.bottom
+                        height: parent.height * (btnClockVert.currentSecond / 60)
+                        color: Config.accent
+                        opacity: clockVertHover.hovered ? 0.22 : 0.12
+
+                        Behavior on opacity { NumberAnimation { duration: 150 } }
+
+                        // Leading edge highlight
+                        Rectangle {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            height: 1
+                            color: Config.accent
+                            opacity: 0.6
+                            visible: parent.height > 2
+                        }
+                    }
+
+                    layer.enabled: true
+                    layer.effect: OpacityMask {
+                        maskSource: Rectangle {
+                            width: vertFillMaskSource.width
+                            height: vertFillMaskSource.height
+                            radius: btnClockVert.radius
+                        }
+                    }
+                }
 
                 Item {
                     anchors.centerIn: parent
                     implicitWidth: dateColumn.implicitWidth
                     implicitHeight: dateColumn.implicitHeight
-                    scale: clockVertHover.hovered ? 1.08 : 1.0
+                    scale: clockVertHover.hovered ? 1.05 : 1.0
+                    z: 1
 
                     Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
-
-                    Glow {
-                        anchors.fill: dateColumn
-                        source: dateColumn
-                        radius: clockVertHover.hovered ? 8 : 0
-                        samples: 16
-                        color: Config.accent
-                        spread: 0.2
-                        transparentBorder: true
-                        visible: clockVertHover.hovered
-
-                        Behavior on radius { NumberAnimation { duration: 180 } }
-                    }
 
                     ColumnLayout {
                         id: dateColumn
                         anchors.centerIn: parent
-                        spacing: 1
+                        spacing: 2
 
-                        Text {
-                            text: shellRoot.vertHour || (new Date().getHours() % 12 || 12).toString()
-                            color: (Config.showCalendar || clockVertHover.hovered) ? Config.accent : Config.textMain
-                            font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 15
-                            renderType: Config.textRenderType
+                        // 1. Cascading Hour Row
+                        Row {
+                            id: vertHourRow
                             Layout.alignment: Qt.AlignHCenter
+                            spacing: -2
+                            z: 4
+
+                            readonly property string hourStr: shellRoot.vertHour || (new Date().getHours() % 12 || 12).toString()
+
+                            Repeater {
+                                model: vertHourRow.hourStr.length
+                                Text {
+                                    text: vertHourRow.hourStr[index]
+                                    color: (Config.showCalendar || clockVertHover.hovered) ? Config.accent : Config.textMain
+                                    font.family: Config.sysFont
+                                    font.weight: Font.Bold
+                                    font.pixelSize: 15
+                                    renderType: Config.textRenderType
+                                    z: vertHourRow.hourStr.length - index
+                                    opacity: Math.max(0.85, 1.0 - (index * 0.035))
+
+                                    layer.enabled: true
+                                    layer.effect: DropShadow {
+                                        horizontalOffset: 1
+                                        verticalOffset: 1
+                                        radius: 2
+                                        samples: 8
+                                        color: Qt.rgba(0, 0, 0, 0.35)
+                                    }
+                                }
+                            }
                         }
 
-                        Text {
-                            text: shellRoot.vertMinute || Qt.formatTime(new Date(), "mm")
-                            color: (Config.showCalendar || clockVertHover.hovered) ? Config.accent : Config.textMain
-                            font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 15
-                            renderType: Config.textRenderType
+                        // 2. Cascading Minute Row
+                        Row {
+                            id: vertMinRow
                             Layout.alignment: Qt.AlignHCenter
+                            Layout.topMargin: -3
+                            spacing: -2
+                            z: 3
+
+                            readonly property string minStr: shellRoot.vertMinute || Qt.formatTime(new Date(), "mm")
+
+                            Repeater {
+                                model: vertMinRow.minStr.length
+                                Text {
+                                    text: vertMinRow.minStr[index]
+                                    color: (Config.showCalendar || clockVertHover.hovered) ? Config.accent : Config.textMain
+                                    font.family: Config.sysFont
+                                    font.weight: Font.Bold
+                                    font.pixelSize: 15
+                                    renderType: Config.textRenderType
+                                    z: vertMinRow.minStr.length - index
+                                    opacity: Math.max(0.82, 0.95 - (index * 0.035))
+
+                                    layer.enabled: true
+                                    layer.effect: DropShadow {
+                                        horizontalOffset: 1
+                                        verticalOffset: 1
+                                        radius: 2
+                                        samples: 8
+                                        color: Qt.rgba(0, 0, 0, 0.35)
+                                    }
+                                }
+                            }
                         }
 
-                        Text {
-                            text: shellRoot.vertAmPm || Qt.formatTime(new Date(), "ap").toLowerCase()
-                            color: Config.accent
-                            font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 12
-                            renderType: Config.textRenderType
+                        // 3. Compact AM/PM Accent Badge
+                        Rectangle {
+                            implicitWidth: apTextVert.implicitWidth + 4
+                            implicitHeight: apTextVert.implicitHeight + 1
+                            radius: 3
+                            color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.18)
+                            border.width: 1
+                            border.color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.35)
                             Layout.alignment: Qt.AlignHCenter
+                            Layout.topMargin: 1
+                            z: 2
+
+                            Text {
+                                id: apTextVert
+                                anchors.centerIn: parent
+                                text: (shellRoot.vertAmPm || Qt.formatTime(new Date(), "ap")).toUpperCase()
+                                color: Config.accent
+                                font.family: Config.sysFont
+                                font.weight: Font.Bold
+                                font.pixelSize: 9
+                                renderType: Config.textRenderType
+                            }
                         }
 
-                        Text {
-                            text: shellRoot.vertMonth || Qt.formatDate(new Date(), "MMM")
-                            color: (Config.showCalendar || clockVertHover.hovered) ? Config.accent : Config.textMuted
-                            font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 12
-                            renderType: Config.textRenderType
+                        // Divider Line
+                        Rectangle {
+                            implicitWidth: 10
+                            implicitHeight: 1
+                            radius: 0.5
+                            color: Qt.rgba(255, 255, 255, 0.15)
                             Layout.alignment: Qt.AlignHCenter
+                            Layout.topMargin: 1
+                            Layout.bottomMargin: 1
                         }
 
-                        Text {
-                            text: shellRoot.vertDay || Qt.formatDate(new Date(), "d")
-                            color: (Config.showCalendar || clockVertHover.hovered) ? Config.accent : Config.textMuted
-                            font.family: Config.sysFont; font.weight: Font.Bold; font.pixelSize: 12
-                            renderType: Config.textRenderType
+                        // 4. Cascading Month Row
+                        Row {
+                            id: vertMonthRow
                             Layout.alignment: Qt.AlignHCenter
+                            spacing: -2
+                            z: 1
+
+                            readonly property string monthStr: shellRoot.vertMonth || Qt.formatDate(new Date(), "MMM")
+
+                            Repeater {
+                                model: vertMonthRow.monthStr.length
+                                Text {
+                                    text: vertMonthRow.monthStr[index]
+                                    color: (Config.showCalendar || clockVertHover.hovered) ? Config.accent : Config.textMuted
+                                    font.family: Config.sysFont
+                                    font.weight: Font.Bold
+                                    font.pixelSize: 11
+                                    renderType: Config.textRenderType
+                                    z: vertMonthRow.monthStr.length - index
+                                    opacity: Math.max(0.85, 1.0 - (index * 0.03))
+                                }
+                            }
+                        }
+
+                        // 5. Cascading Day Row
+                        Row {
+                            id: vertDayRow
+                            Layout.alignment: Qt.AlignHCenter
+                            Layout.topMargin: -2
+                            spacing: -2
+                            z: 0
+
+                            readonly property string dayStr: shellRoot.vertDay || Qt.formatDate(new Date(), "d")
+
+                            Repeater {
+                                model: vertDayRow.dayStr.length
+                                Text {
+                                    text: vertDayRow.dayStr[index]
+                                    color: (Config.showCalendar || clockVertHover.hovered) ? Config.accent : Config.textMuted
+                                    font.family: Config.sysFont
+                                    font.weight: Font.Bold
+                                    font.pixelSize: 11
+                                    renderType: Config.textRenderType
+                                    z: vertDayRow.dayStr.length - index
+                                    opacity: Math.max(0.85, 1.0 - (index * 0.03))
+                                }
+                            }
                         }
                     }
                 }
