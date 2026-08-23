@@ -40,6 +40,7 @@ QtObject {
     property QuoteService quoteService: QuoteService { configRef: root }
     property IrisColorService irisService: IrisColorService { configRef: root }
     property ShaderService shaderService: ShaderService { configRef: root }
+    property MotionService motionService: MotionService {}
 
     // --- RETRO SHADER IPC HANDLER ---
     property IpcHandler shaderIpc: IpcHandler {
