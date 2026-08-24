@@ -14,8 +14,19 @@ Item {
 
     property string activeScreenName: ""
 
-    // Inline Comment: Running client instances on current active display
-    readonly property var activeClients: Hyprland.toplevels.values.filter(c => !activeScreenName || !c.monitor || c.monitor.name === overflowRoot.activeScreenName)
+    // Inline Comment: Every running client, across all workspaces and monitors (not just the
+    // currently-focused workspace). Sorted: active window first, then grouped by workspace.
+    readonly property var activeClients: {
+        let all = Hyprland.toplevels.values.slice()
+        all.sort((a, b) => {
+            if (a.activated !== b.activated) return a.activated ? -1 : 1
+            let wsA = (a.workspace && a.workspace.id !== undefined) ? a.workspace.id : 0
+            let wsB = (b.workspace && b.workspace.id !== undefined) ? b.workspace.id : 0
+            if (wsA !== wsB) return wsA - wsB
+            return (a.title || "").localeCompare(b.title || "")
+        })
+        return all
+    }
 
     implicitWidth: mainLayout.implicitWidth + (cardMargin * 2)
     implicitHeight: mainLayout.implicitHeight + (cardMargin * 2)
@@ -109,6 +120,8 @@ Item {
                             Behavior on color { ColorAnimation { duration: 150 } }
 
                             readonly property string appId: modelData.wayland?.appId || modelData.lastIpcObject?.class || ""
+                            readonly property var wsInfo: modelData.workspace || null
+                            readonly property string wsLabel: wsInfo ? String(wsInfo.name || wsInfo.id || "") : ""
 
                             RowLayout {
                                 anchors.fill: parent
@@ -140,6 +153,24 @@ Item {
                                     font.bold: modelData.activated
                                     elide: Text.ElideRight
                                     Layout.fillWidth: true
+                                }
+
+                                Rectangle {
+                                    visible: parent.parent.wsLabel !== ""
+                                    implicitWidth: wsLabelText.implicitWidth + 10
+                                    implicitHeight: 16
+                                    radius: 8
+                                    color: Qt.rgba(255, 255, 255, 0.08)
+
+                                    Text {
+                                        id: wsLabelText
+                                        anchors.centerIn: parent
+                                        text: parent.parent.parent.wsLabel
+                                        color: Config.textMuted
+                                        font.family: Config.sysFont
+                                        font.pixelSize: 9
+                                        font.bold: true
+                                    }
                                 }
                             }
 
