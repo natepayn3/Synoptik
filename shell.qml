@@ -560,4 +560,13 @@ ShellRoot {
             visible: (Config.showDesktopSysInfo !== false) && (modelData ? (Config.isSysInfoEnabledForScreen ? Config.isSysInfoEnabledForScreen(modelData.name) : true) : true)
         }
     }
+    Variants {
+        model: Quickshell.screens
+
+        delegate: CavaWidget {
+            required property var modelData
+            screen: modelData
+            visible: Config.showDesktopCava && (modelData ? Config.isCavaEnabledForScreen(modelData.name) : true)
+        }
+    }
 }
