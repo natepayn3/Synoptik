@@ -41,6 +41,7 @@ QtObject {
     property IrisColorService irisService: IrisColorService { configRef: root }
     property ShaderService shaderService: ShaderService { configRef: root }
     property MotionService motionService: MotionService {}
+    property CavaService cavaService: CavaService { configRef: root }
 
     // --- RETRO SHADER IPC HANDLER ---
     property IpcHandler shaderIpc: IpcHandler {
@@ -737,6 +738,113 @@ QtObject {
     onSysInfoShowBgChanged: { if (isLoaded) saveSettings() }
     onSysInfoShowGlowChanged: { if (isLoaded) saveSettings() }
     onSysInfoRefreshIntervalChanged: { if (isLoaded) saveSettings() }
+
+    // --- CAVA AUDIO VISUALIZER STATE & PERSISTENCE ---
+    property bool showDesktopCava: false
+    property string cavaStyle: "bars"          // "bars" | "mirrored" | "wave" | "radial"
+    property string cavaColorMode: "accent"    // "accent" | "gradient" | "rainbow" | "solid"
+    property string cavaGradientStart: "#7c3aed"
+    property string cavaGradientEnd: "#22d3ee"
+    property string cavaSolidColor: "#94a3b8"
+    property real cavaRainbowSpeed: 12.0
+
+    property int cavaBars: 40
+    property int cavaFramerate: 60
+    property int cavaSensitivity: 100
+    property real cavaSmoothing: 0.77
+
+    property real cavaBarWidth: 6.0
+    property real cavaBarGap: 3.0
+    property real cavaBarRadius: 2.0
+    property real cavaMaxHeight: 140.0
+    property real cavaRingRadius: 90.0
+
+    property bool cavaShowGlow: true
+    property bool cavaShowBackground: true
+    property bool cavaShowBorder: true
+
+    // Rotation is controlled directly on the widget (click it to reveal rotate
+    // buttons), not from the Settings page -- still persisted like position/scale.
+    property int cavaRotation: 0
+
+    function rotateCava(direction) {
+        // Deliberately left unbounded (not wrapped mod 360) so the widget's rotation
+        // Behavior always animates the short way around instead of spinning back
+        // through the whole circle when crossing the 0/360 boundary.
+        cavaRotation += direction === "cw" ? 90 : -90
+    }
+
+    property var cavaPositions: ({})
+    property var cavaScales: ({})
+    property var enabledCavaScreens: []
+
+    function getCavaPosition(screenName, defaultX, defaultY) {
+        if (cavaPositions && cavaPositions[screenName]) {
+            return cavaPositions[screenName]
+        }
+        return { x: defaultX, y: defaultY }
+    }
+
+    function saveCavaPosition(screenName, x, y) {
+        let current = Object.assign({}, cavaPositions)
+        current[screenName] = { x: x, y: y }
+        cavaPositions = current
+        saveSettings()
+    }
+
+    function getCavaScale(screenName) {
+        if (cavaScales && cavaScales[screenName] !== undefined) {
+            return cavaScales[screenName]
+        }
+        return 1.0
+    }
+
+    function saveCavaScale(screenName, scale) {
+        let current = Object.assign({}, cavaScales)
+        current[screenName] = scale
+        cavaScales = current
+        saveSettings()
+    }
+
+    function isCavaEnabledForScreen(screenName) {
+        if (!enabledCavaScreens || enabledCavaScreens.length === 0) return true
+        return enabledCavaScreens.includes(screenName)
+    }
+
+    function toggleCavaScreen(screenName) {
+        let current = (enabledCavaScreens || []).slice()
+        let idx = current.indexOf(screenName)
+        if (idx !== -1) {
+            current.splice(idx, 1)
+        } else {
+            current.push(screenName)
+        }
+        enabledCavaScreens = current
+        saveSettings()
+    }
+
+    onShowDesktopCavaChanged: { if (isLoaded) saveSettings() }
+    onCavaStyleChanged: { if (isLoaded) saveSettings() }
+    onCavaColorModeChanged: { if (isLoaded) saveSettings() }
+    onCavaGradientStartChanged: { if (isLoaded) saveSettings() }
+    onCavaGradientEndChanged: { if (isLoaded) saveSettings() }
+    onCavaSolidColorChanged: { if (isLoaded) saveSettings() }
+    onCavaRainbowSpeedChanged: { if (isLoaded) saveSettings() }
+    onCavaBarWidthChanged: { if (isLoaded) saveSettings() }
+    onCavaBarGapChanged: { if (isLoaded) saveSettings() }
+    onCavaBarRadiusChanged: { if (isLoaded) saveSettings() }
+    onCavaMaxHeightChanged: { if (isLoaded) saveSettings() }
+    onCavaRingRadiusChanged: { if (isLoaded) saveSettings() }
+    onCavaShowGlowChanged: { if (isLoaded) saveSettings() }
+    onCavaShowBackgroundChanged: { if (isLoaded) saveSettings() }
+    onCavaShowBorderChanged: { if (isLoaded) saveSettings() }
+    onCavaRotationChanged: { if (isLoaded) saveSettings() }
+
+    // These require the cava subprocess itself to be restarted with a new config
+    onCavaBarsChanged: { if (isLoaded) { saveSettings(); cavaService.requestRestart() } }
+    onCavaFramerateChanged: { if (isLoaded) { saveSettings(); cavaService.requestRestart() } }
+    onCavaSensitivityChanged: { if (isLoaded) { saveSettings(); cavaService.requestRestart() } }
+    onCavaSmoothingChanged: { if (isLoaded) { saveSettings(); cavaService.requestRestart() } }
 
     // --- WALLPAPER CONFIG STATE & PERSISTENCE ---
     property var selectedWallpaperMonitors: []
@@ -1569,6 +1677,30 @@ QtObject {
                 "sysInfoScales": root.sysInfoScales,
                 "enabledSysInfoScreens": root.enabledSysInfoScreens,
 
+                "showDesktopCava": root.showDesktopCava,
+                "cavaStyle": root.cavaStyle,
+                "cavaColorMode": root.cavaColorMode,
+                "cavaGradientStart": root.cavaGradientStart,
+                "cavaGradientEnd": root.cavaGradientEnd,
+                "cavaSolidColor": root.cavaSolidColor,
+                "cavaRainbowSpeed": root.cavaRainbowSpeed,
+                "cavaBars": root.cavaBars,
+                "cavaFramerate": root.cavaFramerate,
+                "cavaSensitivity": root.cavaSensitivity,
+                "cavaSmoothing": root.cavaSmoothing,
+                "cavaBarWidth": root.cavaBarWidth,
+                "cavaBarGap": root.cavaBarGap,
+                "cavaBarRadius": root.cavaBarRadius,
+                "cavaMaxHeight": root.cavaMaxHeight,
+                "cavaRingRadius": root.cavaRingRadius,
+                "cavaShowGlow": root.cavaShowGlow,
+                "cavaShowBackground": root.cavaShowBackground,
+                "cavaShowBorder": root.cavaShowBorder,
+                "cavaRotation": root.cavaRotation,
+                "cavaPositions": root.cavaPositions,
+                "cavaScales": root.cavaScales,
+                "enabledCavaScreens": root.enabledCavaScreens,
+
                 "lockscreenBlurRadius": root.lockscreenBlurRadius,
                 "lockscreenShowMedia": root.lockscreenShowMedia,
                 "lockscreenShowPower": root.lockscreenShowPower,
@@ -1636,6 +1768,11 @@ QtObject {
                             "sysInfoShowRam", "sysInfoShowSwap", "sysInfoShowDisk", "sysInfoShowDiskHome",
                             "sysInfoShowBg", "sysInfoShowGlow", "sysInfoRefreshInterval",
                             "sysInfoPositions", "sysInfoScales", "enabledSysInfoScreens",
+                            "showDesktopCava", "cavaStyle", "cavaColorMode", "cavaGradientStart", "cavaGradientEnd",
+                            "cavaSolidColor", "cavaRainbowSpeed", "cavaBars", "cavaFramerate", "cavaSensitivity",
+                            "cavaSmoothing", "cavaBarWidth", "cavaBarGap", "cavaBarRadius", "cavaMaxHeight", "cavaRingRadius",
+                            "cavaShowGlow", "cavaShowBackground", "cavaShowBorder", "cavaRotation",
+                            "cavaPositions", "cavaScales", "enabledCavaScreens",
                             "lockscreenBlurRadius", "lockscreenShowMedia", "lockscreenShowPower", "lockscreenMaskStyle", "lockscreenShapePalette",
                             "lockscreenUse12Hour", "lockscreenShowSeconds", "lockscreenShowAmPm", "lockscreenDateFormat", "lockscreenClockSize", "lockscreenTargetMonitor",
                             "workspaceStyle", "workspaceGlow", "workspaceScroll", "workspaceTooltips", "workspaceShowAddBtn", "workspaceShowOverviewBtn", "workspaceShowSpecial", "workspaceContainerStyle",
