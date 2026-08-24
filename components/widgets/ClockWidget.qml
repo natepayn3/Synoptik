@@ -22,7 +22,7 @@ PanelWindow {
     }
 
     color: "transparent"
-    exclusiveZone: 0
+    exclusiveZone: -1
 
     // Bind region directly to the clock container item
     mask: Region { item: clockContainer }

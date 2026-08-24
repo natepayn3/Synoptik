@@ -23,7 +23,7 @@ PanelWindow {
     }
 
     color: "transparent"
-    exclusiveZone: 0
+    exclusiveZone: -1
 
     mask: Region { item: infoContainer }
 
