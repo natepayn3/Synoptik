@@ -34,7 +34,11 @@ Rectangle {
     readonly property string winTitle: activeClient ? (activeClient.title || appId || "") : ""
     readonly property bool hasWindow: activeClient !== null && winTitle !== ""
 
-    visible: hasWindow
+    // Media takes over the card whenever mpris reports something playing (Fix: media card in bar)
+    readonly property bool mediaPlaying: (typeof shellRoot !== "undefined") && shellRoot.mediaPlaying
+    readonly property string displayTitle: mediaPlaying ? shellRoot.mediaTitle : winTitle
+
+    visible: hasWindow || mediaPlaying
 
     signal popoutRequested(var item)
 
@@ -90,6 +94,7 @@ Rectangle {
 
         IconImage {
             id: iconHoriz
+            visible: !activeWinCard.mediaPlaying
             Layout.preferredWidth: 20
             Layout.preferredHeight: 20
             Layout.alignment: activeWinCard.width <= 44 ? Qt.AlignCenter : Qt.AlignVCenter
@@ -105,6 +110,14 @@ Rectangle {
             }
         }
 
+        MiniCavaWave {
+            id: waveHoriz
+            visible: activeWinCard.mediaPlaying
+            Layout.preferredWidth: 20
+            Layout.fillHeight: true
+            Layout.alignment: activeWinCard.width <= 44 ? Qt.AlignCenter : Qt.AlignVCenter
+        }
+
         Item {
             id: tickerBoxHoriz
             visible: activeWinCard.width > 50
@@ -118,7 +131,7 @@ Rectangle {
             Text {
                 id: titleTextHoriz
                 anchors.verticalCenter: parent.verticalCenter
-                text: activeWinCard.winTitle
+                text: activeWinCard.displayTitle
                 color: Config.textMain
                 font.family: Config.sysFont
                 font.pixelSize: Config.size(Config.fontCaption)
@@ -162,6 +175,7 @@ Rectangle {
 
         IconImage {
             id: iconVert
+            visible: !activeWinCard.mediaPlaying
             Layout.row: activeWinCard.barPos === "left" ? 1 : 0
             Layout.preferredWidth: 20
             Layout.preferredHeight: 20
@@ -176,6 +190,15 @@ Rectangle {
                 }
                 return Quickshell.iconPath(activeWinCard.appId, true) || Quickshell.iconPath("application-x-executable", true)
             }
+        }
+
+        MiniCavaWave {
+            id: waveVert
+            visible: activeWinCard.mediaPlaying
+            Layout.row: activeWinCard.barPos === "left" ? 1 : 0
+            Layout.preferredWidth: 20
+            Layout.preferredHeight: 20
+            Layout.alignment: activeWinCard.height <= 44 ? Qt.AlignCenter : Qt.AlignHCenter
         }
 
         Item {
@@ -207,7 +230,7 @@ Rectangle {
 
             Text {
                 id: titleTextVert
-                text: activeWinCard.winTitle
+                text: activeWinCard.displayTitle
                 color: Config.textMain
                 font.family: Config.sysFont
                 font.pixelSize: Config.size(Config.fontCaption)
