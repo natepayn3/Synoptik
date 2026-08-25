@@ -7,7 +7,12 @@ import ".."
 Item {
     id: waveRoot
 
-    readonly property var bars: (typeof shellRoot !== "undefined" && shellRoot.cavaBars) ? shellRoot.cavaBars : []
+    // Passed in explicitly by the parent (e.g. shellRootRef: shellRoot) since a bare
+    // "shellRoot" id from the root shell file does not resolve across separate QML
+    // documents - it's only visible within the file that declares it.
+    property var shellRootRef: (typeof shellRoot !== "undefined") ? shellRoot : null
+
+    readonly property var bars: (waveRoot.shellRootRef && waveRoot.shellRootRef.cavaBars) ? waveRoot.shellRootRef.cavaBars : []
     readonly property int sampleCount: 12
     readonly property real amplitudeScale: 0.85
 
@@ -37,7 +42,7 @@ Item {
 
             for (var i = 0; i < n; i++) {
                 var idx = Math.floor((i / (n - 1)) * (arr.length - 1))
-                var v = Math.max(0, Math.min(1, (arr[idx] || 0) / 255))
+                var v = Math.max(0, Math.min(1, arr[idx] || 0))
                 var x = (i / (n - 1)) * width
                 var amp = v * maxAmp
                 top.push({ x: x, y: midY - amp })
