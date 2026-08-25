@@ -163,7 +163,7 @@ skip_dirs = {".git", "node_modules", ".cache", ".npm", ".cargo", ".rustup", ".lo
 results = []
 
 for root, dirs, files in os.walk(home):
-    dirs[:] = [d for d in dirs if not d.startswith(".") and d not in skip_dirs]
+    dirs[:] = [d for d in dirs if d not in skip_dirs]
     for name in files:
         if query in name.lower():
             results.append(os.path.join(root, name))
