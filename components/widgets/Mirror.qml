@@ -40,11 +40,17 @@ Item {
         if (Config.mirrorCaptureSession) {
             Config.mirrorCaptureSession.videoOutput = localOutput
             if (Config.mirrorCaptureSession.camera) {
-                Config.mirrorCaptureSession.camera.active = mirrorRoot.visible && Config.showMirror
-            }
-            if (typeof Config.mirrorLoading !== "undefined") {
-                Config.mirrorLoading = false
-                Config.mirrorError = ""
+                if (mirrorRoot.visible && Config.showMirror) {
+                    // Deferred so this (potentially slow) hardware open never blocks
+                    // the popout's opening animation or the loading overlay's first frame.
+                    Qt.callLater(() => {
+                        if (Config.mirrorCaptureSession && Config.mirrorCaptureSession.camera) {
+                            Config.mirrorCaptureSession.camera.active = true
+                        }
+                    })
+                } else if (Config.mirrorCaptureSession.camera.active) {
+                    Config.mirrorCaptureSession.camera.active = false
+                }
             }
         }
     }
@@ -60,8 +66,15 @@ Item {
             mirrorRoot.attachSession()
         }
         function onShowMirrorChanged() {
-            if (Config.mirrorCaptureSession && Config.mirrorCaptureSession.camera) {
-                Config.mirrorCaptureSession.camera.active = Config.showMirror
+            if (!Config.mirrorCaptureSession || !Config.mirrorCaptureSession.camera) return
+            if (Config.showMirror) {
+                Qt.callLater(() => {
+                    if (Config.mirrorCaptureSession && Config.mirrorCaptureSession.camera) {
+                        Config.mirrorCaptureSession.camera.active = true
+                    }
+                })
+            } else {
+                Config.mirrorCaptureSession.camera.active = false
             }
         }
     }
