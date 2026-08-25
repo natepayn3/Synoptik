@@ -19,10 +19,13 @@ Item {
 
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
-    property string mediaTitle: "Not Playing"
-    property string mediaArtist: "---"
-    property string mediaStatus: "Stopped"
-    property string mediaArtUrl: ""
+    // Bound to shellRoot's always-on playerctl follower (shell.qml) rather than
+    // owning a separate Process here, so state stays fresh even while this
+    // card isn't visible and matches what the bar's ActiveWindowCard shows.
+    readonly property string mediaTitle: (typeof shellRoot !== "undefined" && shellRoot.mediaTitle) ? shellRoot.mediaTitle : "Not Playing"
+    readonly property string mediaArtist: (typeof shellRoot !== "undefined" && shellRoot.mediaArtist) ? shellRoot.mediaArtist : "---"
+    readonly property string mediaStatus: (typeof shellRoot !== "undefined" && shellRoot.mediaStatus) ? shellRoot.mediaStatus : "Stopped"
+    readonly property string mediaArtUrl: (typeof shellRoot !== "undefined" && shellRoot.mediaArtUrl) ? shellRoot.mediaArtUrl : ""
     property var cavaBars: []
 
     // Progress State

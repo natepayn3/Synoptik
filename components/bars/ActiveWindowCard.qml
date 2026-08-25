@@ -35,7 +35,7 @@ Rectangle {
     readonly property bool hasWindow: activeClient !== null && winTitle !== ""
 
     // Media takes over the card whenever mpris reports something playing (Fix: media card in bar)
-    readonly property bool mediaPlaying: (typeof shellRoot !== "undefined") && shellRoot.mediaPlaying
+    readonly property bool mediaPlaying: (typeof shellRoot !== "undefined") && shellRoot.mediaPlaying === true
     readonly property string displayTitle: mediaPlaying ? shellRoot.mediaTitle : winTitle
 
     visible: hasWindow || mediaPlaying

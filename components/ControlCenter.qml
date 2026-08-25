@@ -508,35 +508,6 @@ Item {
     Process { id: mediaControlProc; running: false }
 
     Process {
-        id: mediaFollower
-        command: ["playerctl", "--player=%any,playerctld", "--follow", "--format", '{"title": "{{title}}", "artist": "{{artist}}", "status": "{{status}}", "art": "{{mpris:artUrl}}"}', "metadata"]
-        running: Config.showControlCenter
-        stdout: SplitParser {
-            onRead: (data) => {
-                try {
-                    let parsed = JSON.parse(data.trim());
-                    if (parsed.status === "Stopped" || !parsed.title || parsed.title.trim() === "") {
-                        mediaCardComponent.mediaTitle = "Not Playing";
-                        mediaCardComponent.mediaArtist = "---"; 
-                        mediaCardComponent.mediaStatus = "Stopped";
-                        mediaCardComponent.mediaArtUrl = "";
-                    } else {
-                        mediaCardComponent.mediaTitle = parsed.title;
-                        mediaCardComponent.mediaArtist = parsed.artist || "Unknown Artist";
-                        mediaCardComponent.mediaStatus = parsed.status;
-                        mediaCardComponent.mediaArtUrl = parsed.art || "";
-                    }
-                } catch(e) {
-                    mediaCardComponent.mediaTitle = "Not Playing";
-                    mediaCardComponent.mediaArtist = "---";
-                    mediaCardComponent.mediaStatus = "Stopped";
-                    mediaCardComponent.mediaArtUrl = "";
-                }
-            }
-        }
-    }
-
-    Process {
         id: cavaProc
         command: ["fish", "-c", "printf '[general]\\nbars = 32\\nsensitivity = 150\\n[output]\\nmethod = raw\\ndata_format = ascii\\nascii_max_range = 255\\nbar_delimiter = 59\\nframe_delimiter = 10\\n' | cava -p /dev/stdin"]
         running: Config.showControlCenter && mediaCardComponent.mediaStatus === "Playing"

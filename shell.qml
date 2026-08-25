@@ -252,6 +252,45 @@ ShellRoot {
         }
     }
 
+    // --- 6. MEDIA / MPRIS TELEMETRY (Event-driven via playerctl --follow) ---
+    // Runs continuously (not gated on Control Center being open) so the bar's
+    // ActiveWindowCard can reflect "now playing" at all times. MediaCard binds
+    // to these same properties instead of running its own separate follower.
+    property string mediaTitle: ""
+    property string mediaArtist: ""
+    property string mediaStatus: "Stopped"
+    property string mediaArtUrl: ""
+    readonly property bool mediaPlaying: mediaStatus === "Playing"
+
+    Process {
+        id: mediaFollowerProc
+        command: ["playerctl", "--player=%any,playerctld", "--follow", "--format", '{"title": "{{title}}", "artist": "{{artist}}", "status": "{{status}}", "art": "{{mpris:artUrl}}"}', "metadata"]
+        running: true
+        stdout: SplitParser {
+            onRead: (data) => {
+                try {
+                    let parsed = JSON.parse(data.trim());
+                    if (parsed.status === "Stopped" || !parsed.title || parsed.title.trim() === "") {
+                        shellRoot.mediaTitle = "";
+                        shellRoot.mediaArtist = "";
+                        shellRoot.mediaStatus = "Stopped";
+                        shellRoot.mediaArtUrl = "";
+                    } else {
+                        shellRoot.mediaTitle = parsed.title;
+                        shellRoot.mediaArtist = parsed.artist || "Unknown Artist";
+                        shellRoot.mediaStatus = parsed.status;
+                        shellRoot.mediaArtUrl = parsed.art || "";
+                    }
+                } catch(e) {
+                    shellRoot.mediaTitle = "";
+                    shellRoot.mediaArtist = "";
+                    shellRoot.mediaStatus = "Stopped";
+                    shellRoot.mediaArtUrl = "";
+                }
+            }
+        }
+    }
+
     // Fallback sync check (relaxed to 60s since monitors handle real-time events)
     Timer {
         interval: 60000
@@ -262,6 +301,7 @@ ShellRoot {
             btStateProc.running = false; btStateProc.running = true
             vpnStateProc.running = false; vpnStateProc.running = true
             recordStatusProc.running = false; recordStatusProc.running = true
+            mediaFollowerProc.running = false; mediaFollowerProc.running = true
         }
     }
 
