@@ -9,31 +9,41 @@ import "services"
 QtObject {
     id: root
 
-    // --- WALLHAVEN INTEGRATION ---
-    property string wallhavenUsername: ""
-    property string wallhavenApiKey: ""
+    // --- WALLPAPER (extracted to services/WallpaperConfig.qml) ---
+    property WallpaperConfig wallpaper: WallpaperConfig { configRef: root }
+    property alias wallhavenUsername: root.wallpaper.wallhavenUsername
+    property alias wallhavenApiKey: root.wallpaper.wallhavenApiKey
+    property alias selectedWallpaperMonitors: root.wallpaper.selectedWallpaperMonitors
+    property alias wallpaperTransitionType: root.wallpaper.wallpaperTransitionType
+    property alias activeWallpaperPath: root.wallpaper.activeWallpaperPath
+    property alias activeMonitorWallpapers: root.wallpaper.activeMonitorWallpapers
+    property alias enableWallpaperParallax: root.wallpaper.enableWallpaperParallax
+    property alias wallpaperWorkspaceParallax: root.wallpaper.wallpaperWorkspaceParallax
+    property alias wallpaperCursorParallax: root.wallpaper.wallpaperCursorParallax
+    property alias wallpaperParallaxIntensity: root.wallpaper.wallpaperParallaxIntensity
+    property alias wallpaperQuerier: root.wallpaper.wallpaperQuerier
+    property alias slideshowActive: root.wallpaper.slideshowActive
+    property alias slideshowMinutes: root.wallpaper.slideshowMinutes
+    property alias wallpapers: root.wallpaper.wallpapers
+    property alias tempPaths: root.wallpaper.tempPaths
+    function getMonitorWallpaper(screenName) { return wallpaper.getMonitorWallpaper(screenName) }
+    function refreshActiveWallpapers() { wallpaper.refreshActiveWallpapers() }
+    function triggerRandomWallpaperBackground() { wallpaper.triggerRandomWallpaperBackground() }
+    function applyWallpaperBackend(filePath, activeOnly) { wallpaper.applyWallpaperBackend(filePath, activeOnly) }
+    function toggleWallpaperMonitor(screenName) { wallpaper.toggleWallpaperMonitor(screenName) }
+    function refreshWallpapers() { wallpaper.refreshWallpapers() }
 
-    onWallhavenUsernameChanged: { if (isLoaded) saveSettings() }
-    onWallhavenApiKeyChanged: { if (isLoaded) saveSettings() }
-
-    // --- RETRO SCREEN SHADER STATE & PERSISTENCE ---
-    property bool pixelShaderEnabled: false
-    property string pixelShaderMode: "pixelate"
-    property real pixelShaderSize: 2.0
-    property real pixelShaderLevels: 32.0
-    property string pixelShaderPalette: "default"
-    property bool pixelShaderDither: true
-    property bool pixelShaderGrid: false
-    property bool pixelShaderBoost: true
-
-    onPixelShaderEnabledChanged: { if (isLoaded) { saveSettings(); updateShader() } }
-    onPixelShaderModeChanged: { if (isLoaded) { saveSettings(); updateShader() } }
-    onPixelShaderSizeChanged: { if (isLoaded) { saveSettings(); updateShader() } }
-    onPixelShaderLevelsChanged: { if (isLoaded) { saveSettings(); updateShader() } }
-    onPixelShaderPaletteChanged: { if (isLoaded) { saveSettings(); updateShader() } }
-    onPixelShaderDitherChanged: { if (isLoaded) { saveSettings(); updateShader() } }
-    onPixelShaderGridChanged: { if (isLoaded) { saveSettings(); updateShader() } }
-    onPixelShaderBoostChanged: { if (isLoaded) { saveSettings(); updateShader() } }
+    // --- RETRO SCREEN SHADER STATE & PERSISTENCE (extracted to services/PixelShaderConfig.qml) ---
+    property PixelShaderConfig pixelShaderConfig: PixelShaderConfig { configRef: root }
+    property alias pixelShaderEnabled: root.pixelShaderConfig.pixelShaderEnabled
+    property alias pixelShaderMode: root.pixelShaderConfig.pixelShaderMode
+    property alias pixelShaderSize: root.pixelShaderConfig.pixelShaderSize
+    property alias pixelShaderLevels: root.pixelShaderConfig.pixelShaderLevels
+    property alias pixelShaderPalette: root.pixelShaderConfig.pixelShaderPalette
+    property alias pixelShaderDither: root.pixelShaderConfig.pixelShaderDither
+    property alias pixelShaderGrid: root.pixelShaderConfig.pixelShaderGrid
+    property alias pixelShaderBoost: root.pixelShaderConfig.pixelShaderBoost
+    function updateShader() { pixelShaderConfig.updateShader() }
 
     // --- EXTRACTED BACKGROUND SERVICES ---
     property WallpaperService wallpaperService: WallpaperService { configRef: root }
@@ -43,145 +53,22 @@ QtObject {
     property MotionService motionService: MotionService {}
     property CavaService cavaService: CavaService { configRef: root }
 
-    // --- RETRO SHADER IPC HANDLER ---
-    property IpcHandler shaderIpc: IpcHandler {
-        target: "shader"
-
-        function toggle() {
-            root.pixelShaderEnabled = !root.pixelShaderEnabled
-            root.updateShader()
-        }
-    }
-
-    // Debounce timer for shader updates
-    property Timer shaderDebounce: Timer {
-        interval: 200
-        repeat: false
-        onTriggered: shaderService.updateShader()
-    }
-
-    function updateShader() {
-        if (!isLoaded) return
-        saveSettings()
-        shaderDebounce.restart()
-    }
-
     property bool showTaskOverflow: false
 
-    // --- CAMERA / MIRROR (LAZY LOADED) ---
-    property bool showMirror: false
-    property bool mirrorShowPanel: true
-    property bool mirrorMirrored: true
-    property bool mirrorKeepAspect: true
-    property bool mirrorExpanded: false
-    property bool mirrorPinned: false
-    property string mirrorAnchorPos: "center"
-    property bool mirrorLoading: false
-    property string mirrorError: ""
-
-    // Lazy load the QtMultimedia backend only when mirror is visible
-    property Loader mirrorLoader: Loader {
-        id: mirrorLoader
-        active: root.showMirror
-
-        sourceComponent: Component {
-            QtObject {
-                id: mirrorBackend
-
-                property MediaDevices mediaDevices: MediaDevices {}
-
-                property CaptureSession captureSession: CaptureSession {
-                    id: globalMirrorCaptureSession
-                    camera: Camera {
-                        id: globalMirrorCamera
-                        cameraDevice: mirrorBackend.mediaDevices.defaultVideoInput
-                        active: true
-
-                        onActiveChanged: {
-                            if (active) {
-                                root.mirrorLoading = false
-                                root.mirrorError = ""
-                            }
-                        }
-
-                        function applyRawFormat() {
-                            if (!cameraDevice) {
-                                root.mirrorLoading = false
-                                root.mirrorError = "No camera device found"
-                                return
-                            }
-                            let formats = cameraDevice.videoFormats
-                            if (formats && formats.length > 0) {
-                                let bestFormat = undefined
-                                let bestScore = -1
-                                for (let i = 0; i < formats.length; ++i) {
-                                    let f = formats[i]
-                                    let fpsTarget = Math.min(f.maxFrameRate, 30)
-                                    let width = f.resolution.width
-                                    let widthScore = width <= 1280 ? width : (1280 - (width - 1280)) 
-                                    let score = (fpsTarget * 10000) + widthScore
-                                    if (score > bestScore) {
-                                        bestScore = score
-                                        bestFormat = f
-                                    }
-                                }
-                                if (bestFormat) cameraFormat = bestFormat
-                            }
-                        }
-
-                        Component.onCompleted: applyRawFormat()
-                    }
-                }
-
-                property Connections deviceWatcher: Connections {
-                    target: mirrorBackend.mediaDevices
-                    function onDefaultVideoInputChanged() {
-                        if (mirrorBackend.mediaDevices.defaultVideoInput) {
-                            root.mirrorError = ""
-                            mirrorBackend.captureSession.camera.applyRawFormat()
-                        } else {
-                            root.mirrorLoading = false
-                            root.mirrorError = "No camera device found"
-                        }
-                    }
-                }
-            }
-        }
-
-        onActiveChanged: {
-            if (active) {
-                root.mirrorLoading = true
-                root.mirrorError = ""
-            } else {
-                root.mirrorLoading = false
-                root.mirrorError = ""
-            }
-        }
-    }
-
-    // Accessors for external consumers
-    readonly property CaptureSession mirrorCaptureSession: mirrorLoader.item ? mirrorLoader.item.captureSession : null
-    readonly property MediaDevices mirrorMediaDevices: mirrorLoader.item ? mirrorLoader.item.mediaDevices : null
-
-    function cycleMirrorAnchor(direction) {
-        if (direction === "up" || direction === "left" || direction === "prev") {
-            if (mirrorAnchorPos === "bottom") mirrorAnchorPos = "center"
-            else if (mirrorAnchorPos === "center") mirrorAnchorPos = "top"
-            else mirrorAnchorPos = "bottom"
-        } else if (direction === "down" || direction === "right" || direction === "next") {
-            if (mirrorAnchorPos === "top") mirrorAnchorPos = "center"
-            else if (mirrorAnchorPos === "center") mirrorAnchorPos = "bottom"
-            else mirrorAnchorPos = "top"
-        }
-    }
-
-    onShowMirrorChanged: { if (isLoaded) saveSettings() }
-    onMirrorShowPanelChanged: { if (isLoaded) saveSettings() }
-    onMirrorMirroredChanged: { if (isLoaded) saveSettings() }
-    onMirrorKeepAspectChanged: { if (isLoaded) saveSettings() }
-    onMirrorExpandedChanged: { if (isLoaded) saveSettings() }
-    onMirrorPinnedChanged: { if (isLoaded) saveSettings() }
-    onMirrorAnchorPosChanged: { if (isLoaded) saveSettings() }
+    // --- CAMERA / MIRROR (extracted to services/MirrorConfig.qml) ---
+    property MirrorConfig mirror: MirrorConfig { configRef: root }
+    property alias showMirror: root.mirror.showMirror
+    property alias mirrorShowPanel: root.mirror.mirrorShowPanel
+    property alias mirrorMirrored: root.mirror.mirrorMirrored
+    property alias mirrorKeepAspect: root.mirror.mirrorKeepAspect
+    property alias mirrorExpanded: root.mirror.mirrorExpanded
+    property alias mirrorPinned: root.mirror.mirrorPinned
+    property alias mirrorAnchorPos: root.mirror.mirrorAnchorPos
+    property alias mirrorLoading: root.mirror.mirrorLoading
+    property alias mirrorError: root.mirror.mirrorError
+    readonly property alias mirrorCaptureSession: root.mirror.mirrorCaptureSession
+    readonly property alias mirrorMediaDevices: root.mirror.mirrorMediaDevices
+    function cycleMirrorAnchor(direction) { mirror.cycleMirrorAnchor(direction) }
 
     // --- INITIALIZATION GUARD ---
     property bool isLoaded: false
@@ -209,336 +96,75 @@ QtObject {
     property int lastSettingsSection: 0
     onLastSettingsSectionChanged: { if (isLoaded) saveSettings() }
 
-    // --- SHELL KEYBIND CUSTOMIZATION (SUPER EXCLUSIVE) ---
-    readonly property var defaultKeybinds: ({
-        "wallpaper":         { mod: "SUPER",         key: "B",     cmd: "qs -c Synoptik ipc call wallpaper toggle" },
-        "launcher":          { mod: "SUPER",         key: "A",     cmd: "qs -c Synoptik ipc call launcher toggle" },
-        "launcherosd":       { mod: "SUPER",         key: "F",     cmd: "qs -c Synoptik ipc call launcherosd toggle" },
-        "settings":          { mod: "SUPER",         key: "Space", cmd: "qs -c Synoptik ipc call settings toggle" },
-        "workspaceoverview": { mod: "SUPER",         key: "TAB",   cmd: "qs -c Synoptik ipc call workspaceoverview toggle" },
-        "clipboard":         { mod: "SUPER + SHIFT", key: "V",     cmd: "qs -c Synoptik ipc call clipboard toggle" },
-        "lockscreen":        { mod: "SUPER",         key: "L",     cmd: "qs -c Synoptik ipc call lockscreen toggle" },
-        "shader":            { mod: "CTRL + ALT",    key: "P",     cmd: "qs -c Synoptik ipc call shader toggle" }
-    })
+    // --- SHELL KEYBIND CUSTOMIZATION (extracted to services/KeybindsConfig.qml) ---
+    property KeybindsConfig keybindsConfig: KeybindsConfig { configRef: root }
+    readonly property alias defaultKeybinds: root.keybindsConfig.defaultKeybinds
+    property alias keybinds: root.keybindsConfig.keybinds
+    function updateKeybind(action, mod, key) { keybindsConfig.updateKeybind(action, mod, key) }
+    function resetKeybinds() { keybindsConfig.resetKeybinds() }
 
-    property var keybinds: Object.assign({}, defaultKeybinds)
+    // --- SYSTEM SOUNDS CONFIGURATION (extracted to services/SoundsConfig.qml) ---
+    property SoundsConfig sounds: SoundsConfig { configRef: root }
+    property alias playWindowSounds: root.sounds.playWindowSounds
+    property alias playNotificationSounds: root.sounds.playNotificationSounds
+    property alias windowSoundPath: root.sounds.windowSoundPath
+    property alias notificationSoundPath: root.sounds.notificationSoundPath
+    property alias windowSoundVolume: root.sounds.windowSoundVolume
 
-    function updateKeybind(action, mod, key) {
-        let current = Object.assign({}, keybinds)
-        let defaultCmd = defaultKeybinds[action] ? defaultKeybinds[action].cmd : ""
-        let existingCmd = current[action] ? current[action].cmd : defaultCmd
-
-        current[action] = { 
-            mod: mod, 
-            key: key, 
-            cmd: existingCmd 
-        }
-        
-        keybinds = current
-        syncHyprlandBorders()
-        saveSettings()
-    }
-
-    function resetKeybinds() {
-        keybinds = Object.assign({}, defaultKeybinds)
-        syncHyprlandBorders()
-        saveSettings()
-    }
-
-    // --- SYSTEM SOUNDS CONFIGURATION ---
-    property bool playWindowSounds: true
-    property bool playNotificationSounds: true
-    property string windowSoundPath: "sound1.wav"
-    property string notificationSoundPath: "sound1.wav"
-    property real windowSoundVolume: 0.25
-
-    onPlayWindowSoundsChanged: { if (isLoaded) saveSettings() }
-    onPlayNotificationSoundsChanged: { if (isLoaded) saveSettings() }
-    onWindowSoundPathChanged: { if (isLoaded) saveSettings() }
-    onNotificationSoundPathChanged: { if (isLoaded) saveSettings() }
-    onWindowSoundVolumeChanged: { if (isLoaded) saveSettings() }
-
-    // --- LOCKSCREEN CONFIGURATION ---
+    // --- LOCKSCREEN STATE ---
     property bool sessionLocked: false
-    property real lockscreenBlurRadius: 36
-    property bool lockscreenShowMedia: true
-    property bool lockscreenShowPower: true
-    property string lockscreenMaskStyle: "shapes"
-    property string lockscreenShapePalette: "vibrant"
-    property bool lockscreenUse12Hour: true
-    property bool lockscreenShowSeconds: false
-    property bool lockscreenShowAmPm: true
-    property string lockscreenDateFormat: "long"
-    property int lockscreenClockSize: 150
-    property string lockscreenTargetMonitor: "focused"
 
-    onLockscreenBlurRadiusChanged: { if (isLoaded) saveSettings() }
-    onLockscreenShowMediaChanged: { if (isLoaded) saveSettings() }
-    onLockscreenShowPowerChanged: { if (isLoaded) saveSettings() }
-    onLockscreenMaskStyleChanged: { if (isLoaded) saveSettings() }
-    onLockscreenShapePaletteChanged: { if (isLoaded) saveSettings() }
-    onLockscreenUse12HourChanged: { if (isLoaded) saveSettings() }
-    onLockscreenShowSecondsChanged: { if (isLoaded) saveSettings() }
-    onLockscreenShowAmPmChanged: { if (isLoaded) saveSettings() }
-    onLockscreenDateFormatChanged: { if (isLoaded) saveSettings() }
-    onLockscreenClockSizeChanged: { if (isLoaded) saveSettings() }
-    onLockscreenTargetMonitorChanged: { if (isLoaded) saveSettings() }
+    // --- LOCKSCREEN CONFIGURATION (extracted to services/LockscreenConfig.qml) ---
+    property LockscreenConfig lockscreenConfig: LockscreenConfig { configRef: root }
+    property alias lockscreenBlurRadius: root.lockscreenConfig.lockscreenBlurRadius
+    property alias lockscreenShowMedia: root.lockscreenConfig.lockscreenShowMedia
+    property alias lockscreenShowPower: root.lockscreenConfig.lockscreenShowPower
+    property alias lockscreenMaskStyle: root.lockscreenConfig.lockscreenMaskStyle
+    property alias lockscreenShapePalette: root.lockscreenConfig.lockscreenShapePalette
+    property alias lockscreenUse12Hour: root.lockscreenConfig.lockscreenUse12Hour
+    property alias lockscreenShowSeconds: root.lockscreenConfig.lockscreenShowSeconds
+    property alias lockscreenShowAmPm: root.lockscreenConfig.lockscreenShowAmPm
+    property alias lockscreenDateFormat: root.lockscreenConfig.lockscreenDateFormat
+    property alias lockscreenClockSize: root.lockscreenConfig.lockscreenClockSize
+    property alias lockscreenTargetMonitor: root.lockscreenConfig.lockscreenTargetMonitor
 
-    // --- WORKSPACES CONFIGURATION ---
-    property string workspaceStyle: "pill"
-    property bool workspaceGlow: true
-    property bool workspaceScroll: true
-    property bool workspaceTooltips: true
-    property bool workspaceShowAddBtn: true
-    property bool workspaceShowOverviewBtn: true
-    property bool workspaceShowSpecial: true
-    property string workspaceContainerStyle: "plain"
+    // --- WORKSPACES CONFIGURATION (extracted to services/WorkspacesConfig.qml) ---
+    property WorkspacesConfig workspacesConfig: WorkspacesConfig { configRef: root }
+    property alias workspaceStyle: root.workspacesConfig.workspaceStyle
+    property alias workspaceGlow: root.workspacesConfig.workspaceGlow
+    property alias workspaceScroll: root.workspacesConfig.workspaceScroll
+    property alias workspaceTooltips: root.workspacesConfig.workspaceTooltips
+    property alias workspaceShowAddBtn: root.workspacesConfig.workspaceShowAddBtn
+    property alias workspaceShowOverviewBtn: root.workspacesConfig.workspaceShowOverviewBtn
+    property alias workspaceShowSpecial: root.workspacesConfig.workspaceShowSpecial
+    property alias workspaceContainerStyle: root.workspacesConfig.workspaceContainerStyle
 
-    onWorkspaceStyleChanged: { if (isLoaded) saveSettings() }
-    onWorkspaceGlowChanged: { if (isLoaded) saveSettings() }
-    onWorkspaceScrollChanged: { if (isLoaded) saveSettings() }
-    onWorkspaceTooltipsChanged: { if (isLoaded) saveSettings() }
-    onWorkspaceShowAddBtnChanged: { if (isLoaded) saveSettings() }
-    onWorkspaceShowOverviewBtnChanged: { if (isLoaded) saveSettings() }
-    onWorkspaceShowSpecialChanged: { if (isLoaded) saveSettings() }
-    onWorkspaceContainerStyleChanged: { if (isLoaded) saveSettings() }
+    // --- CAFFEINE STATE & TIMER (extracted to services/CaffeineConfig.qml) ---
+    property CaffeineConfig caffeine: CaffeineConfig { configRef: root }
+    property alias caffeineHasHypridle: root.caffeine.caffeineHasHypridle
+    property alias caffeineState: root.caffeine.caffeineState
+    property alias caffeineTimerEndTime: root.caffeine.caffeineTimerEndTime
+    property alias caffeineRemainingTimeString: root.caffeine.caffeineRemainingTimeString
+    function addCaffeineMinutes(minutes) { caffeine.addCaffeineMinutes(minutes) }
+    function cycleCaffeine() { caffeine.cycleCaffeine() }
+    function startCaffeineTimer(minutes) { caffeine.startCaffeineTimer(minutes) }
+    function setIndefiniteCaffeine() { caffeine.setIndefiniteCaffeine() }
 
-    // --- CAFFEINE STATE & TIMER ---
-    property bool caffeineHasHypridle: false
-    property int caffeineState: 0
-    property double caffeineTimerEndTime: 0
-    property string caffeineRemainingTimeString: ""
-
-    property Process caffeineCheckBinaryProc: Process {
-        id: caffeineCheckBinaryProc
-        command: ["fish", "-c", "which hypridle"]
-        running: true
-        stdout: StdioCollector {
-            onStreamFinished: {
-                root.caffeineHasHypridle = this.text.trim().length > 0
-                if (root.caffeineHasHypridle) root.caffeineCheckStatusProc.running = true
-            }
-        }
-    }
-
-    property Process caffeineCheckStatusProc: Process {
-        id: caffeineCheckStatusProc
-        command: ["fish", "-c", "pgrep -x hypridle"]
-        running: false
-        stdout: StdioCollector { id: caffeineStatusOutput }
-
-        onExited: (exitCode, exitStatus) => {
-            let isRunning = (exitCode === 0 && caffeineStatusOutput.text.trim().length > 0)
-            if (!isRunning) {
-                if (root.caffeineState === 0) root.caffeineState = 1
-            } else {
-                if (root.caffeineState !== 0) {
-                    root.caffeineState = 0
-                    root.caffeineTimerEndTime = 0
-                }
-            }
-        }
-    }
-
-    property Process caffeineExecProc: Process {
-        id: caffeineExecProc
-        running: false
-        onExited: root.caffeineCheckStatusProc.running = true
-    }
-
-    // Only polls when hypridle is present and caffeine override is active
-    property Timer caffeinePoller: Timer {
-        interval: 5000
-        running: root.caffeineHasHypridle && root.caffeineState !== 0
-        repeat: true
-        onTriggered: {
-            if (!root.caffeineExecProc.running && !root.caffeineCheckStatusProc.running) {
-                root.caffeineCheckStatusProc.running = true
-            }
-        }
-    }
-
-    property Timer caffeineCountdownTicker: Timer {
-        id: caffeineCountdownTicker
-        interval: 1000
-        repeat: true
-        running: root.caffeineState === 2
-        onTriggered: root.updateCaffeineCountdown()
-    }
-
-    function updateCaffeineCountdown() {
-        if (root.caffeineState !== 2) return
-        let now = Date.now()
-        let diffMs = root.caffeineTimerEndTime - now
-
-        if (diffMs <= 0) {
-            root.caffeineState = 0
-            root.caffeineTimerEndTime = 0
-            setHypridleRunning(true)
-            return
-        }
-
-        let totalSeconds = Math.round(diffMs / 1000)
-        let mins = Math.floor(totalSeconds / 60)
-        let secs = totalSeconds % 60
-        root.caffeineRemainingTimeString = `${mins}:${secs < 10 ? '0' : ''}${secs}`
-    }
-
-    function setHypridleRunning(enable) {
-        let cmd = enable
-            ? "systemctl --user start hypridle.service"
-            : "pkill -x hypridle; and systemctl --user stop hypridle.service; and systemctl --user reset-failed hypridle.service"
-
-        caffeineExecProc.command = ["fish", "-c", cmd]
-        caffeineExecProc.running = true
-    }
-
-    function addCaffeineMinutes(minutes) {
-        if (caffeineState !== 2) return
-        let msToAdd = minutes * 60 * 1000
-        let now = Date.now()
-        let baseTime = Math.max(now, caffeineTimerEndTime)
-        let newEndTime = baseTime + msToAdd
-
-        if (newEndTime <= now) {
-            caffeineState = 0
-            caffeineTimerEndTime = 0
-            setHypridleRunning(true)
-        } else {
-            caffeineTimerEndTime = newEndTime
-            updateCaffeineCountdown()
-        }
-    }
-
-    function cycleCaffeine() {
-        if (!caffeineHasHypridle) return
-        let nextState = (caffeineState + 1) % 3
-
-        if (nextState === 1) {
-            caffeineTimerEndTime = 0
-            setHypridleRunning(false)
-        } else if (nextState === 2) {
-            let roundedNow = Math.floor(Date.now() / 1000) * 1000
-            caffeineTimerEndTime = roundedNow + 900000
-            updateCaffeineCountdown()
-            setHypridleRunning(false)
-        } else {
-            caffeineTimerEndTime = 0
-            setHypridleRunning(true)
-        }
-
-        caffeineState = nextState
-    }
-
-    function startCaffeineTimer(minutes) {
-        if (!caffeineHasHypridle) return
-        if (minutes <= 0) {
-            caffeineState = 0
-            caffeineTimerEndTime = 0
-            setHypridleRunning(true)
-            return
-        }
-        let roundedNow = Math.floor(Date.now() / 1000) * 1000
-        caffeineTimerEndTime = roundedNow + (minutes * 60 * 1000)
-        caffeineState = 2
-        updateCaffeineCountdown()
-        setHypridleRunning(false)
-    }
-
-    function setIndefiniteCaffeine() {
-        if (!caffeineHasHypridle) return
-        caffeineState = 1
-        caffeineTimerEndTime = 0
-        setHypridleRunning(false)
-    }
-
-    // --- ICON MAP & OVERRIDES ---
-    property var iconOverrides: ({})
-
-    readonly property var defaultIcons: ({
-        "power": "electrical_services",
-        "recorder": "videocam",
-        "mirror": "photo_camera",
-        "screenshot": "crop",
-        "wallpaper": "wall_art",
-        "settings": "build",
-        "launcher": "terminal_2",
-        "audio": "ear_sound",
-        "sys": "neurology",
-        "batt": "battery_android_frame_full",
-        "cc": "widgets",
-        "network": "lan",
-        "notifications": "inbox",
-        "clipboard": "content_paste",
-        "clock": "calendar_month",
-        "overview": "select_window_2",
-        "apps": "view_apps",
-        "magic": "kid_star",
-        "magic_active": "family_star",
-        "music": "music_note",
-        "music_active": "genres",
-        "private": "lock",
-        "private_active": "lock_open"
-    })
-
-    function getIcon(iconId) {
-        if (iconOverrides && iconOverrides[iconId]) {
-            return iconOverrides[iconId]
-        }
-        return defaultIcons[iconId] || "help_outline"
-    }
-
-    function setIconOverride(iconId, glyphName) {
-        let current = Object.assign({}, iconOverrides)
-        current[iconId] = glyphName
-        iconOverrides = current
-        saveSettings()
-    }
-
-    function resetIcons() {
-        iconOverrides = {}
-        saveSettings()
-    }
-
-    // --- ICON GROUPS COLLAPSE & PINNING STATE ---
-    property bool leftCardCollapsed: false
-    property bool rightCardCollapsed: false
-    property var pinnedIcons: ({})
-
-    function togglePin(iconId) {
-        let temp = Object.assign({}, pinnedIcons)
-        temp[iconId] = !temp[iconId]
-        pinnedIcons = temp
-        saveSettings()
-    }
-
-    function isPinned(iconId) {
-        return !!pinnedIcons[iconId]
-    }
-
-    onLeftCardCollapsedChanged: { if (isLoaded) saveSettings() }
-    onRightCardCollapsedChanged: { if (isLoaded) saveSettings() }
-
-    // --- DYNAMIC MODULE ORDERING ---
-    property var leftCardOrder: ["power", "settings", "wallpaper", "launcher", "recorder", "mirror", "audio", "batt", "network", "clipboard", "screenshot"]
-    property var rightCardOrder: ["clock", "cc"]
-
-    function moveModule(cardKey, iconId, direction) {
-        let list = (cardKey === "left" ? leftCardOrder : rightCardOrder).slice()
-        let idx = list.indexOf(iconId)
-        if (idx === -1) return
-
-        let targetIdx = idx + direction
-        if (targetIdx < 0 || targetIdx >= list.length) return
-
-        let item = list.splice(idx, 1)[0]
-        list.splice(targetIdx, 0, item)
-
-        if (cardKey === "left") leftCardOrder = list
-        else rightCardOrder = list
-
-        saveSettings()
-    }
+    // --- ICON MAP, MODULE COLLAPSE/PINNING & ORDERING (extracted to services/ModuleLayoutConfig.qml) ---
+    property ModuleLayoutConfig moduleLayout: ModuleLayoutConfig { configRef: root }
+    property alias iconOverrides: root.moduleLayout.iconOverrides
+    readonly property alias defaultIcons: root.moduleLayout.defaultIcons
+    property alias leftCardCollapsed: root.moduleLayout.leftCardCollapsed
+    property alias rightCardCollapsed: root.moduleLayout.rightCardCollapsed
+    property alias pinnedIcons: root.moduleLayout.pinnedIcons
+    property alias leftCardOrder: root.moduleLayout.leftCardOrder
+    property alias rightCardOrder: root.moduleLayout.rightCardOrder
+    function getIcon(iconId) { return moduleLayout.getIcon(iconId) }
+    function setIconOverride(iconId, glyphName) { moduleLayout.setIconOverride(iconId, glyphName) }
+    function resetIcons() { moduleLayout.resetIcons() }
+    function togglePin(iconId) { moduleLayout.togglePin(iconId) }
+    function isPinned(iconId) { return moduleLayout.isPinned(iconId) }
+    function moveModule(cardKey, iconId, direction) { moduleLayout.moveModule(cardKey, iconId, direction) }
 
     // --- UNIFIED SURFACE GEOMETRY ---
     property real surfaceRadius: 18.0
@@ -565,361 +191,94 @@ QtObject {
     readonly property real cornerRadius: surfaceRadius
     readonly property real surfaceWingSize: surfaceRadius
 
-    // --- DESKTOP CLOCK STATE & PERSISTENCE ---
-    property bool showDesktopClock: true
-    property string clockStyle: "digital"
-    property real clockScale: 1.0
-    property bool clockShowSeconds: false
-    property bool clockUse12Hour: true
-    property bool clockShowAmPm: true
-    property bool clockShowBorder: true
-    property bool clockShowBackground: true
-    property bool clockShowGlow: true
+    // --- DESKTOP WIDGETS: CLOCK / SYSINFO / CAVA (extracted to services/DesktopWidgetsConfig.qml) ---
+    property DesktopWidgetsConfig desktopWidgets: DesktopWidgetsConfig { configRef: root }
+    property alias showDesktopClock: root.desktopWidgets.showDesktopClock
+    property alias clockStyle: root.desktopWidgets.clockStyle
+    property alias clockScale: root.desktopWidgets.clockScale
+    property alias clockShowSeconds: root.desktopWidgets.clockShowSeconds
+    property alias clockUse12Hour: root.desktopWidgets.clockUse12Hour
+    property alias clockShowAmPm: root.desktopWidgets.clockShowAmPm
+    property alias clockShowBorder: root.desktopWidgets.clockShowBorder
+    property alias clockShowBackground: root.desktopWidgets.clockShowBackground
+    property alias clockShowGlow: root.desktopWidgets.clockShowGlow
+    property alias clockPositions: root.desktopWidgets.clockPositions
+    property alias clockScales: root.desktopWidgets.clockScales
+    property alias enabledClockScreens: root.desktopWidgets.enabledClockScreens
+    function getClockPosition(screenName, defaultX, defaultY) { return desktopWidgets.getClockPosition(screenName, defaultX, defaultY) }
+    function saveClockPosition(screenName, x, y) { desktopWidgets.saveClockPosition(screenName, x, y) }
+    function getClockScale(screenName) { return desktopWidgets.getClockScale(screenName) }
+    function saveClockScale(screenName, scale) { desktopWidgets.saveClockScale(screenName, scale) }
+    function isClockEnabledForScreen(screenName) { return desktopWidgets.isClockEnabledForScreen(screenName) }
+    function toggleClockScreen(screenName) { desktopWidgets.toggleClockScreen(screenName) }
 
-    property var clockPositions: ({})
-    property var clockScales: ({})
-    property var enabledClockScreens: []
+    property alias showDesktopSysInfo: root.desktopWidgets.showDesktopSysInfo
+    property alias sysInfoScale: root.desktopWidgets.sysInfoScale
+    property alias sysInfoShowHost: root.desktopWidgets.sysInfoShowHost
+    property alias sysInfoShowOs: root.desktopWidgets.sysInfoShowOs
+    property alias sysInfoShowKernel: root.desktopWidgets.sysInfoShowKernel
+    property alias sysInfoShowUptime: root.desktopWidgets.sysInfoShowUptime
+    property alias sysInfoShowPackages: root.desktopWidgets.sysInfoShowPackages
+    property alias sysInfoShowWm: root.desktopWidgets.sysInfoShowWm
+    property alias sysInfoShowBoard: root.desktopWidgets.sysInfoShowBoard
+    property alias sysInfoShowCpu: root.desktopWidgets.sysInfoShowCpu
+    property alias sysInfoShowCores: root.desktopWidgets.sysInfoShowCores
+    property alias sysInfoShowLoad: root.desktopWidgets.sysInfoShowLoad
+    property alias sysInfoShowGpu: root.desktopWidgets.sysInfoShowGpu
+    property alias sysInfoShowIp: root.desktopWidgets.sysInfoShowIp
+    property alias sysInfoShowGateway: root.desktopWidgets.sysInfoShowGateway
+    property alias sysInfoShowDns: root.desktopWidgets.sysInfoShowDns
+    property alias sysInfoShowRam: root.desktopWidgets.sysInfoShowRam
+    property alias sysInfoShowSwap: root.desktopWidgets.sysInfoShowSwap
+    property alias sysInfoShowDisk: root.desktopWidgets.sysInfoShowDisk
+    property alias sysInfoShowDiskHome: root.desktopWidgets.sysInfoShowDiskHome
+    property alias sysInfoShowBg: root.desktopWidgets.sysInfoShowBg
+    property alias sysInfoShowGlow: root.desktopWidgets.sysInfoShowGlow
+    property alias sysInfoRefreshInterval: root.desktopWidgets.sysInfoRefreshInterval
+    property alias sysInfoPositions: root.desktopWidgets.sysInfoPositions
+    property alias sysInfoScales: root.desktopWidgets.sysInfoScales
+    property alias enabledSysInfoScreens: root.desktopWidgets.enabledSysInfoScreens
+    function getSysInfoPosition(screenName, defaultX, defaultY) { return desktopWidgets.getSysInfoPosition(screenName, defaultX, defaultY) }
+    function saveSysInfoPosition(screenName, x, y) { desktopWidgets.saveSysInfoPosition(screenName, x, y) }
+    function getSysInfoScale(screenName) { return desktopWidgets.getSysInfoScale(screenName) }
+    function saveSysInfoScale(screenName, scale) { desktopWidgets.saveSysInfoScale(screenName, scale) }
+    function isSysInfoEnabledForScreen(screenName) { return desktopWidgets.isSysInfoEnabledForScreen(screenName) }
+    function toggleSysInfoScreen(screenName) { desktopWidgets.toggleSysInfoScreen(screenName) }
 
-    function getClockPosition(screenName, defaultX, defaultY) {
-        if (clockPositions && clockPositions[screenName]) {
-            return clockPositions[screenName]
-        }
-        return { x: defaultX, y: defaultY }
-    }
-
-    function saveClockPosition(screenName, x, y) {
-        let current = Object.assign({}, clockPositions)
-        current[screenName] = { x: x, y: y }
-        clockPositions = current
-        saveSettings()
-    }
-
-    function getClockScale(screenName) {
-        if (clockScales && clockScales[screenName] !== undefined) {
-            return clockScales[screenName]
-        }
-        return 1.0
-    }
-
-    function saveClockScale(screenName, scale) {
-        let current = Object.assign({}, clockScales)
-        current[screenName] = scale
-        clockScales = current
-        saveSettings()
-    }
-
-    function isClockEnabledForScreen(screenName) {
-        if (!enabledClockScreens || enabledClockScreens.length === 0) return true
-        return enabledClockScreens.includes(screenName)
-    }
-
-    function toggleClockScreen(screenName) {
-        let current = (enabledClockScreens || []).slice()
-        let idx = current.indexOf(screenName)
-        if (idx !== -1) {
-            current.splice(idx, 1)
-        } else {
-            current.push(screenName)
-        }
-        enabledClockScreens = current
-        saveSettings()
-    }
-
-    onShowDesktopClockChanged: { if (isLoaded) saveSettings() }
-    onClockStyleChanged: { if (isLoaded) saveSettings() }
-    onClockScaleChanged: { if (isLoaded) saveSettings() }
-    onClockShowSecondsChanged: { if (isLoaded) saveSettings() }
-    onClockUse12HourChanged: { if (isLoaded) saveSettings() }
-    onClockShowAmPmChanged: { if (isLoaded) saveSettings() }
-    onClockShowBorderChanged: { if (isLoaded) saveSettings() }
-    onClockShowBackgroundChanged: { if (isLoaded) saveSettings() }
-    onClockShowGlowChanged: { if (isLoaded) saveSettings() }
-
-    // --- DESKTOP SYSTEM INFO STATE & PERSISTENCE ---
-    property bool showDesktopSysInfo: true
-    property real sysInfoScale: 1.0
-
-    // OS & System
-    property bool sysInfoShowHost: true
-    property bool sysInfoShowOs: true
-    property bool sysInfoShowKernel: true
-    property bool sysInfoShowUptime: true
-    property bool sysInfoShowPackages: true
-    property bool sysInfoShowWm: true
-
-    // Hardware
-    property bool sysInfoShowBoard: true
-    property bool sysInfoShowCpu: true
-    property bool sysInfoShowCores: true
-    property bool sysInfoShowLoad: true
-    property bool sysInfoShowGpu: true
-
-    // Network
-    property bool sysInfoShowIp: true
-    property bool sysInfoShowGateway: true
-    property bool sysInfoShowDns: true
-
-    // Gauges & Styling
-    property bool sysInfoShowRam: true
-    property bool sysInfoShowSwap: true
-    property bool sysInfoShowDisk: true
-    property bool sysInfoShowDiskHome: true
-    property bool sysInfoShowBg: true
-    property bool sysInfoShowGlow: true
-    property int sysInfoRefreshInterval: 3000
-
-    property var sysInfoPositions: ({})
-    property var sysInfoScales: ({})
-    property var enabledSysInfoScreens: []
-
-    function getSysInfoPosition(screenName, defaultX, defaultY) {
-        if (sysInfoPositions && sysInfoPositions[screenName]) {
-            return sysInfoPositions[screenName]
-        }
-        return { x: defaultX, y: defaultY }
-    }
-
-    function saveSysInfoPosition(screenName, x, y) {
-        let current = Object.assign({}, sysInfoPositions)
-        current[screenName] = { x: x, y: y }
-        sysInfoPositions = current
-        saveSettings()
-    }
-
-    function getSysInfoScale(screenName) {
-        if (sysInfoScales && sysInfoScales[screenName] !== undefined) {
-            return sysInfoScales[screenName]
-        }
-        return 1.0
-    }
-
-    function saveSysInfoScale(screenName, scale) {
-        let current = Object.assign({}, sysInfoScales)
-        current[screenName] = scale
-        sysInfoScales = current
-        saveSettings()
-    }
-
-    function isSysInfoEnabledForScreen(screenName) {
-        if (!enabledSysInfoScreens || enabledSysInfoScreens.length === 0) return true
-        return enabledSysInfoScreens.includes(screenName)
-    }
-
-    function toggleSysInfoScreen(screenName) {
-        let current = (enabledSysInfoScreens || []).slice()
-        let idx = current.indexOf(screenName)
-        if (idx !== -1) {
-            current.splice(idx, 1)
-        } else {
-            current.push(screenName)
-        }
-        enabledSysInfoScreens = current
-        saveSettings()
-    }
-
-    onShowDesktopSysInfoChanged: { if (isLoaded) saveSettings() }
-    onSysInfoScaleChanged: { if (isLoaded) saveSettings() }
-    onSysInfoShowHostChanged: { if (isLoaded) saveSettings() }
-    onSysInfoShowOsChanged: { if (isLoaded) saveSettings() }
-    onSysInfoShowKernelChanged: { if (isLoaded) saveSettings() }
-    onSysInfoShowUptimeChanged: { if (isLoaded) saveSettings() }
-    onSysInfoShowPackagesChanged: { if (isLoaded) saveSettings() }
-    onSysInfoShowWmChanged: { if (isLoaded) saveSettings() }
-    onSysInfoShowBoardChanged: { if (isLoaded) saveSettings() }
-    onSysInfoShowCpuChanged: { if (isLoaded) saveSettings() }
-    onSysInfoShowCoresChanged: { if (isLoaded) saveSettings() }
-    onSysInfoShowLoadChanged: { if (isLoaded) saveSettings() }
-    onSysInfoShowGpuChanged: { if (isLoaded) saveSettings() }
-    onSysInfoShowIpChanged: { if (isLoaded) saveSettings() }
-    onSysInfoShowGatewayChanged: { if (isLoaded) saveSettings() }
-    onSysInfoShowDnsChanged: { if (isLoaded) saveSettings() }
-    onSysInfoShowRamChanged: { if (isLoaded) saveSettings() }
-    onSysInfoShowSwapChanged: { if (isLoaded) saveSettings() }
-    onSysInfoShowDiskChanged: { if (isLoaded) saveSettings() }
-    onSysInfoShowDiskHomeChanged: { if (isLoaded) saveSettings() }
-    onSysInfoShowBgChanged: { if (isLoaded) saveSettings() }
-    onSysInfoShowGlowChanged: { if (isLoaded) saveSettings() }
-    onSysInfoRefreshIntervalChanged: { if (isLoaded) saveSettings() }
-
-    // --- CAVA AUDIO VISUALIZER STATE & PERSISTENCE ---
-    property bool showDesktopCava: false
-    property string cavaStyle: "bars"          // "bars" | "mirrored" | "wave" | "radial"
-    property string cavaColorMode: "accent"    // "accent" | "gradient" | "rainbow" | "solid"
-    property string cavaGradientStart: "#7c3aed"
-    property string cavaGradientEnd: "#22d3ee"
-    property string cavaSolidColor: "#94a3b8"
-    property real cavaRainbowSpeed: 12.0
-
-    property int cavaBars: 40
-    property int cavaFramerate: 60
-    property int cavaSensitivity: 100
-    property real cavaSmoothing: 0.77
-
-    property real cavaBarWidth: 6.0
-    property real cavaBarGap: 3.0
-    property real cavaBarRadius: 2.0
-    property real cavaMaxHeight: 140.0
-    property real cavaRingRadius: 90.0
-
-    property bool cavaShowGlow: true
-    property bool cavaShowBackground: true
-    property bool cavaShowBorder: true
-
-    // Rotation is controlled directly on the widget (click it to reveal rotate
-    // buttons), not from the Settings page -- still persisted like position/scale.
-    property int cavaRotation: 0
-
-    function rotateCava(direction) {
-        // Deliberately left unbounded (not wrapped mod 360) so the widget's rotation
-        // Behavior always animates the short way around instead of spinning back
-        // through the whole circle when crossing the 0/360 boundary.
-        cavaRotation += direction === "cw" ? 90 : -90
-    }
-
-    property var cavaPositions: ({})
-    property var cavaScales: ({})
-    property var enabledCavaScreens: []
-
-    function getCavaPosition(screenName, defaultX, defaultY) {
-        if (cavaPositions && cavaPositions[screenName]) {
-            return cavaPositions[screenName]
-        }
-        return { x: defaultX, y: defaultY }
-    }
-
-    function saveCavaPosition(screenName, x, y) {
-        let current = Object.assign({}, cavaPositions)
-        current[screenName] = { x: x, y: y }
-        cavaPositions = current
-        saveSettings()
-    }
-
-    function getCavaScale(screenName) {
-        if (cavaScales && cavaScales[screenName] !== undefined) {
-            return cavaScales[screenName]
-        }
-        return 1.0
-    }
-
-    function saveCavaScale(screenName, scale) {
-        let current = Object.assign({}, cavaScales)
-        current[screenName] = scale
-        cavaScales = current
-        saveSettings()
-    }
-
-    function isCavaEnabledForScreen(screenName) {
-        if (!enabledCavaScreens || enabledCavaScreens.length === 0) return true
-        return enabledCavaScreens.includes(screenName)
-    }
-
-    function toggleCavaScreen(screenName) {
-        let current = (enabledCavaScreens || []).slice()
-        let idx = current.indexOf(screenName)
-        if (idx !== -1) {
-            current.splice(idx, 1)
-        } else {
-            current.push(screenName)
-        }
-        enabledCavaScreens = current
-        saveSettings()
-    }
-
-    onShowDesktopCavaChanged: { if (isLoaded) saveSettings() }
-    onCavaStyleChanged: { if (isLoaded) saveSettings() }
-    onCavaColorModeChanged: { if (isLoaded) saveSettings() }
-    onCavaGradientStartChanged: { if (isLoaded) saveSettings() }
-    onCavaGradientEndChanged: { if (isLoaded) saveSettings() }
-    onCavaSolidColorChanged: { if (isLoaded) saveSettings() }
-    onCavaRainbowSpeedChanged: { if (isLoaded) saveSettings() }
-    onCavaBarWidthChanged: { if (isLoaded) saveSettings() }
-    onCavaBarGapChanged: { if (isLoaded) saveSettings() }
-    onCavaBarRadiusChanged: { if (isLoaded) saveSettings() }
-    onCavaMaxHeightChanged: { if (isLoaded) saveSettings() }
-    onCavaRingRadiusChanged: { if (isLoaded) saveSettings() }
-    onCavaShowGlowChanged: { if (isLoaded) saveSettings() }
-    onCavaShowBackgroundChanged: { if (isLoaded) saveSettings() }
-    onCavaShowBorderChanged: { if (isLoaded) saveSettings() }
-    onCavaRotationChanged: { if (isLoaded) saveSettings() }
-
-    // These require the cava subprocess itself to be restarted with a new config
-    onCavaBarsChanged: { if (isLoaded) { saveSettings(); cavaService.requestRestart() } }
-    onCavaFramerateChanged: { if (isLoaded) { saveSettings(); cavaService.requestRestart() } }
-    onCavaSensitivityChanged: { if (isLoaded) { saveSettings(); cavaService.requestRestart() } }
-    onCavaSmoothingChanged: { if (isLoaded) { saveSettings(); cavaService.requestRestart() } }
-
-    // --- WALLPAPER CONFIG STATE & PERSISTENCE ---
-    property var selectedWallpaperMonitors: []
-    property string wallpaperTransitionType: "wipe"
-    property string activeWallpaperPath: ""
-    property var activeMonitorWallpapers: ({})
-    property bool enableWallpaperParallax: true
-    property bool wallpaperWorkspaceParallax: true
-    property bool wallpaperCursorParallax: true
-    property real wallpaperParallaxIntensity: 1.0
-
-    onEnableWallpaperParallaxChanged: saveSettings()
-    onWallpaperWorkspaceParallaxChanged: saveSettings()
-    onWallpaperCursorParallaxChanged: saveSettings()
-    onWallpaperParallaxIntensityChanged: saveSettings()
-
-    function getMonitorWallpaper(screenName) {
-        if (activeMonitorWallpapers && activeMonitorWallpapers[screenName]) {
-            return activeMonitorWallpapers[screenName]
-        }
-        return activeWallpaperPath
-    }
-
-    property Process wallpaperQuerier: Process {
-        id: wpQuerier
-        command: [
-            "python3", "-c",
-            "import subprocess, json, re; out=subprocess.getoutput('awww query 2>/dev/null || swww query 2>/dev/null'); res={}; [res.update({m.group(1).strip(): m.group(2).strip()}) for m in re.finditer(r':\\s*([^:]+):.*currently displaying:\\s*(?:image|video):\\s*(.*)', out)]; print(json.dumps(res))"
-        ]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    let parsed = JSON.parse(this.text)
-                    if (parsed && typeof parsed === "object") {
-                        root.activeMonitorWallpapers = parsed
-                        let keys = Object.keys(parsed)
-                        if (keys.length > 0 && parsed[keys[0]]) {
-                            root.activeWallpaperPath = parsed[keys[0]]
-                        }
-                    }
-                } catch (e) {}
-            }
-        }
-    }
-
-    function refreshActiveWallpapers() {
-        wpQuerier.running = false
-        wpQuerier.running = true
-    }
-
-    // --- BACKGROUND SLIDESHOW TIMER & RUNNER ---
-    property bool slideshowActive: false
-    property int slideshowMinutes: 5
-
-    onSlideshowActiveChanged: { if (isLoaded) saveSettings() }
-    onSlideshowMinutesChanged: { if (isLoaded) saveSettings() }
+    property alias showDesktopCava: root.desktopWidgets.showDesktopCava
+    property alias cavaStyle: root.desktopWidgets.cavaStyle
+    property alias cavaColorMode: root.desktopWidgets.cavaColorMode
+    property alias cavaGradientStart: root.desktopWidgets.cavaGradientStart
+    property alias cavaGradientEnd: root.desktopWidgets.cavaGradientEnd
+    property alias cavaSolidColor: root.desktopWidgets.cavaSolidColor
+    property alias cavaRainbowSpeed: root.desktopWidgets.cavaRainbowSpeed
+    property alias cavaBars: root.desktopWidgets.cavaBars
+    property alias cavaFramerate: root.desktopWidgets.cavaFramerate
+    property alias cavaSensitivity: root.desktopWidgets.cavaSensitivity
+    property alias cavaSmoothing: root.desktopWidgets.cavaSmoothing
+    property alias cavaBarWidth: root.desktopWidgets.cavaBarWidth
+    property alias cavaBarGap: root.desktopWidgets.cavaBarGap
+    property alias cavaBarRadius: root.desktopWidgets.cavaBarRadius
+    property alias cavaMaxHeight: root.desktopWidgets.cavaMaxHeight
+    property alias cavaRingRadius: root.desktopWidgets.cavaRingRadius
+    property alias cavaShowGlow: root.desktopWidgets.cavaShowGlow
+    property alias cavaShowBackground: root.desktopWidgets.cavaShowBackground
+    property alias cavaShowBorder: root.desktopWidgets.cavaShowBorder
+    property alias cavaRotation: root.desktopWidgets.cavaRotation
+    property alias cavaPositions: root.desktopWidgets.cavaPositions
+    property alias cavaScales: root.desktopWidgets.cavaScales
+    property alias enabledCavaScreens: root.desktopWidgets.enabledCavaScreens
+    function rotateCava(direction) { desktopWidgets.rotateCava(direction) }
+    function getCavaPosition(screenName, defaultX, defaultY) { return desktopWidgets.getCavaPosition(screenName, defaultX, defaultY) }
+    function saveCavaPosition(screenName, x, y) { desktopWidgets.saveCavaPosition(screenName, x, y) }
+    function getCavaScale(screenName) { return desktopWidgets.getCavaScale(screenName) }
+    function saveCavaScale(screenName, scale) { desktopWidgets.saveCavaScale(screenName, scale) }
+    function isCavaEnabledForScreen(screenName) { return desktopWidgets.isCavaEnabledForScreen(screenName) }
+    function toggleCavaScreen(screenName) { desktopWidgets.toggleCavaScreen(screenName) }
 
     property alias slideshowRunner: root.wallpaperService.slideshowRunner
     property alias bgSlideshowTimer: root.wallpaperService.bgSlideshowTimer
     property alias wallpaperApplyRunner: root.wallpaperService.wallpaperApplyRunner
-
-    function triggerRandomWallpaperBackground() {
-        wallpaperService.triggerRandomWallpaperBackground()
-    }
-
-    function applyWallpaperBackend(filePath, activeOnly) {
-        wallpaperService.applyWallpaperBackend(filePath, activeOnly)
-        refreshActiveWallpapers()
-    }
-
-    function toggleWallpaperMonitor(screenName) {
-        wallpaperService.toggleWallpaperMonitor(screenName)
-    }
 
     // --- GLOBAL WEATHER SERVICE ---
     property WeatherService weather: WeatherService {
@@ -938,205 +297,77 @@ QtObject {
     onSelectedWallpaperMonitorsChanged: { if (isLoaded) saveSettings() }
     onWallpaperTransitionTypeChanged: { if (isLoaded) saveSettings() }
 
-    // --- ON-SCREEN KEYBOARD (OSK) STATE & PERSISTENCE ---
-    property bool showOsk: false
-    property string oskLayout: "Normal"
+    // --- OSK / SCREENSAVER / MASCOT (extracted to services/DesktopExtrasConfig.qml) ---
+    property DesktopExtrasConfig desktopExtras: DesktopExtrasConfig { configRef: root }
+    property alias showOsk: root.desktopExtras.showOsk
+    property alias oskLayout: root.desktopExtras.oskLayout
+    property alias showScreensaver: root.desktopExtras.showScreensaver
+    property alias screensaverText: root.desktopExtras.screensaverText
+    property alias screensaverMode: root.desktopExtras.screensaverMode
+    property alias screensaverFontSize: root.desktopExtras.screensaverFontSize
+    property alias screensaverSpeed: root.desktopExtras.screensaverSpeed
+    property alias screensaverCornerCounter: root.desktopExtras.screensaverCornerCounter
+    property alias showMascot: root.desktopExtras.showMascot
+    property alias mascotPath: root.desktopExtras.mascotPath
+    property alias mascotPhrases: root.desktopExtras.mascotPhrases
+    property alias fetchOnlineQuotes: root.desktopExtras.fetchOnlineQuotes
+    property alias quoteSource: root.desktopExtras.quoteSource
+    property alias rssFeedUrl: root.desktopExtras.rssFeedUrl
+    function addMascotPhrase(phrase) { desktopExtras.addMascotPhrase(phrase) }
+    function removeMascotPhrase(index) { desktopExtras.removeMascotPhrase(index) }
+    function processQuoteQueue() { desktopExtras.processQuoteQueue() }
+    function triggerQuoteFetch() { desktopExtras.triggerQuoteFetch() }
 
-    property string barFrameStyle: "floating"
-    property bool animateGradient: true
-    property bool showScreenFrame: false
-    property real shellOpacity: 1.0
-    property bool enableBlur: true
-    property bool enableXray: true
-    property bool enableIris: false
-    property bool showWatermarks: true
-    property bool bounceWatermarks: true
+    // --- BAR / FRAME / RENDERING TOGGLES + TYPOGRAPHY + THEMES (extracted to services/AppearanceConfig.qml) ---
+    property AppearanceConfig appearance: AppearanceConfig { configRef: root }
+    property alias barFrameStyle: root.appearance.barFrameStyle
+    property alias animateGradient: root.appearance.animateGradient
+    property alias showScreenFrame: root.appearance.showScreenFrame
+    property alias shellOpacity: root.appearance.shellOpacity
+    property alias enableBlur: root.appearance.enableBlur
+    property alias enableXray: root.appearance.enableXray
+    property alias enableIris: root.appearance.enableIris
+    property alias showWatermarks: root.appearance.showWatermarks
+    property alias bounceWatermarks: root.appearance.bounceWatermarks
+    function applyIrisColors(filePath) { appearance.applyIrisColors(filePath) }
 
-    onShowWatermarksChanged: saveSettings()
-    onBounceWatermarksChanged: saveSettings()
-
-    onEnableIrisChanged: {
-        if (!isLoaded) return
-        if (enableIris) {
-            applyIrisColors()
-        } else {
-            applyTheme(currentThemeIndex)
-        }
-        saveSettings()
-    }
-
+    // activeWallpaperPath lives in the wallpaper group, so this stays here (aliases still fire their own onChanged)
     onActiveWallpaperPathChanged: {
         if (isLoaded && enableIris && activeWallpaperPath !== "") {
             applyIrisColors(activeWallpaperPath)
         }
     }
 
-    function applyIrisColors(filePath) {
-        irisService.applyIrisColors(filePath)
-    }
+    property alias enableHoverPeek: root.appearance.enableHoverPeek
+    readonly property alias isFloatingBar: root.appearance.isFloatingBar
 
-    property bool enableHoverPeek: true
-    onEnableHoverPeekChanged: { if (isLoaded) saveSettings() }
-
-    readonly property bool isFloatingBar: barFrameStyle === "floating"
-
-    // --- DESKTOP SCREENSAVER STATE & PERSISTENCE ---
-    property bool showScreensaver: false
-    property string screensaverText: "SYNOPTIK"
-    property string screensaverMode: "text"
-    property int screensaverFontSize: 54
-    property real screensaverSpeed: 3.5
-    property bool screensaverCornerCounter: true
-
-    // --- DESKTOP MASCOT STATE & PERSISTENCE ---
-    property bool showMascot: false
-    property string mascotPath: ""
-    property var mascotPhrases: [
-        "I use Arch btw", 
-        "Hyprland is so comfy", 
-        "Need some coffee?", 
-        "Compiling...", 
-        "Look at me go!"
-    ]
-
-    property bool fetchOnlineQuotes: false
-    property string quoteSource: "zenquotes"
-
-    function addMascotPhrase(phrase) {
-        if (!phrase) return
-        var list = mascotPhrases ? mascotPhrases.slice() : []
-        list.push(phrase)
-        mascotPhrases = list
-        saveSettings()
-    }
-
-    function removeMascotPhrase(index) {
-        if (!mascotPhrases || index < 0 || index >= mascotPhrases.length) return
-        var list = mascotPhrases.slice()
-        list.splice(index, 1)
-        mascotPhrases = list
-        saveSettings()
-    }
-
-    property string rssFeedUrl: ""
     property alias quoteFetchQueue: root.quoteService.quoteFetchQueue
     property alias quoteFetcher: root.quoteService.quoteFetcher
     property alias quoteFetchTimer: root.quoteService.quoteFetchTimer
 
-    function processQuoteQueue() {
-        quoteService.processQuoteQueue()
-    }
+    property alias barPosition: root.appearance.barPosition
+    property alias autoHideBar: root.appearance.autoHideBar
+    function syncScreenFrame() { appearance.syncScreenFrame() }
 
-    function triggerQuoteFetch() {
-        quoteService.triggerQuoteFetch()
-    }
-
-    // --- BAR POSITION CONTROL ---
-    property string barPosition: "top"
-    property bool autoHideBar: false
-
-    onAutoHideBarChanged: {
-        if (isLoaded) {
-            syncHyprlandBorders()
-            saveSettings()
-        }
-    }
-
-    function syncScreenFrame() {
-        if (isLoaded) {
-            syncHyprlandBorders()
-        }
-    }
-
-    onBarFrameStyleChanged: { 
-        if (isLoaded) {
-            syncHyprlandBorders()
-            saveSettings()
-        }
-    }
-
-    onShowScreenFrameChanged: {
-        if (!isLoaded) return
-        syncScreenFrame()
-        saveSettings()
-    }
-
-    onShellOpacityChanged: {
-        if (!isLoaded) return
-        if (enableIris) {
-            applyIrisColors()
-        } else {
-            applyTheme(currentThemeIndex)
-        }
-        saveSettings()
-    }
-
-    onEnableBlurChanged: {
-        if (!isLoaded) return
-        syncHyprlandBorders()
-        saveSettings()
-    }
-
-    onEnableXrayChanged: {
-        if (!isLoaded) return
-        syncHyprlandBorders()
-        saveSettings()
-    }
-
-    // Typography
-    property string sysFont: ""
-    property bool nativeFontRendering: true
-    readonly property int textRenderType: nativeFontRendering ? Text.NativeRendering : Text.QtRendering
-    property bool fontDropdownOpen: false
-    property string fontSearchFilter: ""
-    property int fontScaleIndex: 1 
-
-    onNativeFontRenderingChanged: { if (isLoaded) saveSettings() }
-
-    function fontStyle(fontObj) {
-        if (!fontObj) return fontObj
-        fontObj.hintingPreference = Font.PreferFullHinting
-        fontObj.styleName = "Regular"
-        return fontObj
-    }
+    property alias sysFont: root.appearance.sysFont
+    property alias nativeFontRendering: root.appearance.nativeFontRendering
+    readonly property alias textRenderType: root.appearance.textRenderType
+    property alias fontDropdownOpen: root.appearance.fontDropdownOpen
+    property alias fontSearchFilter: root.appearance.fontSearchFilter
+    property alias fontScaleIndex: root.appearance.fontScaleIndex
+    function fontStyle(fontObj) { return appearance.fontStyle(fontObj) }
 
     property string locationQuery: ""
-    property int currentThemeIndex: 0
+    property alias currentThemeIndex: root.appearance.currentThemeIndex
 
-    // Custom Colors
-    property bool useCustomColors: false
-    property string customBgBase: "#12131a"
-    property string customBgPanel: "#1e202b"
-    property string customAccent: "#94a3b8"
+    property alias useCustomColors: root.appearance.useCustomColors
+    property alias customBgBase: root.appearance.customBgBase
+    property alias customBgPanel: root.appearance.customBgPanel
+    property alias customAccent: root.appearance.customAccent
+    property alias borderStart: root.appearance.borderStart
+    property alias borderEnd: root.appearance.borderEnd
+    property alias windowStyle: root.appearance.windowStyle
 
-    property color borderStart: accent
-    property color borderEnd: Qt.lighter(accent, 1.5)
-
-    property string windowStyle: "rounded"
-
-    onWindowStyleChanged: { if (isLoaded) saveSettings() }
-    onShowScreensaverChanged: { if (isLoaded) saveSettings() }
-    onScreensaverTextChanged: { if (isLoaded) saveSettings() }
-    onScreensaverModeChanged: { if (isLoaded) saveSettings() }
-    onScreensaverFontSizeChanged: { if (isLoaded) saveSettings() }
-    onScreensaverSpeedChanged: { if (isLoaded) saveSettings() }
-    onScreensaverCornerCounterChanged: { if (isLoaded) saveSettings() }
-    onShowOskChanged: { if (isLoaded) saveSettings() }
-    onOskLayoutChanged: { if (isLoaded) saveSettings() }
-    onShowMascotChanged: { if (isLoaded) saveSettings() }
-    onMascotPathChanged: { if (isLoaded) saveSettings() }
-    onMascotPhrasesChanged: { if (isLoaded) saveSettings() }
-
-    onFetchOnlineQuotesChanged: {
-        if (!isLoaded) return
-        if (fetchOnlineQuotes) triggerQuoteFetch()
-        saveSettings()
-    }
-
-    onQuoteSourceChanged: { if (isLoaded) saveSettings() }
-    onBarPositionChanged: { if (isLoaded) saveSettings() }
-    onSysFontChanged: { if (isLoaded && sysFont !== "") saveSettings() }
-    onFontScaleIndexChanged: { if (isLoaded) saveSettings() }
     onLocationQueryChanged: {
         if (root.weather) {
             root.weather.zipcode = root.locationQuery;
@@ -1145,39 +376,6 @@ QtObject {
                 root.saveSettings();
             }
         }
-    }
-
-    onAnimateGradientChanged: {
-        if (!isLoaded) return
-        syncHyprlandBorders()
-        saveSettings()
-    }
-
-    onCustomBgBaseChanged: {
-        if (!isLoaded) return
-        if (useCustomColors && !enableIris) applyTheme(currentThemeIndex)
-        saveSettings()
-    }
-
-    onCustomBgPanelChanged: {
-        if (!isLoaded) return
-        if (useCustomColors && !enableIris) applyTheme(currentThemeIndex)
-        saveSettings()
-    }
-
-    onCustomAccentChanged: {
-        if (!isLoaded) return
-        if (useCustomColors && !enableIris) {
-            accent = customAccent
-            syncHyprlandBorders()
-        }
-        saveSettings()
-    }
-
-    onUseCustomColorsChanged: {
-        if (!isLoaded) return
-        if (!enableIris) applyTheme(currentThemeIndex)
-        saveSettings()
     }
 
     // Display Targets
@@ -1477,69 +675,6 @@ QtObject {
         writer.running = true
     }
 
-    // --- STARTUP WALLPAPER & THUMBNAIL CACHER ---
-    property var wallpapers: []
-    property var tempPaths: []
-
-    property Process wallpaperScanner: Process {
-        id: scanner
-        command: [
-            "python3", "-c",
-            "import os; d=os.path.expanduser('~/Pictures/Wallpapers'); (os.path.isdir(d) and [print(os.path.join(d, f)) for f in os.listdir(d) if f.lower().endswith(('.jpg', '.jpeg', '.png', '.webp', '.mp4', '.webm'))])"
-        ]
-        
-        stdout: SplitParser {
-            onRead: data => {
-                var trimmed = data.trim()
-                if (trimmed.length > 0) root.tempPaths.push(trimmed)
-            }
-        }
-
-        onExited: (code, status) => { 
-            root.wallpapers = root.tempPaths 
-            thumbPreloader.running = true
-        }
-
-        Component.onCompleted: {
-            root.tempPaths = []
-            running = true
-        }
-    }
-
-    property Process thumbPreloader: Process {
-        id: thumbPreloader
-        running: false
-        command: [
-            "fish", "-c",
-            "set -l cache_dir $HOME/.cache/wallpaper-thumbs; " +
-            "test -d $cache_dir; or mkdir -p $cache_dir; " +
-            "for f in ~/Pictures/Wallpapers/*.{png,jpg,jpeg,webp,mp4,webm}; " +
-            "    test -f $f; or continue; " +
-            "    set -l base_name (string replace -r '\\.[^.]+$' '' (path basename $f)); " +
-            "    set -l target \"$cache_dir/$base_name.jpg\"; " +
-            "    if not test -f $target; " +
-            "        if string match -rq '\\.(mp4|webm)$' $f; " +
-            "            nice -n 19 ffmpeg -y -ss 00:00:01 -i $f -vframes 1 -vf 'scale=960:-1:flags=lanczos' -q:v 2 $target >/dev/null 2>&1 &; " +
-            "        else; " +
-            "            nice -n 19 ffmpeg -y -i $f -vf 'scale=960:-1:flags=lanczos' -q:v 2 $target >/dev/null 2>&1 &; " +
-            "        end; " +
-            "    end; " +
-            "end; " +
-            "wait"
-        ]
-        onExited: {
-            if (root.wallpaperService) {
-                root.wallpaperService.thumbEpoch++
-            }
-        }
-    }
-
-    function refreshWallpapers() {
-        if (!scanner.running) {
-            tempPaths = []
-            scanner.running = true
-        }
-    }
 
     // Persistence
     readonly property string settingsPath: Quickshell.shellDir.toString().replace(/^file:\/\//, "") + "/settings.json"
@@ -1856,126 +991,27 @@ QtObject {
         }
     }
 
-    // Typography Engine
-    function size(preset) { return preset[fontScaleIndex] }
+    readonly property alias fontMicro: root.appearance.fontMicro
+    readonly property alias fontCaption: root.appearance.fontCaption
+    readonly property alias fontBody: root.appearance.fontBody
+    readonly property alias fontSubhead: root.appearance.fontSubhead
+    readonly property alias fontTitle: root.appearance.fontTitle
+    readonly property alias fontDisplay: root.appearance.fontDisplay
+    function size(preset) { return appearance.size(preset) }
 
-    readonly property var fontMicro:   [8, 11, 14]
-    readonly property var fontCaption: [9, 12, 15]
-    readonly property var fontBody:    [11, 14, 17]
-    readonly property var fontSubhead: [12, 16, 20]
-    readonly property var fontTitle:   [16, 21, 26]
-    readonly property var fontDisplay: [58, 82, 106]
-
-    // Themes
-    property color bgBase: "#12131a"
-    property color bgPanel: "#1e202b"
-    property color accent: "#94a3b8"
-    property color textMain: "#ffffff"
-    property color textMuted: "#94a3b8"
-
-    readonly property int barHeight: 54
-    readonly property int barMargin: 12
-
-    readonly property var stockThemes: [
-        { name: "Monochrome",       bgBase: "#121212", bgPanel: "#1e1e1e", accent: "#e0e0e0" },
-        { name: "Classic Red",      bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#ef4444" },
-        { name: "Vibrant Orange",   bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#ff7b00" },
-        { name: "Amber Yellow",     bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#facc15" },
-        { name: "Emerald Green",    bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#10b981" },
-        { name: "Cyber Cyan",       bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#06b6d4" },
-        { name: "Dodger Blue",      bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#3b82f6" },
-        { name: "Deep Purple",      bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#a855f7" },
-        { name: "Gruvbox Dark",     bgBase: "#282828", bgPanel: "#3c3836", accent: "#fe8019" },
-        { name: "Catppuccin Mocha", bgBase: "#1e1e2e", bgPanel: "#181825", accent: "#f5c2e7" },
-        { name: "Nord Slate",       bgBase: "#2e3440", bgPanel: "#3b4252", accent: "#88c0d0" },
-        { name: "Tokyo Night",      bgBase: "#1a1b26", bgPanel: "#24283b", accent: "#7aa2f7" },
-        { name: "Rosé Pine",        bgBase: "#191724", bgPanel: "#1f1d2e", accent: "#ebbcba" },
-        { name: "Everforest",       bgBase: "#2d353b", bgPanel: "#343f44", accent: "#a7c080" },
-        { name: "Solarized Dark",   bgBase: "#002b36", bgPanel: "#073642", accent: "#268bd2" },
-        { name: "Dracula",          bgBase: "#282a36", bgPanel: "#44475a", accent: "#ff79c6" },
-        { name: "Cyberpunk 2077",   bgBase: "#000b1e", bgPanel: "#12002b", accent: "#ff0055" },
-        { name: "Catppuccin Latte", bgBase: "#eff1f5", bgPanel: "#e6e9ef", accent: "#8839ef" },
-        { name: "Monokai Pro",      bgBase: "#2d2a2e", bgPanel: "#403e41", accent: "#ffd866" },
-        { name: "Synthwave '84",    bgBase: "#262335", bgPanel: "#241b2f", accent: "#ff7edb" },
-        { name: "Kanagawa",         bgBase: "#1f1f28", bgPanel: "#2a2a37", accent: "#7e9cd8" },
-        { name: "Ayu Dark",         bgBase: "#0f1419", bgPanel: "#131721", accent: "#ffb454" },
-        { name: "Solarized Light",  bgBase: "#fdf6e3", bgPanel: "#eee8d5", accent: "#b58900" },
-        { name: "One Dark",         bgBase: "#282c34", bgPanel: "#21252b", accent: "#61afef" },
-        { name: "Neon Red",         bgBase: "#0d0202", bgPanel: "#1a0404", accent: "#ff0055" },
-        { name: "Neon Orange",      bgBase: "#0f0800", bgPanel: "#1f1000", accent: "#ff5f00" },
-        { name: "Neon Yellow",      bgBase: "#0f0f00", bgPanel: "#1f1f00", accent: "#ccff00" },
-        { name: "Neon Lime",        bgBase: "#020f02", bgPanel: "#051f05", accent: "#00ff66" },
-        { name: "Neon Cyan",        bgBase: "#000f0f", bgPanel: "#001f1f", accent: "#00f0ff" },
-        { name: "Neon Blue",        bgBase: "#00050f", bgPanel: "#000a1f", accent: "#0066ff" },
-        { name: "Neon Purple",      bgBase: "#0a000f", bgPanel: "#15001f", accent: "#bf00ff" },
-        { name: "Neon Hot Pink",    bgBase: "#0f000a", bgPanel: "#1f0015", accent: "#ff00a0" },
-        { name: "Laserwave",        bgBase: "#1b192e", bgPanel: "#272140", accent: "#40e0d0" },
-        { name: "Matrix Deep",      bgBase: "#020a02", bgPanel: "#051405", accent: "#00ff41" },
-        { name: "Outrun Sunset",    bgBase: "#11001c", bgPanel: "#220038", accent: "#ff2a6d" },
-        { name: "Vaporwave Pink",   bgBase: "#1a001a", bgPanel: "#2e002e", accent: "#ff71ce" },
-        { name: "Midnight City",    bgBase: "#090a10", bgPanel: "#121420", accent: "#00d2ff" },
-        { name: "Toxic Emerald",    bgBase: "#01120a", bgPanel: "#022414", accent: "#00ff87" },
-        { name: "Inferno Glow",     bgBase: "#140200", bgPanel: "#260500", accent: "#ff3300" },
-        { name: "Ultra Violet",     bgBase: "#0d0614", bgPanel: "#180b26", accent: "#9900ff" }
-    ]
-
-    property var themes: stockThemes.slice()
-
-    function addCustomTheme(themeObj) {
-        var list = themes.slice()
-        list.push(themeObj)
-        themes = list
-        setTheme(themes.length - 1)
-    }
-
-    function removeCustomTheme(index) {
-        if (index < 0 || index >= themes.length) return
-        if (!themes[index].isCustom) return
-
-        var list = themes.slice()
-        list.splice(index, 1)
-        themes = list
-
-        if (currentThemeIndex >= themes.length) {
-            setTheme(Math.max(0, themes.length - 1))
-        } else {
-            setTheme(currentThemeIndex)
-        }
-    }
-
-    function applyTheme(index) {
-        if (enableIris) return
-
-        var baseColor = useCustomColors ? customBgBase : (themes[index] || themes[0]).bgBase
-        var panelColor = useCustomColors ? customBgPanel : (themes[index] || themes[0]).bgPanel
-        var accentColor = useCustomColors ? customAccent : (themes[index] || themes[0]).bgPanel ? (themes[index] || themes[0]).accent : "#94a3b8"
-
-        bgBase = Qt.rgba(Qt.color(baseColor).r, Qt.color(baseColor).g, Qt.color(baseColor).b, shellOpacity)
-        bgPanel = Qt.rgba(Qt.color(panelColor).r, Qt.color(panelColor).g, Qt.color(panelColor).b, shellOpacity)
-        accent = accentColor
-
-        if (!useCustomColors) {
-            var t = themes[index] || themes[0]
-            customBgBase = t.bgBase
-            customBgPanel = t.bgPanel
-            customAccent = t.accent
-        }
-
-        syncHyprlandBorders()
-    }
-
-    function setTheme(index) {
-        if (index < 0 || index >= themes.length) index = 0
-        currentThemeIndex = index
-        
-        var t = themes[index]
-        customBgBase = t.bgBase
-        customBgPanel = t.bgPanel
-        customAccent = t.accent
-
-        applyTheme(index)
-        saveSettings()
-    }
+    property alias bgBase: root.appearance.bgBase
+    property alias bgPanel: root.appearance.bgPanel
+    property alias accent: root.appearance.accent
+    property alias textMain: root.appearance.textMain
+    property alias textMuted: root.appearance.textMuted
+    readonly property alias barHeight: root.appearance.barHeight
+    readonly property alias barMargin: root.appearance.barMargin
+    readonly property alias stockThemes: root.appearance.stockThemes
+    property alias themes: root.appearance.themes
+    function addCustomTheme(themeObj) { appearance.addCustomTheme(themeObj) }
+    function removeCustomTheme(index) { appearance.removeCustomTheme(index) }
+    function applyTheme(index) { appearance.applyTheme(index) }
+    function setTheme(index) { appearance.setTheme(index) }
 
     Component.onCompleted: {
         if (!enableIris) applyTheme(currentThemeIndex)
