@@ -182,6 +182,7 @@ PanelWindow {
     readonly property real rawChildWidth: {
         if (root.activeView === "osd") return volumeOsdModule.implicitWidth
         if (root.activeView === "notifOsd") return notifOsdModule.implicitWidth
+        if (root.activeView === "launcherOsd") return launcherOsdModule.implicitWidth
         if (root.activeView === "taskOverflow") return taskOverflowModule.implicitWidth
         if (root.activeDrawerItem && root.activeDrawerItem.implicitWidth > 0) {
             return root.activeDrawerItem.implicitWidth
@@ -199,6 +200,7 @@ PanelWindow {
     readonly property real rawChildHeight: {
         if (root.activeView === "osd") return volumeOsdModule.implicitHeight
         if (root.activeView === "notifOsd") return notifOsdModule.implicitHeight
+        if (root.activeView === "launcherOsd") return launcherOsdModule.implicitHeight
         if (root.activeView === "taskOverflow") return taskOverflowModule.implicitHeight
         if (root.activeDrawerItem && root.activeDrawerItem.implicitHeight > 0) {
             return root.activeDrawerItem.implicitHeight
@@ -262,19 +264,24 @@ PanelWindow {
     property real targetWidth: isOpen ? rawChildWidth : (isHorizontal ? (lastOpenWidth * 0.1) : (lastOpenWidth * 1.10))
     property real targetHeight: isOpen ? rawChildHeight : (isHorizontal ? (lastOpenHeight * 1.10) : (lastOpenHeight * 0.1))
 
+    // Content within an already-open, already-settled view (e.g. LauncherOSD's
+    // results list growing/shrinking as you type) should resize calmly instead
+    // of replaying the elastic open/close "pop" every keystroke.
+    readonly property bool isSettledContentResize: isOpen && progress >= 0.999 && activeView === "launcherOsd"
+
     Behavior on targetWidth {
         NumberAnimation {
-            duration: 350
-            easing.type: Easing.OutBack
-            easing.overshoot: 0.6
+            duration: root.isSettledContentResize ? 160 : 350
+            easing.type: root.isSettledContentResize ? Easing.OutCubic : Easing.OutBack
+            easing.overshoot: root.isSettledContentResize ? 0 : 0.6
         }
     }
 
     Behavior on targetHeight {
         NumberAnimation {
-            duration: 350
-            easing.type: Easing.OutBack
-            easing.overshoot: 0.6
+            duration: root.isSettledContentResize ? 160 : 350
+            easing.type: root.isSettledContentResize ? Easing.OutCubic : Easing.OutBack
+            easing.overshoot: root.isSettledContentResize ? 0 : 0.6
         }
     }
 
@@ -379,12 +386,15 @@ PanelWindow {
     WlrLayershell.keyboardFocus: root.isOpen ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
     WlrLayershell.namespace: "synoptik-shell"
 
+    // Note: closing does not force isCentered false here — refreshPopoutPos()
+    // (triggered via closeOthers -> the relevant onShowXChanged -> updateActiveView)
+    // deliberately leaves it alone on close so the shrink-away animation keeps
+    // collapsing toward whatever anchor it opened from instead of snapping over.
     Shortcut {
         sequences: ["Escape"]
         enabled: root.isOpen
         onActivated: {
             root.closeOthers("none")
-            root.isCentered = false
         }
     }
 
@@ -394,7 +404,6 @@ PanelWindow {
         windows: [root]
         onCleared: {
             root.closeOthers("none")
-            root.isCentered = false
         }
     }
 
@@ -516,7 +525,17 @@ PanelWindow {
     property string activeView: "none"
 
     function refreshPopoutPos() {
+        // Closing (activeView "none") intentionally leaves isCentered untouched so the
+        // shrink-away animation keeps collapsing toward whatever anchor it opened from
+        // (center for the launcher OSD, the origin button for everything else) instead
+        // of snapping to a stale popoutXOffset mid-close.
         if (activeView === "none" || activeView === "workspacePreview") return
+
+        // 0. Command Launcher OSD: always centered under the bar
+        if (activeView === "launcherOsd") {
+            root.isCentered = true
+            return
+        }
 
         // 1. Edge OSDs: Snap coordinates to screen boundaries or center on Island bar
         if (activeView === "osd" || activeView === "notifOsd") {
@@ -537,6 +556,7 @@ PanelWindow {
         }
 
         // 2. Bar Panel Modules: Map view IDs to button handles
+        root.isCentered = false
         let btn = null
 
         switch (activeView) {
@@ -581,6 +601,7 @@ PanelWindow {
             // High Priority OSD Takeover (Preserves underlying panel state)
             if (typeof Config.showOSD !== "undefined" && Config.showOSD) nextView = "osd"
             else if (typeof Config.showNotificationOsd !== "undefined" && Config.showNotificationOsd) nextView = "notifOsd"
+            else if (typeof Config.showLauncherOsd !== "undefined" && Config.showLauncherOsd) nextView = "launcherOsd"
 
             // Standard Module Panels (Unpinned active modules take priority)
             else if (Config.showSettings) nextView = "settings"
@@ -634,6 +655,7 @@ PanelWindow {
             if (except !== "power") Config.showPower = false
             if (except !== "wallpaper") Config.showWallpaper = false
             if (except !== "appLauncher") Config.showAppLauncher = false
+            if (except !== "launcherOsd") Config.showLauncherOsd = false
             if (except !== "calendar") Config.showCalendar = false
             if (except !== "notifications") Config.showNotifications = false
             if (except !== "audio") Config.showAudio = false
@@ -705,6 +727,7 @@ PanelWindow {
             updateActiveView()
         }
         function onShowAppLauncherChanged() { if (Config.showAppLauncher) { closeOthers("appLauncher"); let btn = leftCard ? leftCard.getButton("launcher") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
+        function onShowLauncherOsdChanged() { if (Config.showLauncherOsd) { closeOthers("launcherOsd") } updateActiveView() }
         function onShowPowerChanged() { if (Config.showPower) { closeOthers("power"); let btn = leftCard ? leftCard.getButton("power") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowWallpaperChanged() { if (Config.showWallpaper) { closeOthers("wallpaper"); let btn = leftCard ? leftCard.getButton("wallpaper") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowCalendarChanged() { if (Config.showCalendar) { closeOthers("calendar"); let btn = rightCard ? rightCard.getButton("clock") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
@@ -767,7 +790,6 @@ PanelWindow {
             enabled: root.isOpen
             onClicked: {
                 root.closeOthers("none")
-                root.isCentered = false
             }
         }
 
@@ -1060,6 +1082,13 @@ PanelWindow {
                     objectName: "internalNotifOsd"
                     anchors.fill: parent
                     visible: root.activeView === "notifOsd"
+                }
+
+                LauncherOSD {
+                    id: launcherOsdModule
+                    objectName: "internalLauncherOsd"
+                    anchors.fill: parent
+                    visible: root.activeView === "launcherOsd"
                 }
 
                 TaskOverflow {

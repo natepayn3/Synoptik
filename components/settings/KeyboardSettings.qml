@@ -250,6 +250,7 @@ Flickable {
                 Repeater {
                     model: [
                         { id: "launcher",          name: "App Launcher",        icon: "terminal_2" },
+                        { id: "launcherosd",       name: "Command Launcher",    icon: "bolt" },
                         { id: "settings",          name: "Settings Panel",      icon: "build" },
                         { id: "wallpaper",         name: "Wallpaper Picker",    icon: "wall_art" },
                         { id: "workspaceoverview", name: "Workspace Overview", icon: "select_window_2" },

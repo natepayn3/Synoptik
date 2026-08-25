@@ -292,6 +292,7 @@ ShellRoot {
             if (!shellRoot.isFocusedBarEnabled) return;
             if (!Config.showPower) {
                 Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false;
+                Config.showLauncherOsd = false;
                 Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false;
                 Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
                 Config.showClipboard = false; Config.showMirror = false;
@@ -306,6 +307,7 @@ ShellRoot {
             if (!shellRoot.isFocusedBarEnabled) return;
             if (!Config.showAppLauncher) {
                 Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
+                Config.showLauncherOsd = false;
                 Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false;
                 Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
                 Config.showClipboard = false; Config.showMirror = false;
@@ -315,11 +317,39 @@ ShellRoot {
     }
 
     IpcHandler {
+        target: "launcherosd"
+        function toggle(): void {
+            if (!shellRoot.isFocusedBarEnabled) return;
+            if (!Config.showLauncherOsd) {
+                Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
+                Config.showAppLauncher = false;
+                Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false;
+                Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
+                Config.showClipboard = false; Config.showMirror = false;
+            }
+            Config.showLauncherOsd = !Config.showLauncherOsd
+        }
+        function open(): void {
+            if (!shellRoot.isFocusedBarEnabled) return;
+            Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
+            Config.showAppLauncher = false;
+            Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false;
+            Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
+            Config.showClipboard = false; Config.showMirror = false;
+            Config.showLauncherOsd = true
+        }
+        function hide(): void {
+            Config.showLauncherOsd = false
+        }
+    }
+
+    IpcHandler {
         target: "wallpaper"
         function toggle(): void {
             if (!shellRoot.isFocusedBarEnabled) return;
             if (!Config.showWallpaper) {
                 Config.showPower = false; Config.showSettings = false; Config.showAppLauncher = false;
+                Config.showLauncherOsd = false;
                 Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false;
                 Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
                 Config.showClipboard = false; Config.showMirror = false;
@@ -334,7 +364,7 @@ ShellRoot {
             if (!shellRoot.isFocusedBarEnabled) return;
             if (!Config.showNotifications) {
                 Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
-                Config.showAppLauncher = false; Config.showCalendar = false; Config.showBattery = false;
+                Config.showAppLauncher = false; Config.showLauncherOsd = false; Config.showCalendar = false; Config.showBattery = false;
                 Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
                 Config.showClipboard = false; Config.showMirror = false;
             }
@@ -348,7 +378,7 @@ ShellRoot {
             if (!shellRoot.isFocusedBarEnabled) return;
             if (!Config.showWorkspacePreview) {
                 Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
-                Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false;
+                Config.showAppLauncher = false; Config.showLauncherOsd = false; Config.showCalendar = false; Config.showNotifications = false;
                 Config.showBattery = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
                 Config.showClipboard = false; Config.showMirror = false;
             }
@@ -362,6 +392,7 @@ ShellRoot {
             if (!shellRoot.isFocusedBarEnabled) return;
             if (!Config.showSettings) {
                 Config.showPower = false; Config.showWallpaper = false; Config.showAppLauncher = false;
+                Config.showLauncherOsd = false;
                 Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false;
                 Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
                 Config.showClipboard = false; Config.showMirror = false;
@@ -383,7 +414,7 @@ ShellRoot {
             if (!shellRoot.isFocusedBarEnabled) return;
             if (!Config.showClipboard) {
                 Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
-                Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false;
+                Config.showAppLauncher = false; Config.showLauncherOsd = false; Config.showCalendar = false; Config.showNotifications = false;
                 Config.showBattery = false; Config.showWorkspacePreview = false; Config.showControlCenter = false;
                 Config.showScreenRecorder = false; Config.showMirror = false;
             }
@@ -397,7 +428,7 @@ ShellRoot {
             if (!shellRoot.isFocusedBarEnabled) return;
             if (!Config.showScreenRecorder) {
                 Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
-                Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false;
+                Config.showAppLauncher = false; Config.showLauncherOsd = false; Config.showCalendar = false; Config.showNotifications = false;
                 Config.showBattery = false; Config.showWorkspacePreview = false; Config.showControlCenter = false;
                 Config.showClipboard = false; Config.showMirror = false;
             }
@@ -411,7 +442,7 @@ ShellRoot {
             if (!shellRoot.isFocusedBarEnabled) return;
             if (!Config.showMirror) {
                 Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
-                Config.showAppLauncher = false; Config.showCalendar = false; Config.showNotifications = false;
+                Config.showAppLauncher = false; Config.showLauncherOsd = false; Config.showCalendar = false; Config.showNotifications = false;
                 Config.showBattery = false; Config.showWorkspacePreview = false; Config.showControlCenter = false;
                 Config.showClipboard = false; Config.showScreenRecorder = false;
             }

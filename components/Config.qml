@@ -191,6 +191,7 @@ QtObject {
     property bool showCalendar: false
     property bool showWallpaper: false
     property bool showAppLauncher: false
+    property bool showLauncherOsd: false
     property bool showNetwork: false
     property bool showAudio: false
     property bool showBluetooth: false
@@ -212,6 +213,7 @@ QtObject {
     readonly property var defaultKeybinds: ({
         "wallpaper":         { mod: "SUPER",         key: "B",     cmd: "qs -c Synoptik ipc call wallpaper toggle" },
         "launcher":          { mod: "SUPER",         key: "A",     cmd: "qs -c Synoptik ipc call launcher toggle" },
+        "launcherosd":       { mod: "SUPER",         key: "F",     cmd: "qs -c Synoptik ipc call launcherosd toggle" },
         "settings":          { mod: "SUPER",         key: "Space", cmd: "qs -c Synoptik ipc call settings toggle" },
         "workspaceoverview": { mod: "SUPER",         key: "TAB",   cmd: "qs -c Synoptik ipc call workspaceoverview toggle" },
         "clipboard":         { mod: "SUPER + SHIFT", key: "V",     cmd: "qs -c Synoptik ipc call clipboard toggle" },
@@ -1420,7 +1422,7 @@ QtObject {
             : ""
 
         let bindLines = []
-        let bindKeys = ["wallpaper", "launcher", "settings", "workspaceoverview", "clipboard", "lockscreen", "shader"]
+        let bindKeys = ["wallpaper", "launcher", "launcherosd", "settings", "workspaceoverview", "clipboard", "lockscreen", "shader"]
         bindKeys.forEach(bk => {
             let b = (root.keybinds && root.keybinds[bk]) ? root.keybinds[bk] : root.defaultKeybinds[bk]
             if (b) {
