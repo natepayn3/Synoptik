@@ -4,6 +4,7 @@ import QtQuick.Controls
 import Qt5Compat.GraphicalEffects
 import Quickshell
 import Quickshell.Io
+import Quickshell.Widgets
 import ".."
 
 Item {
@@ -27,6 +28,11 @@ Item {
     readonly property string mediaStatus: (typeof shellRoot !== "undefined" && shellRoot.mediaStatus) ? shellRoot.mediaStatus : "Stopped"
     readonly property string mediaArtUrl: (typeof shellRoot !== "undefined" && shellRoot.mediaArtUrl) ? shellRoot.mediaArtUrl : ""
     property var cavaBars: []
+
+    // Per-track accent sampled from the album art (falls back to the theme
+    // accent when there's no art, or until sampling completes).
+    property color dynamicAccent: Config.accent
+    onMediaArtUrlChanged: if (mediaArtUrl === "") dynamicAccent = Config.accent
 
     // Progress State
     property double trackPosition: 0
@@ -80,14 +86,78 @@ Item {
         cardRoot.trackPosition = Math.max(0, cardRoot.trackPosition + offsetSec);
     }
 
-    Rectangle {
+    // Tiny hidden canvas used purely to sample an average color out of the
+    // currently loaded album art. Downscaling onto a few pixels and averaging
+    // them is a cheap approximation of "dominant color" - good enough to
+    // drive a bold, per-track accent without a real clustering algorithm.
+    Canvas {
+        id: colorSampler
+        width: 8
+        height: 8
+        visible: false
+        renderTarget: Canvas.Image
+        renderStrategy: Canvas.Immediate
+
+        function sample() {
+            if (artImage.status !== Image.Ready) return
+            var ctx = getContext("2d")
+            ctx.clearRect(0, 0, width, height)
+            try {
+                ctx.drawImage(artImage, 0, 0, width, height)
+                var data = ctx.getImageData(0, 0, width, height).data
+                var r = 0, g = 0, b = 0, n = 0
+                for (var i = 0; i < data.length; i += 4) {
+                    if (data[i + 3] < 16) continue
+                    r += data[i]; g += data[i + 1]; b += data[i + 2]
+                    n++
+                }
+                if (n === 0) return
+                var avg = Qt.rgba((r / n) / 255, (g / n) / 255, (b / n) / 255, 1.0)
+
+                // Boost saturation and clamp lightness so muddy or near-black
+                // covers still produce a bold, legible accent.
+                var sat = Math.max(avg.hslSaturation, 0.5)
+                var light = Math.min(Math.max(avg.hslLightness, 0.4), 0.62)
+                cardRoot.dynamicAccent = Qt.hsla(avg.hslHue, sat, light, 1.0)
+            } catch (e) {
+                // Pixel readback can fail for some image sources - keep the
+                // previous accent rather than breaking the card.
+            }
+        }
+    }
+
+    Connections {
+        target: artImage
+        function onStatusChanged() {
+            if (artImage.status === Image.Ready) colorSampler.sample()
+        }
+    }
+
+    // Ambient elevation glow - lifts the card off the panel, blooms harder
+    // when a track is actually alive so idle state stays quiet.
+    RectangularGlow {
+        id: cardElevationGlow
+        anchors.fill: mediaContainer
+        glowRadius: 34
+        spread: 0.14
+        color: cardRoot.dynamicAccent
+        cornerRadius: mediaContainer.radius
+        opacity: cardRoot.isStopped ? 0.0 : (cardHover.hovered ? 0.5 : 0.3)
+
+        Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.OutQuad } }
+        Behavior on color { ColorAnimation { duration: 400 } }
+    }
+
+    // ClippingRectangle (not plain Rectangle) so the blurred art backdrop
+    // below actually respects the rounded corners instead of bleeding past
+    // them - plain Rectangle.clip only clips to the square bounding box.
+    ClippingRectangle {
         id: mediaContainer
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: parent.top
         implicitHeight: cardRoot.isStopped ? 48 : (contentCluster.implicitHeight + (cardRoot.cardMargin * 2))
         radius: Config.cornerRadius
-        clip: true
 
         Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutQuad } }
         Behavior on color { ColorAnimation { duration: 150 } }
@@ -95,14 +165,59 @@ Item {
 
         color: cardHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.04)
         border.width: 1
-        border.color: Qt.rgba(255, 255, 255, 0.1)
+        border.color: cardRoot.isStopped
+            ? Qt.rgba(255, 255, 255, 0.1)
+            : Qt.rgba(cardRoot.dynamicAccent.r, cardRoot.dynamicAccent.g, cardRoot.dynamicAccent.b, cardHover.hovered ? 0.5 : 0.24)
 
         HoverHandler { id: cardHover }
 
+        // Full-bleed blurred album art backdrop - the real "wow" layer.
+        // Mirrors the same fade-blur pattern used by Wallpaper.qml.
+        Item {
+            id: backdropLayer
+            anchors.fill: parent
+            visible: !cardRoot.isStopped && cardRoot.mediaArtUrl !== ""
+
+            Image {
+                id: backdropImage
+                anchors.fill: parent
+                source: cardRoot.mediaArtUrl
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                cache: true
+                opacity: 0.5
+
+                Behavior on source {
+                    SequentialAnimation {
+                        NumberAnimation { target: backdropImage; property: "opacity"; to: 0.0; duration: 120 }
+                        PropertyAction { target: backdropImage; property: "source" }
+                        NumberAnimation { target: backdropImage; property: "opacity"; to: 0.5; duration: 300 }
+                    }
+                }
+            }
+
+            FastBlur {
+                anchors.fill: backdropImage
+                source: backdropImage
+                radius: 64
+            }
+
+            // Legibility scrim, lightly duotoned with the extracted accent.
+            Rectangle {
+                anchors.fill: parent
+                color: Qt.rgba(0.03 + cardRoot.dynamicAccent.r * 0.05, 0.03 + cardRoot.dynamicAccent.g * 0.05, 0.03 + cardRoot.dynamicAccent.b * 0.07, 0.58)
+
+                Behavior on color { ColorAnimation { duration: 400 } }
+            }
+        }
+
+        // Decorative glyph watermark - only needed when there's no real
+        // photo doing that job for us.
         Watermark {
             icon: Config.getIcon("cc")
             iconSize: cardRoot.isStopped ? 60 : 150
             seed: 1
+            activeVisible: cardRoot.isStopped || cardRoot.mediaArtUrl === ""
         }
 
         // ==========================================
@@ -179,7 +294,7 @@ Item {
                     anchors.fill: parent
                     antialiasing: true
 
-                    readonly property bool isVisualizerActive: cardRoot.visible 
+                    readonly property bool isVisualizerActive: cardRoot.visible
                         && cardRoot.mediaStatus === "Playing"
 
                     property real rotationAngle: 0.0
@@ -210,7 +325,7 @@ Item {
                         var barWidth = 2.5;
 
                         ctx.save();
-                        ctx.fillStyle = Config.accent;
+                        ctx.fillStyle = cardRoot.dynamicAccent;
 
                         for (var i = 0; i < barCount; i++) {
                             var angle = ((i * 2 * Math.PI) / barCount) + visualizerCanvas.rotationAngle;
@@ -247,13 +362,44 @@ Item {
                                 visualizerCanvas.requestPaint();
                             }
                         }
+                        function onDynamicAccentChanged() {
+                            if (visualizerCanvas.isVisualizerActive) {
+                                visualizerCanvas.requestPaint();
+                            }
+                        }
                     }
                 }
 
+                // Halo behind the art - blooms brighter while actively playing
+                RectangularGlow {
+                    anchors.centerIn: parent
+                    width: 96
+                    height: 96
+                    glowRadius: 20
+                    spread: 0.25
+                    color: cardRoot.dynamicAccent
+                    cornerRadius: 48
+                    opacity: visualizerCanvas.isVisualizerActive ? 0.6 : 0.25
+
+                    Behavior on opacity { NumberAnimation { duration: 300 } }
+                    Behavior on color { ColorAnimation { duration: 400 } }
+                }
+
                 Item {
+                    id: artDisc
                     width: 88
                     height: 88
                     anchors.centerIn: parent
+
+                    // Slow vinyl-style spin while playing; freezes in place on pause.
+                    // (0 -> 360 is visually seamless, so the per-loop reset never shows.)
+                    PropertyAnimation on rotation {
+                        from: 0
+                        to: 360
+                        duration: 16000
+                        loops: Animation.Infinite
+                        running: visualizerCanvas.isVisualizerActive
+                    }
 
                     Image {
                         id: artImage
@@ -287,6 +433,15 @@ Item {
                         color: Config.textMuted
                         visible: artImage.status !== Image.Ready
                     }
+
+                    // Thin accent ring so the disc reads as a distinct object, not a cutout
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: width / 2
+                        color: "transparent"
+                        border.width: 1.5
+                        border.color: Qt.rgba(255, 255, 255, 0.18)
+                    }
                 }
             }
 
@@ -294,29 +449,49 @@ Item {
             ColumnLayout {
                 Layout.fillWidth: true
                 Layout.alignment: Qt.AlignVCenter
-                spacing: 8
+                spacing: 10
 
-                // Track Info & Player Source
+                // Track Info & Player Source - big, bold, left-aligned poster
+                // treatment instead of a small centered caption.
                 ColumnLayout {
                     Layout.fillWidth: true
                     spacing: 2
 
+                    Text {
+                        id: titleText
+                        text: cardRoot.mediaTitle
+                        color: Config.textMain
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontTitle) * 1.25
+                        font.weight: Font.Black
+                        font.letterSpacing: -0.5
+                        elide: Text.ElideRight
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignLeft
+
+                        layer.enabled: Config.clockShowGlow && cardRoot.mediaStatus === "Playing"
+                        layer.effect: Glow {
+                            radius: 10
+                            samples: 20
+                            color: cardRoot.dynamicAccent
+                            spread: 0.2
+                            transparentBorder: true
+                        }
+                    }
+
                     RowLayout {
                         Layout.fillWidth: true
-                        spacing: 6
-
-                        Item { Layout.fillWidth: true }
+                        spacing: 8
 
                         Text {
-                            id: titleText
-                            text: cardRoot.mediaTitle
-                            color: Config.textMain
+                            id: artistText
+                            text: cardRoot.mediaArtist
+                            color: Config.textMuted
                             font.family: Config.sysFont
                             font.pixelSize: Config.size(Config.fontCaption)
                             font.bold: true
                             elide: Text.ElideRight
-                            Layout.maximumWidth: 320
-                            horizontalAlignment: Text.AlignHCenter
+                            Layout.fillWidth: true
                         }
 
                         // Player Source Badge
@@ -324,36 +499,26 @@ Item {
                             implicitWidth: playerBadgeText.implicitWidth + 10
                             implicitHeight: 16
                             radius: 8
-                            color: Qt.rgba(255, 255, 255, 0.08)
+                            color: Qt.rgba(cardRoot.dynamicAccent.r, cardRoot.dynamicAccent.g, cardRoot.dynamicAccent.b, 0.18)
                             visible: cardRoot.activePlayerName !== ""
+
+                            Behavior on color { ColorAnimation { duration: 400 } }
 
                             Text {
                                 id: playerBadgeText
                                 anchors.centerIn: parent
                                 text: cardRoot.activePlayerName.toUpperCase()
-                                color: Config.accent
+                                color: cardRoot.dynamicAccent
                                 font.family: Config.sysFont
                                 font.pixelSize: 9
                                 font.bold: true
                             }
                         }
-
-                        Item { Layout.fillWidth: true }
-                    }
-
-                    Text {
-                        id: artistText
-                        text: cardRoot.mediaArtist
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                        elide: Text.ElideRight
-                        Layout.fillWidth: true
-                        horizontalAlignment: Text.AlignHCenter
                     }
                 }
 
-                // Progress Bar
+                // Progress - a bold full-width spectrum bar doubling as the
+                // scrub control, instead of a thin flat line.
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 8
@@ -366,23 +531,120 @@ Item {
                         color: Config.textMuted
                     }
 
-                    Rectangle {
+                    Item {
                         id: progressBarTrack
                         Layout.fillWidth: true
-                        implicitHeight: 4
-                        radius: 2
-                        color: Qt.rgba(255, 255, 255, 0.1)
+                        implicitHeight: 32
 
-                        Rectangle {
-                            anchors.left: parent.left
-                            anchors.top: parent.top
-                            anchors.bottom: parent.bottom
-                            width: (cardRoot.trackLength > 0) ? Math.min(parent.width, parent.width * (cardRoot.trackPosition / cardRoot.trackLength)) : 0
-                            radius: 2
-                            color: Config.accent
+                        HoverHandler {
+                            id: progressHover
+                            onHoveredChanged: spectrumCanvas.requestPaint()
+                        }
+
+                        Canvas {
+                            id: spectrumCanvas
+                            anchors.fill: parent
+                            antialiasing: true
+
+                            readonly property real playedRatio: cardRoot.trackLength > 0
+                                ? Math.min(1.0, cardRoot.trackPosition / cardRoot.trackLength)
+                                : 0
+
+                            // Eased per-bin amplitudes, retained across paints so the
+                            // waveform flows toward new values instead of jumping.
+                            property var smoothed: []
+
+                            onPlayedRatioChanged: requestPaint()
+                            onWidthChanged: requestPaint()
+                            onHeightChanged: requestPaint()
+
+                            Connections {
+                                target: cardRoot
+                                function onCavaBarsChanged() { spectrumCanvas.requestPaint() }
+                                function onDynamicAccentChanged() { spectrumCanvas.requestPaint() }
+                            }
+
+                            onPaint: {
+                                var ctx = getContext("2d");
+                                ctx.clearRect(0, 0, width, height);
+
+                                var bars = cardRoot.cavaBars;
+                                var binCount = (bars && bars.length > 0) ? bars.length : 32;
+
+                                if (spectrumCanvas.smoothed.length !== binCount) {
+                                    var seed = [];
+                                    for (var k = 0; k < binCount; k++) seed.push(0);
+                                    spectrumCanvas.smoothed = seed;
+                                }
+
+                                var midY = height / 2;
+                                var maxAmp = Math.max(2, height / 2 - 2);
+                                var step = width / binCount;
+                                var points = [];
+
+                                for (var i = 0; i < binCount; i++) {
+                                    var raw = (bars && bars.length > 0) ? bars[i] / 255.0 : 0.08;
+                                    // Exponential ease toward the latest sample - this is
+                                    // what makes the shape flow rather than snap per-frame.
+                                    spectrumCanvas.smoothed[i] += (raw - spectrumCanvas.smoothed[i]) * 0.35;
+                                    var amp = Math.max(0.05, spectrumCanvas.smoothed[i]) * maxAmp;
+                                    points.push({ x: (i + 0.5) * step, amp: amp });
+                                }
+
+                                // Trace a smooth closed blob through the top/bottom mirrored
+                                // amplitudes using quadratic curves between bin midpoints -
+                                // no hard bar edges anywhere.
+                                function traceBlob() {
+                                    ctx.beginPath();
+                                    ctx.moveTo(0, midY - points[0].amp);
+                                    var p;
+                                    for (p = 1; p < points.length; p++) {
+                                        var xc = (points[p - 1].x + points[p].x) / 2;
+                                        var yc = midY - (points[p - 1].amp + points[p].amp) / 2;
+                                        ctx.quadraticCurveTo(points[p - 1].x, midY - points[p - 1].amp, xc, yc);
+                                    }
+                                    ctx.lineTo(width, midY - points[points.length - 1].amp);
+                                    ctx.lineTo(width, midY + points[points.length - 1].amp);
+                                    for (p = points.length - 1; p > 0; p--) {
+                                        var xc2 = (points[p].x + points[p - 1].x) / 2;
+                                        var yc2 = midY + (points[p].amp + points[p - 1].amp) / 2;
+                                        ctx.quadraticCurveTo(points[p].x, midY + points[p].amp, xc2, yc2);
+                                    }
+                                    ctx.lineTo(0, midY + points[0].amp);
+                                    ctx.closePath();
+                                }
+
+                                var playedX = width * spectrumCanvas.playedRatio;
+                                var accent = cardRoot.dynamicAccent;
+
+                                // Played portion - soft vertical glow gradient for a liquid feel
+                                ctx.save();
+                                ctx.beginPath();
+                                ctx.rect(0, 0, Math.max(0, playedX), height);
+                                ctx.clip();
+                                traceBlob();
+                                var grad = ctx.createLinearGradient(0, midY - maxAmp, 0, midY + maxAmp);
+                                grad.addColorStop(0.0, Qt.rgba(accent.r, accent.g, accent.b, 0.15));
+                                grad.addColorStop(0.5, accent);
+                                grad.addColorStop(1.0, Qt.rgba(accent.r, accent.g, accent.b, 0.15));
+                                ctx.fillStyle = grad;
+                                ctx.fill();
+                                ctx.restore();
+
+                                // Unplayed portion - flat, dim
+                                ctx.save();
+                                ctx.beginPath();
+                                ctx.rect(playedX, 0, Math.max(0, width - playedX), height);
+                                ctx.clip();
+                                traceBlob();
+                                ctx.fillStyle = Qt.rgba(255, 255, 255, progressHover.hovered ? 0.22 : 0.13);
+                                ctx.fill();
+                                ctx.restore();
+                            }
                         }
 
                         MouseArea {
+                            id: progressSeekArea
                             anchors.fill: parent
                             cursorShape: Qt.PointingHandCursor
                             onClicked: (mouse) => {
@@ -410,17 +672,27 @@ Item {
 
                     // Replay 10s
                     Item {
-                        implicitWidth: 26
-                        implicitHeight: 26
+                        implicitWidth: 32
+                        implicitHeight: 32
                         Layout.alignment: Qt.AlignVCenter
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: width / 2
+                            color: cardRoot.dynamicAccent
+                            opacity: replayHover.hovered ? 0.14 : 0.0
+                            Behavior on opacity { NumberAnimation { duration: 150 } }
+                        }
 
                         Text {
                             anchors.centerIn: parent
                             text: "replay_10"
                             font.family: "Material Symbols Outlined"
                             font.pixelSize: 20
-                            color: replayHover.hovered ? Config.accent : Config.textMuted
+                            color: replayHover.hovered ? cardRoot.dynamicAccent : Config.textMuted
+                            scale: replayHover.hovered ? 1.1 : 1.0
                             Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
                         }
 
                         TapHandler { onTapped: cardRoot.seekRelative(-10) }
@@ -429,36 +701,68 @@ Item {
 
                     // Previous
                     Item {
-                        implicitWidth: 28
-                        implicitHeight: 28
+                        implicitWidth: 34
+                        implicitHeight: 34
                         Layout.alignment: Qt.AlignVCenter
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: width / 2
+                            color: cardRoot.dynamicAccent
+                            opacity: prevHover.hovered ? 0.14 : 0.0
+                            Behavior on opacity { NumberAnimation { duration: 150 } }
+                        }
 
                         Text {
                             anchors.centerIn: parent
                             text: "skip_previous"
                             font.family: "Material Symbols Outlined"
                             font.pixelSize: 24
-                            color: prevHover.hovered ? Config.accent : Config.textMain
+                            color: prevHover.hovered ? cardRoot.dynamicAccent : Config.textMain
+                            scale: prevHover.hovered ? 1.1 : 1.0
                             Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
                         }
 
                         TapHandler { onTapped: cardRoot.sendCommand(["playerctl", "previous"]) }
                         HoverHandler { id: prevHover; cursorShape: Qt.PointingHandCursor }
                     }
 
-                    // Play / Pause
+                    // Play / Pause - the focal point: a solid accent disc instead of a bare glyph
                     Item {
-                        implicitWidth: 38
-                        implicitHeight: 38
+                        implicitWidth: 52
+                        implicitHeight: 52
                         Layout.alignment: Qt.AlignVCenter
+
+                        RectangularGlow {
+                            anchors.fill: playCircle
+                            glowRadius: 18
+                            spread: 0.3
+                            color: cardRoot.dynamicAccent
+                            cornerRadius: playCircle.radius
+                            opacity: cardRoot.mediaStatus === "Playing" ? 0.6 : 0.35
+                            Behavior on opacity { NumberAnimation { duration: 200 } }
+                            Behavior on color { ColorAnimation { duration: 400 } }
+                        }
+
+                        Rectangle {
+                            id: playCircle
+                            anchors.centerIn: parent
+                            width: playHover.hovered ? 48 : 44
+                            height: width
+                            radius: width / 2
+                            color: cardRoot.dynamicAccent
+
+                            Behavior on width { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
+                            Behavior on color { ColorAnimation { duration: 400 } }
+                        }
 
                         Text {
                             anchors.centerIn: parent
-                            text: cardRoot.mediaStatus === "Playing" ? "pause_circle" : "play_circle"
+                            text: cardRoot.mediaStatus === "Playing" ? "pause" : "play_arrow"
                             font.family: "Material Symbols Outlined"
-                            font.pixelSize: 36
-                            color: playHover.hovered ? Config.textMain : Config.accent
-                            Behavior on color { ColorAnimation { duration: 150 } }
+                            font.pixelSize: 24
+                            color: Config.bgBase
                         }
 
                         TapHandler { onTapped: cardRoot.sendCommand(["playerctl", "play-pause"]) }
@@ -467,17 +771,27 @@ Item {
 
                     // Next
                     Item {
-                        implicitWidth: 28
-                        implicitHeight: 28
+                        implicitWidth: 34
+                        implicitHeight: 34
                         Layout.alignment: Qt.AlignVCenter
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: width / 2
+                            color: cardRoot.dynamicAccent
+                            opacity: nextHover.hovered ? 0.14 : 0.0
+                            Behavior on opacity { NumberAnimation { duration: 150 } }
+                        }
 
                         Text {
                             anchors.centerIn: parent
                             text: "skip_next"
                             font.family: "Material Symbols Outlined"
                             font.pixelSize: 24
-                            color: nextHover.hovered ? Config.accent : Config.textMain
+                            color: nextHover.hovered ? cardRoot.dynamicAccent : Config.textMain
+                            scale: nextHover.hovered ? 1.1 : 1.0
                             Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
                         }
 
                         TapHandler { onTapped: cardRoot.sendCommand(["playerctl", "next"]) }
@@ -486,17 +800,27 @@ Item {
 
                     // Forward 10s
                     Item {
-                        implicitWidth: 26
-                        implicitHeight: 26
+                        implicitWidth: 32
+                        implicitHeight: 32
                         Layout.alignment: Qt.AlignVCenter
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: width / 2
+                            color: cardRoot.dynamicAccent
+                            opacity: forwardHover.hovered ? 0.14 : 0.0
+                            Behavior on opacity { NumberAnimation { duration: 150 } }
+                        }
 
                         Text {
                             anchors.centerIn: parent
                             text: "forward_10"
                             font.family: "Material Symbols Outlined"
                             font.pixelSize: 20
-                            color: forwardHover.hovered ? Config.accent : Config.textMuted
+                            color: forwardHover.hovered ? cardRoot.dynamicAccent : Config.textMuted
+                            scale: forwardHover.hovered ? 1.1 : 1.0
                             Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutBack } }
                         }
 
                         TapHandler { onTapped: cardRoot.seekRelative(10) }
