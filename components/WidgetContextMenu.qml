@@ -1,5 +1,6 @@
 import QtQuick
 import QtQuick.Layouts
+import Qt5Compat.GraphicalEffects
 
 // Right-click menu shared by every desktop widget (Clock, System Info, Cava,
 // Mascot) letting the user toggle any of them on/off from wherever they are,
@@ -65,8 +66,16 @@ Rectangle {
 
     Behavior on border.color { ColorAnimation { duration: 150 } }
 
-    implicitWidth: col.implicitWidth + 20
-    implicitHeight: col.implicitHeight + 16
+    // GRAPHIC WATERMARK (same ambient background glyph the other module
+    // cards - Battery, Notifications, TaskOverflow - use behind their content)
+    Watermark {
+        icon: Config.getIcon("cc")
+        iconSize: 110
+        seed: 33
+    }
+
+    implicitWidth: Math.max(220, col.implicitWidth + 36)
+    implicitHeight: col.implicitHeight + 28
     width: implicitWidth
     height: implicitHeight
 
@@ -120,31 +129,49 @@ Rectangle {
 
     ColumnLayout {
         id: col
-        x: 10
-        y: 8
-        spacing: 2
+        x: 18
+        y: 14
+        spacing: 6
 
         RowLayout {
             Layout.fillWidth: true
-            Layout.bottomMargin: 4
-            spacing: 6
+            Layout.bottomMargin: 8
+            spacing: 8
 
-            Rectangle {
-                implicitWidth: 3
-                implicitHeight: 12
-                radius: 1.5
-                color: Config.accent
+            Text {
+                text: Config.getIcon("cc")
+                font.family: "Material Symbols Outlined"
+                font.pixelSize: Config.size(Config.fontTitle)
+                color: Config.textMain
                 Layout.alignment: Qt.AlignVCenter
             }
 
-            Text {
-                text: "DESKTOP WIDGETS"
-                color: Config.accent
-                font.family: Config.sysFont
-                font.pixelSize: Config.size(Config.fontCaption)
-                font.bold: true
-                font.letterSpacing: 1.1
+            Item {
+                implicitWidth: menuTitleText.implicitWidth
+                implicitHeight: menuTitleText.implicitHeight
                 Layout.alignment: Qt.AlignVCenter
+
+                Glow {
+                    anchors.fill: menuTitleText
+                    source: menuTitleText
+                    radius: 8
+                    samples: 16
+                    color: Config.accent
+                    spread: 0.2
+                    transparentBorder: true
+                    visible: Config.clockShowGlow
+                }
+
+                Text {
+                    id: menuTitleText
+                    anchors.fill: parent
+                    text: "DESKTOP WIDGETS"
+                    color: Config.textMain
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontTitle)
+                    font.bold: true
+                    font.italic: true
+                }
             }
         }
 
@@ -153,31 +180,31 @@ Rectangle {
 
             delegate: Rectangle {
                 Layout.fillWidth: true
-                implicitWidth: rowLayout.implicitWidth + 16
-                implicitHeight: 34
+                implicitWidth: rowLayout.implicitWidth + 24
+                implicitHeight: 44
                 radius: Config.cornerRadius / 2
-                color: rowHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : "transparent"
+                color: rowHover.hovered ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(0, 0, 0, 0.25)
 
                 Behavior on color { ColorAnimation { duration: 120 } }
 
                 RowLayout {
                     id: rowLayout
                     anchors.fill: parent
-                    anchors.leftMargin: 8
-                    anchors.rightMargin: 8
-                    spacing: 10
+                    anchors.leftMargin: 12
+                    anchors.rightMargin: 12
+                    spacing: 14
 
                     Text {
                         text: modelData.icon
                         font.family: "Material Symbols Outlined"
-                        font.pixelSize: 16
+                        font.pixelSize: 19
                         color: modelData.enabled ? Config.accent : Config.textMuted
                     }
 
                     Text {
                         text: modelData.label
                         font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontCaption)
+                        font.pixelSize: Config.size(Config.fontCaption) + 1
                         font.bold: true
                         color: Config.textMain
                         Layout.fillWidth: true
@@ -185,9 +212,9 @@ Rectangle {
 
                     // Compact switch (mirrors BarSettings.qml's ToggleSwitch look)
                     Rectangle {
-                        implicitWidth: 32
-                        implicitHeight: 18
-                        radius: 5
+                        implicitWidth: 38
+                        implicitHeight: 21
+                        radius: 6
                         color: modelData.enabled ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.22) : Qt.rgba(0, 0, 0, 0.4)
                         border.width: modelData.enabled ? 1.5 : 1
                         border.color: modelData.enabled ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
@@ -195,11 +222,11 @@ Rectangle {
                         Behavior on color { ColorAnimation { duration: 120 } }
 
                         Rectangle {
-                            x: modelData.enabled ? (parent.width - width - 2) : 2
+                            x: modelData.enabled ? (parent.width - width - 3) : 3
                             anchors.verticalCenter: parent.verticalCenter
-                            width: 13
-                            height: 13
-                            radius: 3
+                            width: 15
+                            height: 15
+                            radius: 4
                             color: modelData.enabled ? Config.accent : Qt.rgba(255, 255, 255, 0.2)
 
                             Behavior on x { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
