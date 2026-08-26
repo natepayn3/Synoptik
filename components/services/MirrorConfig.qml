@@ -33,7 +33,7 @@ QtObject {
                     camera: Camera {
                         id: globalMirrorCamera
                         cameraDevice: mirrorBackend.mediaDevices.defaultVideoInput
-                        active: true
+                        active: false
 
                         onActiveChanged: {
                             if (active) {
@@ -67,7 +67,14 @@ QtObject {
                             }
                         }
 
-                        Component.onCompleted: applyRawFormat()
+                        Component.onCompleted: {
+                            applyRawFormat()
+                            // Defer opening the device to the next event loop tick so the
+                            // panel and its loading overlay get to render a frame first —
+                            // opening the camera synchronously here would block the whole
+                            // popout animation until the (often slow) hardware init finishes.
+                            Qt.callLater(() => { globalMirrorCamera.active = true })
+                        }
                     }
                 }
 
