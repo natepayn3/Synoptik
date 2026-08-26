@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
+import Quickshell.Widgets
 
 Item {
     id: audioModule
@@ -41,15 +42,17 @@ Item {
         // ==========================================
         // CARD 1: AUDIO OUTPUT
         // ==========================================
-        Rectangle {
+        // ClippingRectangle (not plain Rectangle) so the watermark actually
+        // respects the rounded corners instead of bleeding past them - plain
+        // Rectangle.clip only clips to the square bounding box.
+        ClippingRectangle {
             Layout.fillWidth: true
-            implicitWidth: 360 
+            implicitWidth: 360
             implicitHeight: outputLayout.implicitHeight + (audioModule.cardMargin * 2)
             color: outputCardHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.05)
             radius: Config.cornerRadius
             border.width: 1
             border.color: Qt.rgba(255, 255, 255, 0.1)
-            clip: true
 
             Behavior on border.color { ColorAnimation { duration: 150 } }
 
@@ -323,7 +326,10 @@ Item {
         // ==========================================
         // CARD 2: AUDIO INPUT
         // ==========================================
-        Rectangle {
+        // ClippingRectangle (not plain Rectangle) so the watermark actually
+        // respects the rounded corners instead of bleeding past them - plain
+        // Rectangle.clip only clips to the square bounding box.
+        ClippingRectangle {
             Layout.fillWidth: true
             implicitWidth: 360
             implicitHeight: inputLayout.implicitHeight + (audioModule.cardMargin * 2)
@@ -331,7 +337,6 @@ Item {
             radius: Config.cornerRadius
             border.width: 1
             border.color: Qt.rgba(255, 255, 255, 0.1)
-            clip: true
 
             Behavior on border.color { ColorAnimation { duration: 150 } }
 

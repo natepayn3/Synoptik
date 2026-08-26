@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
 import Qt5Compat.GraphicalEffects
+import Quickshell.Widgets
 
 // Right-click menu shared by every desktop widget (Clock, System Info, Cava,
 // Mascot) letting the user toggle any of them on/off from wherever they are,
@@ -8,7 +9,11 @@ import Qt5Compat.GraphicalEffects
 // each widget's drag container (so it opens using that container's own local
 // coordinate space) and included in that widget's PanelWindow `mask` region
 // only while visible - see openAt()/close().
-Rectangle {
+//
+// ClippingRectangle (not plain Rectangle) so the watermark actually respects
+// the rounded corners instead of bleeding past them - plain Rectangle.clip
+// only clips to the square bounding box.
+ClippingRectangle {
     id: menu
 
     // --- OPEN/CLOSE MORPH: ported from UnifiedSurface.qml's popout squish
@@ -58,7 +63,6 @@ Rectangle {
     color: Config.bgPanel
     border.width: Config.showBorders ? Config.borderThickness : 1
     border.color: (typeof shellRoot !== "undefined" && shellRoot.currentBorderColor) ? shellRoot.currentBorderColor : Qt.rgba(255, 255, 255, 0.1)
-    clip: true
 
     Behavior on border.color { ColorAnimation { duration: 150 } }
 

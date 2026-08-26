@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
+import Quickshell.Widgets
 
 Item {
     id: root
@@ -83,7 +84,10 @@ Item {
         anchors.margins: root.cardMargin
 
         // Main Card Container
-        Rectangle {
+        // ClippingRectangle (not plain Rectangle) so the watermark actually
+        // respects the rounded corners instead of bleeding past them - plain
+        // Rectangle.clip only clips to the square bounding box.
+        ClippingRectangle {
             id: mainCard
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -95,7 +99,6 @@ Item {
             color: root.isRecording ? Qt.rgba(0.8, 0.2, 0.2, 0.2) : Qt.rgba(1, 1, 1, 0.08)
             border.width: 1
             border.color: root.isRecording ? "#ef4444" : Qt.rgba(255, 255, 255, 0.1)
-            clip: true
 
             Behavior on border.color { ColorAnimation { duration: 150 } }
 

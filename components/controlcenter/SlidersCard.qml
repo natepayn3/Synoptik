@@ -2,9 +2,13 @@ import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
 import Qt5Compat.GraphicalEffects
+import Quickshell.Widgets
 import ".."
 
-Rectangle {
+// ClippingRectangle (not plain Rectangle) so the watermark actually respects
+// the rounded corners instead of bleeding past them - plain Rectangle.clip
+// only clips to the square bounding box.
+ClippingRectangle {
     id: root
 
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
@@ -16,7 +20,6 @@ Rectangle {
     color: cardHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.04)
     border.width: 1
     border.color: Qt.rgba(255, 255, 255, 0.1)
-    clip: true
 
     Behavior on border.color { ColorAnimation { duration: 150 } }
     Behavior on color { ColorAnimation { duration: 150 } }
