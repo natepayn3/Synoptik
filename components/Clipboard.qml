@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
+import Quickshell.Widgets
 
 Item {
     id: clipRoot
@@ -193,7 +194,10 @@ Item {
             NumberAnimation { duration: 180; easing.type: Easing.OutQuad }
         }
 
-        Rectangle {
+        // ClippingRectangle (not plain Rectangle) so the watermark actually
+        // respects the rounded corners instead of bleeding past them - plain
+        // Rectangle.clip only clips to the square bounding box.
+        ClippingRectangle {
             id: mainCard
             Layout.fillWidth: true
             implicitWidth: 380
@@ -202,7 +206,6 @@ Item {
             radius: Config.cornerRadius
             border.width: 1
             border.color: Qt.rgba(255, 255, 255, 0.1)
-            clip: true
 
             Behavior on border.color { ColorAnimation { duration: 150 } }
 

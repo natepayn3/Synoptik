@@ -5,6 +5,7 @@ import QtQuick.Shapes
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
+import Quickshell.Widgets
 import ".."
 
 Item {
@@ -399,12 +400,14 @@ Item {
         return sum
     }
 
-    Rectangle {
+    // ClippingRectangle (not plain Rectangle) so the watermark actually
+    // respects the rounded corners instead of bleeding past them - plain
+    // Rectangle.clip only clips to the square bounding box.
+    ClippingRectangle {
         id: visualBackground
         parent: controlCenterPanel ? controlCenterPanel : cardRoot.parent
         z: cardRoot.panelExpanded ? 1000 : 100
-        clip: true
-        
+
         x: cardRoot.panelExpanded ? cardRoot.cardMargin : cardRoot.collapsedX
         y: cardRoot.panelExpanded ? cardRoot.cardMargin : cardRoot.collapsedY
         width: cardRoot.panelExpanded ? (controlCenterPanel ? (controlCenterPanel.width - (cardRoot.cardMargin * 2)) : 400) : cardRoot.width

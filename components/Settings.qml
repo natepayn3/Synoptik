@@ -6,6 +6,7 @@ import Qt.labs.folderlistmodel
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
+import Quickshell.Widgets
 import "./settings"
 import "./widgets"
 
@@ -815,7 +816,10 @@ Item {
             }
 
             // ================= RIGHT CONTENT CONTAINER =================
-            Rectangle {
+            // ClippingRectangle (not plain Rectangle) so the watermark actually
+            // respects the rounded corners instead of bleeding past them - plain
+            // Rectangle.clip only clips to the square bounding box.
+            ClippingRectangle {
                 id: rightPaneRoot
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -823,7 +827,6 @@ Item {
                 radius: (Config.surfaceRadius || 18) * 0.75
                 border.width: 1
                 border.color: Qt.rgba(255, 255, 255, 0.06)
-                clip: true
 
                 layer.enabled: true
                 layer.effect: DropShadow {

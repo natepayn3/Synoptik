@@ -6,6 +6,7 @@ import Qt.labs.qmlmodels
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Io
+import Quickshell.Widgets
 
 Item {
     id: root
@@ -144,14 +145,16 @@ Item {
             spacing: root.cardMargin / 2
 
             // CARD 1: HERO CLOCK & ATMOSPHERIC GRAPHIC WEATHER
-            Rectangle {
+            // ClippingRectangle (not plain Rectangle) so the watermark actually
+            // respects the rounded corners instead of bleeding past them - plain
+            // Rectangle.clip only clips to the square bounding box.
+            ClippingRectangle {
                 Layout.fillWidth: true
                 implicitHeight: clockWeatherCol.implicitHeight + (root.cardMargin * 2)
                 color: Qt.rgba(1, 1, 1, 0.08)
                 radius: Config.cornerRadius
                 border.width: 1
                 border.color: Qt.rgba(255, 255, 255, 0.1)
-                clip: true
 
                 Behavior on border.color { ColorAnimation { duration: 150 } }
 
@@ -284,14 +287,16 @@ Item {
             }
 
             // CARD 2: REMINDERS CARD WITH GRAPHIC WATERMARK
-            Rectangle {
+            // ClippingRectangle (not plain Rectangle) so the watermark actually
+            // respects the rounded corners instead of bleeding past them - plain
+            // Rectangle.clip only clips to the square bounding box.
+            ClippingRectangle {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 color: Qt.rgba(1, 1, 1, 0.08)
                 radius: Config.cornerRadius
                 border.width: 1
                 border.color: Qt.rgba(255, 255, 255, 0.1)
-                clip: true
 
                 Behavior on border.color { ColorAnimation { duration: 150 } }
 
@@ -443,14 +448,16 @@ Item {
         }
 
         // --- CARD 3: CALENDAR MONTHGRID CARD WITH GRAPHIC WATERMARK ---
-        Rectangle {
+        // ClippingRectangle (not plain Rectangle) so the watermark actually
+        // respects the rounded corners instead of bleeding past them - plain
+        // Rectangle.clip only clips to the square bounding box.
+        ClippingRectangle {
             Layout.fillHeight: true
             Layout.fillWidth: true
             color: Qt.rgba(1, 1, 1, 0.08)
             radius: Config.cornerRadius
             border.width: 1
             border.color: Qt.rgba(255, 255, 255, 0.1)
-            clip: true
 
             Behavior on border.color { ColorAnimation { duration: 150 } }
 

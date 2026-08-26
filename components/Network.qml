@@ -3,6 +3,7 @@ import Qt5Compat.GraphicalEffects
 import QtQuick.Layouts
 import Quickshell
 import Quickshell.Io
+import Quickshell.Widgets
 
 Item {
     id: root
@@ -235,7 +236,10 @@ while True:
         // ==========================================
         // CARD 1: EXPANDED TITLE & 10-ROW WAVE MATRIX
         // ==========================================
-        Rectangle {
+        // ClippingRectangle (not plain Rectangle) so the watermark actually
+        // respects the rounded corners instead of bleeding past them - plain
+        // Rectangle.clip only clips to the square bounding box.
+        ClippingRectangle {
             Layout.fillWidth: true
             implicitWidth: 380
             implicitHeight: topCardContent.implicitHeight + (root.cardMargin * 2)
@@ -243,7 +247,6 @@ while True:
             color: Qt.rgba(1, 1, 1, 0.04)
             border.color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.12 + (root.activityPulse * 0.2))
             border.width: 1
-            clip: true
 
             Watermark {
                 icon: root.activeVpnName !== "" ? "vpn_key" : Config.getIcon("network")
@@ -472,14 +475,16 @@ while True:
             spacing: root.cardMargin * 0.75
 
             // Download Sub-Card
-            Rectangle {
+            // ClippingRectangle (not plain Rectangle) so the watermark actually
+            // respects the rounded corners instead of bleeding past them - plain
+            // Rectangle.clip only clips to the square bounding box.
+            ClippingRectangle {
                 Layout.fillWidth: true
                 implicitHeight: 88
                 radius: Config.cornerRadius
                 color: Qt.rgba(1, 1, 1, 0.04)
                 border.color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.12)
                 border.width: 1
-                clip: true
 
                 Watermark {
                     icon: "arrow_downward"
@@ -535,14 +540,16 @@ while True:
             }
 
             // Upload Sub-Card
-            Rectangle {
+            // ClippingRectangle (not plain Rectangle) so the watermark actually
+            // respects the rounded corners instead of bleeding past them - plain
+            // Rectangle.clip only clips to the square bounding box.
+            ClippingRectangle {
                 Layout.fillWidth: true
                 implicitHeight: 88
                 radius: Config.cornerRadius
                 color: Qt.rgba(1, 1, 1, 0.04)
                 border.color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.12)
                 border.width: 1
-                clip: true
 
                 Watermark {
                     icon: "arrow_upward"

@@ -5,6 +5,7 @@ import QtMultimedia
 import Qt.labs.platform
 import Qt5Compat.GraphicalEffects
 import Quickshell
+import Quickshell.Widgets
 import ".."
 
 Item {
@@ -85,12 +86,14 @@ Item {
         anchors.margins: Config.cardMargin
         spacing: Config.cardMargin / 2
 
-        Rectangle {
+        // ClippingRectangle (not plain Rectangle) so the watermark actually
+        // respects the rounded corners instead of bleeding past them - plain
+        // Rectangle.clip only clips to the square bounding box.
+        ClippingRectangle {
             Layout.fillWidth: true
             implicitHeight: cardLayout.implicitHeight + (Config.cardMargin * 2)
             color: Qt.rgba(255, 255, 255, 0.05)
             radius: Config.cornerRadius
-            clip: true
 
             // GRAPHIC WATERMARK
             Watermark {

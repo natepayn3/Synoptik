@@ -4,6 +4,7 @@ import QtQuick.Controls
 import Qt5Compat.GraphicalEffects
 import Quickshell
 import Quickshell.Io
+import Quickshell.Widgets
 
 Item {
     id: root
@@ -53,7 +54,10 @@ Item {
         spacing: root.cardMargin / 2
 
         // Card 1: Title, Charging Status, & Capacity Track
-        Rectangle {
+        // ClippingRectangle (not plain Rectangle) so the watermark actually
+        // respects the rounded corners instead of bleeding past them - plain
+        // Rectangle.clip only clips to the square bounding box.
+        ClippingRectangle {
             Layout.fillWidth: true
             implicitWidth: 360
             implicitHeight: topCardContent.implicitHeight + (root.cardMargin * 2)
@@ -61,7 +65,6 @@ Item {
             color: Qt.rgba(1, 1, 1, 0.05)
             border.width: 1
             border.color: Qt.rgba(255, 255, 255, 0.1)
-            clip: true
 
             Behavior on border.color { ColorAnimation { duration: 150 } }
 
@@ -221,14 +224,16 @@ Item {
             spacing: root.cardMargin
 
             // Card 2: Device Stats
-            Rectangle {
+            // ClippingRectangle (not plain Rectangle) so the watermark actually
+            // respects the rounded corners instead of bleeding past them - plain
+            // Rectangle.clip only clips to the square bounding box.
+            ClippingRectangle {
                 Layout.fillWidth: true
                 implicitHeight: 64
                 radius: Config.cornerRadius
                 color: Qt.rgba(1, 1, 1, 0.05)
                 border.width: 1
                 border.color: Qt.rgba(255, 255, 255, 0.1)
-                clip: true
 
                 Behavior on border.color { ColorAnimation { duration: 150 } }
 
@@ -264,14 +269,16 @@ Item {
             }
 
             // Card 3: Discharge Stats
-            Rectangle {
+            // ClippingRectangle (not plain Rectangle) so the watermark actually
+            // respects the rounded corners instead of bleeding past them - plain
+            // Rectangle.clip only clips to the square bounding box.
+            ClippingRectangle {
                 Layout.fillWidth: true
                 implicitHeight: 64
                 radius: Config.cornerRadius
                 color: Qt.rgba(1, 1, 1, 0.05)
                 border.width: 1
                 border.color: Qt.rgba(255, 255, 255, 0.1)
-                clip: true
 
                 Behavior on border.color { ColorAnimation { duration: 150 } }
 

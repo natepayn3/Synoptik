@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
+import Quickshell.Widgets
 import Quickshell.Services.Notifications as Notifs
 import "controlcenter"
 
@@ -101,7 +102,11 @@ Item {
                 spacing: root.cardMargin / 2
 
                 // COMBINED HEADER & 4 TOGGLES CARD
-                Rectangle {
+                // ClippingRectangle (not plain Rectangle) so the watermark actually
+                // respects the rounded corners instead of bleeding past them - plain
+                // Rectangle.clip (and the inner plain-Item clip this used to rely on)
+                // only clips to the square bounding box.
+                ClippingRectangle {
                     id: topControlsCard
                     Layout.fillWidth: true
                     implicitHeight: topControlsLayout.implicitHeight + (root.cardMargin * 2)
@@ -112,15 +117,10 @@ Item {
 
                     Behavior on border.color { ColorAnimation { duration: 150 } }
 
-                    Item {
-                        anchors.fill: parent
-                        clip: true
-
-                        Watermark {
-                            icon: Config.getIcon("cc")
-                            iconSize: 150
-                            seed: 25
-                        }
+                    Watermark {
+                        icon: Config.getIcon("cc")
+                        iconSize: 150
+                        seed: 25
                     }
 
                     z: ((wifiCard && (wifiCard.panelExpanded || wifiCard.shouldExpand)) || 
@@ -257,7 +257,10 @@ Item {
                 }
 
                 // NOTIFICATION HUB (Full-Height Grounded Container)
-                Rectangle {
+                // ClippingRectangle (not plain Rectangle) so the watermark actually
+                // respects the rounded corners instead of bleeding past them - plain
+                // Rectangle.clip only clips to the square bounding box.
+                ClippingRectangle {
                     id: notifHubContainer
                     Layout.fillWidth: true
                     Layout.preferredHeight: (leftColLayout.implicitHeight - sysMonitorCard.implicitHeight - (root.cardMargin / 2))
@@ -266,7 +269,6 @@ Item {
                     color: Qt.rgba(255, 255, 255, 0.04)
                     border.width: 1
                     border.color: Qt.rgba(255, 255, 255, 0.1)
-                    clip: true
 
                     Behavior on border.color { ColorAnimation { duration: 150 } }
 
