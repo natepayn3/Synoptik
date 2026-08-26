@@ -616,6 +616,14 @@ ShellRoot {
     Variants {
         model: Quickshell.screens
 
+        delegate: DesktopContextArea {
+            required property var modelData
+            screen: modelData
+        }
+    }
+    Variants {
+        model: Quickshell.screens
+
         delegate: ClockWidget {
             required property var modelData
             screen: modelData

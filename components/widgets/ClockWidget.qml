@@ -12,7 +12,7 @@ PanelWindow {
 
     WlrLayershell.layer: WlrLayer.Bottom
     WlrLayershell.namespace: "quickshell-desktop-clock"
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: (typeof widgetMenu !== "undefined" && widgetMenu.visible) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     anchors {
         top: true
@@ -24,8 +24,12 @@ PanelWindow {
     color: "transparent"
     exclusiveZone: -1
 
-    // Bind region directly to the clock container item
-    mask: Region { item: clockContainer }
+    // Bind region directly to the clock container item, expanded to include
+    // the right-click widget menu while it's open.
+    mask: Region {
+        Region { item: clockContainer }
+        Region { item: (typeof widgetMenu !== "undefined" && widgetMenu.visible) ? widgetMenu : null }
+    }
 
     Item {
         id: clockContainer
@@ -505,6 +509,7 @@ PanelWindow {
         MouseArea {
             id: dragArea
             anchors.fill: parent
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
             drag.target: clockContainer
             drag.axis: Drag.XAndYAxis
             cursorShape: Qt.PointingHandCursor
@@ -513,6 +518,18 @@ PanelWindow {
                 if (drag.active) {
                     clockContainer.dragX = clockContainer.x
                     clockContainer.dragY = clockContainer.y
+                }
+            }
+
+            onClicked: (mouse) => {
+                if (widgetMenu.visible) {
+                    widgetMenu.close()
+                    return
+                }
+                if (mouse.button === Qt.RightButton) {
+                    widgetMenu.openAt(mouse.x, mouse.y, clockContainer, clockWindow.width, clockWindow.height)
+                } else {
+                    Config.closeWidgetMenus()
                 }
             }
 
@@ -530,6 +547,8 @@ PanelWindow {
                 }
             }
         }
+
+        WidgetContextMenu { id: widgetMenu }
     }
 
     // INLINE COMPONENT: 5x7 LED MATRIX DIGIT

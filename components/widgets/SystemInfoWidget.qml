@@ -13,7 +13,7 @@ PanelWindow {
 
     WlrLayershell.layer: WlrLayer.Bottom
     WlrLayershell.namespace: "quickshell-desktop-sysinfo"
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: (typeof widgetMenu !== "undefined" && widgetMenu.visible) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     anchors {
         top: true
@@ -25,7 +25,10 @@ PanelWindow {
     color: "transparent"
     exclusiveZone: -1
 
-    mask: Region { item: infoContainer }
+    mask: Region {
+        Region { item: infoContainer }
+        Region { item: (typeof widgetMenu !== "undefined" && widgetMenu.visible) ? widgetMenu : null }
+    }
 
     // --- SYSTEM METRICS STATE ---
     // Static / Hardware Metadata (Fetched once at startup)
@@ -563,6 +566,7 @@ PanelWindow {
         MouseArea {
             id: dragArea
             anchors.fill: parent
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
             drag.target: infoContainer
             drag.axis: Drag.XAndYAxis
             cursorShape: Qt.PointingHandCursor
@@ -571,6 +575,18 @@ PanelWindow {
                 if (drag.active) {
                     infoContainer.dragX = infoContainer.x
                     infoContainer.dragY = infoContainer.y
+                }
+            }
+
+            onClicked: (mouse) => {
+                if (widgetMenu.visible) {
+                    widgetMenu.close()
+                    return
+                }
+                if (mouse.button === Qt.RightButton) {
+                    widgetMenu.openAt(mouse.x, mouse.y, infoContainer, sysInfoWindow.width, sysInfoWindow.height)
+                } else {
+                    Config.closeWidgetMenus()
                 }
             }
 
@@ -590,5 +606,7 @@ PanelWindow {
                 }
             }
         }
+
+        WidgetContextMenu { id: widgetMenu }
     }
 }

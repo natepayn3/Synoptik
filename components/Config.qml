@@ -9,6 +9,11 @@ import "services"
 QtObject {
     id: root
 
+    // Broadcast so every open WidgetContextMenu instance (one per desktop
+    // widget window, plus the screen-wide DesktopContextArea) closes itself
+    // whenever any of them registers a new click - keeps only one open at a time.
+    signal closeWidgetMenus()
+
     // --- WALLPAPER (extracted to services/WallpaperConfig.qml) ---
     property WallpaperConfig wallpaper: WallpaperConfig { configRef: root }
     property alias wallhavenUsername: root.wallpaper.wallhavenUsername

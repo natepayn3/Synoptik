@@ -12,7 +12,7 @@ PanelWindow {
 
     WlrLayershell.layer: WlrLayer.Bottom
     WlrLayershell.namespace: "quickshell-desktop-cava"
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: (typeof widgetMenu !== "undefined" && widgetMenu.visible) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     anchors {
         top: true
@@ -27,7 +27,10 @@ PanelWindow {
     // anywhere on screen, including behind/into the bar's reserved strip.
     exclusiveZone: -1
 
-    mask: Region { item: cavaContainer }
+    mask: Region {
+        Region { item: cavaContainer }
+        Region { item: (typeof widgetMenu !== "undefined" && widgetMenu.visible) ? widgetMenu : null }
+    }
 
     // --- LIVE SPECTRUM DATA ---
     readonly property var levels: Config.cavaService.bars
@@ -323,6 +326,7 @@ PanelWindow {
         MouseArea {
             id: dragArea
             anchors.fill: parent
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
             drag.target: cavaContainer
             drag.axis: Drag.XAndYAxis
             cursorShape: Qt.PointingHandCursor
@@ -336,7 +340,16 @@ PanelWindow {
 
             // MouseArea only emits "clicked" for a press/release that never crossed the
             // drag threshold, so this never fires while the user is actually repositioning.
-            onClicked: {
+            onClicked: (mouse) => {
+                if (widgetMenu.visible) {
+                    widgetMenu.close()
+                    return
+                }
+                if (mouse.button === Qt.RightButton) {
+                    widgetMenu.openAt(mouse.x, mouse.y, cavaContainer, cavaWindow.width, cavaWindow.height)
+                    return
+                }
+                Config.closeWidgetMenus()
                 cavaContainer.controlsVisible = !cavaContainer.controlsVisible
                 if (cavaContainer.controlsVisible) hideControlsTimer.restart()
                 else hideControlsTimer.stop()
@@ -410,5 +423,7 @@ PanelWindow {
                 onActivated: Config.rotateCava("cw")
             }
         }
+
+        WidgetContextMenu { id: widgetMenu }
     }
 }

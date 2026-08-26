@@ -16,7 +16,7 @@ PanelWindow {
 
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "quickshell-mascot"
-    WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: (typeof widgetMenu !== "undefined" && widgetMenu.visible) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     anchors {
         top: true
@@ -28,7 +28,10 @@ PanelWindow {
     color: "transparent"
     exclusiveZone: 0 
 
-    mask: Region { item: petContainer }
+    mask: Region {
+        Region { item: petContainer }
+        Region { item: (typeof widgetMenu !== "undefined" && widgetMenu.visible) ? widgetMenu : null }
+    }
 
     function formatFileUrl(path) {
         if (!path) return ""
@@ -119,11 +122,12 @@ PanelWindow {
         MouseArea {
             id: dragArea
             anchors.fill: parent
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
             drag.target: petContainer
             drag.axis: Drag.XAndYAxis
             cursorShape: Qt.PointingHandCursor
             hoverEnabled: false
-            
+
             // Sync drag position with properties
             onPositionChanged: {
                 if (drag.active) {
@@ -131,7 +135,19 @@ PanelWindow {
                     petContainer.dragY = petContainer.y
                 }
             }
-            
+
+            onClicked: (mouse) => {
+                if (widgetMenu.visible) {
+                    widgetMenu.close()
+                    return
+                }
+                if (mouse.button === Qt.RightButton) {
+                    widgetMenu.openAt(mouse.x, mouse.y, petContainer, petWindow.width, petWindow.height)
+                } else {
+                    Config.closeWidgetMenus()
+                }
+            }
+
             onWheel: (wheel) => {
                 let step = 16
                 if (wheel.angleDelta.y > 0) {
@@ -141,6 +157,8 @@ PanelWindow {
                 }
             }
         }
+
+        WidgetContextMenu { id: widgetMenu }
 
         // --- BARE TEXT OVERLAY (WITH WRAPPING & OUTLINE) ---
         Item {
