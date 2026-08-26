@@ -11,54 +11,50 @@ import Qt5Compat.GraphicalEffects
 Rectangle {
     id: menu
 
-    // --- OPEN/CLOSE MORPH (same underdamped-spring Matrix4x4 technique as
-    // the bar panels' popout in UnifiedSurface.qml, simplified to a uniform
-    // scale from the corner it opened at, since this is a small anchored
-    // popup rather than a shape that grows from a screen edge) ---
+    // --- OPEN/CLOSE MORPH: ported from UnifiedSurface.qml's popout squish
+    // rather than the flat uniform-scale spring this used before. `progress`
+    // drives an OutBack/InBack bounce (same durations/overshoot as the bar
+    // panels), and width/height unfurl at different rates off it - height
+    // lags width (pow 1.8) the same way the bar popouts grow wide before
+    // they grow tall, so this reads as opening rather than just scaling up.
+    // (UnifiedSurface's velocity-driven Matrix4x4 jelly-stretch is *not*
+    // ported: that reacts to the popout continuously sliding between anchor
+    // points while open, but this menu is repositioned by teleporting x/y
+    // once before it opens - feeding that same teleport into a velocity
+    // spring would read as a glitch, not a slide.)
     property bool isOpen: false
-    property real springVal: 0.0
-    property real springVel: 0.0
+    property real progress: 0.0
 
-    Timer {
-        id: springTicker
-        interval: 16
-        repeat: true
-        running: Math.abs(menu.springVal - (menu.isOpen ? 1.0 : 0.0)) > 0.001 || Math.abs(menu.springVel) > 0.001
+    readonly property real targetWidth: Math.max(220, col.implicitWidth + (Config.cardMargin * 2))
+    readonly property real targetHeight: col.implicitHeight + (Config.cardMargin * 2)
 
-        onTriggered: {
-            let dt = 0.016
-            let target = menu.isOpen ? 1.0 : 0.0
-            let kStiffness = 420.0
-            let kDamping = 26.0
-            let invDamp = 1.0 / (1.0 + kDamping * dt)
+    readonly property real closeFactor: isOpen ? progress : Math.pow(Math.max(0, progress), 1.2)
+    readonly property real heightFactor: Math.pow(Math.max(0, closeFactor), 1.8)
+    readonly property real squishRatio: 1.0 - heightFactor
+    readonly property real widthFactor: isOpen ? progress : (closeFactor + 0.33 * squishRatio * closeFactor)
 
-            menu.springVel = (menu.springVel - kStiffness * (menu.springVal - target) * dt) * invDamp
-            menu.springVal += menu.springVel * dt
+    visible: progress > 0.01
+    opacity: isOpen ? Math.min(1.0, progress * 1.3) : 0.0
+    Behavior on opacity { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
 
-            if (Math.abs(menu.springVal - target) < 0.001 && Math.abs(menu.springVel) < 0.001) {
-                menu.springVal = target
-                menu.springVel = 0
-            }
+    states: [
+        State { name: "open"; when: menu.isOpen; PropertyChanges { target: menu; progress: 1.0 } },
+        State { name: "closed"; when: !menu.isOpen; PropertyChanges { target: menu; progress: 0.0 } }
+    ]
+
+    transitions: [
+        Transition {
+            from: "closed"; to: "open"
+            NumberAnimation { target: menu; property: "progress"; duration: 320; easing.type: Easing.OutBack; easing.overshoot: 0.55 }
+        },
+        Transition {
+            from: "open"; to: "closed"
+            NumberAnimation { target: menu; property: "progress"; duration: 187; easing.type: Easing.InBack; easing.overshoot: 1.2 }
         }
-    }
-
-    visible: springVal > 0.01
-    opacity: Math.min(1.0, springVal * 1.3)
-
-    transform: Matrix4x4 {
-        matrix: {
-            let s = Math.max(0.0001, menu.springVal)
-            return Qt.matrix4x4(
-                s, 0, 0, 0,
-                0, s, 0, 0,
-                0, 0, 1, 0,
-                0, 0, 0, 1
-            )
-        }
-    }
+    ]
 
     z: 1000
-    radius: Config.cornerRadius
+    radius: Math.max(0.1, Config.cornerRadius * Math.max(0, progress))
     color: Config.bgPanel
     border.width: Config.showBorders ? Config.borderThickness : 1
     border.color: (typeof shellRoot !== "undefined" && shellRoot.currentBorderColor) ? shellRoot.currentBorderColor : Qt.rgba(255, 255, 255, 0.1)
@@ -74,10 +70,78 @@ Rectangle {
         seed: 33
     }
 
-    implicitWidth: Math.max(220, col.implicitWidth + 36)
-    implicitHeight: col.implicitHeight + 28
-    width: implicitWidth
-    height: implicitHeight
+    implicitWidth: targetWidth
+    implicitHeight: targetHeight
+    width: targetWidth * Math.max(0, widthFactor)
+    height: targetHeight * Math.max(0, heightFactor)
+
+    // --- CONTENT JELLY: same underdamped-spring Matrix4x4 stretch as
+    // UnifiedSurface's popout deformation, but driven by the *velocity of
+    // this menu's own open/close factors* instead of raw screen-position
+    // velocity. widthFactor/heightFactor only ever move via the smooth
+    // OutBack/InBack NumberAnimation above - they never teleport the way x/y
+    // do on reposition - so this can safely react to their rate of change
+    // every tick without ever seeing a spurious spike. Gives the header/rows
+    // (`col` below) a squash-and-stretch wobble synced to the pop instead of
+    // just sitting there static while the outer card resizes around them.
+    property real prevWidthFactor: 0.0
+    property real prevHeightFactor: 0.0
+    property real jellyDm00: 1.0
+    property real jellyDm01: 0.0
+    property real jellyDm11: 1.0
+    property real jellyVel00: 0.0
+    property real jellyVel01: 0.0
+    property real jellyVel11: 0.0
+
+    Timer {
+        id: jellyTicker
+        interval: 16
+        repeat: true
+        running: menu.visible
+
+        onTriggered: {
+            let dt = 0.016
+            let vx = (menu.widthFactor - menu.prevWidthFactor) / dt
+            let vy = (menu.heightFactor - menu.prevHeightFactor) / dt
+            menu.prevWidthFactor = menu.widthFactor
+            menu.prevHeightFactor = menu.heightFactor
+
+            let speed = Math.sqrt(vx * vx + vy * vy)
+
+            let target00 = 1.0
+            let target01 = 0.0
+            let target11 = 1.0
+
+            // Tasteful stretch capped at 9% to keep row content readable
+            if (speed > 0.15) {
+                let kStretch = 0.35
+                let targetStretch = 1.0 + Math.min(speed * kStretch, 0.09)
+                let targetCompress = 1.0 / targetStretch
+                let cosA = vx / speed
+                let sinA = vy / speed
+                let cos2 = cosA * cosA
+                let sin2 = sinA * sinA
+                let cs = cosA * sinA
+
+                target00 = targetStretch * cos2 + targetCompress * sin2
+                target01 = (targetStretch - targetCompress) * cs
+                target11 = targetStretch * sin2 + targetCompress * cos2
+            }
+
+            let kStiffness = 855.0
+            let kDamping = 45.0
+            let invDamp = 1.0 / (1.0 + kDamping * dt)
+
+            menu.jellyVel00 = (menu.jellyVel00 - kStiffness * (menu.jellyDm00 - target00) * dt) * invDamp
+            menu.jellyDm00 += menu.jellyVel00 * dt
+
+            menu.jellyVel01 = (menu.jellyVel01 - kStiffness * (menu.jellyDm01 - target01) * dt) * invDamp
+            menu.jellyDm01 += menu.jellyVel01 * dt
+
+            menu.jellyVel11 = (menu.jellyVel11 - kStiffness * (menu.jellyDm11 - target11) * dt) * invDamp
+            menu.jellyDm11 += menu.jellyVel11 * dt
+        }
+    }
 
     readonly property var widgetDefs: [
         { id: "clock",   icon: "schedule",      label: "Clock",            enabled: Config.showDesktopClock },
@@ -129,9 +193,35 @@ Rectangle {
 
     ColumnLayout {
         id: col
-        x: 18
-        y: 14
-        spacing: 6
+        x: Config.cardMargin
+        y: Config.cardMargin
+        spacing: Config.cardMargin / 2
+
+        transform: Matrix4x4 {
+            matrix: {
+                let cx = col.width / 2.0
+                let cy = col.height / 2.0
+                let m = Qt.matrix4x4(
+                    1, 0, 0, cx,
+                    0, 1, 0, cy,
+                    0, 0, 1, 0,
+                    0, 0, 0, 1
+                )
+                let def = Qt.matrix4x4(
+                    menu.jellyDm00, menu.jellyDm01, 0, 0,
+                    menu.jellyDm01, menu.jellyDm11, 0, 0,
+                    0, 0, 1, 0,
+                    0, 0, 0, 1
+                )
+                let inv = Qt.matrix4x4(
+                    1, 0, 0, -cx,
+                    0, 1, 0, -cy,
+                    0, 0, 1, 0,
+                    0, 0, 0, 1
+                )
+                return m.times(def).times(inv)
+            }
+        }
 
         RowLayout {
             Layout.fillWidth: true
