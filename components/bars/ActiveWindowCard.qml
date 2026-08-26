@@ -37,6 +37,7 @@ Rectangle {
     // Media takes over the card whenever mpris reports something playing (Fix: media card in bar)
     readonly property bool mediaPlaying: (typeof shellRoot !== "undefined") && shellRoot.mediaPlaying === true
     readonly property string displayTitle: mediaPlaying ? shellRoot.mediaTitle : winTitle
+    readonly property string mediaArtUrl: (typeof shellRoot !== "undefined" && shellRoot.mediaArtUrl) ? shellRoot.mediaArtUrl : ""
 
     visible: hasWindow || mediaPlaying
 
@@ -110,12 +111,31 @@ Rectangle {
             }
         }
 
-        MiniCavaWave {
-            id: waveHoriz
+        Item {
+            id: artBoxHoriz
             visible: activeWinCard.mediaPlaying
             Layout.preferredWidth: 20
-            Layout.fillHeight: true
+            Layout.preferredHeight: 20
             Layout.alignment: activeWinCard.width <= 44 ? Qt.AlignCenter : Qt.AlignVCenter
+            clip: true
+
+            Image {
+                id: artImageHoriz
+                anchors.fill: parent
+                source: activeWinCard.mediaArtUrl
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                visible: status === Image.Ready
+            }
+
+            Text {
+                anchors.centerIn: parent
+                text: "music_note"
+                font.family: "Material Symbols Outlined"
+                font.pixelSize: 14
+                color: Config.textMuted
+                visible: artImageHoriz.status !== Image.Ready
+            }
         }
 
         Item {
@@ -136,8 +156,6 @@ Rectangle {
                 font.family: Config.sysFont
                 font.pixelSize: Config.size(Config.fontCaption)
                 font.bold: true
-
-                x: 0
 
                 SequentialAnimation on x {
                     id: tickerAnimHoriz
@@ -192,13 +210,32 @@ Rectangle {
             }
         }
 
-        MiniCavaWave {
-            id: waveVert
+        Item {
+            id: artBoxVert
             visible: activeWinCard.mediaPlaying
             Layout.row: activeWinCard.barPos === "left" ? 1 : 0
             Layout.preferredWidth: 20
             Layout.preferredHeight: 20
             Layout.alignment: activeWinCard.height <= 44 ? Qt.AlignCenter : Qt.AlignHCenter
+            clip: true
+
+            Image {
+                id: artImageVert
+                anchors.fill: parent
+                source: activeWinCard.mediaArtUrl
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                visible: status === Image.Ready
+            }
+
+            Text {
+                anchors.centerIn: parent
+                text: "music_note"
+                font.family: "Material Symbols Outlined"
+                font.pixelSize: 14
+                color: Config.textMuted
+                visible: artImageVert.status !== Image.Ready
+            }
         }
 
         Item {
@@ -212,7 +249,7 @@ Rectangle {
             readonly property real overflowDist: Math.max(0, titleTextVert.implicitWidth - tickerBoxVert.height)
             readonly property bool needsTicker: overflowDist > 2
             readonly property bool isCcw: activeWinCard.textRotation === -90
-            property real tickerOffset: 0
+            property real tickerOffset
 
             SequentialAnimation on tickerOffset {
                 id: tickerAnimVert
