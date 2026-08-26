@@ -121,13 +121,31 @@ Item {
                 Layout.fillWidth: true
                 spacing: 10
 
-                Text {
-                    text: "WALLPAPERS"
-                    color: Config.textMain
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size ? Config.size(Config.fontTitle) : 16
-                    font.bold: true
-                    font.italic: true
+                Item {
+                    implicitWidth: wallpaperTitleText.implicitWidth
+                    implicitHeight: wallpaperTitleText.implicitHeight
+
+                    Glow {
+                        anchors.fill: wallpaperTitleText
+                        source: wallpaperTitleText
+                        radius: 8
+                        samples: 16
+                        color: Config.accent
+                        spread: 0.2
+                        transparentBorder: true
+                        visible: Config.clockShowGlow
+                    }
+
+                    Text {
+                        id: wallpaperTitleText
+                        anchors.fill: parent
+                        text: "WALLPAPERS"
+                        color: Config.textMain
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size ? Config.size(Config.fontTitle) : 16
+                        font.bold: true
+                        font.italic: true
+                    }
                 }
 
                 Rectangle {
