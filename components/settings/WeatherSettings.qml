@@ -62,6 +62,7 @@ Item {
                     iconSize: 150
                     baseRotation: 12
                     seed: 26
+                    baseOpacity: 0.05
                 }
 
                 ColumnLayout {

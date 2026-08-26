@@ -113,6 +113,8 @@ Item {
             Config.lastSettingsSection = activeSection
         }
         expandActiveCategory(activeSection)
+        contentFadeAnim.restart()
+        contentSlideAnim.restart()
     }
 
     ColumnLayout {
@@ -134,9 +136,21 @@ Item {
                     implicitWidth: 32
                     implicitHeight: 32
                     radius: 8
-                    color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.15)
+                    gradient: Gradient {
+                        GradientStop { position: 0.0; color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.32) }
+                        GradientStop { position: 1.0; color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.08) }
+                    }
                     border.width: 1
                     border.color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.3)
+
+                    layer.enabled: true
+                    layer.effect: DropShadow {
+                        horizontalOffset: 0
+                        verticalOffset: 2
+                        radius: 10
+                        samples: 21
+                        color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.4)
+                    }
 
                     Text {
                         anchors.centerIn: parent
@@ -222,12 +236,14 @@ Item {
                 implicitWidth: 32
                 implicitHeight: 32
                 radius: 16
+                scale: closeMouseArea.pressed ? 0.9 : 1.0
                 color: closeHover.hovered ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(255, 255, 255, 0.04)
                 border.width: 1
                 border.color: closeHover.hovered ? Qt.rgba(255, 255, 255, 0.2) : Qt.rgba(255, 255, 255, 0.06)
 
-                Behavior on color { ColorAnimation { duration: 150 } }
-                Behavior on border.color { ColorAnimation { duration: 150 } }
+                Behavior on color { ColorAnimation { duration: 150; easing.type: Easing.OutQuad } }
+                Behavior on border.color { ColorAnimation { duration: 150; easing.type: Easing.OutQuad } }
+                Behavior on scale { NumberAnimation { duration: 110; easing.type: Easing.OutBack } }
 
                 Text {
                     anchors.centerIn: parent
@@ -238,6 +254,7 @@ Item {
                 }
 
                 MouseArea {
+                    id: closeMouseArea
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
@@ -265,6 +282,15 @@ Item {
                 border.width: 1
                 border.color: Qt.rgba(255, 255, 255, 0.06)
                 clip: true
+
+                layer.enabled: true
+                layer.effect: DropShadow {
+                    horizontalOffset: 0
+                    verticalOffset: 6
+                    radius: 24
+                    samples: 33
+                    color: Qt.rgba(0, 0, 0, 0.35)
+                }
 
                 Flickable {
                     id: navFlickable
@@ -305,7 +331,7 @@ Item {
                             radius: 8
                             color: visualsCatHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent"
 
-                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on color { ColorAnimation { duration: 150; easing.type: Easing.OutQuad } }
 
                             RowLayout {
                                 anchors.fill: parent
@@ -368,12 +394,14 @@ Item {
                                     implicitHeight: 36
                                     radius: 8
                                     readonly property bool isSelected: settingsRoot.activeSection === modelData.id
+                                    scale: navMouse1.pressed ? 0.97 : 1.0
                                     color: navDelegate1.isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : (navHover1.hovered ? Qt.rgba(255, 255, 255, 0.05) : "transparent")
                                     border.width: navDelegate1.isSelected ? 1 : 0
                                     border.color: navDelegate1.isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.25) : "transparent"
 
-                                    Behavior on color { ColorAnimation { duration: 150 } }
-                                    Behavior on border.color { ColorAnimation { duration: 150 } }
+                                    Behavior on color { ColorAnimation { duration: 150; easing.type: Easing.OutQuad } }
+                                    Behavior on border.color { ColorAnimation { duration: 150; easing.type: Easing.OutQuad } }
+                                    Behavior on scale { NumberAnimation { duration: 100; easing.type: Easing.OutQuad } }
 
                                     Rectangle {
                                         anchors.left: parent.left
@@ -382,8 +410,11 @@ Item {
                                         width: 3
                                         height: 18
                                         radius: 1.5
-                                        color: Config.accent
                                         visible: navDelegate1.isSelected
+                                        gradient: Gradient {
+                                            GradientStop { position: 0.0; color: Qt.lighter(Config.accent, 1.35) }
+                                            GradientStop { position: 1.0; color: Config.accent }
+                                        }
                                     }
 
                                     RowLayout {
@@ -419,6 +450,7 @@ Item {
                                     }
 
                                     MouseArea {
+                                        id: navMouse1
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: settingsRoot.activeSection = modelData.id
@@ -435,7 +467,7 @@ Item {
                             radius: 8
                             color: connCatHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent"
 
-                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on color { ColorAnimation { duration: 150; easing.type: Easing.OutQuad } }
 
                             RowLayout {
                                 anchors.fill: parent
@@ -495,12 +527,14 @@ Item {
                                     implicitHeight: 36
                                     radius: 8
                                     readonly property bool isSelected: settingsRoot.activeSection === modelData.id
+                                    scale: navMouse2.pressed ? 0.97 : 1.0
                                     color: navDelegate2.isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : (navHover2.hovered ? Qt.rgba(255, 255, 255, 0.05) : "transparent")
                                     border.width: navDelegate2.isSelected ? 1 : 0
                                     border.color: navDelegate2.isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.25) : "transparent"
 
-                                    Behavior on color { ColorAnimation { duration: 150 } }
-                                    Behavior on border.color { ColorAnimation { duration: 150 } }
+                                    Behavior on color { ColorAnimation { duration: 150; easing.type: Easing.OutQuad } }
+                                    Behavior on border.color { ColorAnimation { duration: 150; easing.type: Easing.OutQuad } }
+                                    Behavior on scale { NumberAnimation { duration: 100; easing.type: Easing.OutQuad } }
 
                                     Rectangle {
                                         anchors.left: parent.left
@@ -509,8 +543,11 @@ Item {
                                         width: 3
                                         height: 18
                                         radius: 1.5
-                                        color: Config.accent
                                         visible: navDelegate2.isSelected
+                                        gradient: Gradient {
+                                            GradientStop { position: 0.0; color: Qt.lighter(Config.accent, 1.35) }
+                                            GradientStop { position: 1.0; color: Config.accent }
+                                        }
                                     }
 
                                     RowLayout {
@@ -546,6 +583,7 @@ Item {
                                     }
 
                                     MouseArea {
+                                        id: navMouse2
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: settingsRoot.activeSection = modelData.id
@@ -562,7 +600,7 @@ Item {
                             radius: 8
                             color: widgetsCatHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent"
 
-                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on color { ColorAnimation { duration: 150; easing.type: Easing.OutQuad } }
 
                             RowLayout {
                                 anchors.fill: parent
@@ -627,12 +665,14 @@ Item {
                                     implicitHeight: 36
                                     radius: 8
                                     readonly property bool isSelected: settingsRoot.activeSection === modelData.id
+                                    scale: navMouse3.pressed ? 0.97 : 1.0
                                     color: navDelegate3.isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : (navHover3.hovered ? Qt.rgba(255, 255, 255, 0.05) : "transparent")
                                     border.width: navDelegate3.isSelected ? 1 : 0
                                     border.color: navDelegate3.isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.25) : "transparent"
 
-                                    Behavior on color { ColorAnimation { duration: 150 } }
-                                    Behavior on border.color { ColorAnimation { duration: 150 } }
+                                    Behavior on color { ColorAnimation { duration: 150; easing.type: Easing.OutQuad } }
+                                    Behavior on border.color { ColorAnimation { duration: 150; easing.type: Easing.OutQuad } }
+                                    Behavior on scale { NumberAnimation { duration: 100; easing.type: Easing.OutQuad } }
 
                                     Rectangle {
                                         anchors.left: parent.left
@@ -641,8 +681,11 @@ Item {
                                         width: 3
                                         height: 18
                                         radius: 1.5
-                                        color: Config.accent
                                         visible: navDelegate3.isSelected
+                                        gradient: Gradient {
+                                            GradientStop { position: 0.0; color: Qt.lighter(Config.accent, 1.35) }
+                                            GradientStop { position: 1.0; color: Config.accent }
+                                        }
                                     }
 
                                     RowLayout {
@@ -678,6 +721,7 @@ Item {
                                     }
 
                                     MouseArea {
+                                        id: navMouse3
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: settingsRoot.activeSection = modelData.id
@@ -703,12 +747,14 @@ Item {
                             implicitHeight: 36
                             radius: 8
                             readonly property bool isSelected: settingsRoot.activeSection === 11
+                            scale: shellMouseArea.pressed ? 0.97 : 1.0
                             color: shellBtn.isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : (shellNavHover.hovered ? Qt.rgba(255, 255, 255, 0.05) : "transparent")
                             border.width: shellBtn.isSelected ? 1 : 0
                             border.color: shellBtn.isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.25) : "transparent"
 
-                            Behavior on color { ColorAnimation { duration: 150 } }
-                            Behavior on border.color { ColorAnimation { duration: 150 } }
+                            Behavior on color { ColorAnimation { duration: 150; easing.type: Easing.OutQuad } }
+                            Behavior on border.color { ColorAnimation { duration: 150; easing.type: Easing.OutQuad } }
+                            Behavior on scale { NumberAnimation { duration: 100; easing.type: Easing.OutQuad } }
 
                             Rectangle {
                                 anchors.left: parent.left
@@ -717,8 +763,11 @@ Item {
                                 width: 3
                                 height: 18
                                 radius: 1.5
-                                color: Config.accent
                                 visible: shellBtn.isSelected
+                                gradient: Gradient {
+                                    GradientStop { position: 0.0; color: Qt.lighter(Config.accent, 1.35) }
+                                    GradientStop { position: 1.0; color: Config.accent }
+                                }
                             }
 
                             RowLayout {
@@ -754,6 +803,7 @@ Item {
                             }
 
                             MouseArea {
+                                id: shellMouseArea
                                 anchors.fill: parent
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: settingsRoot.activeSection = 11
@@ -774,6 +824,15 @@ Item {
                 border.width: 1
                 border.color: Qt.rgba(255, 255, 255, 0.06)
                 clip: true
+
+                layer.enabled: true
+                layer.effect: DropShadow {
+                    horizontalOffset: 0
+                    verticalOffset: 6
+                    radius: 24
+                    samples: 33
+                    color: Qt.rgba(0, 0, 0, 0.35)
+                }
 
                 property var currentFlickable: null
                 readonly property bool canScrollDown: currentFlickable && (currentFlickable.contentHeight > (currentFlickable.height + 24)) && !currentFlickable.atYEnd && (currentFlickable.contentY < (currentFlickable.contentHeight - currentFlickable.height - 16))
@@ -821,12 +880,35 @@ Item {
                     iconSize: 180
                     baseRotation: 12
                     seed: 16
+                    baseOpacity: 0.05
                 }
 
                 Item {
                     id: contentPane
                     anchors.fill: parent
                     anchors.margins: settingsRoot.cardMargin
+
+                    transform: Translate { id: contentSlideTransform; x: 0 }
+
+                    NumberAnimation {
+                        id: contentFadeAnim
+                        target: contentPane
+                        property: "opacity"
+                        from: 0
+                        to: 1
+                        duration: 240
+                        easing.type: Easing.OutCubic
+                    }
+
+                    NumberAnimation {
+                        id: contentSlideAnim
+                        target: contentSlideTransform
+                        property: "x"
+                        from: 14
+                        to: 0
+                        duration: 280
+                        easing.type: Easing.OutCubic
+                    }
 
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 0; visible: active; sourceComponent: DisplaySettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 16; visible: active; sourceComponent: BarSettings {} }
@@ -954,11 +1036,13 @@ Item {
                                     Layout.fillWidth: true
                                     implicitHeight: 60
                                     radius: Config.cornerRadius / 2
+                                    scale: gitHubMouseArea.pressed ? 0.98 : 1.0
                                     color: Qt.rgba(255, 255, 255, 0.04)
                                     border.width: 1
                                     border.color: gitHubHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
 
-                                    Behavior on border.color { ColorAnimation { duration: 150 } }
+                                    Behavior on border.color { ColorAnimation { duration: 150; easing.type: Easing.OutQuad } }
+                                    Behavior on scale { NumberAnimation { duration: 100; easing.type: Easing.OutQuad } }
 
                                     RowLayout {
                                         anchors.fill: parent
@@ -1010,6 +1094,7 @@ Item {
                                     }
 
                                     MouseArea {
+                                        id: gitHubMouseArea
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: Quickshell.execDetached(["xdg-open", "https://github.com/natepayn3/Synoptik"])
@@ -1087,11 +1172,13 @@ Item {
                                                 implicitWidth: 110
                                                 implicitHeight: 32
                                                 radius: Config.cornerRadius / 2
+                                                scale: reloadMouseArea.pressed ? 0.95 : 1.0
                                                 color: reloadBtnHover.hovered ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(255, 255, 255, 0.05)
                                                 border.color: Qt.rgba(255, 255, 255, 0.15)
                                                 border.width: 1
 
-                                                Behavior on color { ColorAnimation { duration: 150 } }
+                                                Behavior on color { ColorAnimation { duration: 150; easing.type: Easing.OutQuad } }
+                                                Behavior on scale { NumberAnimation { duration: 100; easing.type: Easing.OutQuad } }
 
                                                 RowLayout {
                                                     anchors.centerIn: parent
@@ -1101,6 +1188,7 @@ Item {
                                                 }
 
                                                 MouseArea {
+                                                    id: reloadMouseArea
                                                     anchors.fill: parent
                                                     cursorShape: Qt.PointingHandCursor
                                                     enabled: !shellView.isBusy
@@ -1113,11 +1201,15 @@ Item {
                                                 implicitWidth: 120
                                                 implicitHeight: 32
                                                 radius: Config.cornerRadius / 2
-                                                color: updateBtnHover.hovered ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.3) : Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.18)
+                                                scale: updateMouseArea.pressed ? 0.95 : 1.0
+                                                gradient: Gradient {
+                                                    GradientStop { position: 0.0; color: updateBtnHover.hovered ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.4) : Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.26) }
+                                                    GradientStop { position: 1.0; color: updateBtnHover.hovered ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.22) : Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.12) }
+                                                }
                                                 border.color: Config.accent
                                                 border.width: 1
 
-                                                Behavior on color { ColorAnimation { duration: 150 } }
+                                                Behavior on scale { NumberAnimation { duration: 100; easing.type: Easing.OutQuad } }
 
                                                 RowLayout {
                                                     anchors.centerIn: parent
@@ -1127,6 +1219,7 @@ Item {
                                                 }
 
                                                 MouseArea {
+                                                    id: updateMouseArea
                                                     anchors.fill: parent
                                                     cursorShape: Qt.PointingHandCursor
                                                     enabled: !shellView.isBusy
@@ -1186,8 +1279,8 @@ Item {
                     border.color: scrollCueMouse.containsMouse ? Config.accent : Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.45)
 
                     Behavior on opacity { NumberAnimation { duration: 220 } }
-                    Behavior on color { ColorAnimation { duration: 150 } }
-                    Behavior on border.color { ColorAnimation { duration: 150 } }
+                    Behavior on color { ColorAnimation { duration: 150; easing.type: Easing.OutQuad } }
+                    Behavior on border.color { ColorAnimation { duration: 150; easing.type: Easing.OutQuad } }
 
                     SequentialAnimation on anchors.bottomMargin {
                         running: rightPaneRoot.canScrollDown
