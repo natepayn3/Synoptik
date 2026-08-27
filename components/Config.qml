@@ -60,6 +60,10 @@ QtObject {
 
     property bool showTaskOverflow: false
 
+    // --- SCREENSHOT (extracted to services/ScreenshotService.qml) ---
+    property ScreenshotService screenshotService: ScreenshotService {}
+    function captureScreenshot() { screenshotService.capture() }
+
     // --- CAMERA / MIRROR (extracted to services/MirrorConfig.qml) ---
     property MirrorConfig mirror: MirrorConfig { configRef: root }
     property alias showMirror: root.mirror.showMirror

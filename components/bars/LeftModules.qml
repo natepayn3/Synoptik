@@ -526,7 +526,7 @@ Rectangle {
                 visible: !Config.leftCardCollapsed && Config.isPinned("screenshot")
             }
 
-            TapHandler { onTapped: Quickshell.execDetached(["fish", "-c", "sleep 0.1; and grim -g (slurp) -t ppm - | satty --filename -"]) }
+            TapHandler { onTapped: Config.captureScreenshot() }
             TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("screenshot") }
             HoverHandler { id: screenshotHover; cursorShape: Qt.PointingHandCursor }
         }

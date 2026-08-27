@@ -460,7 +460,7 @@ ShellRoot {
     IpcHandler {
         target: "satty"
         function screenshot(): void {
-            Quickshell.execDetached(["fish", "-c", "sleep 0.1; grim -g (slurp) -t ppm - | satty --filename -"])
+            Config.captureScreenshot()
         }
     }
 
