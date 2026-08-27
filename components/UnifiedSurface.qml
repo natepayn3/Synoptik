@@ -866,6 +866,12 @@ PanelWindow {
                 width: root.isHorizontal ? (root.isIsland ? root.animatedIslandWidth : (mainContainer.width - Math.ceil(root.borderWidth))) : (root.barH - Math.ceil(root.borderWidth))
                 height: root.isHorizontal ? (root.barH - Math.ceil(root.borderWidth)) : (root.isIsland ? root.animatedIslandHeight : (mainContainer.height - Math.ceil(root.borderWidth)))
 
+                // Ambient audio throb: a small uniform scale pulse around this
+                // item's own center (its width/height are just the bar's own
+                // footprint, not the full screen, so the default center origin
+                // pivots on the bar itself rather than the monitor).
+                scale: typeof shellRoot !== "undefined" ? shellRoot.throbScale : 1.0
+
                 opacity: 1.0
                 Behavior on opacity {
                     NumberAnimation {

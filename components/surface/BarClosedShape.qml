@@ -15,6 +15,16 @@ Shape {
     anchors.fill: parent
     visible: panelRoot.progress <= 0.005 && !panelRoot.isPeeking && !panelRoot.isScreenFrame
 
+    // This Shape fills the whole screen (anchors.fill: parent), so the default
+    // center-origin scale would pivot on the monitor's center, not the bar -
+    // pin the origin to the bar rectangle's own center instead.
+    transform: Scale {
+        origin.x: closedShape.bX + (closedShape.bW - closedShape.bX) / 2
+        origin.y: closedShape.bY + (closedShape.bH - closedShape.bY) / 2
+        xScale: typeof shellRoot !== "undefined" ? shellRoot.throbScale : 1.0
+        yScale: typeof shellRoot !== "undefined" ? shellRoot.throbScale : 1.0
+    }
+
     ShapePath {
         fillColor: Config.bgPanel
         strokeWidth: panelRoot.borderWidth

@@ -313,6 +313,69 @@ Flickable {
             }
         }
 
+        // ==========================================
+        // AMBIENT SHELL BREATHING
+        // ==========================================
+        SettingsCard {
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 12
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 1
+                    Layout.minimumWidth: 0
+                    spacing: 2
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: "Ambient Shell Breathing"
+                        color: Config.textMain
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontBody)
+                        font.bold: true
+                        wrapMode: Text.WordWrap
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: "Subtly dims and brightens the shell's border in time with bass energy. Runs cava in the background even if the desktop visualizer above is off."
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontCaption)
+                        wrapMode: Text.WordWrap
+                    }
+                }
+
+                ToggleSwitch {
+                    checked: Config.ambientBreatheEnabled === true
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Config.ambientBreatheEnabled = !Config.ambientBreatheEnabled
+                    }
+                }
+            }
+
+            ColumnLayout {
+                Layout.fillWidth: true
+                enabled: Config.ambientBreatheEnabled === true
+                opacity: enabled ? 1.0 : 0.35
+
+                Behavior on opacity { NumberAnimation { duration: 150 } }
+
+                SliderRow {
+                    label: "Intensity"
+                    icon: "graphic_eq"
+                    from: 0; to: 1; stepSize: 0.01
+                    value: Config.ambientBreatheIntensity
+                    decimals: 2
+                    onChanged: (v) => Config.ambientBreatheIntensity = v
+                }
+            }
+        }
+
         // Sub-options wrapper, dimmed when disabled
         ColumnLayout {
             Layout.fillWidth: true

@@ -58,13 +58,29 @@ ShellRoot {
     readonly property color bStartColor: Qt.color(Config.borderStart)
     readonly property color bEndColor: Qt.color(Config.borderEnd)
 
+    // Ambient audio breathing: a slow, smoothed 0..1 signal from bass energy
+    // (see CavaService.breatheLevel), scaled by the user's chosen intensity.
+    // Kept as its own property so any surface can opt into it later without
+    // re-deriving the smoothing logic.
+    readonly property real breathAmount: (Config.ambientBreatheEnabled && Config.cavaService)
+        ? Config.cavaService.breatheLevel * Config.ambientBreatheIntensity
+        : 0.0
+
+    // Whole-bar throb: a small uniform scale pulse in time with breathAmount.
+    // Kept as a shared multiplier so every bar shape variant scales in sync
+    // instead of each computing its own factor slightly differently.
+    readonly property real throbScale: 1.0 + (breathAmount * 0.04)
+
     readonly property color currentBorderColor: {
         if (!Config.showBorders) return "transparent"
+        // Ambient breathing moved to a scale throb (see UnifiedSurface.qml's
+        // barContent/BarClosedShape) - modulating alpha here read as a bad
+        // flicker on a thin border, so this stays a plain steady color again.
         if (!Config.animateGradient) return bStartColor
         let c1 = bStartColor
         let c2 = bEndColor
         let progress = (Math.sin(shellRoot.animOffset * Math.PI * 2) + 1.0) / 2.0
-        
+
         return Qt.rgba(
             c1.r + (c2.r - c1.r) * progress,
             c1.g + (c2.g - c1.g) * progress,

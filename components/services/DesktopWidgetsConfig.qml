@@ -193,6 +193,13 @@ QtObject {
     property int cavaSensitivity: 100
     property real cavaSmoothing: 0.77
 
+    // --- AMBIENT SHELL BREATHING (whole-surface audio reactivity) ---
+    property bool ambientBreatheEnabled: false
+    property real ambientBreatheIntensity: 0.35
+
+    onAmbientBreatheEnabledChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
+    onAmbientBreatheIntensityChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
+
     property real cavaBarWidth: 6.0
     property real cavaBarGap: 3.0
     property real cavaBarRadius: 2.0
