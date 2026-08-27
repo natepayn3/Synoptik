@@ -6,34 +6,6 @@ import ".."
 Item {
     id: root
 
-    component ToggleSwitch : Rectangle {
-        id: sw
-        property bool checked: false
-        
-        implicitWidth: 40
-        implicitHeight: 22
-        radius: 6
-        color: checked ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(0, 0, 0, 0.4)
-        border.width: sw.checked ? 2 : 1
-        border.color: checked ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
-
-        Behavior on color { ColorAnimation { duration: 140 } }
-        Behavior on border.color { ColorAnimation { duration: 140 } }
-
-        Rectangle {
-            id: thumb
-            x: sw.checked ? (sw.width - width - 3) : 3
-            anchors.verticalCenter: parent.verticalCenter
-            width: 16
-            height: 16
-            radius: 4
-            color: sw.checked ? Config.accent : Qt.rgba(255, 255, 255, 0.2)
-
-            Behavior on x { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
-            Behavior on color { ColorAnimation { duration: 140 } }
-        }
-    }
-
     RowLayout {
         anchors.fill: parent
         spacing: 20

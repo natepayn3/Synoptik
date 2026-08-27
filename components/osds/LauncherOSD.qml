@@ -22,7 +22,6 @@ Item {
     property var filteredApps: []
     property var filteredFiles: []
     property var filteredCommands: []
-    property var iconMap: ({})
 
     // --- CALCULATOR STATE ---
     property string calcResultText: ""
@@ -86,78 +85,15 @@ Item {
         { target: "shader",            fn: "toggle",     name: "Retro Shader",              icon: "videogame_asset" }
     ]
 
-    // --- CACHED SYSTEM ICON INDEXER (shares the same cache file as AppLauncher) ---
-    Process {
-        id: iconIndexer
-        command: ["python3", "-c", `
-import os, json
-
-cache_file = os.path.expanduser("~/.cache/quickshell_icon_map.json")
-if os.path.exists(cache_file):
-    try:
-        with open(cache_file, "r") as f:
-            print(f.read())
-            exit(0)
-    except Exception:
-        pass
-
-dirs = [
-    os.path.expanduser("~/.local/share/icons"),
-    os.path.expanduser("~/.icons"),
-    "/usr/share/icons/Papirus",
-    "/usr/share/icons/Papirus-Dark",
-    "/usr/share/icons/Papirus-Light",
-    "/usr/share/icons/breeze",
-    "/usr/share/icons/breeze-dark",
-    "/usr/share/icons/Adwaita",
-    "/usr/share/icons/hicolor",
-    "/usr/share/pixmaps"
-]
-icon_map = {}
-for d in dirs:
-    if not os.path.isdir(d): continue
-    for root, _, files in os.walk(d):
-        if any(s in root for s in ["/16x16/", "/22x22/", "/24x24/", "/32x32/", "/symbolic/"]): continue
-        for f in files:
-            if f.endswith((".svg", ".png", ".xpm")):
-                name = os.path.splitext(f)[0]
-                if name not in icon_map:
-                    icon_map[name] = os.path.join(root, f)
-
-dumped = json.dumps(icon_map)
-try:
-    with open(cache_file, "w") as f:
-        f.write(dumped)
-except Exception:
-    pass
-print(dumped)
-        `]
-        running: true
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    let clean = this.text.trim()
-                    if (clean) {
-                        osdRoot.iconMap = JSON.parse(clean);
-                        osdRoot.updateModel();
-                    }
-                } catch(e) {}
-            }
-        }
+    // Icon indexing is shared via Config.iconIndexService (see
+    // components/services/IconIndexService.qml) - it used to be a verbatim
+    // duplicate of AppLauncher.qml's copy.
+    Connections {
+        target: Config.iconIndexService
+        function onIconMapChanged() { osdRoot.updateModel(); }
     }
 
-    function getAppIcon(iconName) {
-        if (!iconName) return Quickshell.iconPath("application-x-executable", true) || "";
-        if (iconName.startsWith("/") || iconName.startsWith("file://")) {
-            return iconName.startsWith("/") ? "file://" + iconName : iconName;
-        }
-        if (osdRoot.iconMap && osdRoot.iconMap[iconName]) {
-            return "file://" + osdRoot.iconMap[iconName];
-        }
-        let qsPath = Quickshell.iconPath(iconName, true);
-        if (qsPath) return qsPath;
-        return Quickshell.iconPath("application-x-executable", true) || "";
-    }
+    function getAppIcon(iconName) { return Config.getAppIcon(iconName); }
 
     // --- FILE SEARCH (# prefix) ---
     // Query is passed as a process argument (never embedded in the script text)
