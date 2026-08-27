@@ -1,4 +1,5 @@
 import QtQuick
+import ".."
 
 // Shared toggle switch used across the Settings panel - previously a
 // verbatim `component ToggleSwitch : Rectangle { ... }` block copy-pasted
