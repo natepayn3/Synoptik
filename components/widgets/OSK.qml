@@ -336,6 +336,11 @@ Scope {
                 color: keyCapRoot.isPressed ? Config.accent : Config.bgPanel
                 border.color: keyCapRoot.isPressed ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
                 border.width: 1
+
+                // Real tactile press feedback - isPressed is already driven by
+                // live hardware keypress data, just wasn't used for depth before.
+                scale: keyCapRoot.isPressed ? 0.94 : 1.0
+                Behavior on scale { NumberAnimation { duration: 80; easing.type: Easing.OutCubic } }
             }
 
             Text {
