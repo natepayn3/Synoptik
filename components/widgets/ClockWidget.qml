@@ -442,7 +442,11 @@ PanelWindow {
                     property var now: new Date()
 
                     Timer {
-                        interval: Config.clockShowSeconds ? 1000 : 5000
+                        // Repaint fast enough for the second hand to visibly
+                        // sweep instead of tick when seconds are shown; back
+                        // off to a slow interval otherwise since the hour/minute
+                        // creep between repaints is imperceptible anyway.
+                        interval: Config.clockShowSeconds ? 100 : 5000
                         running: true
                         repeat: true
                         onTriggered: {
@@ -487,7 +491,7 @@ PanelWindow {
                         ctx.stroke()
 
                         if (Config.clockShowSeconds) {
-                            var secAngle = seconds * (Math.PI / 30) - (Math.PI / 2)
+                            var secAngle = (seconds + now.getMilliseconds() / 1000) * (Math.PI / 30) - (Math.PI / 2)
                             ctx.beginPath()
                             ctx.moveTo(cx, cy)
                             ctx.lineTo(cx + Math.cos(secAngle) * (radius * 0.85), cy + Math.sin(secAngle) * (radius * 0.85))

@@ -18,6 +18,7 @@ Rectangle {
 
     // Bind directly to your root NotificationServer instance
     property bool dndActive: notifServer.dnd
+    onDndActiveChanged: bellWobble.restart()
 
     TapHandler {
         onTapped: root.toggleDnd()
@@ -46,11 +47,20 @@ Rectangle {
             Behavior on color { ColorAnimation { duration: 150 } }
 
             Text {
+                id: bellIcon
                 anchors.centerIn: parent
                 text: root.dndActive ? "notifications_off" : "notifications"
                 font.family: "Material Symbols Outlined"
                 font.pixelSize: 22
                 color: root.dndActive ? Config.bgBase : Config.textMuted
+
+                SequentialAnimation {
+                    id: bellWobble
+                    NumberAnimation { target: bellIcon; property: "rotation"; to: -18; duration: 70; easing.type: Easing.OutCubic }
+                    NumberAnimation { target: bellIcon; property: "rotation"; to: 14; duration: 100; easing.type: Easing.InOutCubic }
+                    NumberAnimation { target: bellIcon; property: "rotation"; to: -8; duration: 90; easing.type: Easing.InOutCubic }
+                    NumberAnimation { target: bellIcon; property: "rotation"; to: 0; duration: 90; easing.type: Easing.OutCubic }
+                }
             }
         }
 

@@ -181,6 +181,49 @@ Item {
 
                                     Behavior on color { ColorAnimation { duration: 150 } }
 
+                                    // --- SWIPE TO DISMISS ---
+                                    // Purely a transform (not a direct x/y move) so this stays
+                                    // safe inside the ColumnLayout, which otherwise owns the
+                                    // card's real position.
+                                    transform: Translate { id: swipeTranslate; x: 0 }
+                                    opacity: 1.0 - Math.min(1.0, Math.abs(swipeTranslate.x) / Math.max(1, notifCard.width))
+
+                                    DragHandler {
+                                        id: swipeHandler
+                                        target: null
+                                        xAxis.enabled: true
+                                        yAxis.enabled: false
+
+                                        onTranslationChanged: swipeTranslate.x = translation.x
+
+                                        onActiveChanged: {
+                                            if (active) return
+                                            if (Math.abs(swipeTranslate.x) > notifCard.width * 0.35) {
+                                                dismissFlyout.toValue = swipeTranslate.x > 0 ? (notifCard.width + 60) : -(notifCard.width + 60)
+                                                dismissFlyout.start()
+                                            } else {
+                                                springBack.start()
+                                            }
+                                        }
+                                    }
+
+                                    NumberAnimation {
+                                        id: springBack
+                                        target: swipeTranslate
+                                        property: "x"
+                                        to: 0
+                                        duration: 220
+                                        easing.type: Easing.OutBack
+                                        easing.overshoot: 0.4
+                                    }
+
+                                    SequentialAnimation {
+                                        id: dismissFlyout
+                                        property real toValue: 0
+                                        NumberAnimation { target: swipeTranslate; property: "x"; to: dismissFlyout.toValue; duration: 180; easing.type: Easing.OutCubic }
+                                        ScriptAction { script: if (modelData) modelData.dismiss() }
+                                    }
+
                                     ColumnLayout {
                                         id: cardTextCol
                                         anchors.fill: parent
