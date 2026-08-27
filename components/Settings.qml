@@ -1254,7 +1254,10 @@ Item {
                     anchors.left: parent.left
                     anchors.right: parent.right
                     height: 64
-                    radius: parent.radius
+                    // ClippingRectangle's default property forwards children to an
+                    // inner plain Item (contentItem), so `parent` here is that Item,
+                    // not rightPaneRoot - parent.radius was silently undefined.
+                    radius: rightPaneRoot.radius
                     visible: opacity > 0
                     opacity: rightPaneRoot.canScrollDown ? 1.0 : 0.0
                     Behavior on opacity { NumberAnimation { duration: 220 } }
