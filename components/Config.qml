@@ -261,6 +261,8 @@ QtObject {
     property alias cavaFramerate: root.desktopWidgets.cavaFramerate
     property alias cavaSensitivity: root.desktopWidgets.cavaSensitivity
     property alias cavaSmoothing: root.desktopWidgets.cavaSmoothing
+    property alias ambientBreatheEnabled: root.desktopWidgets.ambientBreatheEnabled
+    property alias ambientBreatheIntensity: root.desktopWidgets.ambientBreatheIntensity
     property alias cavaBarWidth: root.desktopWidgets.cavaBarWidth
     property alias cavaBarGap: root.desktopWidgets.cavaBarGap
     property alias cavaBarRadius: root.desktopWidgets.cavaBarRadius
@@ -830,6 +832,8 @@ QtObject {
                 "cavaFramerate": root.cavaFramerate,
                 "cavaSensitivity": root.cavaSensitivity,
                 "cavaSmoothing": root.cavaSmoothing,
+                "ambientBreatheEnabled": root.ambientBreatheEnabled,
+                "ambientBreatheIntensity": root.ambientBreatheIntensity,
                 "cavaBarWidth": root.cavaBarWidth,
                 "cavaBarGap": root.cavaBarGap,
                 "cavaBarRadius": root.cavaBarRadius,
@@ -912,7 +916,8 @@ QtObject {
                             "sysInfoPositions", "sysInfoScales", "enabledSysInfoScreens",
                             "showDesktopCava", "cavaStyle", "cavaColorMode", "cavaGradientStart", "cavaGradientEnd",
                             "cavaSolidColor", "cavaRainbowSpeed", "cavaBars", "cavaFramerate", "cavaSensitivity",
-                            "cavaSmoothing", "cavaBarWidth", "cavaBarGap", "cavaBarRadius", "cavaMaxHeight", "cavaRingRadius",
+                            "cavaSmoothing", "ambientBreatheEnabled", "ambientBreatheIntensity",
+                            "cavaBarWidth", "cavaBarGap", "cavaBarRadius", "cavaMaxHeight", "cavaRingRadius",
                             "cavaShowGlow", "cavaShowBackground", "cavaShowBorder", "cavaRotation",
                             "cavaPositions", "cavaScales", "enabledCavaScreens",
                             "lockscreenBlurRadius", "lockscreenShowMedia", "lockscreenShowPower", "lockscreenMaskStyle", "lockscreenShapePalette",

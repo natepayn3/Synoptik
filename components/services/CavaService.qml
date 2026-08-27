@@ -7,10 +7,58 @@ QtObject {
 
     property var configRef: null
 
-    readonly property bool active: !!(configRef && configRef.isLoaded && configRef.showDesktopCava)
+    // Runs whenever either the desktop visualizer widget or ambient shell
+    // breathing wants live audio data - either one alone should be enough.
+    readonly property bool active: !!(configRef && configRef.isLoaded &&
+        (configRef.showDesktopCava || configRef.ambientBreatheEnabled))
     property var bars: []
     property bool cavaAvailable: true
     property bool pendingLaunch: false
+
+    // --- AMBIENT BREATHING LEVEL ---
+    // A slow, smoothed 0..1 signal derived from bass energy, meant for subtle
+    // whole-shell modulation (border pulse, panel alpha, etc.) rather than the
+    // per-bar visualizer above. Attacks quickly on rising bass, releases slowly
+    // so it reads as "breathing" instead of flickering with every frame.
+    property real breatheLevel: 0.0
+    readonly property int breatheBinCount: 4
+    readonly property real breatheAttack: 0.35
+    readonly property real breatheRelease: 0.06
+    // cava's raw ascii bars (0..1 here after /1000) sit well under 0.1 for
+    // most bass content at normal listening volume - autosens is off and
+    // sensitivity=100 is tuned for the visualizer widget, not this. Measured
+    // live against a sustained 60Hz tone at full system volume: raw bass
+    // average topped out around 0.05-0.06, which is imperceptible three
+    // multipliers downstream (intensity, then the border's alpha coefficient).
+    // This gain is local to the breathing signal only, so it doesn't affect
+    // cavaSensitivity or the visible desktop cava widget.
+    readonly property real breatheGain: 14.0
+
+    function updateBreatheLevel() {
+        if (!cavaRoot.bars || cavaRoot.bars.length === 0) {
+            breatheLevel = Math.max(0.0, breatheLevel - breatheRelease)
+            return
+        }
+        let count = Math.min(breatheBinCount, cavaRoot.bars.length)
+        let sum = 0.0
+        for (let i = 0; i < count; i++) sum += cavaRoot.bars[i]
+        let target = Math.max(0.0, Math.min(1.0, (sum / count) * breatheGain))
+
+        let rate = target > breatheLevel ? breatheAttack : breatheRelease
+        breatheLevel = breatheLevel + (target - breatheLevel) * rate
+    }
+
+    onBarsChanged: updateBreatheLevel()
+
+    // Bars stop arriving entirely when cava exits (active -> false), so this
+    // keeps decaying breatheLevel back to 0 smoothly instead of leaving it
+    // stuck at whatever value it last held.
+    property Timer breatheDecayTimer: Timer {
+        interval: 50
+        running: !cavaRoot.active && cavaRoot.breatheLevel > 0.001
+        repeat: true
+        onTriggered: cavaRoot.breatheLevel = Math.max(0.0, cavaRoot.breatheLevel - cavaRoot.breatheRelease)
+    }
 
     readonly property string confDir: Quickshell.env("HOME") + "/.cache/synoptik"
     readonly property string confPath: confDir + "/cava.conf"
