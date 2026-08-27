@@ -16,7 +16,7 @@ Item {
     implicitHeight: mainLayout.implicitHeight + (cardMargin * 2)
 
     // --- MODE / QUERY STATE ---
-    // "apps" (default) | "files" (# prefix) | "ipc" (> prefix)
+    // "apps" (default) | "files" (# prefix) | "ipc" (> prefix) | "calc" (auto-detected math)
     property string searchMode: "apps"
     property string queryText: ""
     property var filteredApps: []
@@ -24,21 +24,28 @@ Item {
     property var filteredCommands: []
     property var iconMap: ({})
 
+    // --- CALCULATOR STATE ---
+    property string calcResultText: ""
+    property bool calcValid: false
+
     readonly property var currentResults: {
         if (searchMode === "files") return filteredFiles
         if (searchMode === "ipc") return filteredCommands
+        if (searchMode === "calc") return []
         return filteredApps
     }
 
     readonly property string modeBadge: {
         if (searchMode === "files") return "FILES"
         if (searchMode === "ipc") return "COMMANDS"
+        if (searchMode === "calc") return "CALC"
         return ""
     }
 
     readonly property string modeIcon: {
         if (searchMode === "files") return "folder_open"
         if (searchMode === "ipc") return "terminal"
+        if (searchMode === "calc") return "calculate"
         return "search"
     }
 
@@ -54,6 +61,7 @@ Item {
     readonly property int resultRowHeight: 56
     readonly property int maxVisibleRows: 5
     readonly property real resultsAreaHeight: {
+        if (searchMode === "calc") return 68
         if (searchInput.text === "" || currentResults.length === 0) return 52
         return Math.min(currentResults.length, maxVisibleRows) * resultRowHeight + 16
     }
@@ -205,6 +213,111 @@ print(json.dumps(results))
         }
     }
 
+    // --- CALCULATOR (auto-detected, no prefix) ---
+    // Only treats input as math when it's unambiguously arithmetic: charset is
+    // restricted to digits/operators/parens/whitespace, and there must be an
+    // actual binary operation present (not just a lone leading "-5" or a bare
+    // number like "2024" that's probably a search term, not a calculation).
+    function looksLikeMath(str) {
+        let t = str.trim();
+        if (t.length === 0) return false;
+        if (!/^[0-9+\-*/%^().\s]+$/.test(t)) return false;
+        if (!/[0-9]/.test(t)) return false;
+        if (/[*/%^]/.test(t)) return true;
+        if (/[0-9)]\s*[+\-]\s*[-+]?\s*[0-9(.]/.test(t)) return true;
+        return false;
+    }
+
+    // Small recursive-descent evaluator so typed text is never handed to
+    // eval()/Function() - the grammar only understands numbers, + - * / % ^,
+    // parens, and unary sign, so there's no way for input to do anything but
+    // arithmetic. Throws on any malformed expression (unbalanced parens,
+    // trailing garbage, division by zero).
+    function evalMath(str) {
+        let s = str.replace(/\s+/g, "");
+        let pos = 0;
+
+        function peek() { return s[pos]; }
+        function consume() { return s[pos++]; }
+
+        function parseExpression() {
+            let value = parseTerm();
+            while (pos < s.length && (peek() === "+" || peek() === "-")) {
+                let op = consume();
+                let rhs = parseTerm();
+                value = op === "+" ? value + rhs : value - rhs;
+            }
+            return value;
+        }
+
+        function parseTerm() {
+            let value = parseUnary();
+            while (pos < s.length && (peek() === "*" || peek() === "/" || peek() === "%")) {
+                let op = consume();
+                let rhs = parseUnary();
+                if (op === "*") value = value * rhs;
+                else if (op === "/") {
+                    if (rhs === 0) throw new Error("Division by zero");
+                    value = value / rhs;
+                } else {
+                    value = value % rhs;
+                }
+            }
+            return value;
+        }
+
+        function parseUnary() {
+            if (peek() === "-") { consume(); return -parseUnary(); }
+            if (peek() === "+") { consume(); return parseUnary(); }
+            return parsePower();
+        }
+
+        function parsePower() {
+            let base = parsePrimary();
+            if (peek() === "^") {
+                consume();
+                return Math.pow(base, parseUnary());
+            }
+            return base;
+        }
+
+        function parsePrimary() {
+            if (peek() === "(") {
+                consume();
+                let value = parseExpression();
+                if (peek() !== ")") throw new Error("Expected )");
+                consume();
+                return value;
+            }
+            let start = pos;
+            while (pos < s.length && /[0-9.]/.test(peek())) pos++;
+            if (pos === start) throw new Error("Expected number");
+            let num = parseFloat(s.slice(start, pos));
+            if (isNaN(num)) throw new Error("Invalid number");
+            return num;
+        }
+
+        if (s.length === 0) throw new Error("Empty expression");
+        let result = parseExpression();
+        if (pos !== s.length) throw new Error("Unexpected trailing characters");
+        if (!isFinite(result)) throw new Error("Invalid result");
+        return result;
+    }
+
+    // Strips float noise (e.g. 0.1+0.2 -> 0.30000000000000004) without
+    // truncating legitimately large/precise results.
+    function formatCalcResult(num) {
+        if (Number.isInteger(num)) return num.toString();
+        let rounded = Math.round(num * 1e10) / 1e10;
+        return rounded.toString();
+    }
+
+    function copyCalcResult() {
+        if (!osdRoot.calcValid) return;
+        Quickshell.execDetached(["wl-copy", osdRoot.calcResultText]);
+        Config.showLauncherOsd = false;
+    }
+
     // --- MODE DETECTION + FILTERING ---
     function updateModel() {
         let raw = searchInput.text;
@@ -220,6 +333,15 @@ print(json.dumps(results))
                 if (q === "") return true;
                 return c.name.toLowerCase().includes(q) || c.target.toLowerCase().includes(q) || c.fn.toLowerCase().includes(q);
             });
+        } else if (osdRoot.looksLikeMath(raw)) {
+            osdRoot.searchMode = "calc";
+            try {
+                osdRoot.calcResultText = osdRoot.formatCalcResult(osdRoot.evalMath(raw));
+                osdRoot.calcValid = true;
+            } catch (e) {
+                osdRoot.calcResultText = "";
+                osdRoot.calcValid = false;
+            }
         } else {
             osdRoot.searchMode = "apps";
             let query = raw.trim().toLowerCase();
@@ -408,7 +530,11 @@ print(json.dumps(results))
                                 resultList.decrementCurrentIndex();
                                 event.accepted = true;
                             } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
-                                osdRoot.activateCurrent();
+                                if (osdRoot.searchMode === "calc") {
+                                    osdRoot.copyCalcResult();
+                                } else {
+                                    osdRoot.activateCurrent();
+                                }
                                 event.accepted = true;
                             } else if (event.key === Qt.Key_Escape) {
                                 Config.showLauncherOsd = false;
@@ -456,10 +582,48 @@ print(json.dumps(results))
                     Layout.fillWidth: true
                     Layout.preferredHeight: osdRoot.resultsAreaHeight
 
+                    // --- CALCULATOR RESULT ROW ---
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 22
+                        anchors.rightMargin: 22
+                        visible: osdRoot.searchMode === "calc"
+                        spacing: 12
+
+                        Text {
+                            text: "calculate"
+                            color: osdRoot.calcValid ? Config.accent : Config.textMuted
+                            font { family: "Material Symbols Outlined"; pixelSize: 22 }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 2
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: osdRoot.calcValid ? osdRoot.calcResultText : "Invalid expression"
+                                color: osdRoot.calcValid ? Config.textMain : Config.textMuted
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontTitle)
+                                font.bold: true
+                                elide: Text.ElideRight
+                            }
+
+                            Text {
+                                visible: osdRoot.calcValid
+                                text: "Press Enter to copy"
+                                color: Config.textMuted
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontCaption)
+                            }
+                        }
+                    }
+
                     // Empty-state clues — a single slim row, shown until the user types anything
                     RowLayout {
                         anchors.centerIn: parent
-                        visible: searchInput.text === ""
+                        visible: searchInput.text === "" && osdRoot.searchMode !== "calc"
                         spacing: 22
 
                         Repeater {
@@ -490,7 +654,7 @@ print(json.dumps(results))
 
                     Text {
                         anchors.centerIn: parent
-                        visible: searchInput.text !== "" && osdRoot.currentResults.length === 0
+                        visible: searchInput.text !== "" && osdRoot.currentResults.length === 0 && osdRoot.searchMode !== "calc"
                         text: osdRoot.searchMode === "files" && osdRoot.queryText.trim() === ""
                             ? "Type to search files..."
                             : "No results"
