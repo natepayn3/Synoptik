@@ -36,6 +36,47 @@ QtObject {
     property bool enableHoverPeek: true
     onEnableHoverPeekChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
 
+    property bool nightModeEnabled: false
+    onNightModeEnabledChanged: { if (configRef && configRef.isLoaded) configRef.updateShader() }
+
+    // --- NIGHT MODE SCHEDULE ---
+    property bool nightModeAuto: false
+    property int nightModeScheduleStart: 21 // 9 PM, 24h clock
+    property int nightModeScheduleEnd: 6    // 6 AM, 24h clock
+
+    onNightModeAutoChanged: {
+        if (configRef && configRef.isLoaded) configRef.saveSettings()
+        evaluateNightSchedule()
+    }
+    onNightModeScheduleStartChanged: {
+        if (configRef && configRef.isLoaded) configRef.saveSettings()
+        evaluateNightSchedule()
+    }
+    onNightModeScheduleEndChanged: {
+        if (configRef && configRef.isLoaded) configRef.saveSettings()
+        evaluateNightSchedule()
+    }
+
+    // Sets nightModeEnabled to match the schedule when Auto is on. Handles
+    // windows that wrap past midnight (e.g. 21 -> 6) as well as ones that
+    // don't (e.g. 8 -> 18).
+    function evaluateNightSchedule() {
+        if (!nightModeAuto) return
+        let h = new Date().getHours()
+        let start = nightModeScheduleStart
+        let end = nightModeScheduleEnd
+        let shouldBeOn = start === end ? false : (start < end ? (h >= start && h < end) : (h >= start || h < end))
+        if (nightModeEnabled !== shouldBeOn) nightModeEnabled = shouldBeOn
+    }
+
+    property Timer nightScheduleTimer: Timer {
+        interval: 60000
+        running: appearanceRoot.nightModeAuto
+        repeat: true
+        triggeredOnStart: true
+        onTriggered: appearanceRoot.evaluateNightSchedule()
+    }
+
     readonly property bool isFloatingBar: barFrameStyle === "floating"
 
     // --- BAR POSITION CONTROL ---

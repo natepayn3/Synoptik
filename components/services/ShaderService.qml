@@ -13,27 +13,54 @@ QtObject {
         command: ["python3", "-c", script]
     }
 
+    // Multiplied straight onto the final color when Night Mode is on - cuts
+    // blue well below red/green for a warm, ~3700K-ish cast (same idea as
+    // redshift's default warm preset). Composes with any active pixel
+    // shader mode below rather than replacing it.
+    readonly property string nightWarmGlsl: "color *= vec3(1.0, 0.82, 0.60);"
+
     function updateShader() {
         if (!configRef || !configRef.isLoaded) return
 
-        if (!configRef.pixelShaderEnabled) {
+        const nightMode = configRef.nightModeEnabled === true
+        const pixelOn = configRef.pixelShaderEnabled === true
+
+        if (!pixelOn && !nightMode) {
             proc.script = "import subprocess\nsubprocess.run(['hyprctl', 'eval', 'hl.config({ decoration = { screen_shader = \"\" } })'])"
             proc.running = true
             return
         }
 
-        const mode = configRef.pixelShaderMode || "pixelate"
-        const pixelSize = (configRef.pixelShaderSize || 2.0).toFixed(1)
-        const levels = (configRef.pixelShaderLevels || 32.0).toFixed(1)
-        const dither = configRef.pixelShaderDither !== false
-        const grid = configRef.pixelShaderGrid === true
-        const boost = configRef.pixelShaderBoost !== false
-        const palette = configRef.pixelShaderPalette || "default"
+        const nightWarm = nightMode ? root.nightWarmGlsl : ""
 
         let glsl = ""
 
-        if (mode === "pixelate") {
+        if (!pixelOn) {
+            // Night Mode only - minimal passthrough shader with just the warm tint.
             glsl = `#version 300 es
+precision highp float;
+
+in vec2 v_texcoord;
+uniform sampler2D tex;
+out vec4 fragColor;
+
+void main() {
+    vec4 baseColor = texture(tex, v_texcoord);
+    vec3 color = baseColor.rgb;
+    ${nightWarm}
+    fragColor = vec4(color, baseColor.a);
+}`
+        } else {
+            const mode = configRef.pixelShaderMode || "pixelate"
+            const pixelSize = (configRef.pixelShaderSize || 2.0).toFixed(1)
+            const levels = (configRef.pixelShaderLevels || 32.0).toFixed(1)
+            const dither = configRef.pixelShaderDither !== false
+            const grid = configRef.pixelShaderGrid === true
+            const boost = configRef.pixelShaderBoost !== false
+            const palette = configRef.pixelShaderPalette || "default"
+
+            if (mode === "pixelate") {
+                glsl = `#version 300 es
 precision highp float;
 
 in vec2 v_texcoord;
@@ -77,10 +104,11 @@ void main() {
     ${palette === "amber" ? `float lum = dot(color, vec3(0.299, 0.587, 0.114));
     color = vec3(lum * 1.0, lum * 0.7, lum * 0.1);` : ""}
 
+    ${nightWarm}
     fragColor = vec4(color, baseColor.a);
 }`
-        } else if (mode === "crt") {
-            glsl = `#version 300 es
+            } else if (mode === "crt") {
+                glsl = `#version 300 es
 precision highp float;
 
 in vec2 v_texcoord;
@@ -128,10 +156,11 @@ void main() {
 
     color = clamp((color - 0.5) * 1.08 + 0.5, 0.0, 1.0);
 
+    ${nightWarm}
     fragColor = vec4(color, 1.0);
 }`
-        } else if (mode === "mac1bit") {
-            glsl = `#version 300 es
+            } else if (mode === "mac1bit") {
+                glsl = `#version 300 es
 precision highp float;
 
 in vec2 v_texcoord;
@@ -165,8 +194,11 @@ void main() {
 
     vec3 ink = vec3(0.12, 0.12, 0.14);
     vec3 paper = vec3(0.92, 0.93, 0.90);
-    fragColor = vec4(mix(ink, paper, bw), baseColor.a);
+    vec3 color = mix(ink, paper, bw);
+    ${nightWarm}
+    fragColor = vec4(color, baseColor.a);
 }`
+            }
         }
 
         let py = "import os, subprocess\n" +
@@ -175,7 +207,7 @@ void main() {
             "with open(p, 'w') as f:\n" +
             "    f.write(" + JSON.stringify(glsl) + ")\n" +
             "subprocess.run(['hyprctl', 'eval', 'hl.config({ decoration = { screen_shader = \"\" } })'])\n" +
-            "cmd = 'hl.config({ decoration = { screen_shader = \"' + (p if " + (configRef.pixelShaderEnabled ? "True" : "False") + " else '') + '\" } })'\n" +
+            "cmd = 'hl.config({ decoration = { screen_shader = \"' + (p if " + ((pixelOn || nightMode) ? "True" : "False") + " else '') + '\" } })'\n" +
             "subprocess.run(['hyprctl', 'eval', cmd])\n"
 
         proc.script = py

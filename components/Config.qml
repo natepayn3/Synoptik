@@ -352,6 +352,10 @@ QtObject {
     }
 
     property alias enableHoverPeek: root.appearance.enableHoverPeek
+    property alias nightModeEnabled: root.appearance.nightModeEnabled
+    property alias nightModeAuto: root.appearance.nightModeAuto
+    property alias nightModeScheduleStart: root.appearance.nightModeScheduleStart
+    property alias nightModeScheduleEnd: root.appearance.nightModeScheduleEnd
     readonly property alias isFloatingBar: root.appearance.isFloatingBar
 
     property alias quoteFetchQueue: root.quoteService.quoteFetchQueue
@@ -628,8 +632,8 @@ QtObject {
         let borderSize = root.borderThickness
         let gapsOut = (barFrameStyle === "screen") ? 32 : 20
         let roundingVal = Math.round(surfaceRadius)
-        let shaderPath = root.pixelShaderEnabled 
-            ? (Quickshell.env("HOME") + "/.config/hypr/shaders/pixelate.frag") 
+        let shaderPath = (root.pixelShaderEnabled || root.nightModeEnabled)
+            ? (Quickshell.env("HOME") + "/.config/hypr/shaders/pixelate.frag")
             : ""
 
         let bindLines = []
@@ -759,6 +763,10 @@ QtObject {
                 "notificationSoundPath": root.notificationSoundPath,
                 "windowSoundVolume": root.windowSoundVolume,
                 "enableHoverPeek": root.enableHoverPeek,
+                "nightModeEnabled": root.nightModeEnabled,
+                "nightModeAuto": root.nightModeAuto,
+                "nightModeScheduleStart": root.nightModeScheduleStart,
+                "nightModeScheduleEnd": root.nightModeScheduleEnd,
 
                 "pixelShaderEnabled": root.pixelShaderEnabled,
                 "pixelShaderMode": root.pixelShaderMode,
@@ -932,7 +940,7 @@ QtObject {
                             "leftCardOrder", "rightCardOrder", "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides",
                             "playWindowSounds", "playNotificationSounds", "windowSoundPath", "notificationSoundPath", "windowSoundVolume",
                             "showMirror", "mirrorShowPanel", "mirrorMirrored", "mirrorKeepAspect", "mirrorExpanded", "mirrorPinned", "mirrorAnchorPos",
-                            "enableHoverPeek", "wallhavenUsername", "wallhavenApiKey",
+                            "enableHoverPeek", "nightModeEnabled", "nightModeAuto", "nightModeScheduleStart", "nightModeScheduleEnd", "wallhavenUsername", "wallhavenApiKey",
                             "pixelShaderEnabled", "pixelShaderMode", "pixelShaderSize", "pixelShaderLevels", 
                             "pixelShaderPalette", "pixelShaderDither", "pixelShaderGrid", "pixelShaderBoost"
                         ]
@@ -990,7 +998,7 @@ QtObject {
                 root.syncHyprlandBorders()
                 root.syncScreenFrame()
 
-                if (root.pixelShaderEnabled) {
+                if (root.pixelShaderEnabled || root.nightModeEnabled) {
                     root.updateShader()
                 }
 

@@ -4,6 +4,7 @@ import QtQuick.Controls
 import Qt5Compat.GraphicalEffects
 import Quickshell.Widgets
 import ".."
+import "../settings"
 
 // ClippingRectangle (not plain Rectangle) so the watermark actually respects
 // the rounded corners instead of bleeding past them - plain Rectangle.clip
@@ -55,36 +56,221 @@ ClippingRectangle {
         spacing: 12
 
         // ==========================================
+        // NIGHT MODE
+        // ==========================================
+        // Same dark-card/icon-square language as the WiFi/Bluetooth/Caffeine/
+        // DND tiles above, now full-width with an Auto-schedule toggle and
+        // start/end hour steppers (Caffeine's -5m/+5m pattern, but hourly).
+        Rectangle {
+            id: nightCard
+            Layout.fillWidth: true
+            implicitHeight: nightCardCol.implicitHeight + 20
+            radius: Config.cornerRadius
+            color: Qt.rgba(0, 0, 0, 0.25)
+
+            function hourLabel(h) {
+                let period = h >= 12 ? "PM" : "AM"
+                let hr = h % 12
+                if (hr === 0) hr = 12
+                return hr + " " + period
+            }
+
+            ColumnLayout {
+                id: nightCardCol
+                anchors.fill: parent
+                anchors.margins: 10
+                spacing: 10
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+
+                    Rectangle {
+                        id: nightIcon
+                        implicitWidth: 48
+                        implicitHeight: 48
+                        radius: Config.cornerRadius / 2
+                        color: Config.nightModeEnabled
+                            ? ((nightIconHover.hovered && !Config.nightModeAuto) ? Qt.lighter(Config.accent, 1.1) : Config.accent)
+                            : ((nightIconHover.hovered && !Config.nightModeAuto) ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.3))
+
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "bedtime"
+                            font.family: "Material Symbols Outlined"
+                            font.pixelSize: 24
+                            color: Config.nightModeEnabled ? Config.bgBase : Config.textMuted
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            enabled: !Config.nightModeAuto
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: Config.nightModeEnabled = !Config.nightModeEnabled
+                        }
+                        HoverHandler { id: nightIconHover }
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 1
+
+                        Text {
+                            text: "Night Mode"
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            font.bold: true
+                            color: Config.textMain
+                        }
+
+                        Text {
+                            text: Config.nightModeAuto
+                                ? ("Auto · " + nightCard.hourLabel(Config.nightModeScheduleStart) + " – " + nightCard.hourLabel(Config.nightModeScheduleEnd))
+                                : (Config.nightModeEnabled ? "On" : "Off")
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                            color: Config.nightModeEnabled ? Config.accent : Config.textMuted
+                            elide: Text.ElideRight
+                            Layout.fillWidth: true
+                        }
+                    }
+
+                    RowLayout {
+                        spacing: 6
+
+                        Text {
+                            text: "Auto"
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                            font.bold: true
+                            color: Config.nightModeAuto ? Config.accent : Config.textMuted
+                        }
+
+                        ToggleSwitch {
+                            checked: Config.nightModeAuto
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: Config.nightModeAuto = !Config.nightModeAuto
+                            }
+                        }
+                    }
+                }
+
+                // Schedule hour steppers - only shown while Auto is on
+                RowLayout {
+                    Layout.alignment: Qt.AlignHCenter
+                    spacing: 10
+                    visible: Config.nightModeAuto
+
+                    RowLayout {
+                        spacing: 4
+
+                        Rectangle {
+                            implicitWidth: 22; implicitHeight: 22; radius: 11
+                            color: startMinusHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
+                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Text { anchors.centerIn: parent; text: "remove"; font.family: "Material Symbols Outlined"; font.pixelSize: 12; color: Config.textMain }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: Config.nightModeScheduleStart = (Config.nightModeScheduleStart + 23) % 24
+                            }
+                            HoverHandler { id: startMinusHover }
+                        }
+
+                        Rectangle {
+                            implicitWidth: 54; implicitHeight: 22; radius: 6
+                            color: Qt.rgba(0, 0, 0, 0.3)
+                            border.width: 1; border.color: Config.accent
+                            Text {
+                                anchors.centerIn: parent
+                                text: nightCard.hourLabel(Config.nightModeScheduleStart)
+                                color: Config.accent
+                                font.family: Config.sysFont
+                                font.bold: true
+                                font.pixelSize: 10
+                            }
+                        }
+
+                        Rectangle {
+                            implicitWidth: 22; implicitHeight: 22; radius: 11
+                            color: startPlusHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
+                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Text { anchors.centerIn: parent; text: "add"; font.family: "Material Symbols Outlined"; font.pixelSize: 12; color: Config.textMain }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: Config.nightModeScheduleStart = (Config.nightModeScheduleStart + 1) % 24
+                            }
+                            HoverHandler { id: startPlusHover }
+                        }
+                    }
+
+                    Text {
+                        text: "–"
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                    }
+
+                    RowLayout {
+                        spacing: 4
+
+                        Rectangle {
+                            implicitWidth: 22; implicitHeight: 22; radius: 11
+                            color: endMinusHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
+                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Text { anchors.centerIn: parent; text: "remove"; font.family: "Material Symbols Outlined"; font.pixelSize: 12; color: Config.textMain }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: Config.nightModeScheduleEnd = (Config.nightModeScheduleEnd + 23) % 24
+                            }
+                            HoverHandler { id: endMinusHover }
+                        }
+
+                        Rectangle {
+                            implicitWidth: 54; implicitHeight: 22; radius: 6
+                            color: Qt.rgba(0, 0, 0, 0.3)
+                            border.width: 1; border.color: Config.accent
+                            Text {
+                                anchors.centerIn: parent
+                                text: nightCard.hourLabel(Config.nightModeScheduleEnd)
+                                color: Config.accent
+                                font.family: Config.sysFont
+                                font.bold: true
+                                font.pixelSize: 10
+                            }
+                        }
+
+                        Rectangle {
+                            implicitWidth: 22; implicitHeight: 22; radius: 11
+                            color: endPlusHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
+                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Text { anchors.centerIn: parent; text: "add"; font.family: "Material Symbols Outlined"; font.pixelSize: 12; color: Config.textMain }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: Config.nightModeScheduleEnd = (Config.nightModeScheduleEnd + 1) % 24
+                            }
+                            HoverHandler { id: endPlusHover }
+                        }
+                    }
+                }
+            }
+        }
+
+        // ==========================================
         // SECTION 1: BRIGHTNESS SLIDER
         // ==========================================
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 8
             opacity: root.hasBacklight ? 1.0 : 0.45
-
-            RowLayout {
-                Layout.fillWidth: true
-
-                Text {
-                    text: "Brightness"
-                    font.family: Config.sysFont
-                    // Inline Comment: Restored title size back to fontCaption
-                    font.pixelSize: Config.size(Config.fontCaption)
-                    font.bold: true
-                    color: Config.textMain
-                }
-
-                Item { Layout.fillWidth: true }
-
-                Text {
-                    text: root.hasBacklight ? (root.currentBrightness + "%") : "Unavailable"
-                    font.family: Config.sysFont
-                    // Inline Comment: Restored readout percentage back to fontMicro
-                    font.pixelSize: Config.size(Config.fontMicro)
-                    font.bold: true
-                    color: root.hasBacklight ? Config.textMain : Config.textMuted
-                }
-            }
 
             // Brightness Track Container
             Item {
@@ -144,6 +330,17 @@ ClippingRectangle {
                         color: root.hasBacklight ? Config.bgBase : Config.textMuted
                     }
 
+                    Text {
+                        anchors.right: parent.right
+                        anchors.rightMargin: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: root.hasBacklight ? (root.currentBrightness + "%") : "Unavailable"
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        font.bold: true
+                        color: root.hasBacklight ? Config.textMain : Config.textMuted
+                    }
+
                     DragHandler {
                         id: brightDrag
                         target: null
@@ -183,34 +380,6 @@ ClippingRectangle {
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 8
-
-            RowLayout {
-                Layout.fillWidth: true
-
-                Text {
-                    text: "Volume"
-                    font.family: Config.sysFont
-                    // Inline Comment: Restored title size back to fontCaption
-                    font.pixelSize: Config.size(Config.fontCaption)
-                    font.bold: true
-                    color: Config.textMain
-                }
-
-                Item { Layout.fillWidth: true }
-
-                Text {
-                    readonly property int displayVol: root.isUserDraggingVol 
-                        ? Math.round(root.localRatio * 100) 
-                        : root.currentVolume
-
-                    text: root.isAudioMuted ? "MUTED" : (displayVol < 0 ? "---" : displayVol + "%")
-                    font.family: Config.sysFont
-                    // Inline Comment: Restored readout percentage back to fontMicro
-                    font.pixelSize: Config.size(Config.fontMicro)
-                    font.bold: true
-                    color: root.isAudioMuted ? Config.textMuted : Config.textMain
-                }
-            }
 
             // Volume Track Container
             Item {
@@ -276,6 +445,21 @@ ClippingRectangle {
                         font.family: "Material Symbols Outlined"
                         font.pixelSize: 20
                         color: (!root.isAudioMuted && activeVol > 10) ? Config.bgBase : Config.textMain
+                    }
+
+                    Text {
+                        anchors.right: parent.right
+                        anchors.rightMargin: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        readonly property int displayVol: root.isUserDraggingVol
+                            ? Math.round(root.localRatio * 100)
+                            : root.currentVolume
+
+                        text: root.isAudioMuted ? "MUTED" : (displayVol < 0 ? "---" : displayVol + "%")
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        font.bold: true
+                        color: root.isAudioMuted ? Config.textMuted : Config.textMain
                     }
 
                     MouseArea {

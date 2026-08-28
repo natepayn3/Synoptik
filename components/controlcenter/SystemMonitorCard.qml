@@ -428,7 +428,10 @@ Item {
 
         Rectangle {
             anchors.fill: parent
-            radius: parent.radius
+            // ClippingRectangle's default property forwards children to an
+            // inner plain Item (contentItem), so `parent` here is that Item,
+            // not visualBackground - parent.radius was silently undefined.
+            radius: visualBackground.radius
             color: Qt.rgba(Config.bgBase.r, Config.bgBase.g, Config.bgBase.b, 1.0)
             visible: opacity > 0
             opacity: cardRoot.panelExpanded ? 1.0 : 0.0
