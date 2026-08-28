@@ -593,7 +593,6 @@ PanelWindow {
             case "appLauncher":    btn = leftCard ? (leftCard.getButton("launcher") || leftCard) : null; break
             case "power":          btn = leftCard ? (leftCard.getButton("power") || leftCard) : null; break
             case "wallpaper":      btn = leftCard ? (leftCard.getButton("wallpaper") || leftCard) : null; break
-            case "notifications":  btn = leftCard ? (leftCard.getButton("notifications") || leftCard) : null; break
             case "screenRecorder": btn = leftCard ? (leftCard.getButton("recorder") || leftCard) : null; break
             case "mirror":         btn = leftCard ? (leftCard.getButton("mirror") || leftCard) : null; break
             case "audio":          btn = leftCard ? (leftCard.getButton("audio") || leftCard) : null; break
@@ -638,7 +637,6 @@ PanelWindow {
             else if (Config.showWallpaper) nextView = "wallpaper"
             else if (Config.showAppLauncher) nextView = "appLauncher"
             else if (Config.showCalendar) nextView = "calendar"
-            else if (Config.showNotifications) nextView = "notifications"
             else if (Config.showAudio) nextView = "audio"
             else if (Config.showNetwork) nextView = "network"
             else if (Config.showSystemMonitor) nextView = "systemMonitor"
@@ -685,7 +683,6 @@ PanelWindow {
             if (except !== "appLauncher") Config.showAppLauncher = false
             if (except !== "launcherOsd") Config.showLauncherOsd = false
             if (except !== "calendar") Config.showCalendar = false
-            if (except !== "notifications") Config.showNotifications = false
             if (except !== "audio") Config.showAudio = false
             if (except !== "network") Config.showNetwork = false
             if (except !== "systemMonitor") Config.showSystemMonitor = false
@@ -759,7 +756,6 @@ PanelWindow {
         function onShowPowerChanged() { if (Config.showPower) { closeOthers("power"); let btn = leftCard ? leftCard.getButton("power") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowWallpaperChanged() { if (Config.showWallpaper) { closeOthers("wallpaper"); let btn = leftCard ? leftCard.getButton("wallpaper") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowCalendarChanged() { if (Config.showCalendar) { closeOthers("calendar"); let btn = rightCard ? rightCard.getButton("clock") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
-        function onShowNotificationsChanged() { if (Config.showNotifications) { closeOthers("notifications"); let btn = leftCard ? leftCard.getButton("notifications") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowAudioChanged() { if (Config.showAudio) { closeOthers("audio"); let btn = leftCard ? leftCard.getButton("audio") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowNetworkChanged() { if (Config.showNetwork) { closeOthers("network"); let btn = leftCard ? leftCard.getButton("network") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowBatteryChanged() { if (Config.showBattery) { closeOthers("battery"); let btn = leftCard ? leftCard.getButton("batt") : null; if (btn) setPopoutPos(btn); } updateActiveView() }

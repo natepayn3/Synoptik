@@ -46,9 +46,22 @@ Item {
     property bool hasBacklight: false
     property bool isSettingVolume: false
 
-    readonly property int notifCount: (typeof shellRoot !== "undefined" && shellRoot.activeNotifs !== undefined) 
-        ? shellRoot.activeNotifs 
+    readonly property int notifCount: (typeof shellRoot !== "undefined" && shellRoot.activeNotifs !== undefined)
+        ? shellRoot.activeNotifs
         : ((typeof notifServer !== "undefined" && notifServer.trackedNotifications) ? notifServer.trackedNotifications.values.length : 0)
+
+    property bool showNotifHistory: false
+    readonly property int notifHistoryCount: Config.notificationHistory ? Config.notificationHistory.length : 0
+
+    function notifRelativeTime(ts) {
+        if (!ts) return ""
+        let mins = Math.floor((Date.now() - ts) / 60000)
+        if (mins < 1) return "Just now"
+        if (mins < 60) return mins + "m ago"
+        let hours = Math.floor(mins / 60)
+        if (hours < 24) return hours + "h ago"
+        return Math.floor(hours / 24) + "d ago"
+    }
 
     readonly property bool isAnyPanelExpanded: (wifiCard && (wifiCard.panelExpanded || wifiCard.shouldExpand)) ||
                                                (btCard && (btCard.panelExpanded || btCard.shouldExpand)) ||
@@ -328,7 +341,7 @@ Item {
                                 implicitWidth: clearBtnText.implicitWidth + 14
                                 implicitHeight: 22
                                 radius: 11
-                                visible: root.notifCount > 0
+                                visible: root.showNotifHistory ? root.notifHistoryCount > 0 : root.notifCount > 0
                                 color: clearHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
                                 border.width: 1
                                 border.color: clearHover.hovered ? Config.accent : Qt.rgba(255, 255, 255, 0.12)
@@ -344,8 +357,45 @@ Item {
                                     font.bold: true
                                 }
 
-                                TapHandler { onTapped: root.clearAllNotifications() }
+                                TapHandler { onTapped: root.showNotifHistory ? Config.clearNotificationHistory() : root.clearAllNotifications() }
                                 HoverHandler { id: clearHover; cursorShape: Qt.PointingHandCursor }
+                            }
+                        }
+
+                        // Active / History Tabs
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 4
+
+                            Repeater {
+                                model: [
+                                    { label: "Active", history: false },
+                                    { label: "History", history: true }
+                                ]
+
+                                delegate: Rectangle {
+                                    required property var modelData
+                                    Layout.fillWidth: true
+                                    implicitHeight: 22
+                                    radius: Config.cornerRadius / 2
+
+                                    readonly property bool isSelected: root.showNotifHistory === modelData.history
+                                    color: isSelected ? Qt.rgba(255, 255, 255, 0.12) : (notifTabHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent")
+
+                                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: modelData.label
+                                        color: parent.isSelected ? Config.accent : Config.textMuted
+                                        font.family: Config.sysFont
+                                        font.pixelSize: Config.size(Config.fontMicro)
+                                        font.bold: true
+                                    }
+
+                                    TapHandler { onTapped: root.showNotifHistory = modelData.history }
+                                    HoverHandler { id: notifTabHover; cursorShape: Qt.PointingHandCursor }
+                                }
                             }
                         }
 
@@ -357,11 +407,13 @@ Item {
                             clip: true
                             spacing: 8
                             boundsBehavior: Flickable.StopAtBounds
-                            visible: root.notifCount > 0
+                            visible: root.showNotifHistory ? root.notifHistoryCount > 0 : root.notifCount > 0
 
-                            model: (typeof notifServer !== "undefined" && notifServer.trackedNotifications) 
-                                ? notifServer.trackedNotifications.values
-                                : []
+                            model: root.showNotifHistory
+                                ? (Config.notificationHistory || [])
+                                : ((typeof notifServer !== "undefined" && notifServer.trackedNotifications)
+                                    ? notifServer.trackedNotifications.values
+                                    : [])
 
                             delegate: Rectangle {
                                 width: notifListView.width
@@ -392,6 +444,14 @@ Item {
                                             Layout.fillWidth: true
                                             elide: Text.ElideRight
                                         }
+
+                                        Text {
+                                            visible: root.showNotifHistory
+                                            text: modelData ? root.notifRelativeTime(modelData.timestamp) : ""
+                                            color: Config.textMuted
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontMicro)
+                                        }
                                     }
 
                                     Text {
@@ -417,6 +477,7 @@ Item {
                                 }
 
                                 Rectangle {
+                                    visible: !root.showNotifHistory
                                     anchors.right: parent.right
                                     anchors.top: parent.top
                                     anchors.margins: 6
@@ -451,7 +512,7 @@ Item {
                         Item {
                             Layout.fillWidth: true
                             Layout.fillHeight: true
-                            visible: root.notifCount === 0
+                            visible: root.showNotifHistory ? root.notifHistoryCount === 0 : root.notifCount === 0
 
                             ColumnLayout {
                                 anchors.centerIn: parent
@@ -467,7 +528,7 @@ Item {
                                 }
 
                                 Text {
-                                    text: "No notifications"
+                                    text: root.showNotifHistory ? "No notification history yet" : "No notifications"
                                     font.family: Config.sysFont
                                     font.pixelSize: Config.size(Config.fontCaption)
                                     font.bold: true

@@ -337,6 +337,7 @@ ShellRoot {
         onNotification: notif => {
             if (notif) {
                 notif.tracked = true
+                Config.recordNotification(notif)
             }
         }
     }
@@ -349,7 +350,7 @@ ShellRoot {
             if (!Config.showPower) {
                 Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false;
                 Config.showLauncherOsd = false;
-                Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false;
+                Config.showCalendar = false; Config.showBattery = false;
                 Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
                 Config.showClipboard = false; Config.showMirror = false;
             }
@@ -364,7 +365,7 @@ ShellRoot {
             if (!Config.showAppLauncher) {
                 Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
                 Config.showLauncherOsd = false;
-                Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false;
+                Config.showCalendar = false; Config.showBattery = false;
                 Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
                 Config.showClipboard = false; Config.showMirror = false;
             }
@@ -379,7 +380,7 @@ ShellRoot {
             if (!Config.showLauncherOsd) {
                 Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
                 Config.showAppLauncher = false;
-                Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false;
+                Config.showCalendar = false; Config.showBattery = false;
                 Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
                 Config.showClipboard = false; Config.showMirror = false;
             }
@@ -389,7 +390,7 @@ ShellRoot {
             if (!shellRoot.isFocusedBarEnabled) return;
             Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
             Config.showAppLauncher = false;
-            Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false;
+            Config.showCalendar = false; Config.showBattery = false;
             Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
             Config.showClipboard = false; Config.showMirror = false;
             Config.showLauncherOsd = true
@@ -406,25 +407,11 @@ ShellRoot {
             if (!Config.showWallpaper) {
                 Config.showPower = false; Config.showSettings = false; Config.showAppLauncher = false;
                 Config.showLauncherOsd = false;
-                Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false;
+                Config.showCalendar = false; Config.showBattery = false;
                 Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
                 Config.showClipboard = false; Config.showMirror = false;
             }
             Config.showWallpaper = !Config.showWallpaper
-        }
-    }
-
-    IpcHandler {
-        target: "notifications"
-        function toggle(): void {
-            if (!shellRoot.isFocusedBarEnabled) return;
-            if (!Config.showNotifications) {
-                Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
-                Config.showAppLauncher = false; Config.showLauncherOsd = false; Config.showCalendar = false; Config.showBattery = false;
-                Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
-                Config.showClipboard = false; Config.showMirror = false;
-            }
-            Config.showNotifications = !Config.showNotifications
         }
     }
 
@@ -434,7 +421,7 @@ ShellRoot {
             if (!shellRoot.isFocusedBarEnabled) return;
             if (!Config.showWorkspacePreview) {
                 Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
-                Config.showAppLauncher = false; Config.showLauncherOsd = false; Config.showCalendar = false; Config.showNotifications = false;
+                Config.showAppLauncher = false; Config.showLauncherOsd = false; Config.showCalendar = false;
                 Config.showBattery = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
                 Config.showClipboard = false; Config.showMirror = false;
             }
@@ -449,7 +436,7 @@ ShellRoot {
             if (!Config.showSettings) {
                 Config.showPower = false; Config.showWallpaper = false; Config.showAppLauncher = false;
                 Config.showLauncherOsd = false;
-                Config.showCalendar = false; Config.showNotifications = false; Config.showBattery = false;
+                Config.showCalendar = false; Config.showBattery = false;
                 Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
                 Config.showClipboard = false; Config.showMirror = false;
             }
@@ -470,7 +457,7 @@ ShellRoot {
             if (!shellRoot.isFocusedBarEnabled) return;
             if (!Config.showClipboard) {
                 Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
-                Config.showAppLauncher = false; Config.showLauncherOsd = false; Config.showCalendar = false; Config.showNotifications = false;
+                Config.showAppLauncher = false; Config.showLauncherOsd = false; Config.showCalendar = false;
                 Config.showBattery = false; Config.showWorkspacePreview = false; Config.showControlCenter = false;
                 Config.showScreenRecorder = false; Config.showMirror = false;
             }
@@ -484,7 +471,7 @@ ShellRoot {
             if (!shellRoot.isFocusedBarEnabled) return;
             if (!Config.showScreenRecorder) {
                 Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
-                Config.showAppLauncher = false; Config.showLauncherOsd = false; Config.showCalendar = false; Config.showNotifications = false;
+                Config.showAppLauncher = false; Config.showLauncherOsd = false; Config.showCalendar = false;
                 Config.showBattery = false; Config.showWorkspacePreview = false; Config.showControlCenter = false;
                 Config.showClipboard = false; Config.showMirror = false;
             }
@@ -498,7 +485,7 @@ ShellRoot {
             if (!shellRoot.isFocusedBarEnabled) return;
             if (!Config.showMirror) {
                 Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
-                Config.showAppLauncher = false; Config.showLauncherOsd = false; Config.showCalendar = false; Config.showNotifications = false;
+                Config.showAppLauncher = false; Config.showLauncherOsd = false; Config.showCalendar = false;
                 Config.showBattery = false; Config.showWorkspacePreview = false; Config.showControlCenter = false;
                 Config.showClipboard = false; Config.showScreenRecorder = false;
             }
@@ -589,7 +576,6 @@ ShellRoot {
                         case "wallpaper": return wallpaperComp;
                         case "appLauncher": return appLauncherComp;
                         case "calendar": return calendarComp;
-                        case "notifications": return notificationsComp;
                         case "audio": return audioComp;
                         case "network": return networkComp;
                         case "systemMonitor": return systemMonitorComp;
@@ -611,7 +597,6 @@ ShellRoot {
     Component { id: wallpaperComp; Wallpaper {} }
     Component { id: appLauncherComp; AppLauncher {} }
     Component { id: calendarComp; Calendar {} }
-    Component { id: notificationsComp; Notifications {} }
     Component { id: audioComp; Audio {} }
     Component { id: networkComp; Network {} }
     Component { id: batteryComp; Battery {} }

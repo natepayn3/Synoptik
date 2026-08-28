@@ -122,6 +122,14 @@ QtObject {
     property alias notificationSoundPath: root.sounds.notificationSoundPath
     property alias windowSoundVolume: root.sounds.windowSoundVolume
 
+    // --- NOTIFICATION HISTORY (extracted to services/NotificationHistoryService.qml) ---
+    // Persists to its own notification_history.json, not settings.json - see
+    // that file for why.
+    property NotificationHistoryService notificationHistoryService: NotificationHistoryService {}
+    property alias notificationHistory: root.notificationHistoryService.entries
+    function recordNotification(notif) { notificationHistoryService.record(notif) }
+    function clearNotificationHistory() { notificationHistoryService.clear() }
+
     // --- LOCKSCREEN STATE ---
     property bool sessionLocked: false
 

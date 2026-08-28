@@ -71,7 +71,6 @@ Item {
         { target: "launcher",          fn: "toggle",     name: "App Launcher",      icon: "terminal_2" },
         { target: "settings",          fn: "toggle",     name: "Settings",          icon: "build" },
         { target: "wallpaper",         fn: "toggle",     name: "Wallpaper Picker",  icon: "wall_art" },
-        { target: "notifications",     fn: "toggle",     name: "Notifications",     icon: "inbox" },
         { target: "workspaceoverview", fn: "toggle",     name: "Workspace Overview", icon: "select_window_2" },
         { target: "power",             fn: "toggle",     name: "Power Menu",        icon: "electrical_services" },
         { target: "clipboard",         fn: "toggle",     name: "Clipboard Manager", icon: "content_paste" },

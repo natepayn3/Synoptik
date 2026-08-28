@@ -53,8 +53,8 @@ Item {
             if (!notif) return;
             notif.tracked = true;
 
-            // Block OSD if DND is active or if the main Notification panel is already open
-            if ((typeof notifServer !== "undefined" && notifServer && notifServer.dnd) || (typeof Config.showNotifications !== "undefined" && Config.showNotifications)) return;
+            // Block OSD if DND is active
+            if (typeof notifServer !== "undefined" && notifServer && notifServer.dnd) return;
 
             osdRoot.notifApp = notif.appName ? notif.appName : "System";
             osdRoot.notifTitle = notif.summary ? notif.summary : "Notification";
