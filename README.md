@@ -13,7 +13,7 @@
   <br />
 
   <a href="https://www.youtube.com/watch?v=Cv7NUWnxySg" target="_blank">
-    <img src="https://img.youtube.com/vi/Cv7NUWnxySg/hqdefault.jpg" alt="Synoptik Showcase Video" width="750" style="border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.5);" />
+  <img width="1024" height="576" alt="5f1c7b8d-fe4a-4504-b6e1-1fac9ddfbc75" src="https://github.com/user-attachments/assets/a4d5413d-38fb-44c8-8418-54cd9f290504" />
   </a>
 
   <p><em>▶ Click the banner above to watch the showcase video on YouTube</em></p>
