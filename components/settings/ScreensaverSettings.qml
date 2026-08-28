@@ -22,43 +22,6 @@ Flickable {
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
     // Reusable Geometric / Square Toggle Switch Component
-    component ToggleSwitch : Rectangle {
-        id: sw
-        property bool checked: false
-        
-        implicitWidth: 40
-        implicitHeight: 22
-        radius: 6
-        color: checked ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(0, 0, 0, 0.4)
-        border.width: sw.checked ? 2 : 1
-        border.color: checked ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
-
-        Behavior on color { ColorAnimation { duration: 140 } }
-        Behavior on border.color { ColorAnimation { duration: 140 } }
-
-        // Square Thumb / Slider
-        Rectangle {
-            id: thumb
-            x: sw.checked ? (sw.width - width - 3) : 3
-            anchors.verticalCenter: parent.verticalCenter
-            width: 16
-            height: 16
-            radius: 4
-            color: sw.checked ? Config.accent : Qt.rgba(255, 255, 255, 0.2)
-            border.width: 0
-            border.color: sw.checked ? Qt.lighter(Config.accent, 1.2) : Qt.rgba(255, 255, 255, 0.25)
-
-            Behavior on x { 
-                NumberAnimation { 
-                    duration: 160
-                    easing.type: Easing.OutCubic 
-                } 
-            }
-            Behavior on color { ColorAnimation { duration: 140 } }
-            Behavior on border.color { ColorAnimation { duration: 140 } }
-        }
-    }
-
     ColumnLayout {
         id: contentColumn
         width: Math.min(flickable.width - (flickable.cardMargin * 2), 620)
@@ -559,48 +522,14 @@ Flickable {
                 }
 
                 // CORNER HIT COUNTER TOGGLE
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        Layout.minimumWidth: 0
-                        spacing: 2
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Corner Hit Counter & Flash Effect"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
-                            font.bold: true
-                            wrapMode: Text.WordWrap
-                        }
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Display a running corner-hit count and trigger a flash animation each time the logo bounces into a corner."
-                            color: Config.textMuted
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-
-                    ToggleSwitch {
-                        checked: Config.screensaverCornerCounter !== false
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                Config.screensaverCornerCounter = (Config.screensaverCornerCounter === false)
-                                if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                else if (typeof Config.save === "function") Config.save()
-                            }
-                        }
+                SettingsToggleRow {
+                    title: "Corner Hit Counter & Flash Effect"
+                    subtitle: "Display a running corner-hit count and trigger a flash animation each time the logo bounces into a corner."
+                    checked: Config.screensaverCornerCounter !== false
+                    onToggled: {
+                        Config.screensaverCornerCounter = (Config.screensaverCornerCounter === false)
+                        if (typeof Config.saveConfig === "function") Config.saveConfig()
+                        else if (typeof Config.save === "function") Config.save()
                     }
                 }
             }

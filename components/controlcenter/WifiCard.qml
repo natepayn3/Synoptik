@@ -576,13 +576,21 @@ Item {
                                                 : (isCurrentActive ? Config.accent : Qt.rgba(255, 255, 255, 0.06))
 
                                             Text {
+                                                id: rowSignalIcon
                                                 anchors.centerIn: parent
-                                                text: model.isSecure ? "wifi_lock" : "wifi"
+                                                text: isConnecting ? "progress_activity" : (model.isSecure ? "wifi_lock" : "wifi")
                                                 font.family: "Material Symbols Outlined"
                                                 font.pixelSize: 17
                                                 verticalAlignment: Text.AlignVCenter
                                                 horizontalAlignment: Text.AlignHCenter
                                                 color: hasError ? Config.accent : (isCurrentActive ? Config.bgBase : Config.textMuted)
+
+                                                RotationAnimator {
+                                                    target: rowSignalIcon
+                                                    from: 0; to: 360; duration: 1000
+                                                    loops: Animation.Infinite
+                                                    running: isConnecting
+                                                }
                                             }
                                         }
 
@@ -759,13 +767,20 @@ Item {
                                                 spacing: 4
 
                                                 Text {
-                                                    text: "login"
+                                                    id: joinBtnIcon
+                                                    text: isConnecting ? "progress_activity" : "login"
                                                     font.family: "Material Symbols Outlined"
                                                     font.pixelSize: 14
                                                     verticalAlignment: Text.AlignVCenter
                                                     horizontalAlignment: Text.AlignHCenter
                                                     color: Config.bgBase
-                                                    visible: !isConnecting
+
+                                                    RotationAnimator {
+                                                        target: joinBtnIcon
+                                                        from: 0; to: 360; duration: 1000
+                                                        loops: Animation.Infinite
+                                                        running: isConnecting
+                                                    }
                                                 }
 
                                                 Text {
@@ -853,13 +868,20 @@ Item {
                                                 anchors.centerIn: parent
                                                 spacing: 5
                                                 Text {
-                                                    text: "login"
+                                                    id: connectBtnIcon
+                                                    text: isConnecting ? "progress_activity" : "login"
                                                     font.family: "Material Symbols Outlined"
                                                     font.pixelSize: 14
                                                     verticalAlignment: Text.AlignVCenter
                                                     horizontalAlignment: Text.AlignHCenter
                                                     color: Config.bgBase
-                                                    visible: !isConnecting
+
+                                                    RotationAnimator {
+                                                        target: connectBtnIcon
+                                                        from: 0; to: 360; duration: 1000
+                                                        loops: Animation.Infinite
+                                                        running: isConnecting
+                                                    }
                                                 }
                                                 Text {
                                                     text: isConnecting ? "Connecting..." : "Connect"

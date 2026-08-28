@@ -498,13 +498,21 @@ Item {
                                                 : Qt.rgba(255, 255, 255, 0.06)
 
                                             Text {
+                                                id: rowDeviceIcon
                                                 anchors.centerIn: parent
-                                                text: cardRoot.getDeviceIcon(model.name)
+                                                text: isConnecting ? "progress_activity" : cardRoot.getDeviceIcon(model.name)
                                                 font.family: "Material Symbols Outlined"
                                                 font.pixelSize: 17
                                                 verticalAlignment: Text.AlignVCenter
                                                 horizontalAlignment: Text.AlignHCenter
                                                 color: model.connected ? Config.accent : Config.textMuted
+
+                                                RotationAnimator {
+                                                    target: rowDeviceIcon
+                                                    from: 0; to: 360; duration: 1000
+                                                    loops: Animation.Infinite
+                                                    running: isConnecting
+                                                }
                                             }
                                         }
 
@@ -587,13 +595,20 @@ Item {
                                                 anchors.centerIn: parent
                                                 spacing: 5
                                                 Text {
-                                                    text: model.connected ? "link_off" : "login"
+                                                    id: connectBtnIcon
+                                                    text: isConnecting ? "progress_activity" : (model.connected ? "link_off" : "login")
                                                     font.family: "Material Symbols Outlined"
                                                     font.pixelSize: 14
                                                     verticalAlignment: Text.AlignVCenter
                                                     horizontalAlignment: Text.AlignHCenter
                                                     color: model.connected ? (connBtnMouse.containsMouse ? Config.accent : Config.textMain) : Config.bgBase
-                                                    visible: !isConnecting
+
+                                                    RotationAnimator {
+                                                        target: connectBtnIcon
+                                                        from: 0; to: 360; duration: 1000
+                                                        loops: Animation.Infinite
+                                                        running: isConnecting
+                                                    }
                                                 }
                                                 Text {
                                                     text: isConnecting ? "Connecting..." : (model.connected ? "Disconnect" : (model.paired ? "Connect" : "Pair & Connect"))

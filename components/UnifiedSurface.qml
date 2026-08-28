@@ -24,7 +24,13 @@ PanelWindow {
     property bool isPeeking: false
     property var peekTargetItem: null
     property real peekProgress: isPeeking ? 1.0 : 0.0
-    Behavior on peekProgress { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+    Behavior on peekProgress {
+        NumberAnimation {
+            duration: Config.motionService.durationFastEffects
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: Config.motionService.expressiveFastEffectsPoints
+        }
+    }
 
     readonly property real peekSpan: 50      // Increased default length
     readonly property real peekDepth: 6      // Depth extending into the screen
@@ -149,12 +155,20 @@ PanelWindow {
 
     property real currentMargin: isFloatingStyle ? (Config.barMargin || 4) : 0
     Behavior on currentMargin {
-        NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
+        NumberAnimation {
+            duration: Config.motionService.durationFastSpatial
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: Config.motionService.expressiveFastSpatialPoints
+        }
     }
 
     property real barRadius: isFloatingStyle ? (Config.cornerRadius || 12) : 0
     Behavior on barRadius {
-        NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
+        NumberAnimation {
+            duration: Config.motionService.durationFastSpatial
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: Config.motionService.expressiveFastSpatialPoints
+        }
     }
 
     readonly property bool isScreenFrame: Config.barFrameStyle === "screen"
@@ -355,7 +369,11 @@ PanelWindow {
 
     property real autoHideProgress: isBarRevealed ? 1.0 : 0.0
     Behavior on autoHideProgress {
-        NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+        NumberAnimation {
+            duration: Config.motionService.durationFastEffects
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: Config.motionService.expressiveFastEffectsPoints
+        }
     }
 
     readonly property real autoHideDist: barH + currentMargin + 32
@@ -425,7 +443,12 @@ PanelWindow {
 
     property real animatedIslandWidth: isIsland ? islandTargetWidth : (mainContainer.width - Math.ceil(root.borderWidth))
     Behavior on animatedIslandWidth {
-        NumberAnimation { id: islandWidthAnim; duration: 250; easing.type: Easing.OutCubic }
+        NumberAnimation {
+            id: islandWidthAnim
+            duration: Config.motionService.durationDefaultSpatial
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: Config.motionService.expressiveDefaultSpatialPoints
+        }
     }
 
     readonly property real islandContentHeight: (!root.isHorizontal ? leftCardTargetHeight : (leftCard ? leftCard.height : 0)) 
@@ -439,7 +462,12 @@ PanelWindow {
     )
     property real animatedIslandHeight: isIsland ? islandTargetHeight : (mainContainer.height - Math.ceil(root.borderWidth))
     Behavior on animatedIslandHeight {
-        NumberAnimation { id: islandHeightAnim; duration: 250; easing.type: Easing.OutCubic }
+        NumberAnimation {
+            id: islandHeightAnim
+            duration: Config.motionService.durationDefaultSpatial
+            easing.type: Easing.BezierSpline
+            easing.bezierCurve: Config.motionService.expressiveDefaultSpatialPoints
+        }
     }
 
     readonly property bool isIslandResizing: isIsland && (islandWidthAnim.running || islandHeightAnim.running)
@@ -804,7 +832,7 @@ PanelWindow {
                 NumberAnimation {
                     target: root
                     property: "progress"
-                    duration: 480
+                    duration: Config.motionService.durationDefaultSpatial
                     easing.type: Easing.OutBack
                     easing.overshoot: 0.55
                 }

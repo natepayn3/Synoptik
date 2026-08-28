@@ -116,6 +116,31 @@ Item {
                 font.family: "Material Symbols Outlined"
                 font.pixelSize: 24
             }
+
+            // Pulsing urgency badge - same beat as ScreenRecorder's recording
+            // indicator (ScreenRecorder.qml), so "something needs attention"
+            // reads consistently across the shell.
+            Rectangle {
+                id: urgencyDot
+                visible: osdRoot.notifUrgency === Notifs.NotificationUrgency.Critical
+                width: 10
+                height: 10
+                radius: 5
+                color: "#ef4444"
+                border.width: 2
+                border.color: Config.bgBase
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.topMargin: -2
+                anchors.rightMargin: -2
+
+                SequentialAnimation {
+                    running: urgencyDot.visible
+                    loops: Animation.Infinite
+                    PropertyAnimation { target: urgencyDot; property: "opacity"; to: 0.3; duration: 600 }
+                    PropertyAnimation { target: urgencyDot; property: "opacity"; to: 1.0; duration: 600 }
+                }
+            }
         }
 
         Rectangle {

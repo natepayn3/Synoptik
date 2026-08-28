@@ -24,43 +24,6 @@ Flickable {
     }
 
     // Reusable Geometric / Square Toggle Switch Component
-    component ToggleSwitch : Rectangle {
-        id: sw
-        property bool checked: false
-        
-        implicitWidth: 40
-        implicitHeight: 22
-        radius: 6
-        color: checked ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(0, 0, 0, 0.4)
-        border.width: sw.checked ? 2 : 1
-        border.color: checked ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
-
-        Behavior on color { ColorAnimation { duration: 140 } }
-        Behavior on border.color { ColorAnimation { duration: 140 } }
-
-        // Square Thumb / Slider
-        Rectangle {
-            id: thumb
-            x: sw.checked ? (sw.width - width - 3) : 3
-            anchors.verticalCenter: parent.verticalCenter
-            width: 16
-            height: 16
-            radius: 4
-            color: sw.checked ? Config.accent : Qt.rgba(255, 255, 255, 0.2)
-            border.width: 0
-            border.color: sw.checked ? Qt.lighter(Config.accent, 1.2) : Qt.rgba(255, 255, 255, 0.25)
-
-            Behavior on x { 
-                NumberAnimation { 
-                    duration: 160
-                    easing.type: Easing.OutCubic 
-                } 
-            }
-            Behavior on color { ColorAnimation { duration: 140 } }
-            Behavior on border.color { ColorAnimation { duration: 140 } }
-        }
-    }
-
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
     readonly property var awwwTransitions: [
@@ -201,48 +164,12 @@ Flickable {
                 }
 
                 // Automatic Slideshow Toggle
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        Layout.minimumWidth: 0
-                        spacing: 2
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Automatic Wallpaper Slideshow"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
-                            font.bold: true
-                            wrapMode: Text.WordWrap
-                        }
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Cycles randomly through your wallpaper library on a timed interval"
-                            color: Config.textMuted
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-
-                    ToggleSwitch {
-                        checked: Config.slideshowActive !== false
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                Config.slideshowActive = (Config.slideshowActive === false)
-                                if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                else if (typeof Config.save === "function") Config.save()
-                            }
-                        }
+                SettingsToggleRow {
+                    title: "Automatic Wallpaper Slideshow"
+                    subtitle: "Cycles randomly through your wallpaper library on a timed interval"
+                    checked: Config.slideshowActive !== false
+                    onToggled: {
+                        Config.slideshowActive = (Config.slideshowActive === false)
                     }
                 }
 
@@ -451,7 +378,6 @@ Flickable {
 
                             onTextChanged: {
                                 Config.wallhavenUsername = text
-                                if (typeof Config.saveConfig === "function") Config.saveConfig()
                             }
                         }
                     }
@@ -493,7 +419,6 @@ Flickable {
 
                             onTextChanged: {
                                 Config.wallhavenApiKey = text
-                                if (typeof Config.saveConfig === "function") Config.saveConfig()
                             }
                         }
                     }
@@ -610,44 +535,11 @@ Flickable {
                 }
 
                 // 1. Master Toggle Row
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        Layout.minimumWidth: 0
-                        spacing: 2
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Wallpaper Parallax"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
-                            font.bold: true
-                            wrapMode: Text.WordWrap
-                        }
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Enable depth motion and responsive canvas translation (disables transitions)"
-                            color: Config.textMuted
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-
-                    ToggleSwitch {
-                        checked: Config.enableWallpaperParallax
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: Config.enableWallpaperParallax = !Config.enableWallpaperParallax
-                        }
-                    }
+                SettingsToggleRow {
+                    title: "Wallpaper Parallax"
+                    subtitle: "Enable depth motion and responsive canvas translation (disables transitions)"
+                    checked: Config.enableWallpaperParallax
+                    onToggled: Config.enableWallpaperParallax = !Config.enableWallpaperParallax
                 }
 
                 // 2. Workspace Switch Parallax Row

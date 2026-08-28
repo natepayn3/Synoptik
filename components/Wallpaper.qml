@@ -292,6 +292,17 @@ Item {
                         readonly property int distFromActive: Math.abs(index - root.activeIndex)
                         readonly property real scaleFactor: Math.max(0.38, Math.pow(0.84, distFromActive))
 
+                        // The checkmark/info-bar above only track browse-focus
+                        // (isSelected), so hovering a tile alone already looks
+                        // "applied". This tracks the real, backend-confirmed
+                        // signal instead (WallpaperService only writes
+                        // Config.activeWallpaperPath after the apply process
+                        // exits 0) for a distinct "this just actually applied"
+                        // flash, separate from plain browsing.
+                        readonly property string appliedCleanPath: (Config.activeWallpaperPath || "").replace(/^file:\/\//, "")
+                        readonly property bool isActuallyApplied: bladeDelegate.cleanPath !== "" && bladeDelegate.cleanPath === appliedCleanPath
+                        onIsActuallyAppliedChanged: if (isActuallyApplied) appliedFlash.restart()
+
                         width: isSelected ? exact16by9W : (isHovered ? Math.round(112 * scaleFactor + 24) : Math.round(96 * scaleFactor))
                         height: actualH
                         z: isSelected ? 200 : (100 - Math.min(90, distFromActive * 6))
@@ -442,6 +453,19 @@ Item {
                                         GradientStop { position: 1.0; color: "transparent" }
                                     }
                                     Behavior on opacity { NumberAnimation { duration: 120 } }
+                                }
+
+                                Rectangle {
+                                    id: appliedFlashRect
+                                    anchors.fill: parent
+                                    color: Config.accent
+                                    opacity: 0
+
+                                    SequentialAnimation {
+                                        id: appliedFlash
+                                        NumberAnimation { target: appliedFlashRect; property: "opacity"; to: 0.4; duration: 90; easing.type: Easing.OutCubic }
+                                        NumberAnimation { target: appliedFlashRect; property: "opacity"; to: 0.0; duration: 450; easing.type: Easing.OutCubic }
+                                    }
                                 }
                             }
 

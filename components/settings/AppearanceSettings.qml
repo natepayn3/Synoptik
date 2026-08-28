@@ -22,43 +22,6 @@ Flickable {
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
     // Reusable Geometric / Square Toggle Switch Component
-    component ToggleSwitch : Rectangle {
-        id: sw
-        property bool checked: false
-        
-        implicitWidth: 40
-        implicitHeight: 22
-        radius: 6
-        color: checked ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(0, 0, 0, 0.4)
-        border.width: sw.checked ? 2 : 1
-        border.color: checked ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
-
-        Behavior on color { ColorAnimation { duration: 140 } }
-        Behavior on border.color { ColorAnimation { duration: 140 } }
-
-        // Square Thumb / Slider
-        Rectangle {
-            id: thumb
-            x: sw.checked ? (sw.width - width - 3) : 3
-            anchors.verticalCenter: parent.verticalCenter
-            width: 16
-            height: 16
-            radius: 4
-            color: sw.checked ? Config.accent : Qt.rgba(255, 255, 255, 0.2)
-            border.width: 0
-            border.color: sw.checked ? Qt.lighter(Config.accent, 1.2) : Qt.rgba(255, 255, 255, 0.25)
-
-            Behavior on x { 
-                NumberAnimation { 
-                    duration: 160
-                    easing.type: Easing.OutCubic 
-                } 
-            }
-            Behavior on color { ColorAnimation { duration: 140 } }
-            Behavior on border.color { ColorAnimation { duration: 140 } }
-        }
-    }
-
     // Custom Thicker Horizontal Slider with Dot Handle
     component ThickHorizontalSlider : Slider {
         id: slider
@@ -432,44 +395,11 @@ Flickable {
                 }
 
                 // 2. Background Blur Row
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        Layout.minimumWidth: 0
-                        spacing: 2
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Background Blur"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
-                            font.bold: true
-                            wrapMode: Text.WordWrap
-                        }
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Hardware-accelerated frosted glass backdrop filtering"
-                            color: Config.textMuted
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-
-                    ToggleSwitch {
-                        checked: Config.enableBlur
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: Config.enableBlur = !Config.enableBlur
-                        }
-                    }
+                SettingsToggleRow {
+                    title: "Background Blur"
+                    subtitle: "Hardware-accelerated frosted glass backdrop filtering"
+                    checked: Config.enableBlur
+                    onToggled: Config.enableBlur = !Config.enableBlur
                 }
 
                 // 3. X-Ray Mode Row
@@ -517,44 +447,11 @@ Flickable {
                 }
 
                 // 4. Watermarks Row
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        Layout.minimumWidth: 0
-                        spacing: 2
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Shell Watermarks"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
-                            font.bold: true
-                            wrapMode: Text.WordWrap
-                        }
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Show decorative branding glyphs on lockscreen and shell panels"
-                            color: Config.textMuted
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-
-                    ToggleSwitch {
-                        checked: Config.showWatermarks
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: Config.showWatermarks = !Config.showWatermarks
-                        }
-                    }
+                SettingsToggleRow {
+                    title: "Shell Watermarks"
+                    subtitle: "Show decorative branding glyphs on lockscreen and shell panels"
+                    checked: Config.showWatermarks
+                    onToggled: Config.showWatermarks = !Config.showWatermarks
                 }
 
                 // 5. Floating / Bouncing Watermarks Row
@@ -602,44 +499,11 @@ Flickable {
                 }
 
                 // 6. Auto-Color (Iris) Row
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        Layout.minimumWidth: 0
-                        spacing: 2
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Auto-Color (Iris)"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
-                            font.bold: true
-                            wrapMode: Text.WordWrap
-                        }
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Dynamically extract and apply theme colors from current wallpaper"
-                            color: Config.textMuted
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-
-                    ToggleSwitch {
-                        checked: Config.enableIris
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: Config.enableIris = !Config.enableIris
-                        }
-                    }
+                SettingsToggleRow {
+                    title: "Auto-Color (Iris)"
+                    subtitle: "Dynamically extract and apply theme colors from current wallpaper"
+                    checked: Config.enableIris
+                    onToggled: Config.enableIris = !Config.enableIris
                 }
             }
         }

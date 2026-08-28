@@ -12,43 +12,6 @@ Item {
     property string currentBrowserPath: "file://" + Quickshell.env("HOME")
 
     // Reusable Geometric / Square Toggle Switch Component
-    component ToggleSwitch : Rectangle {
-        id: sw
-        property bool checked: false
-        
-        implicitWidth: 40
-        implicitHeight: 22
-        radius: 6
-        color: checked ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(0, 0, 0, 0.4)
-        border.width: sw.checked ? 2 : 1
-        border.color: checked ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
-
-        Behavior on color { ColorAnimation { duration: 140 } }
-        Behavior on border.color { ColorAnimation { duration: 140 } }
-
-        // Square Thumb / Slider
-        Rectangle {
-            id: thumb
-            x: sw.checked ? (sw.width - width - 3) : 3
-            anchors.verticalCenter: parent.verticalCenter
-            width: 16
-            height: 16
-            radius: 4
-            color: sw.checked ? Config.accent : Qt.rgba(255, 255, 255, 0.2)
-            border.width: 0
-            border.color: sw.checked ? Qt.lighter(Config.accent, 1.2) : Qt.rgba(255, 255, 255, 0.25)
-
-            Behavior on x { 
-                NumberAnimation { 
-                    duration: 160
-                    easing.type: Easing.OutCubic 
-                } 
-            }
-            Behavior on color { ColorAnimation { duration: 140 } }
-            Behavior on border.color { ColorAnimation { duration: 140 } }
-        }
-    }
-
     function formatFileUrl(path) {
         if (!path) return ""
         if (path.startsWith("file://")) return path
@@ -113,94 +76,26 @@ Item {
             }
 
             // TOGGLE: ENABLE DESKTOP MASCOT
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 12
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    Layout.preferredWidth: 1
-                    Layout.minimumWidth: 0
-                    spacing: 2
-
-                    Text {
-                        Layout.fillWidth: true
-                        text: "Enable Desktop Mascot"
-                        color: Config.textMain
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontBody)
-                        font.bold: true
-                        wrapMode: Text.WordWrap
-                    }
-
-                    Text {
-                        Layout.fillWidth: true
-                        text: "Show the animated mascot on your desktop"
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontCaption)
-                        wrapMode: Text.WordWrap
-                    }
-                }
-
-                ToggleSwitch {
-                    checked: Config.showMascot !== false
-
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            Config.showMascot = (Config.showMascot === false)
-                            if (typeof Config.saveConfig === "function") Config.saveConfig()
-                            else if (typeof Config.save === "function") Config.save()
-                        }
-                    }
+            SettingsToggleRow {
+                title: "Enable Desktop Mascot"
+                subtitle: "Show the animated mascot on your desktop"
+                checked: Config.showMascot !== false
+                onToggled: {
+                    Config.showMascot = (Config.showMascot === false)
+                    if (typeof Config.saveConfig === "function") Config.saveConfig()
+                    else if (typeof Config.save === "function") Config.save()
                 }
             }
 
             // TOGGLE: AUTO-FETCH ONLINE QUOTES
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 12
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    Layout.preferredWidth: 1
-                    Layout.minimumWidth: 0
-                    spacing: 2
-
-                    Text {
-                        Layout.fillWidth: true
-                        text: "Auto-Fetch Online Quotes"
-                        color: Config.textMain
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontBody)
-                        font.bold: true
-                        wrapMode: Text.WordWrap
-                    }
-
-                    Text {
-                        Layout.fillWidth: true
-                        text: "Periodically retrieve quotes from online providers"
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontCaption)
-                        wrapMode: Text.WordWrap
-                    }
-                }
-
-                ToggleSwitch {
-                    checked: Config.fetchOnlineQuotes !== false
-
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            Config.fetchOnlineQuotes = (Config.fetchOnlineQuotes === false)
-                            if (typeof Config.saveConfig === "function") Config.saveConfig()
-                            else if (typeof Config.save === "function") Config.save()
-                        }
-                    }
+            SettingsToggleRow {
+                title: "Auto-Fetch Online Quotes"
+                subtitle: "Periodically retrieve quotes from online providers"
+                checked: Config.fetchOnlineQuotes !== false
+                onToggled: {
+                    Config.fetchOnlineQuotes = (Config.fetchOnlineQuotes === false)
+                    if (typeof Config.saveConfig === "function") Config.saveConfig()
+                    else if (typeof Config.save === "function") Config.save()
                 }
             }
 

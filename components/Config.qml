@@ -57,8 +57,14 @@ QtObject {
     property ShaderService shaderService: ShaderService { configRef: root }
     property MotionService motionService: MotionService {}
     property CavaService cavaService: CavaService { configRef: root }
+    property IconIndexService iconIndexService: IconIndexService {}
+    function getAppIcon(iconName) { return iconIndexService.getAppIcon(iconName) }
 
     property bool showTaskOverflow: false
+
+    // --- SCREENSHOT (extracted to services/ScreenshotService.qml) ---
+    property ScreenshotService screenshotService: ScreenshotService {}
+    function captureScreenshot() { screenshotService.capture() }
 
     // --- CAMERA / MIRROR (extracted to services/MirrorConfig.qml) ---
     property MirrorConfig mirror: MirrorConfig { configRef: root }

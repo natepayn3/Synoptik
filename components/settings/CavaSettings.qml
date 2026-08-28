@@ -20,37 +20,6 @@ Flickable {
 
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
-    component ToggleSwitch : Rectangle {
-        id: sw
-        property bool checked: false
-
-        implicitWidth: 40
-        implicitHeight: 22
-        radius: 6
-        color: checked ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(0, 0, 0, 0.4)
-        border.width: sw.checked ? 2 : 1
-        border.color: checked ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
-
-        Behavior on color { ColorAnimation { duration: 140 } }
-        Behavior on border.color { ColorAnimation { duration: 140 } }
-
-        Rectangle {
-            id: thumb
-            x: sw.checked ? (sw.width - width - 3) : 3
-            anchors.verticalCenter: parent.verticalCenter
-            width: 16
-            height: 16
-            radius: 4
-            color: sw.checked ? Config.accent : Qt.rgba(255, 255, 255, 0.2)
-            border.width: 0
-            border.color: sw.checked ? Qt.lighter(Config.accent, 1.2) : Qt.rgba(255, 255, 255, 0.25)
-
-            Behavior on x { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
-            Behavior on color { ColorAnimation { duration: 140 } }
-            Behavior on border.color { ColorAnimation { duration: 140 } }
-        }
-    }
-
     component ThickHorizontalSlider : Slider {
         id: slider
         implicitHeight: 24
@@ -245,45 +214,11 @@ Flickable {
         // 1. MASTER TOGGLE
         // ==========================================
         SettingsCard {
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 12
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    Layout.preferredWidth: 1
-                    Layout.minimumWidth: 0
-                    spacing: 2
-
-                    Text {
-                        Layout.fillWidth: true
-                        text: "Enable Desktop Visualizer"
-                        color: Config.textMain
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontBody)
-                        font.bold: true
-                        wrapMode: Text.WordWrap
-                    }
-
-                    Text {
-                        Layout.fillWidth: true
-                        text: "Runs cava in the background and renders a live audio-reactive overlay on your desktop."
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontCaption)
-                        wrapMode: Text.WordWrap
-                    }
-                }
-
-                ToggleSwitch {
-                    checked: Config.showDesktopCava === true
-
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: Config.showDesktopCava = !Config.showDesktopCava
-                    }
-                }
+            SettingsToggleRow {
+                title: "Enable Desktop Visualizer"
+                subtitle: "Runs cava in the background and renders a live audio-reactive overlay on your desktop."
+                checked: Config.showDesktopCava === true
+                onToggled: Config.showDesktopCava = !Config.showDesktopCava
             }
 
             Rectangle {
@@ -317,45 +252,11 @@ Flickable {
         // AMBIENT SHELL BREATHING
         // ==========================================
         SettingsCard {
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 12
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    Layout.preferredWidth: 1
-                    Layout.minimumWidth: 0
-                    spacing: 2
-
-                    Text {
-                        Layout.fillWidth: true
-                        text: "Ambient Shell Breathing"
-                        color: Config.textMain
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontBody)
-                        font.bold: true
-                        wrapMode: Text.WordWrap
-                    }
-
-                    Text {
-                        Layout.fillWidth: true
-                        text: "Subtly dims and brightens the shell's border in time with bass energy. Runs cava in the background even if the desktop visualizer above is off."
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontCaption)
-                        wrapMode: Text.WordWrap
-                    }
-                }
-
-                ToggleSwitch {
-                    checked: Config.ambientBreatheEnabled === true
-
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: Config.ambientBreatheEnabled = !Config.ambientBreatheEnabled
-                    }
-                }
+            SettingsToggleRow {
+                title: "Ambient Shell Breathing"
+                subtitle: "Subtly dims and brightens the shell's border in time with bass energy. Runs cava in the background even if the desktop visualizer above is off."
+                checked: Config.ambientBreatheEnabled === true
+                onToggled: Config.ambientBreatheEnabled = !Config.ambientBreatheEnabled
             }
 
             ColumnLayout {
@@ -654,67 +555,22 @@ Flickable {
                     font.bold: true
                 }
 
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-                    Text {
-                        Layout.fillWidth: true
-                        text: "Glow Effect"
-                        color: Config.textMain
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontBody)
-                        font.bold: true
-                    }
-                    ToggleSwitch {
-                        checked: Config.cavaShowGlow !== false
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: Config.cavaShowGlow = !Config.cavaShowGlow
-                        }
-                    }
+                SettingsToggleRow {
+                    title: "Glow Effect"
+                    checked: Config.cavaShowGlow !== false
+                    onToggled: Config.cavaShowGlow = !Config.cavaShowGlow
                 }
 
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-                    Text {
-                        Layout.fillWidth: true
-                        text: "Show Background"
-                        color: Config.textMain
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontBody)
-                        font.bold: true
-                    }
-                    ToggleSwitch {
-                        checked: Config.cavaShowBackground !== false
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: Config.cavaShowBackground = !Config.cavaShowBackground
-                        }
-                    }
+                SettingsToggleRow {
+                    title: "Show Background"
+                    checked: Config.cavaShowBackground !== false
+                    onToggled: Config.cavaShowBackground = !Config.cavaShowBackground
                 }
 
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-                    Text {
-                        Layout.fillWidth: true
-                        text: "Show Border"
-                        color: Config.textMain
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontBody)
-                        font.bold: true
-                    }
-                    ToggleSwitch {
-                        checked: Config.cavaShowBorder !== false
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: Config.cavaShowBorder = !Config.cavaShowBorder
-                        }
-                    }
+                SettingsToggleRow {
+                    title: "Show Border"
+                    checked: Config.cavaShowBorder !== false
+                    onToggled: Config.cavaShowBorder = !Config.cavaShowBorder
                 }
             }
 

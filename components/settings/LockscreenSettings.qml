@@ -23,43 +23,6 @@ Flickable {
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
     // Reusable Geometric / Square Toggle Switch Component
-    component ToggleSwitch : Rectangle {
-        id: sw
-        property bool checked: false
-        
-        implicitWidth: 40
-        implicitHeight: 22
-        radius: 6
-        color: checked ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(0, 0, 0, 0.4)
-        border.width: sw.checked ? 2 : 1
-        border.color: checked ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
-
-        Behavior on color { ColorAnimation { duration: 140 } }
-        Behavior on border.color { ColorAnimation { duration: 140 } }
-
-        // Square Thumb / Slider
-        Rectangle {
-            id: thumb
-            x: sw.checked ? (sw.width - width - 3) : 3
-            anchors.verticalCenter: parent.verticalCenter
-            width: 16
-            height: 16
-            radius: 4
-            color: sw.checked ? Config.accent : Qt.rgba(255, 255, 255, 0.2)
-            border.width: 0
-            border.color: sw.checked ? Qt.lighter(Config.accent, 1.2) : Qt.rgba(255, 255, 255, 0.25)
-
-            Behavior on x { 
-                NumberAnimation { 
-                    duration: 160
-                    easing.type: Easing.OutCubic 
-                } 
-            }
-            Behavior on color { ColorAnimation { duration: 140 } }
-            Behavior on border.color { ColorAnimation { duration: 140 } }
-        }
-    }
-
     ColumnLayout {
         id: contentColumn
         width: Math.min(flickable.width - (flickable.cardMargin * 2), 620)
@@ -752,95 +715,27 @@ Flickable {
 
                 // TIME DISPLAY TOGGLES (SECONDS & AM/PM)
                 // SHOW SECONDS
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        Layout.minimumWidth: 0
-                        spacing: 2
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Show Seconds"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
-                            font.bold: true
-                            wrapMode: Text.WordWrap
-                        }
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Display seconds in the clock (e.g. 10:42:30)."
-                            color: Config.textMuted
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-
-                    ToggleSwitch {
-                        checked: Config.lockscreenShowSeconds !== false
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                Config.lockscreenShowSeconds = (Config.lockscreenShowSeconds === false)
-                                if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                else if (typeof Config.save === "function") Config.save()
-                            }
-                        }
+                SettingsToggleRow {
+                    title: "Show Seconds"
+                    subtitle: "Display seconds in the clock (e.g. 10:42:30)."
+                    checked: Config.lockscreenShowSeconds !== false
+                    onToggled: {
+                        Config.lockscreenShowSeconds = (Config.lockscreenShowSeconds === false)
+                        if (typeof Config.saveConfig === "function") Config.saveConfig()
+                        else if (typeof Config.save === "function") Config.save()
                     }
                 }
 
                 // SHOW AM/PM BADGE
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
+                SettingsToggleRow {
                     visible: Config.lockscreenUse12Hour !== false
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        Layout.minimumWidth: 0
-                        spacing: 2
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Show AM/PM Badge"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
-                            font.bold: true
-                            wrapMode: Text.WordWrap
-                        }
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Display the AM/PM indicator alongside the 12-hour clock."
-                            color: Config.textMuted
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-
-                    ToggleSwitch {
-                        checked: Config.lockscreenShowAmPm !== false
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                Config.lockscreenShowAmPm = (Config.lockscreenShowAmPm === false)
-                                if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                else if (typeof Config.save === "function") Config.save()
-                            }
-                        }
+                    title: "Show AM/PM Badge"
+                    subtitle: "Display the AM/PM indicator alongside the 12-hour clock."
+                    checked: Config.lockscreenShowAmPm !== false
+                    onToggled: {
+                        Config.lockscreenShowAmPm = (Config.lockscreenShowAmPm === false)
+                        if (typeof Config.saveConfig === "function") Config.saveConfig()
+                        else if (typeof Config.save === "function") Config.save()
                     }
                 }
 
@@ -971,94 +866,26 @@ Flickable {
                 }
 
                 // TOGGLE 1: MEDIA CONTROLLER
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        Layout.minimumWidth: 0
-                        spacing: 2
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Show Media Player Mini Controller"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
-                            font.bold: true
-                            wrapMode: Text.WordWrap
-                        }
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Display currently playing track metadata and playback controls on the lock screen."
-                            color: Config.textMuted
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-
-                    ToggleSwitch {
-                        checked: Config.lockscreenShowMedia !== false
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                Config.lockscreenShowMedia = (Config.lockscreenShowMedia === false)
-                                if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                else if (typeof Config.save === "function") Config.save()
-                            }
-                        }
+                SettingsToggleRow {
+                    title: "Show Media Player Mini Controller"
+                    subtitle: "Display currently playing track metadata and playback controls on the lock screen."
+                    checked: Config.lockscreenShowMedia !== false
+                    onToggled: {
+                        Config.lockscreenShowMedia = (Config.lockscreenShowMedia === false)
+                        if (typeof Config.saveConfig === "function") Config.saveConfig()
+                        else if (typeof Config.save === "function") Config.save()
                     }
                 }
 
                 // TOGGLE 2: POWER CONTROLS
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        Layout.minimumWidth: 0
-                        spacing: 2
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Show Power Actions on Lockscreen"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
-                            font.bold: true
-                            wrapMode: Text.WordWrap
-                        }
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Allow suspending, rebooting, and powering off the system directly from the lock surface."
-                            color: Config.textMuted
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-
-                    ToggleSwitch {
-                        checked: Config.lockscreenShowPower !== false
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                Config.lockscreenShowPower = (Config.lockscreenShowPower === false)
-                                if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                else if (typeof Config.save === "function") Config.save()
-                            }
-                        }
+                SettingsToggleRow {
+                    title: "Show Power Actions on Lockscreen"
+                    subtitle: "Allow suspending, rebooting, and powering off the system directly from the lock surface."
+                    checked: Config.lockscreenShowPower !== false
+                    onToggled: {
+                        Config.lockscreenShowPower = (Config.lockscreenShowPower === false)
+                        if (typeof Config.saveConfig === "function") Config.saveConfig()
+                        else if (typeof Config.save === "function") Config.save()
                     }
                 }
 

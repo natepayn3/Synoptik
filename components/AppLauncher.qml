@@ -15,80 +15,16 @@ Item {
     property string pinFilePath: ""
     property var filteredApps: []
     property var localPins: []
-    property var iconMap: ({})
 
-    // Cached system icon indexer (loads ~/.cache/quickshell_icon_map.json or builds in background)
-    Process {
-        id: iconIndexer
-        command: ["python3", "-c", `
-import os, json
-
-cache_file = os.path.expanduser("~/.cache/quickshell_icon_map.json")
-if os.path.exists(cache_file):
-    try:
-        with open(cache_file, "r") as f:
-            print(f.read())
-            exit(0)
-    except Exception:
-        pass
-
-dirs = [
-    os.path.expanduser("~/.local/share/icons"),
-    os.path.expanduser("~/.icons"),
-    "/usr/share/icons/Papirus",
-    "/usr/share/icons/Papirus-Dark",
-    "/usr/share/icons/Papirus-Light",
-    "/usr/share/icons/breeze",
-    "/usr/share/icons/breeze-dark",
-    "/usr/share/icons/Adwaita",
-    "/usr/share/icons/hicolor",
-    "/usr/share/pixmaps"
-]
-icon_map = {}
-for d in dirs:
-    if not os.path.isdir(d): continue
-    for root, _, files in os.walk(d):
-        if any(s in root for s in ["/16x16/", "/22x22/", "/24x24/", "/32x32/", "/symbolic/"]): continue
-        for f in files:
-            if f.endswith((".svg", ".png", ".xpm")):
-                name = os.path.splitext(f)[0]
-                if name not in icon_map:
-                    icon_map[name] = os.path.join(root, f)
-
-dumped = json.dumps(icon_map)
-try:
-    with open(cache_file, "w") as f:
-        f.write(dumped)
-except Exception:
-    pass
-print(dumped)
-        `]
-        running: true
-        stdout: StdioCollector {
-            onStreamFinished: {
-                try {
-                    let clean = this.text.trim()
-                    if (clean) {
-                        appLauncherModule.iconMap = JSON.parse(clean);
-                        appLauncherModule.updateModel();
-                    }
-                } catch(e) {}
-            }
-        }
+    // Icon indexing is shared via Config.iconIndexService (see
+    // components/services/IconIndexService.qml) - it used to be a verbatim
+    // duplicate of LauncherOSD.qml's copy.
+    Connections {
+        target: Config.iconIndexService
+        function onIconMapChanged() { appLauncherModule.updateModel(); }
     }
 
-    function getAppIcon(iconName) {
-        if (!iconName) return Quickshell.iconPath("application-x-executable", true) || "";
-        if (iconName.startsWith("/") || iconName.startsWith("file://")) {
-            return iconName.startsWith("/") ? "file://" + iconName : iconName;
-        }
-        if (appLauncherModule.iconMap && appLauncherModule.iconMap[iconName]) {
-            return "file://" + appLauncherModule.iconMap[iconName];
-        }
-        let qsPath = Quickshell.iconPath(iconName, true);
-        if (qsPath) return qsPath;
-        return Quickshell.iconPath("application-x-executable", true) || "";
-    }
+    function getAppIcon(iconName) { return Config.getAppIcon(iconName); }
 
     // Clear search and refresh models when opened
     Connections {

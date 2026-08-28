@@ -114,12 +114,50 @@ Item {
                         model: overflowRoot.activeClients
 
                         delegate: Rectangle {
+                            id: taskDelegate
+                            // Deliberately NOT a `required property int index` - that flips
+                            // this delegate into Qt Quick's required-property injection mode,
+                            // which silently drops the legacy implicit `modelData` context
+                            // property the rest of this delegate relies on everywhere else.
+                            // Bare `index` below is the same implicit context property.
+
                             Layout.fillWidth: true
                             implicitHeight: 36
                             radius: Config.cornerRadius / 2
                             color: itemHover.hovered ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(0, 0, 0, 0.25)
 
                             Behavior on color { ColorAnimation { duration: 150 } }
+
+                            // Staggered entrance so the list cascades in on
+                            // open instead of every row snapping in at once.
+                            // The delegates persist across open/close (this
+                            // panel is always-instantiated, just visibility-
+                            // toggled - see UnifiedSurface.qml), so replay on
+                            // each visible transition rather than just once.
+                            opacity: 0
+                            transform: Translate { id: entranceOffset; y: -8 }
+
+                            SequentialAnimation {
+                                id: entranceAnim
+                                PauseAnimation { duration: index * 25 }
+                                ParallelAnimation {
+                                    NumberAnimation { target: taskDelegate; property: "opacity"; to: 1.0; duration: 180; easing.type: Easing.OutCubic }
+                                    NumberAnimation { target: entranceOffset; property: "y"; to: 0; duration: 220; easing.type: Easing.OutCubic }
+                                }
+                            }
+
+                            Connections {
+                                target: overflowRoot
+                                function onVisibleChanged() {
+                                    if (overflowRoot.visible) {
+                                        taskDelegate.opacity = 0
+                                        entranceOffset.y = -8
+                                        entranceAnim.restart()
+                                    }
+                                }
+                            }
+
+                            Component.onCompleted: if (overflowRoot.visible) entranceAnim.start()
 
                             readonly property string appId: modelData.wayland?.appId || modelData.lastIpcObject?.class || ""
                             readonly property var wsInfo: modelData.workspace || null

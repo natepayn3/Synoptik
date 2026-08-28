@@ -152,6 +152,43 @@ Item {
                             color: cardRoot.caffeineState !== 0 ? Config.bgBase : Config.textMuted
                         }
 
+                        // Steam wisps while actively keeping the system awake -
+                        // a coffee icon that never steams felt like a missed
+                        // opportunity. Desynced per-wisp like Watermark.qml's
+                        // bounce seeds so they don't rise in lockstep.
+                        Repeater {
+                            model: cardRoot.caffeineState !== 0 ? 3 : 0
+
+                            delegate: Rectangle {
+                                id: wisp
+                                required property int index
+                                width: 3
+                                height: 8
+                                radius: 1.5
+                                color: Qt.rgba(255, 255, 255, 0.5)
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                anchors.horizontalCenterOffset: (index - 1) * 6
+                                y: 6
+                                opacity: 0
+
+                                SequentialAnimation {
+                                    running: true
+                                    loops: Animation.Infinite
+                                    PauseAnimation { duration: wisp.index * 400 }
+                                    ParallelAnimation {
+                                        NumberAnimation { target: wisp; property: "y"; from: 6; to: -10; duration: 1400; easing.type: Easing.OutCubic }
+                                        SequentialAnimation {
+                                            NumberAnimation { target: wisp; property: "opacity"; to: 0.55; duration: 400 }
+                                            PauseAnimation { duration: 500 }
+                                            NumberAnimation { target: wisp; property: "opacity"; to: 0.0; duration: 500 }
+                                        }
+                                    }
+                                    PauseAnimation { duration: 300 }
+                                    ScriptAction { script: wisp.y = 6 }
+                                }
+                            }
+                        }
+
                         MouseArea {
                             anchors.fill: parent
                             cursorShape: cardRoot.hasHypridle ? Qt.PointingHandCursor : Qt.ArrowCursor

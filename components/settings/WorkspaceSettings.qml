@@ -22,43 +22,6 @@ Flickable {
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
     // Reusable Geometric / Square Toggle Switch Component
-    component ToggleSwitch : Rectangle {
-        id: sw
-        property bool checked: false
-        
-        implicitWidth: 40
-        implicitHeight: 22
-        radius: 6
-        color: checked ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(0, 0, 0, 0.4)
-        border.width: sw.checked ? 2 : 1
-        border.color: checked ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
-
-        Behavior on color { ColorAnimation { duration: 140 } }
-        Behavior on border.color { ColorAnimation { duration: 140 } }
-
-        // Square Thumb / Slider
-        Rectangle {
-            id: thumb
-            x: sw.checked ? (sw.width - width - 3) : 3
-            anchors.verticalCenter: parent.verticalCenter
-            width: 16
-            height: 16
-            radius: 4
-            color: sw.checked ? Config.accent : Qt.rgba(255, 255, 255, 0.2)
-            border.width: 0
-            border.color: sw.checked ? Qt.lighter(Config.accent, 1.2) : Qt.rgba(255, 255, 255, 0.25)
-
-            Behavior on x { 
-                NumberAnimation { 
-                    duration: 160
-                    easing.type: Easing.OutCubic 
-                } 
-            }
-            Behavior on color { ColorAnimation { duration: 140 } }
-            Behavior on border.color { ColorAnimation { duration: 140 } }
-        }
-    }
-
     // Interactive Preview State
     property int previewActiveWs: 2
     property bool previewOverviewActive: false
@@ -632,129 +595,27 @@ Flickable {
                 }
 
                 // TOGGLE 1: AMBIENT GLOW
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        Layout.minimumWidth: 0
-                        spacing: 2
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Ambient Indicator Glow"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
-                            font.bold: true
-                            wrapMode: Text.WordWrap
-                        }
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Soft accent bloom surrounding active and hovered workspace pills"
-                            color: Config.textMuted
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-
-                    ToggleSwitch {
-                        checked: Config.workspaceGlow !== false
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: Config.workspaceGlow = (Config.workspaceGlow === false)
-                        }
-                    }
+                SettingsToggleRow {
+                    title: "Ambient Indicator Glow"
+                    subtitle: "Soft accent bloom surrounding active and hovered workspace pills"
+                    checked: Config.workspaceGlow !== false
+                    onToggled: Config.workspaceGlow = (Config.workspaceGlow === false)
                 }
 
                 // TOGGLE 2: MOUSE WHEEL SCROLL TO SWITCH
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        Layout.minimumWidth: 0
-                        spacing: 2
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Mouse Wheel Quick-Switch"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
-                            font.bold: true
-                            wrapMode: Text.WordWrap
-                        }
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Scroll the mouse wheel over the workspace strip to cycle through desktops"
-                            color: Config.textMuted
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-
-                    ToggleSwitch {
-                        checked: Config.workspaceScroll !== false
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: Config.workspaceScroll = (Config.workspaceScroll === false)
-                        }
-                    }
+                SettingsToggleRow {
+                    title: "Mouse Wheel Quick-Switch"
+                    subtitle: "Scroll the mouse wheel over the workspace strip to cycle through desktops"
+                    checked: Config.workspaceScroll !== false
+                    onToggled: Config.workspaceScroll = (Config.workspaceScroll === false)
                 }
 
                 // TOGGLE 3: HOVER TOOLTIP
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        Layout.minimumWidth: 0
-                        spacing: 2
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Workspace Hover Tooltips"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
-                            font.bold: true
-                            wrapMode: Text.WordWrap
-                        }
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Display floating badge with workspace name, window count, and active application on hover"
-                            color: Config.textMuted
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-
-                    ToggleSwitch {
-                        checked: Config.workspaceTooltips !== false
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: Config.workspaceTooltips = (Config.workspaceTooltips === false)
-                        }
-                    }
+                SettingsToggleRow {
+                    title: "Workspace Hover Tooltips"
+                    subtitle: "Display floating badge with workspace name, window count, and active application on hover"
+                    checked: Config.workspaceTooltips !== false
+                    onToggled: Config.workspaceTooltips = (Config.workspaceTooltips === false)
                 }
             }
         }
@@ -785,129 +646,27 @@ Flickable {
                 }
 
                 // TOGGLE 1: ADD BUTTON (+)
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        Layout.minimumWidth: 0
-                        spacing: 2
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Show Add Workspace Button (+)"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
-                            font.bold: true
-                            wrapMode: Text.WordWrap
-                        }
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Quickly spawn and focus the next available empty workspace"
-                            color: Config.textMuted
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-
-                    ToggleSwitch {
-                        checked: Config.workspaceShowAddBtn !== false
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: Config.workspaceShowAddBtn = (Config.workspaceShowAddBtn === false)
-                        }
-                    }
+                SettingsToggleRow {
+                    title: "Show Add Workspace Button (+)"
+                    subtitle: "Quickly spawn and focus the next available empty workspace"
+                    checked: Config.workspaceShowAddBtn !== false
+                    onToggled: Config.workspaceShowAddBtn = (Config.workspaceShowAddBtn === false)
                 }
 
                 // TOGGLE 2: OVERVIEW BUTTON
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        Layout.minimumWidth: 0
-                        spacing: 2
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Show Overview Button"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
-                            font.bold: true
-                            wrapMode: Text.WordWrap
-                        }
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Directly trigger the full-screen spatial Workspace Overview popup"
-                            color: Config.textMuted
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-
-                    ToggleSwitch {
-                        checked: Config.workspaceShowOverviewBtn !== false
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: Config.workspaceShowOverviewBtn = (Config.workspaceShowOverviewBtn === false)
-                        }
-                    }
+                SettingsToggleRow {
+                    title: "Show Overview Button"
+                    subtitle: "Directly trigger the full-screen spatial Workspace Overview popup"
+                    checked: Config.workspaceShowOverviewBtn !== false
+                    onToggled: Config.workspaceShowOverviewBtn = (Config.workspaceShowOverviewBtn === false)
                 }
 
                 // TOGGLE 3: SPECIAL SCRATCHPADS
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        Layout.minimumWidth: 0
-                        spacing: 2
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Show Special Workspaces (Scratchpads)"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
-                            font.bold: true
-                            wrapMode: Text.WordWrap
-                        }
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Display dedicated shortcut tokens for magic, music, and private scratchpad workspaces when active or occupied"
-                            color: Config.textMuted
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-
-                    ToggleSwitch {
-                        checked: Config.workspaceShowSpecial !== false
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: Config.workspaceShowSpecial = (Config.workspaceShowSpecial === false)
-                        }
-                    }
+                SettingsToggleRow {
+                    title: "Show Special Workspaces (Scratchpads)"
+                    subtitle: "Display dedicated shortcut tokens for magic, music, and private scratchpad workspaces when active or occupied"
+                    checked: Config.workspaceShowSpecial !== false
+                    onToggled: Config.workspaceShowSpecial = (Config.workspaceShowSpecial === false)
                 }
             }
         }

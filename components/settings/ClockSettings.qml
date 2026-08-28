@@ -7,43 +7,6 @@ Item {
     id: root
 
     // Reusable Geometric / Square Toggle Switch Component
-    component ToggleSwitch : Rectangle {
-        id: sw
-        property bool checked: false
-        
-        implicitWidth: 40
-        implicitHeight: 22
-        radius: 6
-        color: checked ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(0, 0, 0, 0.4)
-        border.width: sw.checked ? 2 : 1
-        border.color: checked ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
-
-        Behavior on color { ColorAnimation { duration: 140 } }
-        Behavior on border.color { ColorAnimation { duration: 140 } }
-
-        // Square Thumb / Slider
-        Rectangle {
-            id: thumb
-            x: sw.checked ? (sw.width - width - 3) : 3
-            anchors.verticalCenter: parent.verticalCenter
-            width: 16
-            height: 16
-            radius: 4
-            color: sw.checked ? Config.accent : Qt.rgba(255, 255, 255, 0.2)
-            border.width: 0
-            border.color: sw.checked ? Qt.lighter(Config.accent, 1.2) : Qt.rgba(255, 255, 255, 0.25)
-
-            Behavior on x { 
-                NumberAnimation { 
-                    duration: 160
-                    easing.type: Easing.OutCubic 
-                } 
-            }
-            Behavior on color { ColorAnimation { duration: 140 } }
-            Behavior on border.color { ColorAnimation { duration: 140 } }
-        }
-    }
-
     RowLayout {
         anchors.fill: parent
         spacing: 20
@@ -63,48 +26,14 @@ Item {
             }
 
             // TOGGLE: ENABLE WIDGET
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 12
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    Layout.preferredWidth: 1
-                    Layout.minimumWidth: 0
-                    spacing: 2
-
-                    Text {
-                        Layout.fillWidth: true
-                        text: "Enable Desktop Clock Widget"
-                        color: Config.textMain
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontBody)
-                        font.bold: true
-                        wrapMode: Text.WordWrap
-                    }
-
-                    Text {
-                        Layout.fillWidth: true
-                        text: "Show the desktop clock overlay on your displays"
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontCaption)
-                        wrapMode: Text.WordWrap
-                    }
-                }
-
-                ToggleSwitch {
-                    checked: Config.showDesktopClock !== false
-
-                    MouseArea {
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: {
-                            Config.showDesktopClock = (Config.showDesktopClock === false)
-                            if (typeof Config.saveConfig === "function") Config.saveConfig()
-                            else if (typeof Config.save === "function") Config.save()
-                        }
-                    }
+            SettingsToggleRow {
+                title: "Enable Desktop Clock Widget"
+                subtitle: "Show the desktop clock overlay on your displays"
+                checked: Config.showDesktopClock !== false
+                onToggled: {
+                    Config.showDesktopClock = (Config.showDesktopClock === false)
+                    if (typeof Config.saveConfig === "function") Config.saveConfig()
+                    else if (typeof Config.save === "function") Config.save()
                 }
             }
 
@@ -240,279 +169,75 @@ Item {
                     }
 
                     // TOGGLE BORDER
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 12
-
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            Layout.preferredWidth: 1
-                            Layout.minimumWidth: 0
-                            spacing: 2
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: "Show Border"
-                                color: Config.textMain
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontBody)
-                                font.bold: true
-                                wrapMode: Text.WordWrap
-                            }
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: "Draw a decorative border around the clock widget"
-                                color: Config.textMuted
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontCaption)
-                                wrapMode: Text.WordWrap
-                            }
-                        }
-
-                        ToggleSwitch {
-                            checked: Config.clockShowBorder !== false
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    Config.clockShowBorder = (Config.clockShowBorder === false)
-                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                    else if (typeof Config.save === "function") Config.save()
-                                }
-                            }
+                    SettingsToggleRow {
+                        title: "Show Border"
+                        subtitle: "Draw a decorative border around the clock widget"
+                        checked: Config.clockShowBorder !== false
+                        onToggled: {
+                            Config.clockShowBorder = (Config.clockShowBorder === false)
+                            if (typeof Config.saveConfig === "function") Config.saveConfig()
+                            else if (typeof Config.save === "function") Config.save()
                         }
                     }
 
                     // TOGGLE BACKGROUND
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 12
-
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            Layout.preferredWidth: 1
-                            Layout.minimumWidth: 0
-                            spacing: 2
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: "Show Background"
-                                color: Config.textMain
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontBody)
-                                font.bold: true
-                                wrapMode: Text.WordWrap
-                            }
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: "Display a background panel behind the clock"
-                                color: Config.textMuted
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontCaption)
-                                wrapMode: Text.WordWrap
-                            }
-                        }
-
-                        ToggleSwitch {
-                            checked: Config.clockShowBackground !== false
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    Config.clockShowBackground = (Config.clockShowBackground === false)
-                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                    else if (typeof Config.save === "function") Config.save()
-                                }
-                            }
+                    SettingsToggleRow {
+                        title: "Show Background"
+                        subtitle: "Display a background panel behind the clock"
+                        checked: Config.clockShowBackground !== false
+                        onToggled: {
+                            Config.clockShowBackground = (Config.clockShowBackground === false)
+                            if (typeof Config.saveConfig === "function") Config.saveConfig()
+                            else if (typeof Config.save === "function") Config.save()
                         }
                     }
 
                     // TOGGLE GLOW EFFECT
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 12
-
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            Layout.preferredWidth: 1
-                            Layout.minimumWidth: 0
-                            spacing: 2
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: "Glow Effect"
-                                color: Config.textMain
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontBody)
-                                font.bold: true
-                                wrapMode: Text.WordWrap
-                            }
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: "Apply a soft glow effect to the clock display"
-                                color: Config.textMuted
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontCaption)
-                                wrapMode: Text.WordWrap
-                            }
-                        }
-
-                        ToggleSwitch {
-                            checked: Config.clockShowGlow !== false
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    Config.clockShowGlow = (Config.clockShowGlow === false)
-                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                    else if (typeof Config.save === "function") Config.save()
-                                }
-                            }
+                    SettingsToggleRow {
+                        title: "Glow Effect"
+                        subtitle: "Apply a soft glow effect to the clock display"
+                        checked: Config.clockShowGlow !== false
+                        onToggled: {
+                            Config.clockShowGlow = (Config.clockShowGlow === false)
+                            if (typeof Config.saveConfig === "function") Config.saveConfig()
+                            else if (typeof Config.save === "function") Config.save()
                         }
                     }
 
                     // TOGGLE SECONDS
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 12
-
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            Layout.preferredWidth: 1
-                            Layout.minimumWidth: 0
-                            spacing: 2
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: "Show Seconds"
-                                color: Config.textMain
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontBody)
-                                font.bold: true
-                                wrapMode: Text.WordWrap
-                            }
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: "Include seconds in the clock time display"
-                                color: Config.textMuted
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontCaption)
-                                wrapMode: Text.WordWrap
-                            }
-                        }
-
-                        ToggleSwitch {
-                            checked: Config.clockShowSeconds !== false
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    Config.clockShowSeconds = (Config.clockShowSeconds === false)
-                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                    else if (typeof Config.save === "function") Config.save()
-                                }
-                            }
+                    SettingsToggleRow {
+                        title: "Show Seconds"
+                        subtitle: "Include seconds in the clock time display"
+                        checked: Config.clockShowSeconds !== false
+                        onToggled: {
+                            Config.clockShowSeconds = (Config.clockShowSeconds === false)
+                            if (typeof Config.saveConfig === "function") Config.saveConfig()
+                            else if (typeof Config.save === "function") Config.save()
                         }
                     }
 
                     // TOGGLE 12-HOUR FORMAT
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 12
-
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            Layout.preferredWidth: 1
-                            Layout.minimumWidth: 0
-                            spacing: 2
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: "Use 12-Hour Format"
-                                color: Config.textMain
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontBody)
-                                font.bold: true
-                                wrapMode: Text.WordWrap
-                            }
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: "Display time in 12-hour instead of 24-hour format"
-                                color: Config.textMuted
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontCaption)
-                                wrapMode: Text.WordWrap
-                            }
-                        }
-
-                        ToggleSwitch {
-                            checked: Config.clockUse12Hour !== false
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    Config.clockUse12Hour = (Config.clockUse12Hour === false)
-                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                    else if (typeof Config.save === "function") Config.save()
-                                }
-                            }
+                    SettingsToggleRow {
+                        title: "Use 12-Hour Format"
+                        subtitle: "Display time in 12-hour instead of 24-hour format"
+                        checked: Config.clockUse12Hour !== false
+                        onToggled: {
+                            Config.clockUse12Hour = (Config.clockUse12Hour === false)
+                            if (typeof Config.saveConfig === "function") Config.saveConfig()
+                            else if (typeof Config.save === "function") Config.save()
                         }
                     }
 
                     // TOGGLE AM/PM (DIGITAL & 12-HOUR ONLY)
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 12
+                    SettingsToggleRow {
                         visible: Config.clockUse12Hour && Config.clockStyle === "digital"
-
-                        ColumnLayout {
-                            Layout.fillWidth: true
-                            Layout.preferredWidth: 1
-                            Layout.minimumWidth: 0
-                            spacing: 2
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: "Show AM/PM"
-                                color: Config.textMain
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontBody)
-                                font.bold: true
-                                wrapMode: Text.WordWrap
-                            }
-
-                            Text {
-                                Layout.fillWidth: true
-                                text: "Show the AM/PM indicator next to the time (digital 12-hour mode only)"
-                                color: Config.textMuted
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontCaption)
-                                wrapMode: Text.WordWrap
-                            }
-                        }
-
-                        ToggleSwitch {
-                            checked: Config.clockShowAmPm !== false
-
-                            MouseArea {
-                                anchors.fill: parent
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    Config.clockShowAmPm = (Config.clockShowAmPm === false)
-                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                    else if (typeof Config.save === "function") Config.save()
-                                }
-                            }
+                        title: "Show AM/PM"
+                        subtitle: "Show the AM/PM indicator next to the time (digital 12-hour mode only)"
+                        checked: Config.clockShowAmPm !== false
+                        onToggled: {
+                            Config.clockShowAmPm = (Config.clockShowAmPm === false)
+                            if (typeof Config.saveConfig === "function") Config.saveConfig()
+                            else if (typeof Config.save === "function") Config.save()
                         }
                     }
                 }
