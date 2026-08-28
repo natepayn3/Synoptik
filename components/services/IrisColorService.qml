@@ -8,6 +8,11 @@ QtObject {
 
     property var configRef: null
 
+    // Safely embed an arbitrary string (wallpaper path) as a single fish argument.
+    function fishQuote(s) {
+        return "'" + String(s).replace(/'/g, "'\\''") + "'"
+    }
+
     property Process irisRunner: Process {
         id: runner
         running: false
@@ -67,8 +72,8 @@ QtObject {
             targetPath = Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + thumbName
         }
 
-        let cmd = "if not test -f '" + targetPath + "'; ffmpeg -y -ss 00:00:00 -i '" + cleanPath + "' -vframes 1 -vf 'scale=600:-1' '" + targetPath + "' >/dev/null 2>&1; end; "
-        cmd += "if test -f '" + targetPath + "'; iris --json-only '" + targetPath + "' 2>/dev/null; end"
+        let cmd = "if not test -f " + fishQuote(targetPath) + "; ffmpeg -y -ss 00:00:00 -i " + fishQuote(cleanPath) + " -vframes 1 -vf 'scale=600:-1' " + fishQuote(targetPath) + " >/dev/null 2>&1; end; "
+        cmd += "if test -f " + fishQuote(targetPath) + "; iris --json-only " + fishQuote(targetPath) + " 2>/dev/null; end"
 
         runner.command = ["fish", "-c", cmd]
         runner.running = false

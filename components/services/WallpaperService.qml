@@ -13,6 +13,18 @@ QtObject {
 
     property int thumbEpoch: 0
 
+    // Safely embed an arbitrary string as a single fish argument (paths can
+    // contain quotes/spaces - e.g. a downloaded wallpaper filename).
+    function fishQuote(s) {
+        return "'" + String(s).replace(/'/g, "'\\''") + "'"
+    }
+
+    // Same, but for a string destined for a *double*-quoted fish context
+    // (used when nesting one fish -c script inside another below).
+    function fishDoubleQuote(s) {
+        return '"' + String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"').replace(/\$/g, "\\$") + '"'
+    }
+
     // Ensure daemon starts silently at shell initialization
     property Process daemonStarter: Process {
         id: daemonStarterProc
@@ -120,10 +132,10 @@ QtObject {
             script += "killall -q -9 awww-daemon awww mpvpaper 2>/dev/null; "
             if (targets.length > 0) {
                 for (let i = 0; i < targets.length; i++) {
-                    script += "nohup mpvpaper -vs -o 'input-terminal=no loop-file=inf no-audio panscan=1.0 video-unscaled=no' '" + targets[i] + "' '" + cleanFilePath + "' < /dev/null >/dev/null 2>&1 & disown; "
+                    script += "nohup mpvpaper -vs -o 'input-terminal=no loop-file=inf no-audio panscan=1.0 video-unscaled=no' " + fishQuote(targets[i]) + " " + fishQuote(cleanFilePath) + " < /dev/null >/dev/null 2>&1 & disown; "
                 }
             } else {
-                script += "nohup mpvpaper -vs -o 'input-terminal=no loop-file=inf no-audio panscan=1.0 video-unscaled=no' '*' '" + cleanFilePath + "' < /dev/null >/dev/null 2>&1 & disown; "
+                script += "nohup mpvpaper -vs -o 'input-terminal=no loop-file=inf no-audio panscan=1.0 video-unscaled=no' '*' " + fishQuote(cleanFilePath) + " < /dev/null >/dev/null 2>&1 & disown; "
             }
         } else {
             script += "if pgrep -x 'mpvpaper' > /dev/null; killall -q mpvpaper; end; "
@@ -133,10 +145,10 @@ QtObject {
 
             if (targets.length > 0) {
                 for (let i = 0; i < targets.length; i++) {
-                    script += "awww img -o \"" + targets[i] + "\" '" + cleanFilePath + "' " + transArgs + "; "
+                    script += "awww img -o " + fishQuote(targets[i]) + " " + fishQuote(cleanFilePath) + " " + transArgs + "; "
                 }
             } else {
-                script += "awww img '" + cleanFilePath + "' " + transArgs + "; "
+                script += "awww img " + fishQuote(cleanFilePath) + " " + transArgs + "; "
             }
         }
 
@@ -146,10 +158,11 @@ QtObject {
                 let baseName = fileName.replace(/\.[^/.]+$/, "")
                 let thumbPath = Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + baseName + ".jpg"
                 wpApplyProc.pendingIrisPath = thumbPath
-                script += "nohup fish -c 'test -f \"" + thumbPath + "\"; or ffmpeg -y -ss 00:00:01 -i \"" + cleanFilePath + "\" -vframes 1 -vf scale=600:-1 \"" + thumbPath + "\" >/dev/null 2>&1; iris \"" + thumbPath + "\"' >/dev/null 2>&1 & disown; "
+                let innerCmd = "test -f " + fishDoubleQuote(thumbPath) + "; or ffmpeg -y -ss 00:00:01 -i " + fishDoubleQuote(cleanFilePath) + " -vframes 1 -vf scale=600:-1 " + fishDoubleQuote(thumbPath) + " >/dev/null 2>&1; iris " + fishDoubleQuote(thumbPath)
+                script += "nohup fish -c " + fishQuote(innerCmd) + " >/dev/null 2>&1 & disown; "
             } else {
                 wpApplyProc.pendingIrisPath = cleanFilePath
-                script += "nohup iris '" + cleanFilePath + "' >/dev/null 2>&1 & disown; "
+                script += "nohup iris " + fishQuote(cleanFilePath) + " >/dev/null 2>&1 & disown; "
             }
         }
 

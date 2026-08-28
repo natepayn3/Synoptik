@@ -703,201 +703,310 @@ QtObject {
 
     // Persistence
     readonly property string settingsPath: Quickshell.shellDir.toString().replace(/^file:\/\//, "") + "/settings.json"
-    property Process saveProcess: Process { id: saver }
 
-    property Timer saveTimer: Timer {
-        interval: 400
-        repeat: false
-        onTriggered: {
-            if (saver.running) {
-                saveTimer.restart()
-                return
-            }
+    // Every plain key persisted to settings.json - shared by both the save and load
+    // directions below via settingsAdapter. This used to be two independently
+    // hand-typed lists (a save-side object literal and a load-side array) that had to
+    // be kept in sync by hand; a key added to one and not the other silently dropped
+    // data on the next restart. Unifying them here fixed two such drifts already:
+    // "windowStyle" was written but never read back, and "rightCardOrder" was read
+    // but never written.
+    //
+    // "keybinds", "customThemes" and "currentThemeIndex" are deliberately left out -
+    // they need extra normalization/clamping on load, handled separately below.
+    readonly property var persistedKeys: [
+        "lastSettingsSection", "monitorConfigs", "selectedWallpaperMonitors", "wallpaperTransitionType",
+        "activeWallpaperPath", "enableWallpaperParallax", "wallpaperWorkspaceParallax",
+        "wallpaperCursorParallax", "wallpaperParallaxIntensity", "slideshowActive", "slideshowMinutes",
+        "showScreensaver", "screensaverText", "screensaverMode", "screensaverFontSize",
+        "screensaverSpeed", "screensaverCornerCounter", "showOsk", "oskLayout", "showMascot",
+        "mascotPath", "mascotPhrases", "fetchOnlineQuotes", "quoteSource", "barFrameStyle",
+        "barPosition", "autoHideBar", "showScreenFrame", "sysFont", "nativeFontRendering",
+        "fontScaleIndex", "locationQuery", "enabledBarScreens", "useCustomColors", "customBgBase",
+        "customBgPanel", "customAccent", "animateGradient", "shellOpacity", "enableBlur", "enableXray",
+        "enableIris", "showWatermarks", "bounceWatermarks", "windowStyle", "playWindowSounds",
+        "playNotificationSounds", "windowSoundPath", "notificationSoundPath", "windowSoundVolume",
+        "enableHoverPeek", "nightModeEnabled", "nightModeAuto", "nightModeScheduleStart",
+        "nightModeScheduleEnd", "pixelShaderEnabled", "pixelShaderMode", "pixelShaderSize",
+        "pixelShaderLevels", "pixelShaderPalette", "pixelShaderDither", "pixelShaderGrid",
+        "pixelShaderBoost", "showMirror", "mirrorShowPanel", "mirrorMirrored", "mirrorKeepAspect",
+        "mirrorExpanded", "mirrorPinned", "mirrorAnchorPos", "leftCardOrder", "rightCardOrder",
+        "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides", "surfaceRadius",
+        "borderThickness", "cardMargin", "showDesktopClock", "clockStyle", "clockScale",
+        "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", "clockShowBackground",
+        "clockShowGlow", "clockPositions", "clockScales", "enabledClockScreens", "showDesktopSysInfo",
+        "sysInfoScale", "sysInfoShowHost", "sysInfoShowOs", "sysInfoShowKernel", "sysInfoShowUptime",
+        "sysInfoShowPackages", "sysInfoShowWm", "sysInfoShowBoard", "sysInfoShowCpu",
+        "sysInfoShowCores", "sysInfoShowLoad", "sysInfoShowGpu", "sysInfoShowIp", "sysInfoShowGateway",
+        "sysInfoShowDns", "sysInfoShowRam", "sysInfoShowSwap", "sysInfoShowDisk", "sysInfoShowDiskHome",
+        "sysInfoShowBg", "sysInfoShowGlow", "sysInfoRefreshInterval", "sysInfoPositions",
+        "sysInfoScales", "enabledSysInfoScreens", "showDesktopCava", "cavaStyle", "cavaColorMode",
+        "cavaGradientStart", "cavaGradientEnd", "cavaSolidColor", "cavaRainbowSpeed", "cavaBars",
+        "cavaFramerate", "cavaSensitivity", "cavaSmoothing", "ambientBreatheEnabled",
+        "ambientBreatheIntensity", "cavaBarWidth", "cavaBarGap", "cavaBarRadius", "cavaMaxHeight",
+        "cavaRingRadius", "cavaShowGlow", "cavaShowBackground", "cavaShowBorder", "cavaRotation",
+        "cavaPositions", "cavaScales", "enabledCavaScreens", "lockscreenBlurRadius",
+        "lockscreenShowMedia", "lockscreenShowPower", "lockscreenMaskStyle", "lockscreenShapePalette",
+        "lockscreenUse12Hour", "lockscreenShowSeconds", "lockscreenShowAmPm", "lockscreenDateFormat",
+        "lockscreenClockSize", "lockscreenTargetMonitor", "workspaceStyle", "workspaceGlow",
+        "workspaceScroll", "workspaceTooltips", "workspaceShowAddBtn", "workspaceShowOverviewBtn",
+        "workspaceShowSpecial", "workspaceContainerStyle", "wallhavenUsername", "wallhavenApiKey"
+    ]
 
-            var customPalettes = themes.filter(function(t) { return t.isCustom === true })
+    // Settings are stored as JSON via Quickshell's own FileView+JsonAdapter instead of a
+    // hand-rolled `fish -c "printf ... > path"` / `cat path` Process pair: no shell
+    // escaping (and no shell-injection surface) for arbitrary string values like wallpaper
+    // paths or mascot phrases, no manual JSON.stringify/parse, and no busy-wait
+    // re-entrancy guard around the write (that was only ever needed because a raw
+    // Process can't safely have its command swapped out from under an in-flight run -
+    // FileView's writer handles that internally).
+    property FileView settingsFile: FileView {
+        id: settingsFileImpl
+        path: root.settingsPath
 
-            var data = {
-                "lastSettingsSection": root.lastSettingsSection,
-                "monitorConfigs": root.monitorConfigs,
-                "selectedWallpaperMonitors": root.selectedWallpaperMonitors,
-                "wallpaperTransitionType": root.wallpaperTransitionType,
-                "activeWallpaperPath": root.activeWallpaperPath,
-                "enableWallpaperParallax": root.enableWallpaperParallax,
-                "wallpaperWorkspaceParallax": root.wallpaperWorkspaceParallax,
-                "wallpaperCursorParallax": root.wallpaperCursorParallax,
-                "wallpaperParallaxIntensity": root.wallpaperParallaxIntensity,
-                "slideshowActive": root.slideshowActive,
-                "slideshowMinutes": root.slideshowMinutes,
-                "showScreensaver": root.showScreensaver,
-                "screensaverText": root.screensaverText,
-                "screensaverMode": root.screensaverMode,
-                "screensaverFontSize": root.screensaverFontSize,
-                "screensaverSpeed": root.screensaverSpeed,
-                "screensaverCornerCounter": root.screensaverCornerCounter,
-                "showOsk": root.showOsk,
-                "oskLayout": root.oskLayout,
-                "keybinds": root.keybinds,
-                "showMascot": root.showMascot,
-                "mascotPath": root.mascotPath,
-                "mascotPhrases": root.mascotPhrases,
-                "fetchOnlineQuotes": root.fetchOnlineQuotes,
-                "quoteSource": root.quoteSource,
-                "barFrameStyle": root.barFrameStyle,
-                "barPosition": root.barPosition,
-                "autoHideBar": root.autoHideBar,
-                "showScreenFrame": root.showScreenFrame,
-                "sysFont": root.sysFont,
-                "nativeFontRendering": root.nativeFontRendering,
-                "fontScaleIndex": root.fontScaleIndex,
-                "currentThemeIndex": root.currentThemeIndex,
-                "locationQuery": root.locationQuery,
-                "enabledBarScreens": root.enabledBarScreens,
-                "useCustomColors": root.useCustomColors,
-                "customBgBase": root.customBgBase.toString(),
-                "customBgPanel": root.customBgPanel.toString(),
-                "customAccent": root.customAccent.toString(),
-                "animateGradient": root.animateGradient,
-                "shellOpacity": root.shellOpacity,
-                "enableBlur": root.enableBlur,
-                "enableXray": root.enableXray,
-                "enableIris": root.enableIris,
-                "showWatermarks": root.showWatermarks,
-                "bounceWatermarks": root.bounceWatermarks,
-                "customThemes": customPalettes,
-                "windowStyle": root.windowStyle,
-                "playWindowSounds": root.playWindowSounds,
-                "playNotificationSounds": root.playNotificationSounds,
-                "windowSoundPath": root.windowSoundPath,
-                "notificationSoundPath": root.notificationSoundPath,
-                "windowSoundVolume": root.windowSoundVolume,
-                "enableHoverPeek": root.enableHoverPeek,
-                "nightModeEnabled": root.nightModeEnabled,
-                "nightModeAuto": root.nightModeAuto,
-                "nightModeScheduleStart": root.nightModeScheduleStart,
-                "nightModeScheduleEnd": root.nightModeScheduleEnd,
-
-                "pixelShaderEnabled": root.pixelShaderEnabled,
-                "pixelShaderMode": root.pixelShaderMode,
-                "pixelShaderSize": root.pixelShaderSize,
-                "pixelShaderLevels": root.pixelShaderLevels,
-                "pixelShaderPalette": root.pixelShaderPalette,
-                "pixelShaderDither": root.pixelShaderDither,
-                "pixelShaderGrid": root.pixelShaderGrid,
-                "pixelShaderBoost": root.pixelShaderBoost,
-
-                "showMirror": root.showMirror,
-                "mirrorShowPanel": root.mirrorShowPanel,
-                "mirrorMirrored": root.mirrorMirrored,
-                "mirrorKeepAspect": root.mirrorKeepAspect,
-                "mirrorExpanded": root.mirrorExpanded,
-                "mirrorPinned": root.mirrorPinned,
-                "mirrorAnchorPos": root.mirrorAnchorPos,
-
-                "leftCardOrder": root.leftCardOrder,
-                "leftCardCollapsed": root.leftCardCollapsed,
-                "rightCardCollapsed": root.rightCardCollapsed,
-                "pinnedIcons": root.pinnedIcons,
-                "iconOverrides": root.iconOverrides,
-
-                "surfaceRadius": root.surfaceRadius,
-                "borderThickness": root.borderThickness,
-                "cardMargin": root.cardMargin,
-
-                "showDesktopClock": root.showDesktopClock,
-                "clockStyle": root.clockStyle,
-                "clockScale": root.clockScale,
-                "clockShowSeconds": root.clockShowSeconds,
-                "clockUse12Hour": root.clockUse12Hour,
-                "clockShowAmPm": root.clockShowAmPm,
-                "clockShowBorder": root.clockShowBorder,
-                "clockShowBackground": root.clockShowBackground,
-                "clockShowGlow": root.clockShowGlow,
-                "clockPositions": root.clockPositions,
-                "clockScales": root.clockScales,
-                "enabledClockScreens": root.enabledClockScreens,
-
-                "showDesktopSysInfo": root.showDesktopSysInfo,
-                "sysInfoScale": root.sysInfoScale,
-                "sysInfoShowHost": root.sysInfoShowHost,
-                "sysInfoShowOs": root.sysInfoShowOs,
-                "sysInfoShowKernel": root.sysInfoShowKernel,
-                "sysInfoShowUptime": root.sysInfoShowUptime,
-                "sysInfoShowPackages": root.sysInfoShowPackages,
-                "sysInfoShowWm": root.sysInfoShowWm,
-                "sysInfoShowBoard": root.sysInfoShowBoard,
-                "sysInfoShowCpu": root.sysInfoShowCpu,
-                "sysInfoShowCores": root.sysInfoShowCores,
-                "sysInfoShowLoad": root.sysInfoShowLoad,
-                "sysInfoShowGpu": root.sysInfoShowGpu,
-                "sysInfoShowIp": root.sysInfoShowIp,
-                "sysInfoShowGateway": root.sysInfoShowGateway,
-                "sysInfoShowDns": root.sysInfoShowDns,
-                "sysInfoShowRam": root.sysInfoShowRam,
-                "sysInfoShowSwap": root.sysInfoShowSwap,
-                "sysInfoShowDisk": root.sysInfoShowDisk,
-                "sysInfoShowDiskHome": root.sysInfoShowDiskHome,
-                "sysInfoShowBg": root.sysInfoShowBg,
-                "sysInfoShowGlow": root.sysInfoShowGlow,
-                "sysInfoRefreshInterval": root.sysInfoRefreshInterval,
-                "sysInfoPositions": root.sysInfoPositions,
-                "sysInfoScales": root.sysInfoScales,
-                "enabledSysInfoScreens": root.enabledSysInfoScreens,
-
-                "showDesktopCava": root.showDesktopCava,
-                "cavaStyle": root.cavaStyle,
-                "cavaColorMode": root.cavaColorMode,
-                "cavaGradientStart": root.cavaGradientStart,
-                "cavaGradientEnd": root.cavaGradientEnd,
-                "cavaSolidColor": root.cavaSolidColor,
-                "cavaRainbowSpeed": root.cavaRainbowSpeed,
-                "cavaBars": root.cavaBars,
-                "cavaFramerate": root.cavaFramerate,
-                "cavaSensitivity": root.cavaSensitivity,
-                "cavaSmoothing": root.cavaSmoothing,
-                "ambientBreatheEnabled": root.ambientBreatheEnabled,
-                "ambientBreatheIntensity": root.ambientBreatheIntensity,
-                "cavaBarWidth": root.cavaBarWidth,
-                "cavaBarGap": root.cavaBarGap,
-                "cavaBarRadius": root.cavaBarRadius,
-                "cavaMaxHeight": root.cavaMaxHeight,
-                "cavaRingRadius": root.cavaRingRadius,
-                "cavaShowGlow": root.cavaShowGlow,
-                "cavaShowBackground": root.cavaShowBackground,
-                "cavaShowBorder": root.cavaShowBorder,
-                "cavaRotation": root.cavaRotation,
-                "cavaPositions": root.cavaPositions,
-                "cavaScales": root.cavaScales,
-                "enabledCavaScreens": root.enabledCavaScreens,
-
-                "lockscreenBlurRadius": root.lockscreenBlurRadius,
-                "lockscreenShowMedia": root.lockscreenShowMedia,
-                "lockscreenShowPower": root.lockscreenShowPower,
-                "lockscreenMaskStyle": root.lockscreenMaskStyle,
-                "lockscreenShapePalette": root.lockscreenShapePalette,
-                "lockscreenUse12Hour": root.lockscreenUse12Hour,
-                "lockscreenShowSeconds": root.lockscreenShowSeconds,
-                "lockscreenShowAmPm": root.lockscreenShowAmPm,
-                "lockscreenDateFormat": root.lockscreenDateFormat,
-                "lockscreenClockSize": root.lockscreenClockSize,
-                "lockscreenTargetMonitor": root.lockscreenTargetMonitor,
-
-                "workspaceStyle": root.workspaceStyle,
-                "workspaceGlow": root.workspaceGlow,
-                "workspaceScroll": root.workspaceScroll,
-                "workspaceTooltips": root.workspaceTooltips,
-                "workspaceShowAddBtn": root.workspaceShowAddBtn,
-                "workspaceShowOverviewBtn": root.workspaceShowOverviewBtn,
-                "workspaceShowSpecial": root.workspaceShowSpecial,
-                "workspaceContainerStyle": root.workspaceContainerStyle,
-
-                "wallhavenUsername": root.wallhavenUsername,
-                "wallhavenApiKey": root.wallhavenApiKey
-            }
-
-            var jsonStr = JSON.stringify(data, null, 2)
-            saver.command = ["fish", "-c", "printf '%s' '" + jsonStr.replace(/'/g, "'\\''") + "' > " + settingsPath]
-            saver.running = true
+        JsonAdapter {
+            id: settingsAdapter
+            property var lastSettingsSection
+            property var monitorConfigs
+            property var selectedWallpaperMonitors
+            property var wallpaperTransitionType
+            property var activeWallpaperPath
+            property var enableWallpaperParallax
+            property var wallpaperWorkspaceParallax
+            property var wallpaperCursorParallax
+            property var wallpaperParallaxIntensity
+            property var slideshowActive
+            property var slideshowMinutes
+            property var showScreensaver
+            property var screensaverText
+            property var screensaverMode
+            property var screensaverFontSize
+            property var screensaverSpeed
+            property var screensaverCornerCounter
+            property var showOsk
+            property var oskLayout
+            property var showMascot
+            property var mascotPath
+            property var mascotPhrases
+            property var fetchOnlineQuotes
+            property var quoteSource
+            property var barFrameStyle
+            property var barPosition
+            property var autoHideBar
+            property var showScreenFrame
+            property var sysFont
+            property var nativeFontRendering
+            property var fontScaleIndex
+            property var locationQuery
+            property var enabledBarScreens
+            property var useCustomColors
+            property var customBgBase
+            property var customBgPanel
+            property var customAccent
+            property var animateGradient
+            property var shellOpacity
+            property var enableBlur
+            property var enableXray
+            property var enableIris
+            property var showWatermarks
+            property var bounceWatermarks
+            property var windowStyle
+            property var playWindowSounds
+            property var playNotificationSounds
+            property var windowSoundPath
+            property var notificationSoundPath
+            property var windowSoundVolume
+            property var enableHoverPeek
+            property var nightModeEnabled
+            property var nightModeAuto
+            property var nightModeScheduleStart
+            property var nightModeScheduleEnd
+            property var pixelShaderEnabled
+            property var pixelShaderMode
+            property var pixelShaderSize
+            property var pixelShaderLevels
+            property var pixelShaderPalette
+            property var pixelShaderDither
+            property var pixelShaderGrid
+            property var pixelShaderBoost
+            property var showMirror
+            property var mirrorShowPanel
+            property var mirrorMirrored
+            property var mirrorKeepAspect
+            property var mirrorExpanded
+            property var mirrorPinned
+            property var mirrorAnchorPos
+            property var leftCardOrder
+            property var rightCardOrder
+            property var leftCardCollapsed
+            property var rightCardCollapsed
+            property var pinnedIcons
+            property var iconOverrides
+            property var surfaceRadius
+            property var borderThickness
+            property var cardMargin
+            property var showDesktopClock
+            property var clockStyle
+            property var clockScale
+            property var clockShowSeconds
+            property var clockUse12Hour
+            property var clockShowAmPm
+            property var clockShowBorder
+            property var clockShowBackground
+            property var clockShowGlow
+            property var clockPositions
+            property var clockScales
+            property var enabledClockScreens
+            property var showDesktopSysInfo
+            property var sysInfoScale
+            property var sysInfoShowHost
+            property var sysInfoShowOs
+            property var sysInfoShowKernel
+            property var sysInfoShowUptime
+            property var sysInfoShowPackages
+            property var sysInfoShowWm
+            property var sysInfoShowBoard
+            property var sysInfoShowCpu
+            property var sysInfoShowCores
+            property var sysInfoShowLoad
+            property var sysInfoShowGpu
+            property var sysInfoShowIp
+            property var sysInfoShowGateway
+            property var sysInfoShowDns
+            property var sysInfoShowRam
+            property var sysInfoShowSwap
+            property var sysInfoShowDisk
+            property var sysInfoShowDiskHome
+            property var sysInfoShowBg
+            property var sysInfoShowGlow
+            property var sysInfoRefreshInterval
+            property var sysInfoPositions
+            property var sysInfoScales
+            property var enabledSysInfoScreens
+            property var showDesktopCava
+            property var cavaStyle
+            property var cavaColorMode
+            property var cavaGradientStart
+            property var cavaGradientEnd
+            property var cavaSolidColor
+            property var cavaRainbowSpeed
+            property var cavaBars
+            property var cavaFramerate
+            property var cavaSensitivity
+            property var cavaSmoothing
+            property var ambientBreatheEnabled
+            property var ambientBreatheIntensity
+            property var cavaBarWidth
+            property var cavaBarGap
+            property var cavaBarRadius
+            property var cavaMaxHeight
+            property var cavaRingRadius
+            property var cavaShowGlow
+            property var cavaShowBackground
+            property var cavaShowBorder
+            property var cavaRotation
+            property var cavaPositions
+            property var cavaScales
+            property var enabledCavaScreens
+            property var lockscreenBlurRadius
+            property var lockscreenShowMedia
+            property var lockscreenShowPower
+            property var lockscreenMaskStyle
+            property var lockscreenShapePalette
+            property var lockscreenUse12Hour
+            property var lockscreenShowSeconds
+            property var lockscreenShowAmPm
+            property var lockscreenDateFormat
+            property var lockscreenClockSize
+            property var lockscreenTargetMonitor
+            property var workspaceStyle
+            property var workspaceGlow
+            property var workspaceScroll
+            property var workspaceTooltips
+            property var workspaceShowAddBtn
+            property var workspaceShowOverviewBtn
+            property var workspaceShowSpecial
+            property var workspaceContainerStyle
+            property var wallhavenUsername
+            property var wallhavenApiKey
+            property var keybinds
+            property var customThemes
+            property var currentThemeIndex
+            property var isFloatingBar  // legacy pre-barFrameStyle key, load-only migration
         }
+
+        function applyLoadedSettings() {
+            try {
+                root.persistedKeys.forEach(p => {
+                    if (settingsAdapter[p] !== undefined) root[p] = settingsAdapter[p]
+                })
+
+                if (settingsAdapter.keybinds && typeof settingsAdapter.keybinds === "object") {
+                    let cleaned = {}
+                    Object.keys(settingsAdapter.keybinds).forEach(k => {
+                        let item = settingsAdapter.keybinds[k]
+                        cleaned[k] = {
+                            mod: (item.mod || "SUPER").replace(/mainMod/g, "SUPER").replace(/\.\./g, "").replace(/["']/g, "").trim(),
+                            key: item.key || "",
+                            cmd: item.cmd || ""
+                        }
+                    })
+                    root.keybinds = cleaned
+                }
+
+                let defaultLeft = ["power", "recorder", "mirror", "screenshot", "wallpaper", "settings", "launcher", "audio", "batt", "network", "clipboard"]
+                let currentLeft = Array.isArray(root.leftCardOrder) ? root.leftCardOrder.slice() : []
+                defaultLeft.forEach(mod => {
+                    if (!currentLeft.includes(mod)) currentLeft.push(mod)
+                })
+                root.leftCardOrder = currentLeft
+
+                if (settingsAdapter.isFloatingBar !== undefined && settingsAdapter.barFrameStyle === undefined) {
+                    root.barFrameStyle = settingsAdapter.isFloatingBar ? "floating" : "edge"
+                }
+
+                if (settingsAdapter.customThemes !== undefined && Array.isArray(settingsAdapter.customThemes)) {
+                    var stockList = stockThemes.slice()
+                    root.themes = stockList.concat(settingsAdapter.customThemes)
+                }
+
+                if (settingsAdapter.currentThemeIndex !== undefined) {
+                    root.currentThemeIndex = Math.min(settingsAdapter.currentThemeIndex, root.themes.length - 1)
+                }
+
+                if (root.enableIris) {
+                    root.applyIrisColors()
+                } else {
+                    root.applyTheme(root.currentThemeIndex)
+                }
+            } catch (e) {
+                console.error("Failed to apply loaded settings:", e)
+            }
+
+            root.normalizeMonitorPositions()
+            root.isLoaded = true
+            root.resetDraftMonitorConfigs()
+            root.syncHyprlandBorders()
+            root.syncScreenFrame()
+
+            if (root.pixelShaderEnabled || root.nightModeEnabled) {
+                root.updateShader()
+            }
+
+            if (root.weather && root.locationQuery.trim().length > 0) {
+                root.weather.fetchWeather(true)
+            }
+
+            root.refreshActiveWallpapers()
+        }
+
+        // preload (default true) loads this automatically on startup - no manual
+        // "running = true" trigger needed. onLoadFailed covers a fresh install with
+        // no settings.json yet (settingsAdapter properties simply stay undefined, so
+        // the generic copy loop above is a no-op and root keeps its compiled-in
+        // defaults, same as before).
+        onLoaded: applyLoadedSettings()
+        onLoadFailed: (error) => applyLoadedSettings()
     }
 
     function saveSettings() {
@@ -905,121 +1014,22 @@ QtObject {
         saveTimer.restart()
     }
 
-    property Process loaderProcess: Process {
-        id: loader
-        command: ["fish", "-c", "cat " + settingsPath + " 2>/dev/null"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let text = this.text ? this.text.trim() : ""
-                if (text !== "") {
-                    try {
-                        var parsed = JSON.parse(text)
+    property Timer saveTimer: Timer {
+        interval: 400
+        repeat: false
+        onTriggered: {
+            root.persistedKeys.forEach(p => { settingsAdapter[p] = root[p] })
 
-                        let props = [
-                            "lastSettingsSection",
-                            "monitorConfigs", "selectedWallpaperMonitors", "wallpaperTransitionType", "activeWallpaperPath",
-                            "enableWallpaperParallax", "wallpaperWorkspaceParallax", "wallpaperCursorParallax", "wallpaperParallaxIntensity",
-                            "slideshowActive", "slideshowMinutes",
-                            "showScreensaver", "screensaverText", "screensaverMode", "screensaverFontSize", "screensaverSpeed", "screensaverCornerCounter",
-                            "showOsk", "oskLayout",
-                            "showMascot", "mascotPath", "mascotPhrases", "fetchOnlineQuotes", "quoteSource",
-                            "barFrameStyle", "barPosition", "autoHideBar", "showScreenFrame", "sysFont", "nativeFontRendering", "fontScaleIndex", "locationQuery",
-                            "enabledBarScreens", "useCustomColors", "customBgBase", "customBgPanel",
-                            "customAccent", "animateGradient", "shellOpacity", "enableBlur",
-                            "enableXray", "enableIris", "showWatermarks", "bounceWatermarks", "surfaceRadius", "borderThickness", "cardMargin", "showDesktopClock", "clockStyle", "clockScale", 
-                            "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", 
-                            "clockShowBackground", "clockShowGlow", "clockPositions", "clockScales", "enabledClockScreens",
-                            "showDesktopSysInfo", "sysInfoScale",
-                            "sysInfoShowHost", "sysInfoShowOs", "sysInfoShowKernel", "sysInfoShowUptime", "sysInfoShowPackages", "sysInfoShowWm",
-                            "sysInfoShowBoard", "sysInfoShowCpu", "sysInfoShowCores", "sysInfoShowLoad", "sysInfoShowGpu",
-                            "sysInfoShowIp", "sysInfoShowGateway", "sysInfoShowDns",
-                            "sysInfoShowRam", "sysInfoShowSwap", "sysInfoShowDisk", "sysInfoShowDiskHome",
-                            "sysInfoShowBg", "sysInfoShowGlow", "sysInfoRefreshInterval",
-                            "sysInfoPositions", "sysInfoScales", "enabledSysInfoScreens",
-                            "showDesktopCava", "cavaStyle", "cavaColorMode", "cavaGradientStart", "cavaGradientEnd",
-                            "cavaSolidColor", "cavaRainbowSpeed", "cavaBars", "cavaFramerate", "cavaSensitivity",
-                            "cavaSmoothing", "ambientBreatheEnabled", "ambientBreatheIntensity",
-                            "cavaBarWidth", "cavaBarGap", "cavaBarRadius", "cavaMaxHeight", "cavaRingRadius",
-                            "cavaShowGlow", "cavaShowBackground", "cavaShowBorder", "cavaRotation",
-                            "cavaPositions", "cavaScales", "enabledCavaScreens",
-                            "lockscreenBlurRadius", "lockscreenShowMedia", "lockscreenShowPower", "lockscreenMaskStyle", "lockscreenShapePalette",
-                            "lockscreenUse12Hour", "lockscreenShowSeconds", "lockscreenShowAmPm", "lockscreenDateFormat", "lockscreenClockSize", "lockscreenTargetMonitor",
-                            "workspaceStyle", "workspaceGlow", "workspaceScroll", "workspaceTooltips", "workspaceShowAddBtn", "workspaceShowOverviewBtn", "workspaceShowSpecial", "workspaceContainerStyle",
-                            "leftCardOrder", "rightCardOrder", "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides",
-                            "playWindowSounds", "playNotificationSounds", "windowSoundPath", "notificationSoundPath", "windowSoundVolume",
-                            "showMirror", "mirrorShowPanel", "mirrorMirrored", "mirrorKeepAspect", "mirrorExpanded", "mirrorPinned", "mirrorAnchorPos",
-                            "enableHoverPeek", "nightModeEnabled", "nightModeAuto", "nightModeScheduleStart", "nightModeScheduleEnd", "wallhavenUsername", "wallhavenApiKey",
-                            "pixelShaderEnabled", "pixelShaderMode", "pixelShaderSize", "pixelShaderLevels", 
-                            "pixelShaderPalette", "pixelShaderDither", "pixelShaderGrid", "pixelShaderBoost"
-                        ]
+            // color-typed properties need an explicit string form to serialize sanely
+            settingsAdapter.customBgBase = root.customBgBase.toString()
+            settingsAdapter.customBgPanel = root.customBgPanel.toString()
+            settingsAdapter.customAccent = root.customAccent.toString()
 
-                        props.forEach(p => {
-                            if (parsed[p] !== undefined) root[p] = parsed[p]
-                        })
+            settingsAdapter.keybinds = root.keybinds
+            settingsAdapter.customThemes = root.themes.filter(function(t) { return t.isCustom === true })
+            settingsAdapter.currentThemeIndex = root.currentThemeIndex
 
-                        if (parsed.keybinds && typeof parsed.keybinds === "object") {
-                            let cleaned = {}
-                            Object.keys(parsed.keybinds).forEach(k => {
-                                let item = parsed.keybinds[k]
-                                cleaned[k] = {
-                                    mod: (item.mod || "SUPER").replace(/mainMod/g, "SUPER").replace(/\.\./g, "").replace(/["']/g, "").trim(),
-                                    key: item.key || "",
-                                    cmd: item.cmd || ""
-                                }
-                            })
-                            root.keybinds = cleaned
-                        }
-
-                        let defaultLeft = ["power", "recorder", "mirror", "screenshot", "wallpaper", "settings", "launcher", "audio", "batt", "network", "clipboard"]
-                        let currentLeft = Array.isArray(root.leftCardOrder) ? root.leftCardOrder.slice() : []
-                        defaultLeft.forEach(mod => {
-                            if (!currentLeft.includes(mod)) currentLeft.push(mod)
-                        })
-                        root.leftCardOrder = currentLeft
-
-                        if (parsed.isFloatingBar !== undefined && parsed.barFrameStyle === undefined) {
-                            root.barFrameStyle = parsed.isFloatingBar ? "floating" : "edge"
-                        }
-
-                        if (parsed.customThemes && Array.isArray(parsed.customThemes)) {
-                            var stockList = stockThemes.slice()
-                            root.themes = stockList.concat(parsed.customThemes)
-                        }
-
-                        if (parsed.currentThemeIndex !== undefined) {
-                            root.currentThemeIndex = Math.min(parsed.currentThemeIndex, root.themes.length - 1)
-                        }
-
-                        if (root.enableIris) {
-                            root.applyIrisColors()
-                        } else {
-                            root.applyTheme(root.currentThemeIndex)
-                        }
-                    } catch (e) {
-                        console.error("Failed to parse settings JSON:", e)
-                    }
-                }
-
-                root.normalizeMonitorPositions()
-                root.isLoaded = true
-                root.resetDraftMonitorConfigs()
-                root.syncHyprlandBorders()
-                root.syncScreenFrame()
-
-                if (root.pixelShaderEnabled || root.nightModeEnabled) {
-                    root.updateShader()
-                }
-
-                if (root.weather && root.locationQuery.trim().length > 0) {
-                    root.weather.fetchWeather(true)
-                }
-
-                root.refreshActiveWallpapers()
-            }
-        }
-        
-        Component.onCompleted: {
-            loader.running = true
+            settingsFileImpl.writeAdapter()
         }
     }
 

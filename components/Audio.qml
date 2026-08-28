@@ -21,6 +21,10 @@ Item {
 
     Component.onCompleted: {
         audioQueryProc.running = true
+        if (typeof shellRoot !== "undefined") {
+            audioModule.systemVolume = shellRoot.audioVolume
+            audioModule.isMuted = shellRoot.audioMuted
+        }
     }
 
     Connections {
@@ -29,6 +33,29 @@ Item {
             if (Config.showAudio) {
                 audioQueryProc.running = false
                 audioQueryProc.running = true
+            }
+        }
+    }
+
+    // Output volume/mute is already tracked shell-wide (shell.qml's own
+    // pactl subscribe + wpctl query) - mirror it here instead of running a
+    // second independent wpctl get-volume poll.
+    Connections {
+        target: (typeof shellRoot !== "undefined") ? shellRoot : null
+        function onAudioVolumeChanged() {
+            if (!outTrack.isDragging) audioModule.systemVolume = shellRoot.audioVolume
+        }
+        function onAudioMutedChanged() {
+            audioModule.isMuted = shellRoot.audioMuted
+        }
+        function onAudioSubscribeEvent(data) {
+            // Instant update for the mic (source) volume/mute - output is covered above.
+            if (data.includes("change")) {
+                audioModule.triggerFastVolumeRead()
+            }
+            // Debounced device list rescan when hardware is plugged/unplugged or defaults switch.
+            if (data.includes("new") || data.includes("remove") || data.includes("server")) {
+                debounceAudioTimer.restart()
             }
         }
     }
@@ -629,9 +656,9 @@ Item {
         }
     }
 
-    // Fast path: Update volume and mute state immediately (0ms delay)
+    // Fast path: Update mic volume/mute immediately (0ms delay). Output volume
+    // is covered by the shellRoot.audioVolume/audioMuted Connections above.
     function triggerFastVolumeRead() {
-        if (!volumeReadProc.running) volumeReadProc.running = true
         if (!micReadProc.running) micReadProc.running = true
     }
 
@@ -643,25 +670,6 @@ Item {
         onTriggered: {
             audioQueryProc.running = false
             audioQueryProc.running = true
-        }
-    }
-
-    Process {
-        id: pulseEventStream
-        command: ["stdbuf", "-oL", "pactl", "subscribe"]
-        running: true
-        stdout: SplitParser {
-            onRead: data => {
-                // Instant update for volume/mute changes on sinks and sources
-                if (data.includes("change")) {
-                    audioModule.triggerFastVolumeRead()
-                }
-
-                // Debounced update only when hardware devices are plugged/unplugged or defaults switch
-                if (data.includes("new") || data.includes("remove") || data.includes("server")) {
-                    debounceAudioTimer.restart()
-                }
-            }
         }
     }
 
@@ -715,27 +723,11 @@ Item {
                         }
                     }
                 }
-                volumeReadProc.running = true
-                micReadProc.running = true
-            }
-        }
-    }
-
-    Process {
-        id: volumeReadProc
-        command: ["wpctl", "get-volume", "@DEFAULT_AUDIO_SINK@"]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let cleaned = this.text.trim()
-                let match = cleaned.match(/Volume:\s+([0-9.]+)/)
-                if (match) {
-                    let newVol = Math.round(parseFloat(match[1]) * 100)
-                    if (!outTrack.isDragging) {
-                        audioModule.systemVolume = newVol
-                    }
-                    audioModule.isMuted = cleaned.includes("[MUTED]")
+                if (!outTrack.isDragging && typeof shellRoot !== "undefined") {
+                    audioModule.systemVolume = shellRoot.audioVolume
+                    audioModule.isMuted = shellRoot.audioMuted
                 }
+                micReadProc.running = true
             }
         }
     }

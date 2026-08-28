@@ -29,6 +29,10 @@ ShellRoot {
     property bool isUserSettingVolume: false
     property bool audioMuted: false
     property int audioVolume: 50
+    // Raw pactl subscribe lines, re-broadcast so other components (e.g. Audio.qml's
+    // mic tracking and sink/source device list) can react without opening their own
+    // second "pactl subscribe" process.
+    signal audioSubscribeEvent(string data)
     
     property bool vpnActive: false
 
@@ -131,14 +135,20 @@ ShellRoot {
         }
     }
 
-    // Periodic reload for sysfs capacity poll (virtual sysfs does not emit inotify)
-    Timer {
-        interval: 30000
+    // Event-driven reload: sysfs itself doesn't emit inotify events, but the kernel
+    // does emit a udev "change" event on the power_supply subsystem whenever capacity/
+    // status actually changes - so block on that instead of polling on a fixed interval
+    // (same long-lived Process+SplitParser pattern as networkMonitorProc/btMonitorProc
+    // below). The 60s fallback Timer further down re-syncs everything as a safety net.
+    Process {
+        id: battUdevMonitor
+        command: ["udevadm", "monitor", "--udev", "--subsystem-match=power_supply"]
         running: shellRoot.hasBattery
-        repeat: true
-        onTriggered: {
-            battCapacityReader.reload()
-            battStatusReader.reload()
+        stdout: SplitParser {
+            onRead: data => {
+                battCapacityReader.reload()
+                battStatusReader.reload()
+            }
         }
     }
 
@@ -250,6 +260,7 @@ ShellRoot {
         running: true
         stdout: SplitParser {
             onRead: data => {
+                shellRoot.audioSubscribeEvent(data)
                 if (data.includes("sink")) {
                     audioStateProc.running = false
                     audioStateProc.running = true
@@ -318,6 +329,7 @@ ShellRoot {
             vpnStateProc.running = false; vpnStateProc.running = true
             recordStatusProc.running = false; recordStatusProc.running = true
             mediaFollowerProc.running = false; mediaFollowerProc.running = true
+            if (shellRoot.hasBattery) { battCapacityReader.reload(); battStatusReader.reload() }
         }
     }
 
