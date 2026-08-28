@@ -330,8 +330,12 @@ ClippingRectangle {
 
                 TapHandler {
                     onTapped: {
-                        menu.toggle(modelData.id)
+                        // close() first: toggle() can flip a widget's
+                        // Config.showDesktopX off, which synchronously tears
+                        // down that widget's subtree - including this menu -
+                        // so `menu` must not be touched after the call.
                         menu.close()
+                        menu.toggle(modelData.id)
                     }
                 }
                 HoverHandler { id: rowHover }
