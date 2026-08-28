@@ -45,4 +45,4 @@
 Run the automated installer to clone the repository, link components, and enable update tracking:
 
 ```bash
-curl -fsSL [https://raw.githubusercontent.com/natepayn3/Synoptik/main/install.sh](https://raw.githubusercontent.com/natepayn3/Synoptik/main/install.sh) | bash
+curl -fsSL https://raw.githubusercontent.com/natepayn3/Synoptik/main/install.sh | bash
