@@ -15,7 +15,7 @@ PanelWindow {
         petWindow.screen = found || Quickshell.screens[0]
     }
 
-    WlrLayershell.layer: WlrLayer.Overlay
+    WlrLayershell.layer: WlrLayer.Bottom
     WlrLayershell.namespace: "quickshell-mascot"
     WlrLayershell.keyboardFocus: (typeof widgetMenu !== "undefined" && widgetMenu.visible) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
