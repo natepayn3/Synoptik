@@ -980,6 +980,7 @@ Item {
                                     shellView.isBusy = false
                                     if (code === 0) {
                                         shellView.statusText = "Updated successfully! Reloading..."
+                                        Config.flushSettings()
                                         Quickshell.execDetached(["fish", "-c", "killall quickshell; and quickshell"])
                                     } else {
                                         let err = pullError.text.trim()
@@ -1194,7 +1195,10 @@ Item {
                                                     anchors.fill: parent
                                                     cursorShape: Qt.PointingHandCursor
                                                     enabled: !shellView.isBusy
-                                                    onClicked: Quickshell.execDetached(["fish", "-c", "killall qs; and qs -c Synoptik & disown"])
+                                                    onClicked: {
+                                                        Config.flushSettings()
+                                                        Quickshell.execDetached(["fish", "-c", "killall qs; and qs -c Synoptik & disown"])
+                                                    }
                                                 }
                                                 HoverHandler { id: reloadBtnHover }
                                             }

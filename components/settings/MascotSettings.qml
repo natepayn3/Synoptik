@@ -87,6 +87,18 @@ Item {
                 }
             }
 
+            // TOGGLE: AUDIO THROB
+            SettingsToggleRow {
+                title: "Bop to the Beat"
+                subtitle: "Pulse the mascot with the same audio throb as the bar"
+                checked: Config.mascotAudioThrob !== false
+                onToggled: {
+                    Config.mascotAudioThrob = (Config.mascotAudioThrob === false)
+                    if (typeof Config.saveConfig === "function") Config.saveConfig()
+                    else if (typeof Config.save === "function") Config.save()
+                }
+            }
+
             // TOGGLE: AUTO-FETCH ONLINE QUOTES
             SettingsToggleRow {
                 title: "Auto-Fetch Online Quotes"

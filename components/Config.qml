@@ -14,6 +14,11 @@ QtObject {
     // whenever any of them registers a new click - keeps only one open at a time.
     signal closeWidgetMenus()
 
+    // Fired once per incoming notification (not per history entry - those
+    // can differ if recording is ever batched) so reactive UI, like the
+    // Mascot's bounce, can hook a single event instead of diffing entries.
+    signal notificationArrived()
+
     // --- WALLPAPER (extracted to services/WallpaperConfig.qml) ---
     property WallpaperConfig wallpaper: WallpaperConfig { configRef: root }
     property alias wallhavenUsername: root.wallpaper.wallhavenUsername
@@ -127,7 +132,7 @@ QtObject {
     // that file for why.
     property NotificationHistoryService notificationHistoryService: NotificationHistoryService {}
     property alias notificationHistory: root.notificationHistoryService.entries
-    function recordNotification(notif) { notificationHistoryService.record(notif) }
+    function recordNotification(notif) { notificationHistoryService.record(notif); notificationArrived() }
     function clearNotificationHistory() { notificationHistoryService.clear() }
 
     // --- LOCKSCREEN STATE ---
@@ -330,12 +335,17 @@ QtObject {
     property alias screensaverCornerCounter: root.desktopExtras.screensaverCornerCounter
     property alias showMascot: root.desktopExtras.showMascot
     property alias mascotPath: root.desktopExtras.mascotPath
+    property alias mascotAudioThrob: root.desktopExtras.mascotAudioThrob
     property alias mascotPhrases: root.desktopExtras.mascotPhrases
+    property alias mascotPositions: root.desktopExtras.mascotPositions
+    property alias mascotLastScreen: root.desktopExtras.mascotLastScreen
     property alias fetchOnlineQuotes: root.desktopExtras.fetchOnlineQuotes
     property alias quoteSource: root.desktopExtras.quoteSource
     property alias rssFeedUrl: root.desktopExtras.rssFeedUrl
     function addMascotPhrase(phrase) { desktopExtras.addMascotPhrase(phrase) }
     function removeMascotPhrase(index) { desktopExtras.removeMascotPhrase(index) }
+    function getMascotPosition(screenName, defaultX, defaultY) { return desktopExtras.getMascotPosition(screenName, defaultX, defaultY) }
+    function saveMascotPosition(screenName, x, y) { desktopExtras.saveMascotPosition(screenName, x, y) }
     function processQuoteQueue() { desktopExtras.processQuoteQueue() }
     function triggerQuoteFetch() { desktopExtras.triggerQuoteFetch() }
 
@@ -720,7 +730,7 @@ QtObject {
         "wallpaperCursorParallax", "wallpaperParallaxIntensity", "slideshowActive", "slideshowMinutes",
         "showScreensaver", "screensaverText", "screensaverMode", "screensaverFontSize",
         "screensaverSpeed", "screensaverCornerCounter", "showOsk", "oskLayout", "showMascot",
-        "mascotPath", "mascotPhrases", "fetchOnlineQuotes", "quoteSource", "barFrameStyle",
+        "mascotPath", "mascotPhrases", "mascotPositions", "mascotLastScreen", "mascotAudioThrob", "fetchOnlineQuotes", "quoteSource", "barFrameStyle",
         "barPosition", "autoHideBar", "showScreenFrame", "sysFont", "nativeFontRendering",
         "fontScaleIndex", "locationQuery", "enabledBarScreens", "useCustomColors", "customBgBase",
         "customBgPanel", "customAccent", "animateGradient", "shellOpacity", "enableBlur", "enableXray",
@@ -787,7 +797,10 @@ QtObject {
             property var oskLayout
             property var showMascot
             property var mascotPath
+            property var mascotAudioThrob
             property var mascotPhrases
+            property var mascotPositions
+            property var mascotLastScreen
             property var fetchOnlineQuotes
             property var quoteSource
             property var barFrameStyle
@@ -1014,23 +1027,36 @@ QtObject {
         saveTimer.restart()
     }
 
+    // Writes immediately, skipping the debounce - call before anything that's
+    // about to kill this process (a shell reload/restart), since the 400ms
+    // debounce below would otherwise silently drop a save made just before
+    // the kill signal arrives (e.g. dragging a desktop widget, then hitting
+    // Settings' Reload button right after).
+    function flushSettings() {
+        if (!saveTimer.running) return
+        saveTimer.stop()
+        writeSettingsNow()
+    }
+
+    function writeSettingsNow() {
+        root.persistedKeys.forEach(p => { settingsAdapter[p] = root[p] })
+
+        // color-typed properties need an explicit string form to serialize sanely
+        settingsAdapter.customBgBase = root.customBgBase.toString()
+        settingsAdapter.customBgPanel = root.customBgPanel.toString()
+        settingsAdapter.customAccent = root.customAccent.toString()
+
+        settingsAdapter.keybinds = root.keybinds
+        settingsAdapter.customThemes = root.themes.filter(function(t) { return t.isCustom === true })
+        settingsAdapter.currentThemeIndex = root.currentThemeIndex
+
+        settingsFileImpl.writeAdapter()
+    }
+
     property Timer saveTimer: Timer {
         interval: 400
         repeat: false
-        onTriggered: {
-            root.persistedKeys.forEach(p => { settingsAdapter[p] = root[p] })
-
-            // color-typed properties need an explicit string form to serialize sanely
-            settingsAdapter.customBgBase = root.customBgBase.toString()
-            settingsAdapter.customBgPanel = root.customBgPanel.toString()
-            settingsAdapter.customAccent = root.customAccent.toString()
-
-            settingsAdapter.keybinds = root.keybinds
-            settingsAdapter.customThemes = root.themes.filter(function(t) { return t.isCustom === true })
-            settingsAdapter.currentThemeIndex = root.currentThemeIndex
-
-            settingsFileImpl.writeAdapter()
-        }
+        onTriggered: root.writeSettingsNow()
     }
 
     readonly property alias fontMicro: root.appearance.fontMicro

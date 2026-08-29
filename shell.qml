@@ -19,6 +19,13 @@ import "components/widgets"
 ShellRoot {
     id: shellRoot
 
+    // Safety net for any external kill (a plain `killall qs`/`killall
+    // quickshell` in a terminal, not just the in-app Reload button, which
+    // already flushes explicitly - see Config.flushSettings()) - Qt still
+    // runs QML destruction handlers on a clean SIGTERM shutdown, so this
+    // catches whatever was still sitting in the 400ms debounce window.
+    Component.onDestruction: Config.flushSettings()
+
     // --- GLOBAL STATUS LISTENERS ---
     property bool wifiPowered: true
     property string wifiSsid: ""

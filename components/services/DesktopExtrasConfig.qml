@@ -18,6 +18,7 @@ QtObject {
     // --- DESKTOP MASCOT STATE & PERSISTENCE ---
     property bool showMascot: false
     property string mascotPath: ""
+    property bool mascotAudioThrob: true
     property var mascotPhrases: [
         "I use Arch btw",
         "Hyprland is so comfy",
@@ -29,6 +30,30 @@ QtObject {
     property bool fetchOnlineQuotes: false
     property string quoteSource: "zenquotes"
     property string rssFeedUrl: ""
+
+    // Per-screen saved drag position, same shape/pattern as Clock's
+    // clockPositions in DesktopWidgetsConfig.qml. Unlike Clock/Cava (one
+    // instance per enabled screen), the mascot is a single roaming instance
+    // that has to pick ONE screen to live on at startup - mascotLastScreen
+    // records which one, so it doesn't just fall back to whatever monitor
+    // happens to be focused/first on a given launch.
+    property var mascotPositions: ({})
+    property string mascotLastScreen: ""
+
+    function getMascotPosition(screenName, defaultX, defaultY) {
+        if (mascotPositions && mascotPositions[screenName]) {
+            return mascotPositions[screenName]
+        }
+        return { x: defaultX, y: defaultY }
+    }
+
+    function saveMascotPosition(screenName, x, y) {
+        let current = Object.assign({}, mascotPositions)
+        current[screenName] = { x: x, y: y }
+        mascotPositions = current
+        mascotLastScreen = screenName
+        if (configRef) configRef.saveSettings()
+    }
 
     function addMascotPhrase(phrase) {
         if (!phrase) return
@@ -64,6 +89,7 @@ QtObject {
     onOskLayoutChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
     onShowMascotChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
     onMascotPathChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
+    onMascotAudioThrobChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
     onMascotPhrasesChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
 
     onFetchOnlineQuotesChanged: {
