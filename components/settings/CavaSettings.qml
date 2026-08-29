@@ -254,7 +254,7 @@ Flickable {
         SettingsCard {
             SettingsToggleRow {
                 title: "Ambient Shell Breathing"
-                subtitle: "Subtly dims and brightens the shell's border in time with bass energy. Runs cava in the background even if the desktop visualizer above is off."
+                subtitle: "Shell subtly bounces in time with bass energy. Runs cava in the background even if the desktop visualizer above is off."
                 checked: Config.ambientBreatheEnabled === true
                 onToggled: Config.ambientBreatheEnabled = !Config.ambientBreatheEnabled
             }
