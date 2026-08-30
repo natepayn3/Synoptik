@@ -1,5 +1,27 @@
 #!/usr/bin/env bash
 
+# --- Flag parsing ---
+DRY_RUN=0
+for arg in "$@"; do
+    case "$arg" in
+        --dry-run)
+            DRY_RUN=1
+            ;;
+        -h|--help)
+            echo "Usage: install.sh [--dry-run] [-h|--help]"
+            echo ""
+            echo "  --dry-run   Preview every change this installer would make"
+            echo "              (packages, services, files) without applying any of it."
+            echo "  -h, --help  Show this help text."
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $arg (see --help)"
+            exit 1
+            ;;
+    esac
+done
+
 # Prevent running as root
 if [ "$(id -u)" -eq 0 ]; then
     echo "Don't run this as root — run it as your normal user."
@@ -12,11 +34,122 @@ if ! command -v pacman >/dev/null 2>&1; then
     exit 1
 fi
 
+# --- Single source of truth for what gets installed / touched ---
+PACMAN_PKGS=(
+    hyprland base-devel git qt6-base qt6-declarative qt6-5compat
+    qt6-multimedia qt6-multimedia-ffmpeg gst-plugins-good gst-plugins-bad
+    gst-plugin-pipewire v4l-utils fish python python-gobject curl jq
+    wireplumber pipewire pipewire-audio pipewire-pulse pipewire-alsa cava
+    networkmanager bluez bluez-utils brightnessctl playerctl wl-clipboard
+    grim slurp satty showmethekey wf-recorder hypridle libnotify ffmpeg
+    procps-ng psmisc xdg-utils gawk sed coreutils util-linux
+    power-profiles-daemon libcanberra qt6-webview qt6-imageformats
+)
+AUR_PKGS=(
+    quickshell-git awww mpvpaper cliphist
+    ttf-material-symbols-variable-git iris-colors
+)
+
+TARGET_DIR="$HOME/.config/quickshell/Synoptik"
+HYPR_LUA="$HOME/.config/hypr/hyprland.lua"
+LUA_MARKER='require("hypr_style")'
+
+# Given an AUR package spec, report whether it (or its -git-stripped base
+# package, or a locally-installed provider) already satisfies the install -
+# mirrors the detection the real installer uses, so the dry-run preview
+# doesn't lie about what's actually missing.
+aur_pkg_missing() {
+    local pkg="$1"
+    local base_pkg="${pkg%-git}"
+    pacman -T "$pkg" >/dev/null 2>&1 && return 1
+    pacman -T "$base_pkg" >/dev/null 2>&1 && return 1
+    pacman -Qs "^$base_pkg" >/dev/null 2>&1 && return 1
+    return 0
+}
+
+# --- Dry-run: read-only preview, no sudo, no mutation ---
+if [ "$DRY_RUN" -eq 1 ]; then
+    echo "==> Synoptik install — DRY RUN (no changes will be made)"
+    echo ""
+
+    if command -v fish >/dev/null 2>&1; then
+        echo "[ok]      fish is already installed"
+    else
+        echo "[install] fish shell (required to run the rest of the installer)"
+    fi
+
+    if command -v paru >/dev/null 2>&1; then
+        echo "[ok]      AUR helper found: paru"
+    elif command -v yay >/dev/null 2>&1; then
+        echo "[ok]      AUR helper found: yay"
+    else
+        echo "[install] no AUR helper found — would bootstrap yay from the AUR"
+    fi
+
+    missing_pacman=()
+    for pkg in "${PACMAN_PKGS[@]}"; do
+        pacman -T "$pkg" >/dev/null 2>&1 || missing_pacman+=("$pkg")
+    done
+    if [ "${#missing_pacman[@]}" -eq 0 ]; then
+        echo "[ok]      all ${#PACMAN_PKGS[@]} pacman packages already satisfied"
+    else
+        echo "[install] ${#missing_pacman[@]}/${#PACMAN_PKGS[@]} pacman packages: ${missing_pacman[*]}"
+    fi
+
+    missing_aur=()
+    for pkg in "${AUR_PKGS[@]}"; do
+        aur_pkg_missing "$pkg" && missing_aur+=("$pkg")
+    done
+    if [ "${#missing_aur[@]}" -eq 0 ]; then
+        echo "[ok]      all ${#AUR_PKGS[@]} AUR packages already satisfied"
+    else
+        echo "[install] ${#missing_aur[@]}/${#AUR_PKGS[@]} AUR packages: ${missing_aur[*]}"
+    fi
+
+    if systemctl is-enabled --quiet power-profiles-daemon.service 2>/dev/null; then
+        echo "[ok]      power-profiles-daemon.service already enabled"
+    else
+        echo "[enable]  systemd service: power-profiles-daemon.service"
+    fi
+
+    if [ -d "$TARGET_DIR/.git" ]; then
+        echo "[sync]    $TARGET_DIR exists as a git checkout — would git fetch + reset --hard origin/main"
+        echo "          (any local, uncommitted edits under this directory would be discarded)"
+    elif [ -d "$TARGET_DIR" ]; then
+        echo "[replace] $TARGET_DIR exists but is NOT a git checkout — would be deleted entirely and re-cloned"
+    else
+        echo "[install] would clone Synoptik to $TARGET_DIR"
+    fi
+
+    if [ -f "$HYPR_LUA" ] && grep -q "$LUA_MARKER" "$HYPR_LUA" 2>/dev/null; then
+        echo "[ok]      $HYPR_LUA already requires hypr_style, would skip"
+    else
+        echo "[modify]  would back up $HYPR_LUA and append:"
+        echo "              -- Load custom isolated dynamic border style configuration"
+        echo "              require(\"hypr_style\")"
+    fi
+
+    if pgrep -x quickshell >/dev/null 2>&1 || pgrep -x qs >/dev/null 2>&1; then
+        echo "[restart] a running quickshell/qs instance would be killed and relaunched as 'qs -c Synoptik'"
+    else
+        echo "[start]   would launch 'qs -c Synoptik'"
+    fi
+
+    echo ""
+    echo "Dry run complete — no changes were made. Run without --dry-run to apply."
+    exit 0
+fi
+
 # 1. Install fish if missing
 if ! command -v fish >/dev/null 2>&1; then
     echo "==> Installing fish shell via pacman..."
     sudo pacman -S --needed --noconfirm fish || exit 1
 fi
+
+export SYN_PACMAN_PKGS="${PACMAN_PKGS[*]}"
+export SYN_AUR_PKGS="${AUR_PKGS[*]}"
+export SYN_TARGET_DIR="$TARGET_DIR"
+export SYN_HYPR_LUA="$HYPR_LUA"
 
 # 2. Hand execution off to fish
 exec fish -c '
@@ -78,76 +211,22 @@ else
     set AUR_HELPER yay
 end
 
-# Official Arch packages
-set PACMAN_PKGS \
-    hyprland \
-    base-devel \
-    git \
-    qt6-base \
-    qt6-declarative \
-    qt6-5compat \
-    qt6-multimedia \
-    qt6-multimedia-ffmpeg \
-    gst-plugins-good \
-    gst-plugins-bad \
-    gst-plugin-pipewire \
-    v4l-utils \
-    fish \
-    python \
-    python-gobject \
-    curl \
-    jq \
-    wireplumber \
-    pipewire \
-    pipewire-audio \
-    pipewire-pulse \
-    pipewire-alsa \
-    cava \
-    networkmanager \
-    bluez \
-    bluez-utils \
-    brightnessctl \
-    playerctl \
-    wl-clipboard \
-    grim \
-    slurp \
-    satty \
-    showmethekey \
-    wf-recorder \
-    hypridle \
-    libnotify \
-    ffmpeg \
-    procps-ng \
-    psmisc \
-    xdg-utils \
-    gawk \
-    sed \
-    coreutils \
-    util-linux \
-    power-profiles-daemon \
-    libcanberra \
-    qt6-webview \
-    qt6-imageformats
+# Official Arch packages (passed in from the bash wrapper - single source of truth)
+set PACMAN_PKGS (string split " " "$SYN_PACMAN_PKGS")
 
 say "Installing pacman packages..."
 sudo pacman -S --needed --noconfirm $PACMAN_PKGS
 or exit 1
 
-# Explicit AUR packages
-set AUR_PKGS \
-    quickshell-git \
-    awww \
-    mpvpaper \
-    cliphist \
-    ttf-material-symbols-variable-git \
-    iris-colors
+# Explicit AUR packages (passed in from the bash wrapper - single source of truth)
+set AUR_PKGS (string split " " "$SYN_AUR_PKGS")
 
 # Check both exact package names and provided capabilities via pacman -T / pacman -Qs
 set MISSING_AUR_PKGS
 for pkg in $AUR_PKGS
     # Strip -git suffix for local capability comparison
     set base_pkg (string replace -r "-git\$" "" $pkg)
-    
+
     # Test if package, base package, or capability is satisfied
     if pacman -T $pkg >/dev/null 2>&1
         continue
@@ -172,7 +251,7 @@ say "Enabling systemd services..."
 sudo systemctl enable --now power-profiles-daemon.service
 or exit 1
 
-set TARGET_DIR "$HOME/.config/quickshell/Synoptik"
+set TARGET_DIR "$SYN_TARGET_DIR"
 say "Deploying Synoptik Shell files..."
 
 mkdir -p "$HOME/.config/quickshell"
@@ -208,7 +287,7 @@ if test -d "$TARGET_DIR/scripts"
     chmod +x "$TARGET_DIR"/scripts/*
 end
 
-set HYPR_LUA "$HOME/.config/hypr/hyprland.lua"
+set HYPR_LUA "$SYN_HYPR_LUA"
 set LUA_DIRECTIVE "-- Load custom isolated dynamic border style configuration\nrequire(\"hypr_style\")"
 
 say "Updating Hyprland Lua configuration..."
@@ -217,10 +296,12 @@ touch "$HYPR_LUA"
 
 # Append the directive only if it does not already exist in the file
 if not grep -q "require(\"hypr_style\")" "$HYPR_LUA"
+    # Back up before mutating so the change is trivially reversible
+    cp "$HYPR_LUA" "$HYPR_LUA.bak-"(date +%Y%m%d%H%M%S)
     # Ensure file ends with a newline before appending logic
     test -s "$HYPR_LUA"; and test (tail -c 1 "$HYPR_LUA" | wc -l) -eq 0; and echo "" >> "$HYPR_LUA"
     echo -e "\n$LUA_DIRECTIVE" >> "$HYPR_LUA"
-    say "Appended hypr_style require directive to $HYPR_LUA"
+    say "Appended hypr_style require directive to $HYPR_LUA (backup saved alongside it)"
 else
     say "Directive already present in $HYPR_LUA, skipping."
 end
