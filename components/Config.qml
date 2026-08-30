@@ -346,6 +346,10 @@ QtObject {
     function removeMascotPhrase(index) { desktopExtras.removeMascotPhrase(index) }
     function getMascotPosition(screenName, defaultX, defaultY) { return desktopExtras.getMascotPosition(screenName, defaultX, defaultY) }
     function saveMascotPosition(screenName, x, y) { desktopExtras.saveMascotPosition(screenName, x, y) }
+    property alias showDesktopMediaCard: root.desktopExtras.showDesktopMediaCard
+    property alias mediaCardWidth: root.desktopExtras.mediaCardWidth
+    property alias mediaCardHeight: root.desktopExtras.mediaCardHeight
+    function saveMediaCardSize(width, height) { desktopExtras.saveMediaCardSize(width, height) }
     function processQuoteQueue() { desktopExtras.processQuoteQueue() }
     function triggerQuoteFetch() { desktopExtras.triggerQuoteFetch() }
 
@@ -730,7 +734,8 @@ QtObject {
         "wallpaperCursorParallax", "wallpaperParallaxIntensity", "slideshowActive", "slideshowMinutes",
         "showScreensaver", "screensaverText", "screensaverMode", "screensaverFontSize",
         "screensaverSpeed", "screensaverCornerCounter", "showOsk", "oskLayout", "showMascot",
-        "mascotPath", "mascotPhrases", "mascotPositions", "mascotLastScreen", "mascotAudioThrob", "fetchOnlineQuotes", "quoteSource", "barFrameStyle",
+        "mascotPath", "mascotPhrases", "mascotPositions", "mascotLastScreen", "mascotAudioThrob", "fetchOnlineQuotes", "quoteSource",
+        "showDesktopMediaCard", "mediaCardWidth", "mediaCardHeight", "barFrameStyle",
         "barPosition", "autoHideBar", "showScreenFrame", "sysFont", "nativeFontRendering",
         "fontScaleIndex", "locationQuery", "enabledBarScreens", "useCustomColors", "customBgBase",
         "customBgPanel", "customAccent", "animateGradient", "shellOpacity", "enableBlur", "enableXray",
@@ -801,6 +806,9 @@ QtObject {
             property var mascotPhrases
             property var mascotPositions
             property var mascotLastScreen
+            property var showDesktopMediaCard
+            property var mediaCardWidth
+            property var mediaCardHeight
             property var fetchOnlineQuotes
             property var quoteSource
             property var barFrameStyle

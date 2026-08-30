@@ -829,5 +829,39 @@ Item {
                 }
             }
         }
+
+        // Detach-to-floating-panel toggle - pops this card out into its own
+        // small draggable desktop widget (widgets/MediaCardWidget.qml) that
+        // keeps showing art/visualizer/controls after Control Center closes.
+        Item {
+            id: detachButton
+            anchors.top: parent.top
+            anchors.right: parent.right
+            anchors.margins: 8
+            implicitWidth: 26
+            implicitHeight: 26
+            z: 50
+
+            Rectangle {
+                anchors.fill: parent
+                radius: width / 2
+                color: Config.showDesktopMediaCard ? cardRoot.dynamicAccent : Qt.rgba(0, 0, 0, 0.35)
+                opacity: detachHover.hovered || Config.showDesktopMediaCard ? 1.0 : 0.5
+
+                Behavior on opacity { NumberAnimation { duration: 150 } }
+                Behavior on color { ColorAnimation { duration: 200 } }
+            }
+
+            Text {
+                anchors.centerIn: parent
+                text: Config.showDesktopMediaCard ? "close_fullscreen" : "picture_in_picture_alt"
+                font.family: "Material Symbols Outlined"
+                font.pixelSize: 14
+                color: Config.showDesktopMediaCard ? Config.bgBase : "#ffffff"
+            }
+
+            TapHandler { onTapped: Config.showDesktopMediaCard = !Config.showDesktopMediaCard }
+            HoverHandler { id: detachHover; cursorShape: Qt.PointingHandCursor }
+        }
     }
 }

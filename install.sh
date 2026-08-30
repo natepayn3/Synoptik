@@ -53,6 +53,8 @@ AUR_PKGS=(
 TARGET_DIR="$HOME/.config/quickshell/Synoptik"
 HYPR_LUA="$HOME/.config/hypr/hyprland.lua"
 LUA_MARKER='require("hypr_style")'
+HYPR_STYLE="$HOME/.config/hypr/hypr_style.lua"
+MEDIA_CARD_MARKER='float-synoptik-media-card'
 
 # Given an AUR package spec, report whether it (or its -git-stripped base
 # package, or a locally-installed provider) already satisfies the install -
@@ -129,6 +131,12 @@ if [ "$DRY_RUN" -eq 1 ]; then
         echo "              require(\"hypr_style\")"
     fi
 
+    if [ -f "$HYPR_STYLE" ] && grep -q "$MEDIA_CARD_MARKER" "$HYPR_STYLE" 2>/dev/null; then
+        echo "[ok]      $HYPR_STYLE already has the Synoptik Media Card float rule, would skip"
+    else
+        echo "[modify]  would back up $HYPR_STYLE (if present) and append the Synoptik Media Card float window rule"
+    fi
+
     if pgrep -x quickshell >/dev/null 2>&1 || pgrep -x qs >/dev/null 2>&1; then
         echo "[restart] a running quickshell/qs instance would be killed and relaunched as 'qs -c Synoptik'"
     else
@@ -150,6 +158,7 @@ export SYN_PACMAN_PKGS="${PACMAN_PKGS[*]}"
 export SYN_AUR_PKGS="${AUR_PKGS[*]}"
 export SYN_TARGET_DIR="$TARGET_DIR"
 export SYN_HYPR_LUA="$HYPR_LUA"
+export SYN_HYPR_STYLE="$HYPR_STYLE"
 
 # 2. Hand execution off to fish
 exec fish -c '
@@ -304,6 +313,30 @@ if not grep -q "require(\"hypr_style\")" "$HYPR_LUA"
     say "Appended hypr_style require directive to $HYPR_LUA (backup saved alongside it)"
 else
     say "Directive already present in $HYPR_LUA, skipping."
+end
+
+# The detached Media Card widget is a real floating (xdg-toplevel) window,
+# not a layer-shell panel, so Hyprland tiles it like any other app window
+# unless a rule says otherwise - without this it opens tiled into whatever
+# workspace layout is active instead of floating where it was dropped.
+set HYPR_STYLE "$SYN_HYPR_STYLE"
+# Double-quoted (not single-quoted, like LUA_DIRECTIVE above) - this whole
+# fish script is itself embedded in a single-quoted bash string, so a raw
+# single quote in here would terminate that outer string early.
+set MEDIA_CARD_RULE "hl.window_rule({\n    name  = \"float-synoptik-media-card\",\n    match = { title = \"^Synoptik Media Card\$\" },\n    float = true,\n})"
+
+say "Ensuring Synoptik Media Card float rule exists in hypr_style.lua..."
+mkdir -p "$HOME/.config/hypr"
+touch "$HYPR_STYLE"
+
+if not grep -q "float-synoptik-media-card" "$HYPR_STYLE"
+    # Back up before mutating so the change is trivially reversible
+    cp "$HYPR_STYLE" "$HYPR_STYLE.bak-"(date +%Y%m%d%H%M%S)
+    test -s "$HYPR_STYLE"; and test (tail -c 1 "$HYPR_STYLE" | wc -l) -eq 0; and echo "" >> "$HYPR_STYLE"
+    echo -e "\n$MEDIA_CARD_RULE" >> "$HYPR_STYLE"
+    say "Appended Synoptik Media Card float rule to $HYPR_STYLE (backup saved alongside it)"
+else
+    say "Float rule already present in $HYPR_STYLE, skipping."
 end
 
 say "Restarting quickshell..."

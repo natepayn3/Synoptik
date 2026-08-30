@@ -55,6 +55,22 @@ QtObject {
         if (configRef) configRef.saveSettings()
     }
 
+    // --- DETACHED (FLOATING) MEDIA CARD STATE & PERSISTENCE ---
+    // A real FloatingWindow (xdg-toplevel), so Hyprland itself owns
+    // position/move/resize the way it does for any other floating window -
+    // only the preferred size is ours to remember.
+    property bool showDesktopMediaCard: false
+    property real mediaCardWidth: 232
+    property real mediaCardHeight: 108
+
+    function saveMediaCardSize(width, height) {
+        mediaCardWidth = width
+        mediaCardHeight = height
+        if (configRef) configRef.saveSettings()
+    }
+
+    onShowDesktopMediaCardChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
+
     function addMascotPhrase(phrase) {
         if (!phrase) return
         var list = mascotPhrases ? mascotPhrases.slice() : []
