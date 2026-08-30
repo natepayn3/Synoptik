@@ -13,8 +13,18 @@ fi
 
 echo "STATUS:Connecting to Wallhaven..."
 
+# Every call below bounds both the connect phase and the total request time,
+# so a stalled/unreachable host fails fast instead of hanging the script (and
+# the Settings UI, which has no timeout of its own) indefinitely.
+CURL_API=(curl -s --connect-timeout 10 --max-time 20)
+CURL_DL=(curl -s -L --connect-timeout 10 --max-time 60)
+
 # 1. Fetch user collections list
-COLLECTIONS_JSON=$(curl -s -H "X-API-Key: $API_KEY" "https://wallhaven.cc/api/v1/collections/$USERNAME?apikey=$API_KEY")
+COLLECTIONS_JSON=$("${CURL_API[@]}" -H "X-API-Key: $API_KEY" "https://wallhaven.cc/api/v1/collections/$USERNAME?apikey=$API_KEY")
+if [ -z "$COLLECTIONS_JSON" ]; then
+    echo "STATUS:Error: could not reach Wallhaven (timed out)"
+    exit 1
+fi
 
 API_ERROR=$(echo "$COLLECTIONS_JSON" | jq -r '.error // empty')
 if [ -n "$API_ERROR" ]; then
@@ -37,10 +47,15 @@ for cid in $COLLECTION_IDS; do
     while : ; do
         echo "STATUS:Querying collection #$cid (page $PAGE)..."
         # purity=111 fetches SFW, Sketchy, and NSFW (if account API key permits it)
-        PAGE_DATA=$(curl -s -H "X-API-Key: $API_KEY" "https://wallhaven.cc/api/v1/collections/$USERNAME/$cid?apikey=$API_KEY&purity=111&page=$PAGE")
-        
+        PAGE_DATA=$("${CURL_API[@]}" -H "X-API-Key: $API_KEY" "https://wallhaven.cc/api/v1/collections/$USERNAME/$cid?apikey=$API_KEY&purity=111&page=$PAGE")
+
+        if [ -z "$PAGE_DATA" ]; then
+            echo "STATUS:Error: request timed out on collection #$cid, page $PAGE"
+            exit 1
+        fi
+
         URLS=$(echo "$PAGE_DATA" | jq -r '.data[].path // empty')
-        
+
         # Stop looping if page is empty
         if [ -z "$URLS" ]; then
             break
@@ -74,7 +89,7 @@ for url in "${ALL_URLS[@]}"; do
     DEST="$TARGET_DIR/$FILENAME"
     
     if [ ! -f "$DEST" ]; then
-        curl -s -L -o "$DEST" "$url"
+        "${CURL_DL[@]}" -o "$DEST" "$url"
     fi
     
     CURRENT=$((CURRENT + 1))
