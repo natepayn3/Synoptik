@@ -45,8 +45,8 @@
 |:---:|:---:|
 | ![Control Center](assets/screenshots/control-center.jpg) | ![Calendar & Notes](assets/screenshots/calendar.jpg) |
 | Control Center | Calendar & Notes |
-| ![Wallpaper Picker](assets/screenshots/wallpaper-picker.jpg) | ![App Launcher](assets/screenshots/launcher.jpg) |
-| Wallpaper Picker | App Launcher |
+| ![Wallpaper Picker](assets/screenshots/wallpaper-picker.jpg) | ![Search](assets/screenshots/search.jpg) |
+| Wallpaper Picker | Search |
 | ![Power Menu](assets/screenshots/power-menu.jpg) | ![Workspace Overview](assets/screenshots/workspaces.jpg) |
 | Power Menu | Workspace Overview |
 
