@@ -702,6 +702,18 @@ QtObject {
             "    xray = " + (enableXray ? "true" : "false") + ",\n" +
             "    ignore_alpha = 0.6\n" +
             "})\n\n" +
+            // The detached Media Card widget is a real floating (xdg-toplevel)
+            // window, not a layer-shell panel, so it needs its own window
+            // rule to float instead of tile. Regenerated here (not just
+            // appended once by install.sh) since this whole function
+            // rewrites hypr_style.lua from scratch on every appearance/
+            // keybind/theme change - anything not written here gets wiped
+            // on the next sync.
+            "hl.window_rule({\n" +
+            "    name  = \"float-synoptik-media-card\",\n" +
+            "    match = { title = \"^Synoptik Media Card\\$\" },\n" +
+            "    float = true,\n" +
+            "})\n\n" +
             bindsLua.replace(/\\/g, '\\\\').replace(/'/g, "\\'") + "\n'''\n\n" +
             "if existing_monitors:\n" +
             "    new_config += '\\n' + existing_monitors + '\\n'\n\n" +
