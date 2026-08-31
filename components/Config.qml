@@ -695,6 +695,19 @@ QtObject {
             "        screen_shader = \"" + shaderPath + "\"\n" +
             "    }\n" +
             "})\n\n" +
+            // Autostart hooks for session daemons Synoptik depends on
+            // (polkit agent, idle handling, wallpaper daemon, clipboard
+            // history). Regenerated here for the same reason as the Media
+            // Card window_rule above - this function rewrites hypr_style.lua
+            // from scratch on every sync, so anything not written here gets
+            // wiped on the next appearance/keybind/theme change.
+            "hl.on(\"hyprland.start\", function ()\n" +
+            "    hl.exec_cmd(\"qs -c Synoptik\")\n" +
+            "    hl.exec_cmd(\"systemctl --user start hyprpolkitagent\")\n" +
+            "    hl.exec_cmd(\"hypridle\")\n" +
+            "    hl.exec_cmd(\"awww-daemon\")\n" +
+            "    hl.exec_cmd(\"wl-paste --watch cliphist store\")\n" +
+            "end)\n\n" +
             "hl.layer_rule({\n" +
             "    name = \"synoptik-shell\",\n" +
             "    match = { namespace = \"^synoptik-shell.*\" },\n" +
