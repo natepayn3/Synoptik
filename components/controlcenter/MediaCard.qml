@@ -226,7 +226,10 @@ Item {
         RowLayout {
             anchors.fill: parent
             anchors.leftMargin: 16
-            anchors.rightMargin: 16
+            // Wider than the active-state margin so the standby play trigger
+            // clears the detach button, which is absolutely positioned in
+            // the top-right corner (8px margin + 26px size = 34px inset).
+            anchors.rightMargin: 42
             visible: cardRoot.isStopped
             opacity: cardRoot.isStopped ? 1.0 : 0.0
             spacing: 12
