@@ -66,4 +66,10 @@ Run the automated installer to clone the repository, link components, and enable
 curl -fsSL https://raw.githubusercontent.com/natepayn3/Synoptik/main/install.sh | bash
 ```
 
-Use --dry-run to see what it would add to your system, and there is also an uninstall.sh
+Use --dry-run to see what it would add to your system:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/natepayn3/Synoptik/main/install.sh | bash -s -- --dry-run
+```
+
+and there is also an uninstall.sh that can be run directly
