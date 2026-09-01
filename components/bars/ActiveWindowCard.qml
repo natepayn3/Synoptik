@@ -148,6 +148,39 @@ Rectangle {
             readonly property real overflowDist: Math.max(0, titleTextHoriz.implicitWidth - tickerBoxHoriz.width)
             readonly property bool needsTicker: overflowDist > 2
 
+            // Rearms the ticker from a clean x:0 state instead of leaving stop()/start()
+            // to fight a declarative `running:` binding - calling .restart() on an
+            // animation with a bound `running` property overwrites that binding with a
+            // literal, so a restart mid-flight (e.g. a title change while the card is
+            // momentarily narrow, giving a wildly wrong overflowDist) could strand the
+            // text scrolled out past the clip with nothing left to ever reset it.
+            function refreshTicker() {
+                tickerAnimHoriz.stop()
+                titleTextHoriz.x = 0
+                if (activeWinCard.isHoriz && tickerBoxHoriz.needsTicker && activeWinCard.visible && tickerBoxHoriz.visible) {
+                    tickerAnimHoriz.start()
+                }
+            }
+
+            onNeedsTickerChanged: refreshTicker()
+            onWidthChanged: refreshTicker()
+            onVisibleChanged: refreshTicker()
+
+            SequentialAnimation {
+                id: tickerAnimHoriz
+                loops: 1
+
+                PauseAnimation { duration: 1000 }
+
+                NumberAnimation {
+                    target: titleTextHoriz
+                    property: "x"
+                    to: -tickerBoxHoriz.overflowDist
+                    duration: Math.max(1000, tickerBoxHoriz.overflowDist * 40)
+                    easing.type: Easing.Linear
+                }
+            }
+
             Text {
                 id: titleTextHoriz
                 anchors.verticalCenter: parent.verticalCenter
@@ -157,24 +190,7 @@ Rectangle {
                 font.pixelSize: Config.size(Config.fontCaption)
                 font.bold: true
 
-                SequentialAnimation on x {
-                    id: tickerAnimHoriz
-                    running: activeWinCard.isHoriz && tickerBoxHoriz.needsTicker && activeWinCard.visible && tickerBoxHoriz.visible
-                    loops: 1
-
-                    PauseAnimation { duration: 1000 }
-
-                    NumberAnimation {
-                        to: -tickerBoxHoriz.overflowDist
-                        duration: Math.max(1000, tickerBoxHoriz.overflowDist * 40)
-                        easing.type: Easing.Linear
-                    }
-                }
-
-                onTextChanged: {
-                    x = 0
-                    tickerAnimHoriz.restart()
-                }
+                onTextChanged: tickerBoxHoriz.refreshTicker()
             }
         }
     }
@@ -251,14 +267,29 @@ Rectangle {
             readonly property bool isCcw: activeWinCard.textRotation === -90
             property real tickerOffset
 
-            SequentialAnimation on tickerOffset {
+            // See refreshTicker() in tickerBoxHoriz for why this can't be a
+            // declarative `running:` binding combined with .restart() calls.
+            function refreshTicker() {
+                tickerAnimVert.stop()
+                tickerBoxVert.tickerOffset = 0
+                if (!activeWinCard.isHoriz && tickerBoxVert.needsTicker && activeWinCard.visible && tickerBoxVert.visible) {
+                    tickerAnimVert.start()
+                }
+            }
+
+            onNeedsTickerChanged: refreshTicker()
+            onHeightChanged: refreshTicker()
+            onVisibleChanged: refreshTicker()
+
+            SequentialAnimation {
                 id: tickerAnimVert
-                running: !activeWinCard.isHoriz && tickerBoxVert.needsTicker && activeWinCard.visible && tickerBoxVert.visible
                 loops: 1
 
                 PauseAnimation { duration: 1000 }
 
                 NumberAnimation {
+                    target: tickerBoxVert
+                    property: "tickerOffset"
                     to: tickerBoxVert.isCcw ? tickerBoxVert.overflowDist : -tickerBoxVert.overflowDist
                     duration: Math.max(1000, tickerBoxVert.overflowDist * 40)
                     easing.type: Easing.Linear
@@ -291,10 +322,7 @@ Rectangle {
                         : Math.round((tickerBoxVert.height - titleTextVert.implicitWidth) / 2.0)
                 }
 
-                onTextChanged: {
-                    tickerBoxVert.tickerOffset = 0
-                    tickerAnimVert.restart()
-                }
+                onTextChanged: tickerBoxVert.refreshTicker()
             }
         }
     }
