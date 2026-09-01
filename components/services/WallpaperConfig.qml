@@ -14,6 +14,57 @@ QtObject {
     onWallhavenUsernameChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
     onWallhavenApiKeyChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
 
+    // --- WALLHAVEN SYNC (owned here, not by the settings panel, so it keeps
+    // running - and its progress stays live - when WallpaperSettings.qml is
+    // torn down by the settings Loader on panel close) ---
+    property bool wallhavenSyncing: false
+    property real wallhavenSyncProgress: 0.0
+    property string wallhavenSyncStatus: "Idle"
+
+    function startWallhavenSync() {
+        if (wallhavenSyncProcess.running) return
+        wallpaperRoot.wallhavenSyncing = true
+        wallpaperRoot.wallhavenSyncProgress = 0.0
+        wallpaperRoot.wallhavenSyncStatus = "Connecting..."
+        wallhavenSyncProcess.running = true
+    }
+
+    property Process wallhavenSyncProcess: Process {
+        id: wallhavenSyncProcess
+        command: [
+            Quickshell.env("HOME") + "/.config/quickshell/Synoptik/scripts/wallhaven_sync.sh",
+            wallpaperRoot.wallhavenApiKey || "",
+            wallpaperRoot.wallhavenUsername || "",
+            Quickshell.env("HOME") + "/Pictures/Wallpapers"
+        ]
+
+        stdout: SplitParser {
+            onRead: data => {
+                let line = data.trim()
+                if (line.startsWith("PROGRESS:")) {
+                    let parts = line.split(":")
+                    let current = parseInt(parts[1])
+                    let total = parseInt(parts[2])
+                    if (total > 0) wallpaperRoot.wallhavenSyncProgress = current / total
+                    wallpaperRoot.wallhavenSyncStatus = `Downloading ${current}/${total}...`
+                } else if (line.startsWith("STATUS:")) {
+                    wallpaperRoot.wallhavenSyncStatus = line.replace("STATUS:", "")
+                }
+            }
+        }
+
+        onExited: (exitCode) => {
+            wallpaperRoot.wallhavenSyncing = false
+            if (exitCode === 0) {
+                wallpaperRoot.wallhavenSyncProgress = 1.0
+                wallpaperRoot.wallhavenSyncStatus = "Sync complete"
+                wallpaperRoot.refreshWallpapers()
+            } else {
+                wallpaperRoot.wallhavenSyncStatus = "Sync failed"
+            }
+        }
+    }
+
     // --- WALLPAPER CONFIG STATE & PERSISTENCE ---
     property var selectedWallpaperMonitors: []
     property string wallpaperTransitionType: "wipe"

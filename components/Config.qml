@@ -23,6 +23,10 @@ QtObject {
     property WallpaperConfig wallpaper: WallpaperConfig { configRef: root }
     property alias wallhavenUsername: root.wallpaper.wallhavenUsername
     property alias wallhavenApiKey: root.wallpaper.wallhavenApiKey
+    property alias wallhavenSyncing: root.wallpaper.wallhavenSyncing
+    property alias wallhavenSyncProgress: root.wallpaper.wallhavenSyncProgress
+    property alias wallhavenSyncStatus: root.wallpaper.wallhavenSyncStatus
+    function startWallhavenSync() { root.wallpaper.startWallhavenSync() }
     property alias selectedWallpaperMonitors: root.wallpaper.selectedWallpaperMonitors
     property alias wallpaperTransitionType: root.wallpaper.wallpaperTransitionType
     property alias activeWallpaperPath: root.wallpaper.activeWallpaperPath

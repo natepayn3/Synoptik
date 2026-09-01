@@ -258,47 +258,14 @@ Flickable {
             border.width: 1
             border.color: Qt.rgba(255, 255, 255, 0.1)
 
-            property bool isSyncing: false
-            property real syncProgress: 0.0
-            property string statusMessage: "Idle"
-
-            Process {
-                id: syncProcess
-                command: [
-                    Quickshell.env("HOME") + "/.config/quickshell/Synoptik/scripts/wallhaven_sync.sh",
-                    Config.wallhavenApiKey || "",
-                    Config.wallhavenUsername || "",
-                    Quickshell.env("HOME") + "/Pictures/Wallpapers"
-                ]
-
-                stdout: SplitParser {
-                    onRead: data => {
-                        let line = data.trim()
-                        if (line.startsWith("PROGRESS:")) {
-                            let parts = line.split(":")
-                            let current = parseInt(parts[1])
-                            let total = parseInt(parts[2])
-                            if (total > 0) syncCard.syncProgress = current / total
-                            syncCard.statusMessage = `Downloading ${current}/${total}...`
-                        } else if (line.startsWith("STATUS:")) {
-                            syncCard.statusMessage = line.replace("STATUS:", "")
-                        }
-                    }
-                }
-
-                onExited: (exitCode) => {
-                    syncCard.isSyncing = false
-                    if (exitCode === 0) {
-                        syncCard.syncProgress = 1.0
-                        syncCard.statusMessage = "Sync complete"
-                        if (typeof Config.reloadWallpapers === "function") {
-                            Config.reloadWallpapers()
-                        }
-                    } else {
-                        syncCard.statusMessage = "Sync failed"
-                    }
-                }
-            }
+            // Sync state and the process itself live on Config.wallpaper (see
+            // WallpaperConfig.qml) instead of here, so the sync keeps running
+            // in the background - and its progress stays live - even after
+            // this panel is closed and reopened (the settings Loader destroys
+            // this whole page on close, which used to kill the sync with it).
+            readonly property bool isSyncing: Config.wallhavenSyncing
+            readonly property real syncProgress: Config.wallhavenSyncProgress
+            readonly property string statusMessage: Config.wallhavenSyncStatus
 
             ColumnLayout {
                 id: syncCol
@@ -349,6 +316,7 @@ Flickable {
                         color: Qt.rgba(0, 0, 0, 0.4)
                         border.width: 1
                         border.color: userField.activeFocus ? Config.accent : (userHover.hovered ? Qt.rgba(255, 255, 255, 0.25) : Qt.rgba(255, 255, 255, 0.1))
+                        clip: true
 
                         HoverHandler {
                             id: userHover
@@ -389,6 +357,7 @@ Flickable {
                         color: Qt.rgba(0, 0, 0, 0.4)
                         border.width: 1
                         border.color: keyField.activeFocus ? Config.accent : (keyHover.hovered ? Qt.rgba(255, 255, 255, 0.25) : Qt.rgba(255, 255, 255, 0.1))
+                        clip: true
 
                         HoverHandler {
                             id: keyHover
@@ -457,12 +426,7 @@ Flickable {
 
                         TapHandler {
                             enabled: !syncCard.isSyncing
-                            onTapped: {
-                                syncCard.isSyncing = true
-                                syncCard.syncProgress = 0.0
-                                syncCard.statusMessage = "Connecting..."
-                                syncProcess.running = true
-                            }
+                            onTapped: Config.startWallhavenSync()
                         }
                         HoverHandler { cursorShape: syncCard.isSyncing ? Qt.ArrowCursor : Qt.PointingHandCursor }
                     }
