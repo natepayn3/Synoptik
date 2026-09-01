@@ -15,7 +15,9 @@ Item {
 
     // Baseline panel bounds to prevent Layout.fillHeight/fillWidth collapse
     implicitWidth: 680
-    implicitHeight: 460
+    implicitHeight: 460 + forecastCard.implicitHeight + (cardMargin / 2)
+
+    readonly property var forecastDayLabels: ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"]
 
     // Calendar Navigation State
     property int gridMonth: new Date().getMonth()
@@ -131,10 +133,102 @@ Item {
 
     ListModel { id: reminderModel }
 
-    RowLayout {
-        id: mainRow
+    ColumnLayout {
+        id: outerCol
         anchors.fill: parent
         anchors.margins: root.cardMargin
+        spacing: root.cardMargin / 2
+
+    // --- 7-DAY FORECAST STRIP ---
+    // ClippingRectangle (not plain Rectangle) so the watermark actually
+    // respects the rounded corners instead of bleeding past them - plain
+    // Rectangle.clip only clips to the square bounding box.
+    ClippingRectangle {
+        id: forecastCard
+        Layout.fillWidth: true
+        implicitHeight: 92
+        color: Qt.rgba(1, 1, 1, 0.08)
+        radius: Config.cornerRadius
+        border.width: 1
+        border.color: Qt.rgba(255, 255, 255, 0.1)
+
+        Behavior on border.color { ColorAnimation { duration: 150 } }
+
+        Watermark {
+            icon: Config.weather.glyph
+            iconSize: 110
+            baseRotation: -8
+            seed: 9
+        }
+
+        RowLayout {
+            anchors.left: parent.left
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.leftMargin: root.cardMargin / 2
+            anchors.rightMargin: root.cardMargin / 2
+            spacing: 4
+
+            Repeater {
+                model: Config.weather.forecast
+
+                delegate: ColumnLayout {
+                    id: dayCol
+                    required property var modelData
+                    required property int index
+
+                    Layout.fillWidth: true
+                    spacing: 2
+
+                    readonly property bool isToday: index === 0
+
+                    Text {
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                        text: root.forecastDayLabels[new Date(dayCol.modelData.date + "T00:00:00").getDay()]
+                        color: dayCol.isToday ? Config.accent : Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        font.bold: true
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        horizontalAlignment: Text.AlignHCenter
+                        text: dayCol.modelData.glyph
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 20
+                        color: dayCol.isToday ? Config.accent : Config.textMain
+                    }
+
+                    RowLayout {
+                        Layout.alignment: Qt.AlignHCenter
+                        spacing: 3
+
+                        Text {
+                            text: dayCol.modelData.maxF + "°"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                            font.bold: true
+                        }
+
+                        Text {
+                            text: dayCol.modelData.minF + "°"
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    RowLayout {
+        id: mainRow
+        Layout.fillWidth: true
+        Layout.fillHeight: true
         spacing: root.cardMargin / 2
 
         // --- LEFT COLUMN: CLOCK, GRAPHIC WEATHER & REMINDERS ---
@@ -604,5 +698,6 @@ Item {
                 }
             }
         }
+    }
     }
 }

@@ -20,6 +20,62 @@ QtObject {
     property bool isFetching: false
     property double lastFetchTime: 0
 
+    // 7-day forecast (fetched from Open-Meteo once we know coordinates,
+    // since wttr.in's free j1 endpoint only ever returns 3 days)
+    property var forecast: []
+
+    function wmoGlyph(code) {
+        if (code === 0) return "wb_sunny";
+        if (code === 1 || code === 2) return "partly_cloudy_day";
+        if (code === 3) return "cloud";
+        if (code === 45 || code === 48) return "foggy";
+        if (code >= 51 && code <= 57) return "rainy";
+        if (code >= 61 && code <= 67) return "rainy";
+        if (code >= 71 && code <= 77) return "ac_unit";
+        if (code >= 80 && code <= 82) return "rainy";
+        if (code === 85 || code === 86) return "ac_unit";
+        if (code >= 95) return "thunderstorm";
+        return "cloud";
+    }
+
+    function fetchForecast(latVal, lonVal) {
+        forecastFetcher.running = false;
+        let url = "https://api.open-meteo.com/v1/forecast?latitude=" + latVal + "&longitude=" + lonVal
+            + "&daily=weathercode,temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&timezone=auto&forecast_days=7";
+        forecastFetcher.command = ["curl", "-s", "-L", url];
+        forecastFetcher.running = true;
+    }
+
+    property Process forecastFetcherProcess: Process {
+        id: forecastFetcher
+        running: false
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let trimmed = this.text ? this.text.trim() : "";
+                if (!trimmed.startsWith("{")) return;
+
+                try {
+                    let data = JSON.parse(trimmed);
+                    if (data.daily && data.daily.time) {
+                        let days = [];
+                        for (let i = 0; i < data.daily.time.length; i++) {
+                            days.push({
+                                date: data.daily.time[i],
+                                maxF: Math.round(data.daily.temperature_2m_max[i]),
+                                minF: Math.round(data.daily.temperature_2m_min[i]),
+                                glyph: weatherRoot.wmoGlyph(data.daily.weathercode[i])
+                            });
+                        }
+                        weatherRoot.forecast = days;
+                    }
+                } catch (e) {
+                    console.error("Failed to parse forecast JSON:", e);
+                }
+            }
+        }
+    }
+
     function getTargetUrl() {
         let loc = "";
         if (zipcode && zipcode.toString().trim() !== "") {
@@ -82,6 +138,12 @@ QtObject {
                                 weatherRoot.areaName = cityName + ", " + regionName;
                             } else if (cityName) {
                                 weatherRoot.areaName = cityName;
+                            }
+
+                            let latVal = parseFloat(area.latitude);
+                            let lonVal = parseFloat(area.longitude);
+                            if (!isNaN(latVal) && !isNaN(lonVal)) {
+                                weatherRoot.fetchForecast(latVal, lonVal);
                             }
                         }
 
