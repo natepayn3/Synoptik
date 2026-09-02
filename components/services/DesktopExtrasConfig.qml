@@ -55,10 +55,10 @@ QtObject {
         if (configRef) configRef.saveSettings()
     }
 
-    // --- DETACHED (FLOATING) MEDIA CARD STATE & PERSISTENCE ---
-    // A real FloatingWindow (xdg-toplevel), so Hyprland itself owns
-    // position/move/resize the way it does for any other floating window -
-    // only the preferred size is ours to remember.
+    // --- DETACHED DESKTOP MEDIA CARD STATE & PERSISTENCE ---
+    // A layer-shell PanelWindow like Clock/Mascot/etc, not a real xdg
+    // toplevel - so position, size, and drag/resize are all ours to manage
+    // and persist (same drag-anchor + snap-grid model as the rest).
     property bool showDesktopMediaCard: false
     property real mediaCardWidth: 232
     property real mediaCardHeight: 108
@@ -66,6 +66,28 @@ QtObject {
     function saveMediaCardSize(width, height) {
         mediaCardWidth = width
         mediaCardHeight = height
+        if (configRef) configRef.saveSettings()
+    }
+
+    // Per-screen saved drag position, same shape/pattern as mascotPositions
+    // above - the media card is also a single roaming instance (not one per
+    // enabled screen like Clock/Cava), so mediaCardLastScreen records which
+    // screen to restore to at startup.
+    property var mediaCardPositions: ({})
+    property string mediaCardLastScreen: ""
+
+    function getMediaCardPosition(screenName, defaultX, defaultY) {
+        if (mediaCardPositions && mediaCardPositions[screenName]) {
+            return mediaCardPositions[screenName]
+        }
+        return { x: defaultX, y: defaultY }
+    }
+
+    function saveMediaCardPosition(screenName, x, y) {
+        let current = Object.assign({}, mediaCardPositions)
+        current[screenName] = { x: x, y: y }
+        mediaCardPositions = current
+        mediaCardLastScreen = screenName
         if (configRef) configRef.saveSettings()
     }
 

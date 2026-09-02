@@ -27,9 +27,33 @@ PanelWindow {
     // anywhere on screen, including behind/into the bar's reserved strip.
     exclusiveZone: -1
 
+    // The third region only matters while the mouse is down: a fast flick
+    // can move the cursor past cavaContainer's own (small) input region
+    // before the compositor gets the next mask update, and layer-shell
+    // surfaces don't get a toplevel's "grab persists outside my bounds"
+    // behavior - once the pointer lands outside the registered region,
+    // Hyprland stops routing events to this surface altogether, which is
+    // what "it just lets go" actually was. Keyed off dragArea.pressed rather
+    // than drag.active specifically: pressed fires on the down-click itself,
+    // before any movement/threshold is needed, so the region is already
+    // full-window before a flick starting immediately on press can outrun
+    // it - active only flips true after that threshold, which is too late.
     mask: Region {
         Region { item: cavaContainer }
         Region { item: (typeof widgetMenu !== "undefined" && widgetMenu.visible) ? widgetMenu : null }
+        Region { item: dragArea.pressed ? fullScreenDragCatch : null }
+    }
+
+    Item { id: fullScreenDragCatch; anchors.fill: parent }
+
+    SnapGridOverlay {
+        anchors.fill: parent
+        gridSize: ghostBody.gridSize
+        active: dragArea.drag.active && Config.snapDesktopWidgets
+        targetX: ghostBody.x
+        targetY: ghostBody.y
+        targetWidth: ghostBody.width
+        targetHeight: ghostBody.height
     }
 
     // --- LIVE SPECTRUM DATA ---
@@ -109,6 +133,14 @@ PanelWindow {
         property real dragY: 140
         property bool initialized: false
 
+        // This item is the drag target and always tracks the cursor 1:1 -
+        // it's also the window's input mask, so hit-testing must never lag.
+        // The visible skin lives on the sibling ghostBody item below instead,
+        // which follows this one via a genuine binding (x: cavaContainer.x)
+        // rather than a direct external write, which is what actually lets a
+        // Behavior animate it: a MouseArea.drag.target's own writes land
+        // straight on this item and don't reliably trigger a Behavior placed
+        // on the same item.
         x: dragX
         y: dragY
 
@@ -124,6 +156,21 @@ PanelWindow {
                 dragX = savedPos.x
                 dragY = savedPos.y
                 initialized = true
+            }
+        }
+
+        // Called from both drag.onActiveChanged and dragArea.onReleased below -
+        // belt and suspenders against a lost/missed release event leaving
+        // drag.active stuck true (seen once with a fast flick), which would
+        // otherwise strand the grid overlay visible and out of sync forever.
+        // Idempotent: re-running this against an already-grid-aligned position
+        // is a no-op.
+        function commitGridSnap() {
+            if (!Config.snapDesktopWidgets) return
+            dragX = Math.round(dragX / ghostBody.gridSize) * ghostBody.gridSize
+            dragY = Math.round(dragY / ghostBody.gridSize) * ghostBody.gridSize
+            if (cavaWindow.screen) {
+                Config.saveCavaPosition(cavaWindow.screen.name, dragX, dragY)
             }
         }
 
@@ -146,6 +193,174 @@ PanelWindow {
         onYChanged: {
             if (initialized && dragArea.drag.active && cavaWindow.screen) {
                 Config.saveCavaPosition(cavaWindow.screen.name, dragX, dragY)
+            }
+        }
+
+
+        // DRAG & SCROLL-RESIZE MOUSE AREA
+        MouseArea {
+            id: dragArea
+            anchors.fill: parent
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            cursorShape: Qt.PointingHandCursor
+
+            // Tracked independently of drag.active itself (set from the raw
+            // onPositionChanged move signal, not the drag state signal) so
+            // the onReleased backup below still knows a drag happened even
+            // if drag.active's own changed signal is what got lost - and so
+            // a plain click (no movement) never triggers a spurious commit.
+            property bool dragMoved: false
+
+            onPressed: dragMoved = false
+
+            drag {
+                target: cavaContainer
+                axis: Drag.XAndYAxis
+
+                // Commit the anchor itself to the grid on release so the
+                // hit-region matches the grid-locked visual from here on,
+                // instead of only ghostBody's rendered position snapping.
+                onActiveChanged: {
+                    if (!drag.active) cavaContainer.commitGridSnap()
+                }
+            }
+
+            // Backup trigger for the same commit, in case a fast flick or a
+            // release right at a screen edge loses the drag.active change
+            // signal above - see commitGridSnap()'s note.
+            onReleased: if (dragMoved) cavaContainer.commitGridSnap()
+
+            onPositionChanged: {
+                if (drag.active) {
+                    dragMoved = true
+                    cavaContainer.dragX = cavaContainer.x
+                    cavaContainer.dragY = cavaContainer.y
+                }
+            }
+
+            // MouseArea only emits "clicked" for a press/release that never crossed the
+            // drag threshold, so this never fires while the user is actually repositioning.
+            onClicked: (mouse) => {
+                if (widgetMenu.visible) {
+                    widgetMenu.close()
+                    return
+                }
+                if (mouse.button === Qt.RightButton) {
+                    widgetMenu.openAt(mouse.x, mouse.y, cavaContainer, cavaWindow.width, cavaWindow.height)
+                    return
+                }
+                Config.closeWidgetMenus()
+                cavaContainer.controlsVisible = !cavaContainer.controlsVisible
+                if (cavaContainer.controlsVisible) hideControlsTimer.restart()
+                else hideControlsTimer.stop()
+            }
+
+            onWheel: (wheel) => {
+                let step = 0.1
+                let newScale = cavaContainer.currentScale
+                if (wheel.angleDelta.y > 0) {
+                    newScale = Math.min(5.0, newScale + step)
+                } else {
+                    newScale = Math.max(0.5, newScale - step)
+                }
+
+                if (cavaWindow.screen) {
+                    Config.saveCavaScale(cavaWindow.screen.name, newScale)
+                }
+            }
+        }
+
+        // ROTATE CONTROLS -- appears on click, sits above dragArea so its taps
+        // never fall through to the drag/toggle handling underneath.
+        Row {
+            id: rotateControls
+            anchors.top: parent.top
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.topMargin: 10
+            spacing: 6
+            z: 200
+
+            opacity: cavaContainer.controlsVisible ? 1.0 : 0.0
+            visible: opacity > 0
+            Behavior on opacity { NumberAnimation { duration: 150 } }
+
+            component RotateButton: Rectangle {
+                id: btn
+                property string icon: ""
+                signal activated()
+
+                implicitWidth: 30; implicitHeight: 30; radius: 15
+                color: btnHover.hovered ? Config.accent : Qt.rgba(0, 0, 0, 0.45)
+                border.width: 1
+                border.color: Qt.rgba(255, 255, 255, 0.15)
+
+                Behavior on color { ColorAnimation { duration: 150 } }
+
+                Text {
+                    anchors.centerIn: parent
+                    text: btn.icon
+                    color: "#ffffff"
+                    font.family: "Material Symbols Outlined"
+                    font.pixelSize: 17
+                    font.bold: true
+                }
+
+                TapHandler {
+                    onTapped: {
+                        btn.activated()
+                        hideControlsTimer.restart()
+                    }
+                }
+                HoverHandler { id: btnHover; cursorShape: Qt.PointingHandCursor }
+            }
+
+            RotateButton {
+                icon: "rotate_left"
+                onActivated: Config.rotateCava("ccw")
+            }
+            RotateButton {
+                icon: "rotate_right"
+                onActivated: Config.rotateCava("cw")
+            }
+        }
+
+        WidgetContextMenu { id: widgetMenu }
+    }
+
+    // Visible skin, decoupled from cavaContainer (the drag anchor / hit
+    // region above) precisely so Behavior can animate it - see the note by
+    // cavaContainer.x for why.
+    Item {
+        id: ghostBody
+        readonly property real gridSize: 24
+
+        // Snap ON: round to a visible grid, no easing - the skin visibly
+        // jumps between grid steps as cavaContainer moves continuously.
+        // Snap OFF: the exact position, eased in via Behavior below.
+        // Only round to the grid *while actively dragging* - at rest this
+        // must equal cavaContainer exactly, or the visible skin and the
+        // invisible hit-region it's grabbed by permanently drift apart. The
+        // anchor's real position gets committed to the grid on release
+        // instead (see dragArea below).
+        x: (Config.snapDesktopWidgets && dragArea.drag.active) ? Math.round(cavaContainer.x / gridSize) * gridSize : cavaContainer.x
+        y: (Config.snapDesktopWidgets && dragArea.drag.active) ? Math.round(cavaContainer.y / gridSize) * gridSize : cavaContainer.y
+        width: cavaContainer.width
+        height: cavaContainer.height
+
+        Behavior on x {
+            enabled: !Config.snapDesktopWidgets
+            NumberAnimation {
+                duration: Config.motionService.durationFastSpatial
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Config.motionService.expressiveFastSpatialPoints
+            }
+        }
+        Behavior on y {
+            enabled: !Config.snapDesktopWidgets
+            NumberAnimation {
+                duration: Config.motionService.durationFastSpatial
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Config.motionService.expressiveFastSpatialPoints
             }
         }
 
@@ -321,109 +536,5 @@ PanelWindow {
                 visible: Config.cavaShowGlow
             }
         }
-
-        // DRAG & SCROLL-RESIZE MOUSE AREA
-        MouseArea {
-            id: dragArea
-            anchors.fill: parent
-            acceptedButtons: Qt.LeftButton | Qt.RightButton
-            drag.target: cavaContainer
-            drag.axis: Drag.XAndYAxis
-            cursorShape: Qt.PointingHandCursor
-
-            onPositionChanged: {
-                if (drag.active) {
-                    cavaContainer.dragX = cavaContainer.x
-                    cavaContainer.dragY = cavaContainer.y
-                }
-            }
-
-            // MouseArea only emits "clicked" for a press/release that never crossed the
-            // drag threshold, so this never fires while the user is actually repositioning.
-            onClicked: (mouse) => {
-                if (widgetMenu.visible) {
-                    widgetMenu.close()
-                    return
-                }
-                if (mouse.button === Qt.RightButton) {
-                    widgetMenu.openAt(mouse.x, mouse.y, cavaContainer, cavaWindow.width, cavaWindow.height)
-                    return
-                }
-                Config.closeWidgetMenus()
-                cavaContainer.controlsVisible = !cavaContainer.controlsVisible
-                if (cavaContainer.controlsVisible) hideControlsTimer.restart()
-                else hideControlsTimer.stop()
-            }
-
-            onWheel: (wheel) => {
-                let step = 0.1
-                let newScale = cavaContainer.currentScale
-                if (wheel.angleDelta.y > 0) {
-                    newScale = Math.min(5.0, newScale + step)
-                } else {
-                    newScale = Math.max(0.5, newScale - step)
-                }
-
-                if (cavaWindow.screen) {
-                    Config.saveCavaScale(cavaWindow.screen.name, newScale)
-                }
-            }
-        }
-
-        // ROTATE CONTROLS -- appears on click, sits above dragArea so its taps
-        // never fall through to the drag/toggle handling underneath.
-        Row {
-            id: rotateControls
-            anchors.top: parent.top
-            anchors.horizontalCenter: parent.horizontalCenter
-            anchors.topMargin: 10
-            spacing: 6
-            z: 200
-
-            opacity: cavaContainer.controlsVisible ? 1.0 : 0.0
-            visible: opacity > 0
-            Behavior on opacity { NumberAnimation { duration: 150 } }
-
-            component RotateButton: Rectangle {
-                id: btn
-                property string icon: ""
-                signal activated()
-
-                implicitWidth: 30; implicitHeight: 30; radius: 15
-                color: btnHover.hovered ? Config.accent : Qt.rgba(0, 0, 0, 0.45)
-                border.width: 1
-                border.color: Qt.rgba(255, 255, 255, 0.15)
-
-                Behavior on color { ColorAnimation { duration: 150 } }
-
-                Text {
-                    anchors.centerIn: parent
-                    text: btn.icon
-                    color: "#ffffff"
-                    font.family: "Material Symbols Outlined"
-                    font.pixelSize: 17
-                    font.bold: true
-                }
-
-                TapHandler {
-                    onTapped: {
-                        btn.activated()
-                        hideControlsTimer.restart()
-                    }
-                }
-                HoverHandler { id: btnHover; cursorShape: Qt.PointingHandCursor }
-            }
-
-            RotateButton {
-                icon: "rotate_left"
-                onActivated: Config.rotateCava("ccw")
-            }
-            RotateButton {
-                icon: "rotate_right"
-                onActivated: Config.rotateCava("cw")
-            }
-        }
-
-        WidgetContextMenu { id: widgetMenu }
     }
 }

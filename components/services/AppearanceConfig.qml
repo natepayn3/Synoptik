@@ -36,6 +36,14 @@ QtObject {
     property bool enableHoverPeek: true
     onEnableHoverPeekChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
 
+    // Desktop widgets (Mascot, Clock, Cava, SysInfo) round their position to
+    // a visible grid while dragging by default (a real, visibly discrete
+    // snap). Turning this off drops the rounding and eases position changes
+    // through MotionService's spatial curve instead, trailing smoothly to
+    // the exact cursor position rather than jumping in grid steps.
+    property bool snapDesktopWidgets: true
+    onSnapDesktopWidgetsChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
+
     property bool nightModeEnabled: false
     onNightModeEnabledChanged: { if (configRef && configRef.isLoaded) configRef.updateShader() }
 

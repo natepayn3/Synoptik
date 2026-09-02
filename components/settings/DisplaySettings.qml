@@ -81,6 +81,101 @@ Flickable {
         Config.refreshActiveWallpapers()
     }
 
+    component ThickHorizontalSlider : Slider {
+        id: slider
+        implicitHeight: 24
+
+        HoverHandler { cursorShape: Qt.PointingHandCursor }
+
+        background: Rectangle {
+            x: slider.leftPadding
+            y: slider.topPadding + slider.availableHeight / 2 - height / 2
+            width: slider.availableWidth
+            implicitHeight: 6
+            height: implicitHeight
+            radius: 3
+            color: Qt.rgba(255, 255, 255, 0.1)
+
+            Rectangle {
+                width: slider.visualPosition * parent.width
+                height: parent.height
+                color: Config.accent
+                radius: 3
+            }
+        }
+
+        handle: Rectangle {
+            x: slider.leftPadding + slider.visualPosition * (slider.availableWidth - width)
+            y: slider.topPadding + slider.availableHeight / 2 - height / 2
+            implicitWidth: 16
+            implicitHeight: 16
+            radius: 8
+            color: slider.pressed ? Config.accent : Config.textMain
+            border.width: 2
+            border.color: Config.bgBase
+        }
+    }
+
+    component SliderRow : RowLayout {
+        id: sliderRow
+        property string label: ""
+        property string icon: ""
+        property real from: 0
+        property real to: 100
+        property real stepSize: 1
+        property real value: 0
+        property string suffix: ""
+        property int decimals: 0
+        signal changed(real newValue)
+
+        Layout.fillWidth: true
+        spacing: 12
+
+        RowLayout {
+            spacing: 6
+            Layout.preferredWidth: 110
+            Text {
+                text: sliderRow.icon
+                font.family: "Material Symbols Outlined"
+                font.pixelSize: 16
+                color: Config.textMuted
+                visible: sliderRow.icon !== ""
+            }
+            Text {
+                text: sliderRow.label
+                color: Config.textMain
+                font.family: Config.sysFont
+                font.pixelSize: Config.size(Config.fontCaption)
+                wrapMode: Text.WordWrap
+                Layout.fillWidth: true
+            }
+        }
+
+        ThickHorizontalSlider {
+            id: innerSlider
+            Layout.fillWidth: true
+            from: sliderRow.from
+            to: sliderRow.to
+            stepSize: sliderRow.stepSize
+            value: sliderRow.value
+            onValueChanged: sliderRow.changed(value)
+        }
+
+        Rectangle {
+            implicitWidth: 54; implicitHeight: 22; radius: 6
+            color: Qt.rgba(0, 0, 0, 0.3)
+            border.width: 1; border.color: Config.accent
+            Text {
+                anchors.centerIn: parent
+                text: innerSlider.value.toFixed(sliderRow.decimals) + sliderRow.suffix
+                color: Config.accent
+                font.family: Config.sysFont
+                font.pixelSize: Config.size(Config.fontMicro)
+                font.bold: true
+            }
+        }
+    }
+
     ColumnLayout {
         id: contentColumn
         width: Math.min(flickableRoot.width - (flickableRoot.cardMargin * 2), 620)
@@ -1016,6 +1111,189 @@ Flickable {
                                         onClicked: Config.updateDraftMonitorConfig(Config.selectedScreenConfig, { transform: modelData.transform })
                                     }
                                 }
+                            }
+                        }
+                    }
+                }
+
+                // Row 3.5: Color Management / HDR
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: cmColLayout.implicitHeight + 16
+                    radius: Config.cornerRadius / 2
+                    color: Qt.rgba(255, 255, 255, 0.03)
+                    border.width: 1
+                    border.color: Qt.rgba(255, 255, 255, 0.08)
+
+                    ColumnLayout {
+                        id: cmColLayout
+                        anchors.fill: parent
+                        anchors.margins: 10
+                        spacing: 10
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 10
+
+                            Text {
+                                text: "Color Mode:"
+                                color: Config.textMain
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontCaption)
+                                font.bold: true
+                                Layout.preferredWidth: inspectorCol.formLabelWidth
+                            }
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 6
+
+                                Repeater {
+                                    model: [
+                                        { name: "Auto",       val: "auto", icon: "auto_awesome" },
+                                        { name: "sRGB",       val: "srgb", icon: "palette" },
+                                        { name: "Wide Gamut", val: "wide", icon: "gradient" },
+                                        { name: "HDR",        val: "hdr",  icon: "hdr_on" }
+                                    ]
+
+                                    delegate: Rectangle {
+                                        id: cmBtn
+                                        required property var modelData
+                                        Layout.fillWidth: true
+                                        implicitHeight: 28
+                                        radius: Config.cornerRadius / 2
+
+                                        readonly property bool isCm: (inspectorCol.activeCfg.cm || "auto") === modelData.val
+
+                                        color: isCm ? Config.accent : (cmBtnHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.04))
+                                        border.width: 1
+                                        border.color: isCm ? Config.accent : Qt.rgba(255, 255, 255, 0.12)
+
+                                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                                        RowLayout {
+                                            anchors.centerIn: parent
+                                            spacing: 4
+
+                                            Text {
+                                                text: cmBtn.modelData.icon
+                                                color: cmBtn.isCm ? Config.bgBase : Config.textMuted
+                                                font.family: "Material Symbols Outlined"
+                                                font.pixelSize: 13
+                                            }
+
+                                            Text {
+                                                text: cmBtn.modelData.name
+                                                color: cmBtn.isCm ? Config.bgBase : Config.textMain
+                                                font.family: Config.sysFont
+                                                font.pixelSize: Config.size(Config.fontMicro)
+                                                font.bold: true
+                                            }
+                                        }
+
+                                        MouseArea {
+                                            id: cmBtnHover
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: Config.updateDraftMonitorConfig(Config.selectedScreenConfig, { cm: cmBtn.modelData.val })
+                                        }
+                                    }
+                                }
+                            }
+                        }
+
+                        // HDR is experimental in Hyprland - bit depth and SDR
+                        // tone-mapping only mean anything once cm is actually
+                        // in an HDR mode, so keep them tucked away otherwise.
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+                            visible: inspectorCol.activeCfg.cm === "hdr" || inspectorCol.activeCfg.cm === "hdredid"
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 10
+
+                                Text {
+                                    text: "Bit Depth:"
+                                    color: Config.textMain
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontCaption)
+                                    font.bold: true
+                                    Layout.preferredWidth: inspectorCol.formLabelWidth
+                                }
+
+                                RowLayout {
+                                    spacing: 6
+
+                                    Repeater {
+                                        model: [
+                                            { name: "8-bit", val: 8 },
+                                            { name: "10-bit", val: 10 }
+                                        ]
+
+                                        delegate: Rectangle {
+                                            id: depthBtn
+                                            required property var modelData
+                                            implicitWidth: 70
+                                            implicitHeight: 26
+                                            radius: Config.cornerRadius / 2
+
+                                            readonly property bool isDepth: (inspectorCol.activeCfg.bitdepth || 8) === modelData.val
+
+                                            color: isDepth ? Config.accent : (depthBtnHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.04))
+                                            border.width: 1
+                                            border.color: isDepth ? Config.accent : Qt.rgba(255, 255, 255, 0.12)
+
+                                            Behavior on color { ColorAnimation { duration: 150 } }
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: depthBtn.modelData.name
+                                                color: depthBtn.isDepth ? Config.bgBase : Config.textMain
+                                                font.family: Config.sysFont
+                                                font.pixelSize: Config.size(Config.fontMicro)
+                                                font.bold: true
+                                            }
+
+                                            MouseArea {
+                                                id: depthBtnHover
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                cursorShape: Qt.PointingHandCursor
+                                                onClicked: Config.updateDraftMonitorConfig(Config.selectedScreenConfig, { bitdepth: depthBtn.modelData.val })
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Item { Layout.fillWidth: true }
+                            }
+
+                            SliderRow {
+                                label: "SDR Brightness"
+                                icon: "brightness_6"
+                                from: 1.0; to: 2.0; stepSize: 0.01; decimals: 2
+                                value: inspectorCol.activeCfg.sdrBrightness || 1.2
+                                onChanged: newValue => Config.updateDraftMonitorConfig(Config.selectedScreenConfig, { sdrBrightness: newValue })
+                            }
+
+                            SliderRow {
+                                label: "SDR Saturation"
+                                icon: "opacity"
+                                from: 0.9; to: 1.1; stepSize: 0.01; decimals: 2
+                                value: inspectorCol.activeCfg.sdrSaturation || 0.98
+                                onChanged: newValue => Config.updateDraftMonitorConfig(Config.selectedScreenConfig, { sdrSaturation: newValue })
+                            }
+
+                            Text {
+                                Layout.fillWidth: true
+                                text: "HDR is experimental in Hyprland - expect some apps to render washed out or oversaturated until they gain proper HDR support."
+                                color: Config.textMuted
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontMicro)
+                                wrapMode: Text.WordWrap
                             }
                         }
                     }

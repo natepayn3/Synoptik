@@ -33,9 +33,33 @@ PanelWindow {
     // strip, leaving nowhere there to drag the mascot into.
     exclusiveZone: -1
 
+    // The third region only matters while the mouse is down: a fast flick
+    // can move the cursor past petContainer's own (small) input region
+    // before the compositor gets the next mask update, and layer-shell
+    // surfaces don't get a toplevel's "grab persists outside my bounds"
+    // behavior - once the pointer lands outside the registered region,
+    // Hyprland stops routing events to this surface altogether, which is
+    // what "it just lets go" actually was. Keyed off dragArea.pressed rather
+    // than drag.active specifically: pressed fires on the down-click itself,
+    // before any movement/threshold is needed, so the region is already
+    // full-window before a flick starting immediately on press can outrun
+    // it - active only flips true after that threshold, which is too late.
     mask: Region {
         Region { item: petContainer }
         Region { item: (typeof widgetMenu !== "undefined" && widgetMenu.visible) ? widgetMenu : null }
+        Region { item: dragArea.pressed ? fullScreenDragCatch : null }
+    }
+
+    Item { id: fullScreenDragCatch; anchors.fill: parent }
+
+    SnapGridOverlay {
+        anchors.fill: parent
+        gridSize: ghostBody.gridSize
+        active: dragArea.drag.active && Config.snapDesktopWidgets
+        targetX: ghostBody.x
+        targetY: ghostBody.y
+        targetWidth: ghostBody.width
+        targetHeight: ghostBody.height
     }
 
     function formatFileUrl(path) {
@@ -54,18 +78,6 @@ PanelWindow {
         width: 128
         height: character.implicitWidth ? (width * (character.implicitHeight / character.implicitWidth)) : width
 
-        // Ambient audio throb: same bass-driven signal the bar uses
-        // (shellRoot.breathAmount, already gated behind
-        // Config.ambientBreatheEnabled + its intensity slider) but with a
-        // much larger multiplier - the bar's own 0.04 reads as a big swing
-        // on a surface hundreds of pixels wide; the same 4% on this 128px
-        // icon is 1-5px, invisible next to an already-animated GIF. Also
-        // independently toggleable (Config.mascotAudioThrob) since someone
-        // may want the bar throb without the mascot bopping along.
-        scale: (Config.mascotAudioThrob && typeof shellRoot !== "undefined")
-            ? 1.0 + (shellRoot.breathAmount * 0.4)
-            : 1.0
-
         // Backend storage for x/y position
         property real dragX: 0
         property real dragY: 0
@@ -79,7 +91,14 @@ PanelWindow {
             ? Math.max(0, Math.min(1, (30 - shellRoot.battCapacity) / 30))
             : 0
 
-        // Always bind directly to dragX/dragY
+        // This item is the drag target and always tracks the cursor 1:1 -
+        // it's also the window's input mask, so hit-testing must never lag.
+        // The visible skin lives on the sibling ghostBody item below instead,
+        // which follows this one via a genuine binding (x: petContainer.x)
+        // rather than a direct external write, which is what actually lets a
+        // Behavior animate it: a MouseArea.drag.target's own writes land
+        // straight on this item and don't reliably trigger a Behavior placed
+        // on the same item.
         x: dragX
         y: dragY
 
@@ -127,6 +146,21 @@ PanelWindow {
             initialized = true
         }
 
+        // Called from both drag.onActiveChanged and dragArea.onReleased below -
+        // belt and suspenders against a lost/missed release event leaving
+        // drag.active stuck true (seen once with a fast flick), which would
+        // otherwise strand the grid overlay visible and out of sync forever.
+        // Idempotent: re-running this against an already-grid-aligned position
+        // is a no-op.
+        function commitGridSnap() {
+            if (!Config.snapDesktopWidgets) return
+            dragX = Math.round(dragX / ghostBody.gridSize) * ghostBody.gridSize
+            dragY = Math.round(dragY / ghostBody.gridSize) * ghostBody.gridSize
+            if (petWindow.screen) {
+                Config.saveMascotPosition(petWindow.screen.name, dragX, dragY)
+            }
+        }
+
         Component.onCompleted: restorePosition()
 
         onXChanged: {
@@ -169,6 +203,129 @@ PanelWindow {
             }
         }
 
+        Connections {
+            target: Config
+            function onNotificationArrived() {
+                if (Config.showMascot) notifyBounce.restart()
+            }
+        }
+
+        MouseArea {
+            id: dragArea
+            anchors.fill: parent
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            cursorShape: Qt.PointingHandCursor
+            hoverEnabled: false
+
+            // Tracked independently of drag.active itself (set from the raw
+            // onPositionChanged move signal, not the drag state signal) so
+            // the onReleased backup below still knows a drag happened even
+            // if drag.active's own changed signal is what got lost - and so
+            // a plain click (no movement) never triggers a spurious commit.
+            property bool dragMoved: false
+
+            onPressed: dragMoved = false
+
+            drag {
+                target: petContainer
+                axis: Drag.XAndYAxis
+
+                // Commit the anchor itself to the grid on release so the
+                // hit-region matches the grid-locked visual from here on,
+                // instead of only ghostBody's rendered position snapping.
+                onActiveChanged: {
+                    if (!drag.active) petContainer.commitGridSnap()
+                }
+            }
+
+            // Backup trigger for the same commit, in case a fast flick or a
+            // release right at a screen edge loses the drag.active change
+            // signal above - see commitGridSnap()'s note.
+            onReleased: if (dragMoved) petContainer.commitGridSnap()
+
+            // Sync drag position with properties
+            onPositionChanged: {
+                if (drag.active) {
+                    dragMoved = true
+                    petContainer.dragX = petContainer.x
+                    petContainer.dragY = petContainer.y
+                }
+            }
+
+            onClicked: (mouse) => {
+                if (widgetMenu.visible) {
+                    widgetMenu.close()
+                    return
+                }
+                if (mouse.button === Qt.RightButton) {
+                    widgetMenu.openAt(mouse.x, mouse.y, petContainer, petWindow.width, petWindow.height)
+                } else {
+                    Config.closeWidgetMenus()
+                }
+            }
+
+            onWheel: (wheel) => {
+                let step = 16
+                if (wheel.angleDelta.y > 0) {
+                    petContainer.width += step
+                } else {
+                    petContainer.width = Math.max(32, petContainer.width - step)
+                }
+            }
+        }
+
+        WidgetContextMenu { id: widgetMenu }
+    }
+
+    // Visible skin, decoupled from petContainer (the drag anchor / hit
+    // region above) precisely so Behavior can animate it - see the note by
+    // petContainer.x for why.
+    Item {
+        id: ghostBody
+        readonly property real gridSize: 24
+
+        // Snap ON: round to a visible grid, no easing - the skin visibly
+        // jumps between grid steps as petContainer moves continuously.
+        // Snap OFF: the exact position, eased in via Behavior below.
+        // Only round to the grid *while actively dragging* - at rest this
+        // must equal petContainer exactly, or the visible skin and the
+        // invisible hit-region it's grabbed by permanently drift apart. The
+        // anchor's real position gets committed to the grid on release
+        // instead (see dragArea below).
+        x: (Config.snapDesktopWidgets && dragArea.drag.active) ? Math.round(petContainer.x / gridSize) * gridSize : petContainer.x
+        y: (Config.snapDesktopWidgets && dragArea.drag.active) ? Math.round(petContainer.y / gridSize) * gridSize : petContainer.y
+        width: petContainer.width
+        height: petContainer.height
+
+        // Ambient audio throb: same bass-driven signal the bar uses
+        // (shellRoot.breathAmount, already gated behind
+        // Config.ambientBreatheEnabled + its intensity slider) but with a
+        // much larger multiplier - the bar's own 0.04 reads as a big swing
+        // on a surface hundreds of pixels wide; the same 4% on this 128px
+        // icon is 1-5px, invisible next to an already-animated GIF. Also
+        // independently toggleable (Config.mascotAudioThrob) since someone
+        // may want the bar throb without the mascot bopping along.
+        scale: (Config.mascotAudioThrob && typeof shellRoot !== "undefined")
+            ? 1.0 + (shellRoot.breathAmount * 0.4)
+            : 1.0
+
+        Behavior on x {
+            enabled: !Config.snapDesktopWidgets
+            NumberAnimation {
+                duration: Config.motionService.durationFastSpatial
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Config.motionService.expressiveFastSpatialPoints
+            }
+        }
+        Behavior on y {
+            enabled: !Config.snapDesktopWidgets
+            NumberAnimation {
+                duration: Config.motionService.durationFastSpatial
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Config.motionService.expressiveFastSpatialPoints
+            }
+        }
+
         AnimatedImage {
             id: character
             source: petWindow.formatFileUrl(Config.mascotPath)
@@ -202,59 +359,11 @@ PanelWindow {
             NumberAnimation { target: character; property: "scale"; to: 1.0; duration: 260; easing.type: Easing.OutBack; easing.overshoot: 4 }
         }
 
-        Connections {
-            target: Config
-            function onNotificationArrived() {
-                if (Config.showMascot) notifyBounce.restart()
-            }
-        }
-
-        MouseArea {
-            id: dragArea
-            anchors.fill: parent
-            acceptedButtons: Qt.LeftButton | Qt.RightButton
-            drag.target: petContainer
-            drag.axis: Drag.XAndYAxis
-            cursorShape: Qt.PointingHandCursor
-            hoverEnabled: false
-
-            // Sync drag position with properties
-            onPositionChanged: {
-                if (drag.active) {
-                    petContainer.dragX = petContainer.x
-                    petContainer.dragY = petContainer.y
-                }
-            }
-
-            onClicked: (mouse) => {
-                if (widgetMenu.visible) {
-                    widgetMenu.close()
-                    return
-                }
-                if (mouse.button === Qt.RightButton) {
-                    widgetMenu.openAt(mouse.x, mouse.y, petContainer, petWindow.width, petWindow.height)
-                } else {
-                    Config.closeWidgetMenus()
-                }
-            }
-
-            onWheel: (wheel) => {
-                let step = 16
-                if (wheel.angleDelta.y > 0) {
-                    petContainer.width += step
-                } else {
-                    petContainer.width = Math.max(32, petContainer.width - step)
-                }
-            }
-        }
-
-        WidgetContextMenu { id: widgetMenu }
-
         // --- BARE TEXT OVERLAY (WITH WRAPPING & OUTLINE) ---
         Item {
             id: chatBubble
             visible: isTalking
-            
+
             width: chatText.width
             height: chatText.height
 
@@ -269,11 +378,11 @@ PanelWindow {
                 text: currentPhrase
                 anchors.centerIn: parent
                 font.bold: true
-                
+
                 color: Config.textMain
                 font.family: Config.sysFont
                 font.pixelSize: Config.size(Config.fontBody)
-                
+
                 style: Text.Outline
                 styleColor: Qt.rgba(0, 0, 0, 0.8)
 

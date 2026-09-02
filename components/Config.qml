@@ -353,7 +353,11 @@ QtObject {
     property alias showDesktopMediaCard: root.desktopExtras.showDesktopMediaCard
     property alias mediaCardWidth: root.desktopExtras.mediaCardWidth
     property alias mediaCardHeight: root.desktopExtras.mediaCardHeight
+    property alias mediaCardPositions: root.desktopExtras.mediaCardPositions
+    property alias mediaCardLastScreen: root.desktopExtras.mediaCardLastScreen
     function saveMediaCardSize(width, height) { desktopExtras.saveMediaCardSize(width, height) }
+    function getMediaCardPosition(screenName, defaultX, defaultY) { return desktopExtras.getMediaCardPosition(screenName, defaultX, defaultY) }
+    function saveMediaCardPosition(screenName, x, y) { desktopExtras.saveMediaCardPosition(screenName, x, y) }
     function processQuoteQueue() { desktopExtras.processQuoteQueue() }
     function triggerQuoteFetch() { desktopExtras.triggerQuoteFetch() }
 
@@ -378,6 +382,7 @@ QtObject {
     }
 
     property alias enableHoverPeek: root.appearance.enableHoverPeek
+    property alias snapDesktopWidgets: root.appearance.snapDesktopWidgets
     property alias nightModeEnabled: root.appearance.nightModeEnabled
     property alias nightModeAuto: root.appearance.nightModeAuto
     property alias nightModeScheduleStart: root.appearance.nightModeScheduleStart
@@ -521,7 +526,7 @@ QtObject {
         let actualScreen = (Quickshell.screens && screenName) ? Quickshell.screens.find(s => s.name === screenName) : null
         let defaultW = actualScreen ? actualScreen.width : 1920
         let defaultH = actualScreen ? actualScreen.height : 1080
-        const safeFallback = { width: defaultW, height: defaultH, refreshRate: 60.0, x: 0, y: 0, scale: "auto", transform: 0 }
+        const safeFallback = { width: defaultW, height: defaultH, refreshRate: 60.0, x: 0, y: 0, scale: "auto", transform: 0, cm: "auto", bitdepth: 8, sdrBrightness: 1.2, sdrSaturation: 0.98 }
 
         if (!screenName) return safeFallback
         
@@ -598,12 +603,23 @@ QtObject {
                 let safeScale = (m.scale === "auto" || !m.scale) ? "auto" : getNearestValidScale(m.width, m.height, m.scale)
                 let scaleVal = (safeScale === "auto") ? '"auto"' : parseFloat(safeScale).toFixed(2)
                 let transformLine = (m.transform !== undefined && m.transform !== 0) ? ',\n    transform = ' + m.transform : ''
-                
+
+                // Color management / HDR: cm and bitdepth only need stating when
+                // off their defaults; sdrbrightness/sdrsaturation only mean
+                // anything to Hyprland once cm is actually in an HDR mode.
+                let cmVal = m.cm || "auto"
+                let cmLine = (cmVal !== "auto") ? ',\n    cm = "' + cmVal + '"' : ''
+                let bitdepthLine = (m.bitdepth === 10) ? ',\n    bitdepth = 10' : ''
+                let isHdrMode = cmVal === "hdr" || cmVal === "hdredid"
+                let sdrLine = isHdrMode
+                    ? ',\n    sdrbrightness = ' + (m.sdrBrightness || 1.2).toFixed(2) + ',\n    sdrsaturation = ' + (m.sdrSaturation || 0.98).toFixed(2)
+                    : ''
+
                 let luaBlock = 'hl.monitor({\n' +
                     '    output = "' + k + '",\n' +
                     '    mode = "' + m.width + 'x' + m.height + '@' + (m.refreshRate || 60.0) + '",\n' +
                     '    position = "' + m.x + 'x' + m.y + '",\n' +
-                    '    scale = ' + scaleVal + transformLine + '\n' +
+                    '    scale = ' + scaleVal + transformLine + cmLine + bitdepthLine + sdrLine + '\n' +
                     '})'
                 monitorLuaBlocks.push(luaBlock)
             })
@@ -764,13 +780,13 @@ QtObject {
         "showScreensaver", "screensaverText", "screensaverMode", "screensaverFontSize",
         "screensaverSpeed", "screensaverCornerCounter", "showOsk", "oskLayout", "showMascot",
         "mascotPath", "mascotPhrases", "mascotPositions", "mascotLastScreen", "mascotAudioThrob", "fetchOnlineQuotes", "quoteSource",
-        "showDesktopMediaCard", "mediaCardWidth", "mediaCardHeight", "barFrameStyle",
+        "showDesktopMediaCard", "mediaCardWidth", "mediaCardHeight", "mediaCardPositions", "mediaCardLastScreen", "barFrameStyle",
         "barPosition", "autoHideBar", "showScreenFrame", "sysFont", "nativeFontRendering",
         "fontScaleIndex", "locationQuery", "enabledBarScreens", "useCustomColors", "customBgBase",
         "customBgPanel", "customAccent", "animateGradient", "shellOpacity", "enableBlur", "enableXray",
         "enableIris", "showWatermarks", "bounceWatermarks", "windowStyle", "playWindowSounds",
         "playNotificationSounds", "windowSoundPath", "notificationSoundPath", "windowSoundVolume",
-        "enableHoverPeek", "nightModeEnabled", "nightModeAuto", "nightModeScheduleStart",
+        "enableHoverPeek", "snapDesktopWidgets", "nightModeEnabled", "nightModeAuto", "nightModeScheduleStart",
         "nightModeScheduleEnd", "pixelShaderEnabled", "pixelShaderMode", "pixelShaderSize",
         "pixelShaderLevels", "pixelShaderPalette", "pixelShaderDither", "pixelShaderGrid",
         "pixelShaderBoost", "showMirror", "mirrorShowPanel", "mirrorMirrored", "mirrorKeepAspect",
@@ -838,6 +854,8 @@ QtObject {
             property var showDesktopMediaCard
             property var mediaCardWidth
             property var mediaCardHeight
+            property var mediaCardPositions
+            property var mediaCardLastScreen
             property var fetchOnlineQuotes
             property var quoteSource
             property var barFrameStyle
@@ -867,6 +885,7 @@ QtObject {
             property var notificationSoundPath
             property var windowSoundVolume
             property var enableHoverPeek
+            property var snapDesktopWidgets
             property var nightModeEnabled
             property var nightModeAuto
             property var nightModeScheduleStart

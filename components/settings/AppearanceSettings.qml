@@ -505,6 +505,14 @@ Flickable {
                     checked: Config.enableIris
                     onToggled: Config.enableIris = !Config.enableIris
                 }
+
+                // 7. Desktop Widget Motion Row
+                SettingsToggleRow {
+                    title: "Snap Desktop Widgets"
+                    subtitle: "On snaps the Mascot, Clock, Cava, and SysInfo widgets to a grid while dragging; off eases them smoothly to the exact cursor position"
+                    checked: Config.snapDesktopWidgets
+                    onToggled: Config.snapDesktopWidgets = !Config.snapDesktopWidgets
+                }
             }
         }
 

@@ -25,9 +25,33 @@ PanelWindow {
     color: "transparent"
     exclusiveZone: -1
 
+    // The third region only matters while the mouse is down: a fast flick
+    // can move the cursor past infoContainer's own (small) input region
+    // before the compositor gets the next mask update, and layer-shell
+    // surfaces don't get a toplevel's "grab persists outside my bounds"
+    // behavior - once the pointer lands outside the registered region,
+    // Hyprland stops routing events to this surface altogether, which is
+    // what "it just lets go" actually was. Keyed off dragArea.pressed rather
+    // than drag.active specifically: pressed fires on the down-click itself,
+    // before any movement/threshold is needed, so the region is already
+    // full-window before a flick starting immediately on press can outrun
+    // it - active only flips true after that threshold, which is too late.
     mask: Region {
         Region { item: infoContainer }
         Region { item: (typeof widgetMenu !== "undefined" && widgetMenu.visible) ? widgetMenu : null }
+        Region { item: dragArea.pressed ? fullScreenDragCatch : null }
+    }
+
+    Item { id: fullScreenDragCatch; anchors.fill: parent }
+
+    SnapGridOverlay {
+        anchors.fill: parent
+        gridSize: ghostBody.gridSize
+        active: dragArea.drag.active && Config.snapDesktopWidgets
+        targetX: ghostBody.x
+        targetY: ghostBody.y
+        targetWidth: ghostBody.width
+        targetHeight: ghostBody.height
     }
 
     // --- SYSTEM METRICS STATE ---
@@ -186,8 +210,8 @@ PanelWindow {
         readonly property real basePadding: 14
         property real currentScale: 1.0
 
-        implicitWidth: (mainLayout.implicitWidth + (basePadding * 2))
-        implicitHeight: (mainLayout.implicitHeight + (basePadding * 2))
+        implicitWidth: ghostBody.implicitWidth
+        implicitHeight: ghostBody.implicitHeight
         width: implicitWidth
         height: implicitHeight
 
@@ -195,6 +219,14 @@ PanelWindow {
         property real dragY: 100
         property bool initialized: false
 
+        // This item is the drag target and always tracks the cursor 1:1 -
+        // it's also the window's input mask, so hit-testing must never lag.
+        // The visible skin lives on the sibling ghostBody item below instead,
+        // which follows this one via a genuine binding (x: infoContainer.x)
+        // rather than a direct external write, which is what actually lets a
+        // Behavior animate it: a MouseArea.drag.target's own writes land
+        // straight on this item and don't reliably trigger a Behavior placed
+        // on the same item.
         x: dragX
         y: dragY
 
@@ -209,6 +241,21 @@ PanelWindow {
 
             if (Config.getSysInfoScale) {
                 currentScale = Config.getSysInfoScale(sysInfoWindow.screen.name)
+            }
+        }
+
+        // Called from both drag.onActiveChanged and dragArea.onReleased below -
+        // belt and suspenders against a lost/missed release event leaving
+        // drag.active stuck true (seen once with a fast flick), which would
+        // otherwise strand the grid overlay visible and out of sync forever.
+        // Idempotent: re-running this against an already-grid-aligned position
+        // is a no-op.
+        function commitGridSnap() {
+            if (!Config.snapDesktopWidgets) return
+            dragX = Math.round(dragX / ghostBody.gridSize) * ghostBody.gridSize
+            dragY = Math.round(dragY / ghostBody.gridSize) * ghostBody.gridSize
+            if (sysInfoWindow.screen && Config.saveSysInfoPosition) {
+                Config.saveSysInfoPosition(sysInfoWindow.screen.name, dragX, dragY)
             }
         }
 
@@ -241,6 +288,124 @@ PanelWindow {
                 Config.saveSysInfoPosition(sysInfoWindow.screen.name, dragX, dragY)
             }
         }
+
+
+        MouseArea {
+            id: dragArea
+            anchors.fill: parent
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            cursorShape: Qt.PointingHandCursor
+
+            // Tracked independently of drag.active itself (set from the raw
+            // onPositionChanged move signal, not the drag state signal) so
+            // the onReleased backup below still knows a drag happened even
+            // if drag.active's own changed signal is what got lost - and so
+            // a plain click (no movement) never triggers a spurious commit.
+            property bool dragMoved: false
+
+            onPressed: dragMoved = false
+
+            drag {
+                target: infoContainer
+                axis: Drag.XAndYAxis
+
+                // Commit the anchor itself to the grid on release so the
+                // hit-region matches the grid-locked visual from here on,
+                // instead of only ghostBody's rendered position snapping.
+                onActiveChanged: {
+                    if (!drag.active) infoContainer.commitGridSnap()
+                }
+            }
+
+            // Backup trigger for the same commit, in case a fast flick or a
+            // release right at a screen edge loses the drag.active change
+            // signal above - see commitGridSnap()'s note.
+            onReleased: if (dragMoved) infoContainer.commitGridSnap()
+
+            onPositionChanged: {
+                if (drag.active) {
+                    dragMoved = true
+                    infoContainer.dragX = infoContainer.x
+                    infoContainer.dragY = infoContainer.y
+                }
+            }
+
+            onClicked: (mouse) => {
+                if (widgetMenu.visible) {
+                    widgetMenu.close()
+                    return
+                }
+                if (mouse.button === Qt.RightButton) {
+                    widgetMenu.openAt(mouse.x, mouse.y, infoContainer, sysInfoWindow.width, sysInfoWindow.height)
+                } else {
+                    Config.closeWidgetMenus()
+                }
+            }
+
+            onWheel: (wheel) => {
+                let step = 0.08
+                let newScale = infoContainer.currentScale
+                if (wheel.angleDelta.y > 0) {
+                    newScale = Math.min(3.0, newScale + step)
+                } else {
+                    newScale = Math.max(0.5, newScale - step)
+                }
+
+                infoContainer.currentScale = newScale
+
+                if (sysInfoWindow.screen && Config.saveSysInfoScale) {
+                    Config.saveSysInfoScale(sysInfoWindow.screen.name, newScale)
+                }
+            }
+        }
+
+        WidgetContextMenu { id: widgetMenu }
+    }
+        // Visible skin, decoupled from infoContainer (the drag anchor / hit
+        // region above) precisely so Behavior can animate it - see the note
+        // by infoContainer.x for why.
+        Item {
+            id: ghostBody
+            readonly property real gridSize: 24
+
+            // Snap ON: round to a visible grid, no easing - the skin visibly
+            // jumps between grid steps as infoContainer moves continuously.
+            // Snap OFF: the exact position, eased in via Behavior below.
+            // Only round to the grid *while actively dragging* - at rest
+            // this must equal infoContainer exactly, or the visible skin and
+            // the invisible hit-region it's grabbed by permanently drift
+            // apart. The anchor's real position gets committed to the grid
+            // on release instead (see dragArea below).
+            x: (Config.snapDesktopWidgets && dragArea.drag.active) ? Math.round(infoContainer.x / gridSize) * gridSize : infoContainer.x
+            y: (Config.snapDesktopWidgets && dragArea.drag.active) ? Math.round(infoContainer.y / gridSize) * gridSize : infoContainer.y
+            // mainLayout.width, not .implicitWidth: mainLayout forces its own
+            // width explicitly (320 * currentScale, below), which Qt Quick
+            // Layouts tracks as a separate number from the layout's
+            // independently-computed "natural" implicitWidth - sizing off
+            // implicitWidth here left the hit-region/mask/overlay a bit
+            // smaller than what mainLayout actually renders at. Height has
+            // no such override, so implicitHeight is still the real size.
+            implicitWidth: mainLayout.width + (infoContainer.basePadding * 2)
+            implicitHeight: mainLayout.implicitHeight + (infoContainer.basePadding * 2)
+            width: implicitWidth
+            height: implicitHeight
+
+            Behavior on x {
+                enabled: !Config.snapDesktopWidgets
+                NumberAnimation {
+                    duration: Config.motionService.durationFastSpatial
+                    easing.type: Easing.BezierSpline
+                    easing.bezierCurve: Config.motionService.expressiveFastSpatialPoints
+                }
+            }
+            Behavior on y {
+                enabled: !Config.snapDesktopWidgets
+                NumberAnimation {
+                    duration: Config.motionService.durationFastSpatial
+                    easing.type: Easing.BezierSpline
+                    easing.bezierCurve: Config.motionService.expressiveFastSpatialPoints
+                }
+            }
 
         // BACKGROUND CARD
         Rectangle {
@@ -562,51 +727,5 @@ PanelWindow {
                 }
             }
         }
-
-        MouseArea {
-            id: dragArea
-            anchors.fill: parent
-            acceptedButtons: Qt.LeftButton | Qt.RightButton
-            drag.target: infoContainer
-            drag.axis: Drag.XAndYAxis
-            cursorShape: Qt.PointingHandCursor
-
-            onPositionChanged: {
-                if (drag.active) {
-                    infoContainer.dragX = infoContainer.x
-                    infoContainer.dragY = infoContainer.y
-                }
-            }
-
-            onClicked: (mouse) => {
-                if (widgetMenu.visible) {
-                    widgetMenu.close()
-                    return
-                }
-                if (mouse.button === Qt.RightButton) {
-                    widgetMenu.openAt(mouse.x, mouse.y, infoContainer, sysInfoWindow.width, sysInfoWindow.height)
-                } else {
-                    Config.closeWidgetMenus()
-                }
-            }
-
-            onWheel: (wheel) => {
-                let step = 0.08
-                let newScale = infoContainer.currentScale
-                if (wheel.angleDelta.y > 0) {
-                    newScale = Math.min(3.0, newScale + step)
-                } else {
-                    newScale = Math.max(0.5, newScale - step)
-                }
-
-                infoContainer.currentScale = newScale
-
-                if (sysInfoWindow.screen && Config.saveSysInfoScale) {
-                    Config.saveSysInfoScale(sysInfoWindow.screen.name, newScale)
-                }
-            }
         }
-
-        WidgetContextMenu { id: widgetMenu }
-    }
 }
