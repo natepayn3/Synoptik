@@ -13,9 +13,17 @@ Item {
 
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
-    // Derive root dimensions from the master vertical layout
-    implicitWidth: mainLayout.implicitWidth + (cardMargin * 2)
-    implicitHeight: mainLayout.implicitHeight + (cardMargin * 2)
+    // Derive root dimensions from the master bento grid
+    implicitWidth: ccGrid.width + (cardMargin * 2)
+    implicitHeight: ccGrid.height + (cardMargin * 2)
+
+    // Compiled-in starting arrangement for the ControlCenter bento grid (two
+    // lanes, left/right - see DraggableGridContainer.qml). Only used until
+    // the user actually drags a card, at which point the result is saved to
+    // Config.ccCardArrangement and this is ignored. Each card's actual size
+    // is declared on its own GridCard below, not here.
+    readonly property var defaultCcOrder: ["controls", "sliders", "sysMonitor", "notifications", "media"]
+    readonly property var defaultCcLanes: ({ controls: 0, sliders: 0, sysMonitor: 1, notifications: 1 })
 
     // --- State Properties ---
     property bool hasWifiAdapter: false
@@ -89,92 +97,72 @@ Item {
         fetchWifiStatusProc.running = true
     }
 
-    // MAIN VERTICAL WRAPPER (Top Bento + Bottom Media)
-    ColumnLayout {
-        id: mainLayout
+    // MAIN BENTO GRID - cards are DraggableGridContainer/GridCard-positioned so
+    // they can always be dragged (grab anywhere on a card) to reorder; see
+    // DraggableGridContainer.qml for the lane-balancing/reflow rules.
+    DraggableGridContainer {
+        id: ccGrid
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.margins: root.cardMargin
         spacing: root.cardMargin / 2
         enabled: !root.isAnyPanelExpanded
 
-        // TOP SECTION: TWO-COLUMN BENTO
-        RowLayout {
-            id: bentoLayout
-            Layout.fillWidth: true
-            spacing: root.cardMargin / 2
+        Connections {
+            target: Config
+            function onIsLoadedChanged() {
+                if (Config.isLoaded) ccGrid.initArrangement(root.defaultCcOrder, root.defaultCcLanes, Config.ccCardArrangement)
+            }
+        }
+        // Applies the compiled-in default arrangement immediately (rather than
+        // waiting on Config's async file read, which can take a couple of
+        // seconds) so cards never sit piled on top of each other at start-up -
+        // if there's a saved arrangement it re-applies moments later via
+        // onIsLoadedChanged above, springing into place instead.
+        Component.onCompleted: {
+            ccGrid.initArrangement(root.defaultCcOrder, root.defaultCcLanes, Config.isLoaded ? Config.ccCardArrangement : null)
+        }
+        onArrangementCommitted: {
+            Config.ccCardArrangement = { order: ccGrid.order, lanes: ccGrid.lanes }
+            Config.saveSettings()
+        }
 
-            // ==========================================
-            // LEFT COLUMN: CONTROLS & SLIDERS
-            // ==========================================
-            ColumnLayout {
-                id: leftColLayout
-                Layout.preferredWidth: 350
-                Layout.fillWidth: false
-                Layout.alignment: Qt.AlignTop
-                spacing: root.cardMargin / 2
+        // COMBINED HEADER & 4 TOGGLES CARD
+        GridCard {
+            id: controlsGridCard
+            container: ccGrid
+            cardId: "controls"
+            colSpan: 4
+            naturalHeight: topControlsCard.implicitHeight
 
-                // COMBINED HEADER & 4 TOGGLES CARD
-                // ClippingRectangle (not plain Rectangle) so the watermark actually
-                // respects the rounded corners instead of bleeding past them - plain
-                // Rectangle.clip (and the inner plain-Item clip this used to rely on)
-                // only clips to the square bounding box.
-                ClippingRectangle {
-                    id: topControlsCard
-                    Layout.fillWidth: true
-                    implicitHeight: topControlsLayout.implicitHeight + (root.cardMargin * 2)
-                    radius: Config.cornerRadius
-                    color: Qt.rgba(255, 255, 255, 0.04)
-                    border.width: 1
-                    border.color: Qt.rgba(255, 255, 255, 0.1)
+            // ClippingRectangle (not plain Rectangle) so the watermark actually
+            // respects the rounded corners instead of bleeding past them - plain
+            // Rectangle.clip (and the inner plain-Item clip this used to rely on)
+            // only clips to the square bounding box.
+            ClippingRectangle {
+                id: topControlsCard
+                anchors.fill: parent
+                implicitHeight: topControlsLayout.implicitHeight + (root.cardMargin * 2)
+                radius: Config.cornerRadius
+                color: Qt.rgba(255, 255, 255, 0.04)
+                border.width: 1
+                border.color: Qt.rgba(255, 255, 255, 0.1)
 
-                    Behavior on border.color { ColorAnimation { duration: 150 } }
+                Behavior on border.color { ColorAnimation { duration: 150 } }
 
-                    Watermark {
-                        icon: Config.getIcon("cc")
-                        iconSize: 150
-                        seed: 25
-                    }
+                Watermark {
+                    icon: Config.getIcon("cc")
+                    iconSize: 150
+                    seed: 25
+                }
 
-                    z: ((wifiCard && (wifiCard.panelExpanded || wifiCard.shouldExpand)) || 
-                        (btCard && (btCard.panelExpanded || btCard.shouldExpand)) || 
-                        (caffeineCard && caffeineCard.panelExpanded)) ? 1000 : 1
-
-                    ColumnLayout {
+                ColumnLayout {
                         id: topControlsLayout
                         anchors.left: parent.left
                         anchors.right: parent.right
-                        anchors.top: parent.top
+                        anchors.verticalCenter: parent.verticalCenter
                         anchors.margins: root.cardMargin
                         spacing: root.cardMargin / 2
-
-                        Item {
-                            implicitWidth: ccTitleText.implicitWidth
-                            implicitHeight: ccTitleText.implicitHeight
-                            Layout.fillWidth: true
-
-                            Glow {
-                                anchors.fill: ccTitleText
-                                source: ccTitleText
-                                radius: 8
-                                samples: 16
-                                color: Config.accent
-                                spread: 0.2
-                                transparentBorder: true
-                                visible: Config.clockShowGlow
-                            }
-
-                            Text {
-                                id: ccTitleText
-                                anchors.fill: parent
-                                text: "CONTROL CENTER"
-                                color: Config.textMain
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontCaption)
-                                font.bold: true
-                                font.italic: true
-                            }
-                        }
 
                         // 2x2 Toggles Grid (Row 1)
                         RowLayout {
@@ -236,63 +224,79 @@ Item {
                         }
                     }
                 }
-
-                // Sliders Card
-                SlidersCard {
-                    id: slidersCardComponent
-                    Layout.fillWidth: true
-                    currentBrightness: root.currentBrightness
-                    hasBacklight: root.hasBacklight
-                    currentVolume: root.currentVolume
-                    isAudioMuted: root.isAudioMuted
-                    onBrightnessChanged: pct => root.setBrightness(pct)
-                    onVolumeChanged: pct => root.setVolume(pct)
-                    onIsUserDraggingVolChanged: root.isUserDraggingVol = isUserDraggingVol
-                }
             }
 
-            // ==========================================
-            // RIGHT COLUMN: SYSTEM MONITOR & NOTIFICATIONS
-            // ==========================================
-            ColumnLayout {
-                id: rightColLayout
-                Layout.preferredWidth: 350
-                Layout.fillWidth: false
-                Layout.alignment: Qt.AlignTop
-                spacing: root.cardMargin / 2
+        // Sliders Card
+        GridCard {
+            id: slidersGridCard
+            container: ccGrid
+            cardId: "sliders"
+            colSpan: 4
+            naturalHeight: slidersCardComponent.implicitHeight
 
-                // SYSTEM MONITOR (Top Slot)
-                SystemMonitorCard {
-                    id: sysMonitorCard
-                    Layout.fillWidth: true
-                    controlCenterPanel: root
-                    z: panelExpanded ? 1000 : 1
+            SlidersCard {
+                id: slidersCardComponent
+                anchors.fill: parent
+                currentBrightness: root.currentBrightness
+                hasBacklight: root.hasBacklight
+                currentVolume: root.currentVolume
+                isAudioMuted: root.isAudioMuted
+                onBrightnessChanged: pct => root.setBrightness(pct)
+                onVolumeChanged: pct => root.setVolume(pct)
+                onIsUserDraggingVolChanged: root.isUserDraggingVol = isUserDraggingVol
+            }
+        }
+
+        // SYSTEM MONITOR
+        GridCard {
+            id: sysMonitorGridCard
+            container: ccGrid
+            cardId: "sysMonitor"
+            colSpan: 4
+            naturalHeight: sysMonitorCard.implicitHeight
+
+            SystemMonitorCard {
+                id: sysMonitorCard
+                anchors.fill: parent
+                controlCenterPanel: root
+            }
+        }
+
+        // NOTIFICATION HUB (Full-Height Grounded Container)
+        GridCard {
+            id: notifGridCard
+            container: ccGrid
+            cardId: "notifications"
+            colSpan: 4
+            naturalHeight: notifHubContainer.implicitHeight
+
+            // ClippingRectangle (not plain Rectangle) so the watermark actually
+            // respects the rounded corners instead of bleeding past them - plain
+            // Rectangle.clip only clips to the square bounding box.
+            ClippingRectangle {
+                id: notifHubContainer
+                anchors.fill: parent
+                // Notification count is unbounded (the list scrolls internally),
+                // so there's no real "fits everything" height like the other
+                // cards have - this is just a reasonable minimum viewport
+                // (header + tabs + a handful of rows) for it to ask the lane
+                // balancer for; it's free to end up taller to match its neighbor.
+                implicitHeight: 260
+                radius: Config.cornerRadius
+                color: Qt.rgba(255, 255, 255, 0.04)
+                border.width: 1
+                border.color: Qt.rgba(255, 255, 255, 0.1)
+
+                Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                Watermark {
+                    icon: Config.getIcon("notifications")
+                    iconSize: 160
+                    seed: 10
                 }
 
-                // NOTIFICATION HUB (Full-Height Grounded Container)
-                // ClippingRectangle (not plain Rectangle) so the watermark actually
-                // respects the rounded corners instead of bleeding past them - plain
-                // Rectangle.clip only clips to the square bounding box.
-                ClippingRectangle {
-                    id: notifHubContainer
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: (leftColLayout.implicitHeight - sysMonitorCard.implicitHeight - (root.cardMargin / 2))
-                    Layout.fillHeight: true
-                    radius: Config.cornerRadius
-                    color: Qt.rgba(255, 255, 255, 0.04)
-                    border.width: 1
-                    border.color: Qt.rgba(255, 255, 255, 0.1)
-
-                    Behavior on border.color { ColorAnimation { duration: 150 } }
-
-                    Watermark {
-                        icon: Config.getIcon("notifications")
-                        iconSize: 160
-                        seed: 10
-                    }
-
-                    ColumnLayout {
-                        anchors.fill: parent
+                ColumnLayout {
+                    anchors.fill: parent
                         anchors.margins: 12
                         spacing: 8
 
@@ -540,18 +544,25 @@ Item {
                     }
                 }
             }
-        }
 
         // ==========================================
         // BOTTOM: FULL WIDTH GROUNDED MEDIA CARD
         // ==========================================
-        MediaCard {
-            id: mediaCardComponent
-            Layout.fillWidth: true
-            controlCenterPanel: root
-            onSendCommand: cmd => {
-                mediaControlProc.command = cmd
-                mediaControlProc.running = true
+        GridCard {
+            id: mediaGridCard
+            container: ccGrid
+            cardId: "media"
+            colSpan: 8
+            naturalHeight: mediaCardComponent.implicitHeight
+
+            MediaCard {
+                id: mediaCardComponent
+                anchors.fill: parent
+                controlCenterPanel: root
+                onSendCommand: cmd => {
+                    mediaControlProc.command = cmd
+                    mediaControlProc.running = true
+                }
             }
         }
     }

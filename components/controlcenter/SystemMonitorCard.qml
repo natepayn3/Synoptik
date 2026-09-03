@@ -411,7 +411,7 @@ Item {
         x: cardRoot.panelExpanded ? cardRoot.cardMargin : cardRoot.collapsedX
         y: cardRoot.panelExpanded ? cardRoot.cardMargin : cardRoot.collapsedY
         width: cardRoot.panelExpanded ? (controlCenterPanel ? (controlCenterPanel.width - (cardRoot.cardMargin * 2)) : 400) : cardRoot.width
-        height: cardRoot.panelExpanded ? (controlCenterPanel ? (controlCenterPanel.height - (cardRoot.cardMargin * 2)) : 500) : 116
+        height: cardRoot.panelExpanded ? (controlCenterPanel ? (controlCenterPanel.height - (cardRoot.cardMargin * 2)) : 500) : cardRoot.height
         
         radius: Config.cornerRadius
         
@@ -477,7 +477,7 @@ Item {
         // ==========================================
         Item {
             id: collapsedView
-            anchors.top: parent.top
+            anchors.verticalCenter: parent.verticalCenter
             anchors.left: parent.left
             anchors.right: parent.right
             height: 116

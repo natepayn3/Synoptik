@@ -51,7 +51,7 @@ ClippingRectangle {
         id: sliderLayout
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.top: parent.top
+        anchors.verticalCenter: parent.verticalCenter
         anchors.margins: root.cardMargin
         spacing: 12
 

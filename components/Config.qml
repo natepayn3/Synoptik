@@ -199,6 +199,13 @@ QtObject {
     property int borderThickness: 3
     property real cardMargin: 12.0
 
+    // Saved ControlCenter card arrangement: { order: [cardId,...], lanes: {cardId: 0|1} }.
+    // order is the top-to-bottom stacking sequence, lanes says which half
+    // (left/right) each half-width card stacks in - full-width cards ignore
+    // lanes. Left empty until the user actually drags a card - ControlCenter.qml
+    // falls back to its own compiled-in default arrangement while this is {}.
+    property var ccCardArrangement: ({})
+
     readonly property bool showBorders: borderThickness > 0
 
     onSurfaceRadiusChanged: { 
@@ -792,7 +799,7 @@ QtObject {
         "pixelShaderBoost", "showMirror", "mirrorShowPanel", "mirrorMirrored", "mirrorKeepAspect",
         "mirrorExpanded", "mirrorPinned", "mirrorAnchorPos", "leftCardOrder", "rightCardOrder",
         "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides", "surfaceRadius",
-        "borderThickness", "cardMargin", "showDesktopClock", "clockStyle", "clockScale",
+        "borderThickness", "cardMargin", "ccCardArrangement", "showDesktopClock", "clockStyle", "clockScale",
         "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", "clockShowBackground",
         "clockShowGlow", "clockPositions", "clockScales", "enabledClockScreens", "showDesktopSysInfo",
         "sysInfoScale", "sysInfoShowHost", "sysInfoShowOs", "sysInfoShowKernel", "sysInfoShowUptime",
@@ -914,6 +921,7 @@ QtObject {
             property var surfaceRadius
             property var borderThickness
             property var cardMargin
+            property var ccCardArrangement
             property var showDesktopClock
             property var clockStyle
             property var clockScale
