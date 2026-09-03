@@ -133,19 +133,146 @@ Item {
 
     ListModel { id: reminderModel }
 
-    ColumnLayout {
-        id: outerCol
+    // --- SWAPPABLE LAYOUT STATE ---
+    // Three independent, single-axis swaps - nothing resizes, only position
+    // changes: the forecast strip trades places with the row below it
+    // (drag the forecast strip); the month grid trades places with the
+    // clock/weather+notes pair as a whole (drag the month grid); and within
+    // that pair, clock/weather and notes only ever swap with each other
+    // (drag either one) - they can never end up outside the pair.
+    property bool forecastOnBottom: false
+    property bool bigCardOnLeft: false
+    property bool notesOnTop: false
+    property bool layoutReady: false
+
+    function applyCalendarArrangement(saved) {
+        forecastOnBottom = !!(saved && saved.forecastOnBottom)
+        bigCardOnLeft = !!(saved && saved.bigCardOnLeft)
+        notesOnTop = !!(saved && saved.notesOnTop)
+        layoutReady = true
+    }
+
+    function saveCalendarArrangement() {
+        Config.calendarArrangement = {
+            forecastOnBottom: root.forecastOnBottom,
+            bigCardOnLeft: root.bigCardOnLeft,
+            notesOnTop: root.notesOnTop
+        }
+        Config.saveSettings()
+    }
+
+    onForecastOnBottomChanged: if (layoutReady) saveCalendarArrangement()
+    onBigCardOnLeftChanged: if (layoutReady) saveCalendarArrangement()
+    onNotesOnTopChanged: if (layoutReady) saveCalendarArrangement()
+
+    Connections {
+        target: Config
+        function onIsLoadedChanged() {
+            if (Config.isLoaded) root.applyCalendarArrangement(Config.calendarArrangement)
+        }
+    }
+    Component.onCompleted: {
+        root.applyCalendarArrangement(Config.isLoaded ? Config.calendarArrangement : null)
+    }
+
+    // Swap-threshold checks: each fires only while its own item is being
+    // dragged, comparing that item's live center against the center of
+    // whichever slot it isn't currently in.
+    function forecastDragMoved(dy) {
+        let baseY = forecastOnBottom ? (outerArea.mainRowH + outerArea.spacing) : 0
+        let center = baseY + dy + outerArea.forecastH / 2
+        if (!forecastOnBottom) {
+            let otherCenter = (outerArea.forecastH + outerArea.spacing) + outerArea.mainRowH / 2
+            if (center > otherCenter) forecastOnBottom = true
+        } else {
+            let otherCenter = outerArea.forecastH / 2
+            if (center < otherCenter) forecastOnBottom = false
+        }
+    }
+
+    function calendarDragMoved(dx) {
+        let baseX = bigCardOnLeft ? 0 : (outerArea.leftColW + outerArea.spacing)
+        let center = baseX + dx + outerArea.bigCardW / 2
+        if (!bigCardOnLeft) {
+            let otherCenter = outerArea.leftColW / 2
+            if (center < otherCenter) bigCardOnLeft = true
+        } else {
+            let otherCenter = (outerArea.bigCardW + outerArea.spacing) + outerArea.leftColW / 2
+            if (center > otherCenter) bigCardOnLeft = false
+        }
+    }
+
+    function clockWeatherDragMoved(dy) {
+        let baseY = notesOnTop ? (outerArea.notesH + outerArea.spacing) : 0
+        let center = baseY + dy + outerArea.clockWeatherH / 2
+        if (!notesOnTop) {
+            let otherCenter = (outerArea.clockWeatherH + outerArea.spacing) + outerArea.notesH / 2
+            if (center > otherCenter) notesOnTop = true
+        } else {
+            let otherCenter = outerArea.notesH / 2
+            if (center < otherCenter) notesOnTop = false
+        }
+    }
+
+    function notesDragMoved(dy) {
+        let baseY = notesOnTop ? 0 : (outerArea.clockWeatherH + outerArea.spacing)
+        let center = baseY + dy + outerArea.notesH / 2
+        if (notesOnTop) {
+            let otherCenter = (outerArea.notesH + outerArea.spacing) + outerArea.clockWeatherH / 2
+            if (center > otherCenter) notesOnTop = false
+        } else {
+            let otherCenter = outerArea.clockWeatherH / 2
+            if (center < otherCenter) notesOnTop = true
+        }
+    }
+
+    Item {
+        id: outerArea
         anchors.fill: parent
         anchors.margins: root.cardMargin
-        spacing: root.cardMargin / 2
 
-    // --- 7-DAY FORECAST STRIP ---
+        // Geometry is computed from root's stable authored dimensions, not
+        // from this Item's own live width/height - those track whatever the
+        // enclosing popup/drawer actually renders at any given moment, which
+        // can take a beat to settle to its final size as it opens. Using the
+        // fixed implicitWidth/implicitHeight instead means every card's
+        // target position is correct from the very first frame, with
+        // nothing to visibly "expand into" afterward.
+        readonly property real contentW: root.implicitWidth - (root.cardMargin * 2)
+        readonly property real contentH: root.implicitHeight - (root.cardMargin * 2)
+
+        readonly property real spacing: root.cardMargin / 2
+        readonly property real forecastH: 92
+        readonly property real mainRowH: contentH - forecastH - spacing
+        readonly property real leftColW: 260
+        readonly property real bigCardW: contentW - leftColW - spacing
+        readonly property real clockWeatherH: clockWeatherCol.implicitHeight + (root.cardMargin * 2)
+        readonly property real notesH: mainRowH - clockWeatherH - spacing
+
+        readonly property real forecastY: root.forecastOnBottom ? (mainRowH + spacing) : 0
+        readonly property real mainRowY: root.forecastOnBottom ? 0 : (forecastH + spacing)
+        readonly property real columnGroupX: root.bigCardOnLeft ? (bigCardW + spacing) : 0
+        readonly property real bigCardX: root.bigCardOnLeft ? 0 : (leftColW + spacing)
+        readonly property real clockWeatherY: root.notesOnTop ? (notesH + spacing) : 0
+        readonly property real notesY: root.notesOnTop ? 0 : (clockWeatherH + spacing)
+
+    // --- 7-DAY FORECAST STRIP --- (swaps top/bottom with the row below it)
+    SwapItem {
+        id: forecastSlot
+        axis: Qt.Vertical
+        targetX: 0
+        targetY: outerArea.forecastY
+        targetWidth: outerArea.contentW
+        targetHeight: outerArea.forecastH
+        ready: root.layoutReady
+        onDragMoved: (dx, dy) => root.forecastDragMoved(dy)
+
     // ClippingRectangle (not plain Rectangle) so the watermark actually
     // respects the rounded corners instead of bleeding past them - plain
     // Rectangle.clip only clips to the square bounding box.
     ClippingRectangle {
         id: forecastCard
-        Layout.fillWidth: true
+        anchors.fill: parent
         implicitHeight: 92
         color: Qt.rgba(1, 1, 1, 0.08)
         radius: Config.cornerRadius
@@ -224,27 +351,38 @@ Item {
             }
         }
     }
+    }
 
-    RowLayout {
-        id: mainRow
-        Layout.fillWidth: true
-        Layout.fillHeight: true
-        spacing: root.cardMargin / 2
+    // --- LEFT/RIGHT PAIR: CLOCK/WEATHER + NOTES (swaps sides with the month
+    // grid as a unit; the two of them are never dragged directly for this -
+    // they only ever swap with each other, below) ---
+    Item {
+        id: columnGroupSlot
+        x: outerArea.columnGroupX
+        y: outerArea.mainRowY
+        width: outerArea.leftColW
+        height: outerArea.mainRowH
 
-        // --- LEFT COLUMN: CLOCK, GRAPHIC WEATHER & REMINDERS ---
-        ColumnLayout {
-            Layout.fillHeight: true
-            Layout.preferredWidth: 260
-            Layout.maximumWidth: 260
-            spacing: root.cardMargin / 2
+        Behavior on x { enabled: root.layoutReady; SpringAnimation { spring: 3.2; damping: 0.4; mass: 0.9 } }
+        Behavior on y { enabled: root.layoutReady; SpringAnimation { spring: 3.2; damping: 0.4; mass: 0.9 } }
 
-            // CARD 1: HERO CLOCK & ATMOSPHERIC GRAPHIC WEATHER
+            // CARD 1: HERO CLOCK & ATMOSPHERIC GRAPHIC WEATHER (swaps up/down
+            // with the notes card only)
+            SwapItem {
+                id: clockWeatherSlot
+                axis: Qt.Vertical
+                targetX: 0
+                targetY: outerArea.clockWeatherY
+                targetWidth: columnGroupSlot.width
+                targetHeight: outerArea.clockWeatherH
+                ready: root.layoutReady
+                onDragMoved: (dx, dy) => root.clockWeatherDragMoved(dy)
+
             // ClippingRectangle (not plain Rectangle) so the watermark actually
             // respects the rounded corners instead of bleeding past them - plain
             // Rectangle.clip only clips to the square bounding box.
             ClippingRectangle {
-                Layout.fillWidth: true
-                implicitHeight: clockWeatherCol.implicitHeight + (root.cardMargin * 2)
+                anchors.fill: parent
                 color: Qt.rgba(1, 1, 1, 0.08)
                 radius: Config.cornerRadius
                 border.width: 1
@@ -379,14 +517,25 @@ Item {
                     }
                 }
             }
+            }
 
-            // CARD 2: REMINDERS CARD WITH GRAPHIC WATERMARK
+            // CARD 2: REMINDERS CARD WITH GRAPHIC WATERMARK (swaps up/down
+            // with the clock/weather card only)
+            SwapItem {
+                id: notesSlot
+                axis: Qt.Vertical
+                targetX: 0
+                targetY: outerArea.notesY
+                targetWidth: columnGroupSlot.width
+                targetHeight: outerArea.notesH
+                ready: root.layoutReady
+                onDragMoved: (dx, dy) => root.notesDragMoved(dy)
+
             // ClippingRectangle (not plain Rectangle) so the watermark actually
             // respects the rounded corners instead of bleeding past them - plain
             // Rectangle.clip only clips to the square bounding box.
             ClippingRectangle {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
+                anchors.fill: parent
                 color: Qt.rgba(1, 1, 1, 0.08)
                 radius: Config.cornerRadius
                 border.width: 1
@@ -539,15 +688,25 @@ Item {
                     }
                 }
             }
+            }
         }
 
-        // --- CARD 3: CALENDAR MONTHGRID CARD WITH GRAPHIC WATERMARK ---
+        // --- CARD 3: CALENDAR MONTHGRID (swaps sides with the pair above) ---
         // ClippingRectangle (not plain Rectangle) so the watermark actually
         // respects the rounded corners instead of bleeding past them - plain
         // Rectangle.clip only clips to the square bounding box.
+        SwapItem {
+            id: bigCardSlot
+            axis: Qt.Horizontal
+            targetX: outerArea.bigCardX
+            targetY: outerArea.mainRowY
+            targetWidth: outerArea.bigCardW
+            targetHeight: outerArea.mainRowH
+            ready: root.layoutReady
+            onDragMoved: (dx, dy) => root.calendarDragMoved(dx)
+
         ClippingRectangle {
-            Layout.fillHeight: true
-            Layout.fillWidth: true
+            anchors.fill: parent
             color: Qt.rgba(1, 1, 1, 0.08)
             radius: Config.cornerRadius
             border.width: 1

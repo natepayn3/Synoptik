@@ -206,6 +206,12 @@ QtObject {
     // falls back to its own compiled-in default arrangement while this is {}.
     property var ccCardArrangement: ({})
 
+    // Saved Calendar swap state: { forecastOnBottom, bigCardOnLeft, notesOnTop }
+    // (all bool). Left empty until the user actually drags something -
+    // Calendar.qml falls back to the compiled-in default (all false) while
+    // this is {}.
+    property var calendarArrangement: ({})
+
     readonly property bool showBorders: borderThickness > 0
 
     onSurfaceRadiusChanged: { 
@@ -323,10 +329,12 @@ QtObject {
         zipcode: root.locationQuery
     }
 
-    // Only poll weather if loaded and a valid location query exists
+    // Polls whenever Config is loaded - an empty locationQuery is the valid
+    // "Auto IP Geolocation" mode, not "unconfigured", so it shouldn't block
+    // the periodic refresh either.
     property Timer weatherTimer: Timer {
         interval: 900000
-        running: root.isLoaded && root.locationQuery.trim().length > 0
+        running: root.isLoaded
         repeat: true
         onTriggered: root.weather.fetchWeather(true)
     }
@@ -426,8 +434,10 @@ QtObject {
     onLocationQueryChanged: {
         if (root.weather) {
             root.weather.zipcode = root.locationQuery;
-            if (root.isLoaded && root.locationQuery.trim().length > 0) {
-                root.weather.fetchWeather(true);
+            // Empty is the valid "Auto IP Geolocation" mode, not
+            // "unconfigured" - clearing back to it should still save and
+            // (via WeatherService's own onZipcodeChanged) still re-fetch.
+            if (root.isLoaded) {
                 root.saveSettings();
             }
         }
@@ -799,7 +809,7 @@ QtObject {
         "pixelShaderBoost", "showMirror", "mirrorShowPanel", "mirrorMirrored", "mirrorKeepAspect",
         "mirrorExpanded", "mirrorPinned", "mirrorAnchorPos", "leftCardOrder", "rightCardOrder",
         "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides", "surfaceRadius",
-        "borderThickness", "cardMargin", "ccCardArrangement", "showDesktopClock", "clockStyle", "clockScale",
+        "borderThickness", "cardMargin", "ccCardArrangement", "calendarArrangement", "showDesktopClock", "clockStyle", "clockScale",
         "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", "clockShowBackground",
         "clockShowGlow", "clockPositions", "clockScales", "enabledClockScreens", "showDesktopSysInfo",
         "sysInfoScale", "sysInfoShowHost", "sysInfoShowOs", "sysInfoShowKernel", "sysInfoShowUptime",
@@ -922,6 +932,7 @@ QtObject {
             property var borderThickness
             property var cardMargin
             property var ccCardArrangement
+            property var calendarArrangement
             property var showDesktopClock
             property var clockStyle
             property var clockScale
@@ -1070,7 +1081,10 @@ QtObject {
                 root.updateShader()
             }
 
-            if (root.weather && root.locationQuery.trim().length > 0) {
+            // locationQuery empty is a valid "Auto IP Geolocation" mode
+            // (WeatherService.getTargetUrl falls back to plain wttr.in),
+            // not "unconfigured" - don't skip the startup fetch for it.
+            if (root.weather) {
                 root.weather.fetchWeather(true)
             }
 
