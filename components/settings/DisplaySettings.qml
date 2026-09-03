@@ -814,6 +814,95 @@ Flickable {
                     }
                 }
 
+                // Row 0: Position Offset (Nudge)
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 12
+
+                    Text {
+                        text: "Offset Nudge:"
+                        color: Config.textMain
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontCaption)
+                        font.bold: true
+                        Layout.alignment: Qt.AlignVCenter
+                    }
+
+                    RowLayout {
+                        spacing: 4
+
+                        Rectangle {
+                            implicitWidth: 30; implicitHeight: 26; radius: 4
+                            color: nLeft.containsMouse ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.06)
+                            border.width: 1; border.color: Qt.rgba(255, 255, 255, 0.12)
+                            Text { anchors.centerIn: parent; text: "←"; color: Config.textMain; font.bold: true }
+                            MouseArea {
+                                id: nLeft; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    let cfg = Config.getMonitorConfig(Config.selectedScreenConfig)
+                                    Config.updateDraftMonitorConfig(Config.selectedScreenConfig, { x: (cfg ? cfg.x : 0) - 50 })
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            implicitWidth: 30; implicitHeight: 26; radius: 4
+                            color: nRight.containsMouse ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.06)
+                            border.width: 1; border.color: Qt.rgba(255, 255, 255, 0.12)
+                            Text { anchors.centerIn: parent; text: "→"; color: Config.textMain; font.bold: true }
+                            MouseArea {
+                                id: nRight; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    let cfg = Config.getMonitorConfig(Config.selectedScreenConfig)
+                                    Config.updateDraftMonitorConfig(Config.selectedScreenConfig, { x: (cfg ? cfg.x : 0) + 50 })
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            implicitWidth: 30; implicitHeight: 26; radius: 4
+                            color: nUp.containsMouse ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.06)
+                            border.width: 1; border.color: Qt.rgba(255, 255, 255, 0.12)
+                            Text { anchors.centerIn: parent; text: "↑"; color: Config.textMain; font.bold: true }
+                            MouseArea {
+                                id: nUp; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    let cfg = Config.getMonitorConfig(Config.selectedScreenConfig)
+                                    Config.updateDraftMonitorConfig(Config.selectedScreenConfig, { y: (cfg ? cfg.y : 0) - 50 })
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            implicitWidth: 30; implicitHeight: 26; radius: 4
+                            color: nDown.containsMouse ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.06)
+                            border.width: 1; border.color: Qt.rgba(255, 255, 255, 0.12)
+                            Text { anchors.centerIn: parent; text: "↓"; color: Config.textMain; font.bold: true }
+                            MouseArea {
+                                id: nDown; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    let cfg = Config.getMonitorConfig(Config.selectedScreenConfig)
+                                    Config.updateDraftMonitorConfig(Config.selectedScreenConfig, { y: (cfg ? cfg.y : 0) + 50 })
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: {
+                            let cfg = Config.getMonitorConfig(Config.selectedScreenConfig)
+                            return "(" + (cfg ? cfg.x : 0) + ", " + (cfg ? cfg.y : 0) + ")"
+                        }
+                        color: Config.accent
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        font.bold: true
+                        Layout.alignment: Qt.AlignVCenter
+                    }
+
+                    Item { Layout.fillWidth: true }
+                }
+
                 // Row 1: Resolution Combo
                 Rectangle {
                     Layout.fillWidth: true
@@ -836,6 +925,7 @@ Flickable {
                             font.pixelSize: Config.size(Config.fontCaption)
                             font.bold: true
                             Layout.preferredWidth: inspectorCol.formLabelWidth
+                            Layout.alignment: Qt.AlignVCenter
                         }
 
                         ComboBox {
@@ -969,6 +1059,7 @@ Flickable {
                             font.pixelSize: Config.size(Config.fontCaption)
                             font.bold: true
                             Layout.preferredWidth: inspectorCol.formLabelWidth
+                            Layout.alignment: Qt.AlignVCenter
                         }
 
                         RowLayout {
@@ -1055,6 +1146,7 @@ Flickable {
                             font.pixelSize: Config.size(Config.fontCaption)
                             font.bold: true
                             Layout.preferredWidth: inspectorCol.formLabelWidth
+                            Layout.alignment: Qt.AlignVCenter
                         }
 
                         RowLayout {
@@ -1142,6 +1234,7 @@ Flickable {
                                 font.pixelSize: Config.size(Config.fontCaption)
                                 font.bold: true
                                 Layout.preferredWidth: inspectorCol.formLabelWidth
+                                Layout.alignment: Qt.AlignVCenter
                             }
 
                             RowLayout {
@@ -1222,6 +1315,7 @@ Flickable {
                                     font.pixelSize: Config.size(Config.fontCaption)
                                     font.bold: true
                                     Layout.preferredWidth: inspectorCol.formLabelWidth
+                                    Layout.alignment: Qt.AlignVCenter
                                 }
 
                                 RowLayout {
@@ -1299,89 +1393,10 @@ Flickable {
                     }
                 }
 
-                // Row 4: Position Offset & Action Bar
+                // Row 4: Action Bar
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 12
-
-                    Text {
-                        text: "Offset Nudge:"
-                        color: Config.textMain
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontCaption)
-                        font.bold: true
-                    }
-
-                    RowLayout {
-                        spacing: 4
-
-                        Rectangle {
-                            implicitWidth: 30; implicitHeight: 26; radius: 4
-                            color: nLeft.containsMouse ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.06)
-                            border.width: 1; border.color: Qt.rgba(255, 255, 255, 0.12)
-                            Text { anchors.centerIn: parent; text: "←"; color: Config.textMain; font.bold: true }
-                            MouseArea {
-                                id: nLeft; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    let cfg = Config.getMonitorConfig(Config.selectedScreenConfig)
-                                    Config.updateDraftMonitorConfig(Config.selectedScreenConfig, { x: (cfg ? cfg.x : 0) - 50 })
-                                }
-                            }
-                        }
-
-                        Rectangle {
-                            implicitWidth: 30; implicitHeight: 26; radius: 4
-                            color: nRight.containsMouse ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.06)
-                            border.width: 1; border.color: Qt.rgba(255, 255, 255, 0.12)
-                            Text { anchors.centerIn: parent; text: "→"; color: Config.textMain; font.bold: true }
-                            MouseArea {
-                                id: nRight; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    let cfg = Config.getMonitorConfig(Config.selectedScreenConfig)
-                                    Config.updateDraftMonitorConfig(Config.selectedScreenConfig, { x: (cfg ? cfg.x : 0) + 50 })
-                                }
-                            }
-                        }
-
-                        Rectangle {
-                            implicitWidth: 30; implicitHeight: 26; radius: 4
-                            color: nUp.containsMouse ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.06)
-                            border.width: 1; border.color: Qt.rgba(255, 255, 255, 0.12)
-                            Text { anchors.centerIn: parent; text: "↑"; color: Config.textMain; font.bold: true }
-                            MouseArea {
-                                id: nUp; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    let cfg = Config.getMonitorConfig(Config.selectedScreenConfig)
-                                    Config.updateDraftMonitorConfig(Config.selectedScreenConfig, { y: (cfg ? cfg.y : 0) - 50 })
-                                }
-                            }
-                        }
-
-                        Rectangle {
-                            implicitWidth: 30; implicitHeight: 26; radius: 4
-                            color: nDown.containsMouse ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.06)
-                            border.width: 1; border.color: Qt.rgba(255, 255, 255, 0.12)
-                            Text { anchors.centerIn: parent; text: "↓"; color: Config.textMain; font.bold: true }
-                            MouseArea {
-                                id: nDown; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    let cfg = Config.getMonitorConfig(Config.selectedScreenConfig)
-                                    Config.updateDraftMonitorConfig(Config.selectedScreenConfig, { y: (cfg ? cfg.y : 0) + 50 })
-                                }
-                            }
-                        }
-                    }
-
-                    Text {
-                        text: {
-                            let cfg = Config.getMonitorConfig(Config.selectedScreenConfig)
-                            return "(" + (cfg ? cfg.x : 0) + ", " + (cfg ? cfg.y : 0) + ")"
-                        }
-                        color: Config.accent
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                        font.bold: true
-                    }
 
                     Item { Layout.fillWidth: true }
 
