@@ -200,13 +200,16 @@ PanelWindow {
         renderTarget: Canvas.Image
         renderStrategy: Canvas.Immediate
 
+        // This widget mounts immediately at startup (unlike MediaCard.qml's
+        // copy, which only ever mounts once Control Center is already open),
+        // so artImage can go Ready before the canvas node itself exists.
+        // Calling getContext() before `available` is true logs a QtQuick
+        // warning every time, so gate on it and retry via onAvailableChanged.
+        onAvailableChanged: if (available && artImage.status === Image.Ready) sample()
+
         function sample() {
-            if (artImage.status !== Image.Ready) return
+            if (artImage.status !== Image.Ready || !available) return
             var ctx = getContext("2d")
-            // getContext() can momentarily return null right as this Canvas
-            // is created (this widget mounts immediately at startup, unlike
-            // MediaCard.qml's copy which only ever mounts once Control
-            // Center is already open and settled).
             if (!ctx) return
             ctx.clearRect(0, 0, width, height)
             try {
