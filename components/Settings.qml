@@ -956,7 +956,12 @@ Item {
                                         let output = checkOutput.text
                                         if (output.includes("behind")) {
                                             shellView.statusText = "Updates available! Downloading..."
-                                            gitPuller.command = ["fish", "-c", "cd '" + shellView.repoDir + "'; and git fetch origin main; and git reset --hard origin/main"]
+                                            gitPuller.command = ["fish", "-c",
+                                                "cd '" + shellView.repoDir + "'; " +
+                                                "and set OLD_HEAD (git rev-parse HEAD); " +
+                                                "and git fetch origin main; " +
+                                                "and git reset --hard origin/main; " +
+                                                "and notify-send -u critical 'Synoptik Shell Updated' (git log --pretty=format:'• %s' $OLD_HEAD..origin/main | string collect)"]
                                             gitPuller.running = true
                                         } else {
                                             shellView.isBusy = false
@@ -979,9 +984,7 @@ Item {
                                 onExited: (code) => {
                                     shellView.isBusy = false
                                     if (code === 0) {
-                                        shellView.statusText = "Updated successfully! Reloading..."
-                                        Config.flushSettings()
-                                        Quickshell.execDetached(["fish", "-c", "killall quickshell; and quickshell"])
+                                        shellView.statusText = "Updated! Click Reload to apply the new version."
                                     } else {
                                         let err = pullError.text.trim()
                                         shellView.statusText = err.length > 0 ? err : "Failed to apply updates."
