@@ -12,8 +12,31 @@ Shape {
     anchors.fill: parent
     visible: panelRoot.barPosition === "right" && !panelRoot.isScreenFrame && (panelRoot.progress > 0 || panelRoot.isPeeking)
 
+    // Same slow drifting tint as the other bar shapes, instead of one flat color.
+    property real materialDrift: 0.0
+    SequentialAnimation on materialDrift {
+        running: true
+        loops: Animation.Infinite
+        NumberAnimation { to: 1.0; duration: 15000; easing.type: Easing.InOutSine }
+        NumberAnimation { to: 0.0; duration: 15000; easing.type: Easing.InOutSine }
+    }
+    readonly property real materialSpan: Math.max(
+        panelRoot.pRight - panelRoot.pLeft,
+        panelRoot.islandBarB - panelRoot.islandBarT,
+        panelRoot.currentWidth,
+        160)
+
     ShapePath {
-        fillColor: Config.bgPanel
+        fillGradient: RadialGradient {
+            centerX: panelCanvas.width - panelRoot.halfB
+            centerY: panelRoot.islandBarT + (panelRoot.islandBarB - panelRoot.islandBarT) * (0.3 + openShapeRightFloating.materialDrift * 0.4)
+            centerRadius: openShapeRightFloating.materialSpan * 0.85
+            focalX: centerX
+            focalY: centerY
+            GradientStop { position: 0.0; color: Qt.tint(Config.bgPanel, Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14)) }
+            GradientStop { position: 0.6; color: Config.bgPanel }
+            GradientStop { position: 1.0; color: Qt.darker(Config.bgPanel, 1.12) }
+        }
         strokeWidth: panelRoot.borderWidth
         strokeColor: shellRoot.currentBorderColor
         joinStyle: ShapePath.RoundJoin

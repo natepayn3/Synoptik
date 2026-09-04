@@ -68,9 +68,10 @@ Item {
     function trigger() {
         osdHideTimer.stop()
         Config.showNotificationOsd = true
-        
+
         // Play notification arrival sound effect
         osdRoot.playNotificationSound()
+        rippleAnim.restart()
 
         if (osdRoot.notifUrgency !== Notifs.NotificationUrgency.Critical) {
             osdHideTimer.restart()
@@ -115,6 +116,28 @@ Item {
                 color: osdRoot.notifUrgency === Notifs.NotificationUrgency.Critical ? "#ef4444" : Config.accent
                 font.family: "Material Symbols Outlined"
                 font.pixelSize: 24
+            }
+
+            // Ripple pulse on arrival - a ring of accent color expanding out of
+            // the icon tile and fading, so a new notification announces itself
+            // in color rather than just popping the OSD into view.
+            Rectangle {
+                id: notifyRipple
+                anchors.centerIn: parent
+                width: parent.width
+                height: parent.height
+                radius: parent.radius
+                color: "transparent"
+                border.width: 2
+                border.color: osdRoot.notifUrgency === Notifs.NotificationUrgency.Critical ? "#ef4444" : Config.accent
+                opacity: 0
+                scale: 1.0
+
+                ParallelAnimation {
+                    id: rippleAnim
+                    NumberAnimation { target: notifyRipple; property: "scale"; from: 1.0; to: 1.9; duration: 650; easing.type: Easing.OutCubic }
+                    NumberAnimation { target: notifyRipple; property: "opacity"; from: 0.9; to: 0; duration: 650; easing.type: Easing.OutCubic }
+                }
             }
 
             // Pulsing urgency badge - same beat as ScreenRecorder's recording

@@ -622,13 +622,50 @@ PanelWindow {
                         color: Qt.rgba(255, 255, 255, 0.08)
 
                         Rectangle {
+                            id: ramFill
                             anchors.left: parent.left
                             anchors.top: parent.top
                             anchors.bottom: parent.bottom
                             width: parent.width * sysInfoWindow.ramPct
                             radius: height / 2
-                            color: Config.accent
+                            color: sysInfoWindow.ramPct > 0.85 ? "#ef4444" : Config.accent
                             Behavior on width { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+                            Behavior on color { ColorAnimation { duration: 200 } }
+
+                            // A tiny rider at the leading edge instead of a bare
+                            // bar tip - squints once the gauge is nearly full.
+                            Item {
+                                id: ramRider
+                                width: 12 * infoContainer.currentScale
+                                height: 12 * infoContainer.currentScale
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.right: parent.right
+                                anchors.rightMargin: -width / 2
+
+                                property real bob: 0.0
+                                SequentialAnimation on bob {
+                                    running: true
+                                    loops: Animation.Infinite
+                                    NumberAnimation { to: 1.0; duration: 1100; easing.type: Easing.InOutSine }
+                                    NumberAnimation { to: 0.0; duration: 1100; easing.type: Easing.InOutSine }
+                                }
+                                transform: Translate { y: -ramRider.bob * 1.5 }
+
+                                Rectangle {
+                                    anchors.fill: parent
+                                    radius: width / 2
+                                    color: ramFill.color
+                                    border.width: 1
+                                    border.color: Config.bgBase
+
+                                    Row {
+                                        anchors.centerIn: parent
+                                        spacing: 2
+                                        Rectangle { width: 2; height: sysInfoWindow.ramPct > 0.85 ? 1 : 2; radius: 1; color: Config.bgBase }
+                                        Rectangle { width: 2; height: sysInfoWindow.ramPct > 0.85 ? 1 : 2; radius: 1; color: Config.bgBase }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -653,13 +690,48 @@ PanelWindow {
                         color: Qt.rgba(255, 255, 255, 0.08)
 
                         Rectangle {
+                            id: swapFill
                             anchors.left: parent.left
                             anchors.top: parent.top
                             anchors.bottom: parent.bottom
                             width: parent.width * sysInfoWindow.swapPct
                             radius: height / 2
-                            color: Config.accent
+                            color: sysInfoWindow.swapPct > 0.85 ? "#ef4444" : Config.accent
                             Behavior on width { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+                            Behavior on color { ColorAnimation { duration: 200 } }
+
+                            Item {
+                                id: swapRider
+                                width: 12 * infoContainer.currentScale
+                                height: 12 * infoContainer.currentScale
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.right: parent.right
+                                anchors.rightMargin: -width / 2
+
+                                property real bob: 0.0
+                                SequentialAnimation on bob {
+                                    running: true
+                                    loops: Animation.Infinite
+                                    NumberAnimation { to: 1.0; duration: 1100; easing.type: Easing.InOutSine }
+                                    NumberAnimation { to: 0.0; duration: 1100; easing.type: Easing.InOutSine }
+                                }
+                                transform: Translate { y: -swapRider.bob * 1.5 }
+
+                                Rectangle {
+                                    anchors.fill: parent
+                                    radius: width / 2
+                                    color: swapFill.color
+                                    border.width: 1
+                                    border.color: Config.bgBase
+
+                                    Row {
+                                        anchors.centerIn: parent
+                                        spacing: 2
+                                        Rectangle { width: 2; height: sysInfoWindow.swapPct > 0.85 ? 1 : 2; radius: 1; color: Config.bgBase }
+                                        Rectangle { width: 2; height: sysInfoWindow.swapPct > 0.85 ? 1 : 2; radius: 1; color: Config.bgBase }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -684,13 +756,48 @@ PanelWindow {
                         color: Qt.rgba(255, 255, 255, 0.08)
 
                         Rectangle {
+                            id: diskRootFillRider
                             anchors.left: parent.left
                             anchors.top: parent.top
                             anchors.bottom: parent.bottom
                             width: parent.width * sysInfoWindow.diskRootPct
                             radius: height / 2
-                            color: Config.accent
+                            color: sysInfoWindow.diskRootPct > 0.85 ? "#ef4444" : Config.accent
                             Behavior on width { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+                            Behavior on color { ColorAnimation { duration: 200 } }
+
+                            Item {
+                                id: diskRootRider
+                                width: 12 * infoContainer.currentScale
+                                height: 12 * infoContainer.currentScale
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.right: parent.right
+                                anchors.rightMargin: -width / 2
+
+                                property real bob: 0.0
+                                SequentialAnimation on bob {
+                                    running: true
+                                    loops: Animation.Infinite
+                                    NumberAnimation { to: 1.0; duration: 1100; easing.type: Easing.InOutSine }
+                                    NumberAnimation { to: 0.0; duration: 1100; easing.type: Easing.InOutSine }
+                                }
+                                transform: Translate { y: -diskRootRider.bob * 1.5 }
+
+                                Rectangle {
+                                    anchors.fill: parent
+                                    radius: width / 2
+                                    color: diskRootFillRider.color
+                                    border.width: 1
+                                    border.color: Config.bgBase
+
+                                    Row {
+                                        anchors.centerIn: parent
+                                        spacing: 2
+                                        Rectangle { width: 2; height: sysInfoWindow.diskRootPct > 0.85 ? 1 : 2; radius: 1; color: Config.bgBase }
+                                        Rectangle { width: 2; height: sysInfoWindow.diskRootPct > 0.85 ? 1 : 2; radius: 1; color: Config.bgBase }
+                                    }
+                                }
+                            }
                         }
                     }
                 }
@@ -715,13 +822,48 @@ PanelWindow {
                         color: Qt.rgba(255, 255, 255, 0.08)
 
                         Rectangle {
+                            id: diskHomeFillRider
                             anchors.left: parent.left
                             anchors.top: parent.top
                             anchors.bottom: parent.bottom
                             width: parent.width * sysInfoWindow.diskHomePct
                             radius: height / 2
-                            color: Config.accent
+                            color: sysInfoWindow.diskHomePct > 0.85 ? "#ef4444" : Config.accent
                             Behavior on width { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+                            Behavior on color { ColorAnimation { duration: 200 } }
+
+                            Item {
+                                id: diskHomeRider
+                                width: 12 * infoContainer.currentScale
+                                height: 12 * infoContainer.currentScale
+                                anchors.verticalCenter: parent.verticalCenter
+                                anchors.right: parent.right
+                                anchors.rightMargin: -width / 2
+
+                                property real bob: 0.0
+                                SequentialAnimation on bob {
+                                    running: true
+                                    loops: Animation.Infinite
+                                    NumberAnimation { to: 1.0; duration: 1100; easing.type: Easing.InOutSine }
+                                    NumberAnimation { to: 0.0; duration: 1100; easing.type: Easing.InOutSine }
+                                }
+                                transform: Translate { y: -diskHomeRider.bob * 1.5 }
+
+                                Rectangle {
+                                    anchors.fill: parent
+                                    radius: width / 2
+                                    color: diskHomeFillRider.color
+                                    border.width: 1
+                                    border.color: Config.bgBase
+
+                                    Row {
+                                        anchors.centerIn: parent
+                                        spacing: 2
+                                        Rectangle { width: 2; height: sysInfoWindow.diskHomePct > 0.85 ? 1 : 2; radius: 1; color: Config.bgBase }
+                                        Rectangle { width: 2; height: sysInfoWindow.diskHomePct > 0.85 ? 1 : 2; radius: 1; color: Config.bgBase }
+                                    }
+                                }
+                            }
                         }
                     }
                 }

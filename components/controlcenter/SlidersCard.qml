@@ -301,7 +301,7 @@ ClippingRectangle {
 
                     Behavior on width {
                         enabled: !brightDrag.active
-                        NumberAnimation { duration: 120; easing.type: Easing.OutQuad }
+                        NumberAnimation { duration: 220; easing.type: Easing.OutBack; easing.overshoot: 1.4 }
                     }
                 }
 
@@ -320,14 +320,38 @@ ClippingRectangle {
                         color: Config.accent
                     }
 
-                    Text {
+                    // Same idea as the volume face - a squinting eye instead of
+                    // a sun icon, that opens wider as brightness goes up.
+                    Item {
+                        id: brightEye
                         anchors.left: parent.left
                         anchors.leftMargin: 12
                         anchors.verticalCenter: parent.verticalCenter
-                        text: "brightness_6"
-                        font.family: "Material Symbols Outlined"
-                        font.pixelSize: 20
-                        color: root.hasBacklight ? Config.bgBase : Config.textMuted
+                        width: 22
+                        height: 22
+                        opacity: root.hasBacklight ? 1.0 : 0.5
+
+                        readonly property color faceColor: root.hasBacklight ? Config.bgBase : Config.textMuted
+                        readonly property real openness: root.hasBacklight ? Math.max(0.12, root.currentBrightness / 100) : 0.12
+
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: 16
+                            height: Math.max(3, 16 * brightEye.openness)
+                            radius: height / 2
+                            color: brightEye.faceColor
+
+                            Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.6 } }
+
+                            Rectangle {
+                                anchors.centerIn: parent
+                                width: 6
+                                height: 6
+                                radius: 3
+                                color: Qt.darker(brightEye.faceColor, 1.6)
+                                visible: brightEye.openness > 0.35
+                            }
+                        }
                     }
 
                     Text {
@@ -414,7 +438,7 @@ ClippingRectangle {
 
                     Behavior on width {
                         enabled: !root.isUserDraggingVol && !volArea.pressed && root.currentVolume >= 0
-                        NumberAnimation { duration: 120; easing.type: Easing.OutQuad }
+                        NumberAnimation { duration: 220; easing.type: Easing.OutBack; easing.overshoot: 1.4 }
                     }
                 }
 
@@ -433,18 +457,62 @@ ClippingRectangle {
                         color: Config.accent
                     }
 
-                    Text {
+                    // A tiny face instead of a volume icon - the mouth grows with
+                    // the level and flattens when muted, so the number is felt as
+                    // an expression, not just read as a percentage.
+                    Item {
+                        id: volFace
                         anchors.left: parent.left
                         anchors.leftMargin: 12
                         anchors.verticalCenter: parent.verticalCenter
-                        readonly property int activeVol: root.isUserDraggingVol 
-                            ? Math.round(root.localRatio * 100) 
-                            : root.currentVolume
+                        width: 22
+                        height: 22
 
-                        text: root.isAudioMuted ? "volume_off" : (activeVol <= 0 ? "volume_mute" : (activeVol < 50 ? "volume_down" : "volume_up"))
-                        font.family: "Material Symbols Outlined"
-                        font.pixelSize: 20
-                        color: (!root.isAudioMuted && activeVol > 10) ? Config.bgBase : Config.textMain
+                        readonly property int activeVol: root.isUserDraggingVol
+                            ? Math.round(root.localRatio * 100)
+                            : root.currentVolume
+                        readonly property color faceColor: (!root.isAudioMuted && activeVol > 10) ? Config.bgBase : Config.textMain
+
+                        property real bob: 0.0
+                        SequentialAnimation on bob {
+                            running: true
+                            loops: Animation.Infinite
+                            NumberAnimation { to: 1.0; duration: 900; easing.type: Easing.InOutSine }
+                            NumberAnimation { to: 0.0; duration: 900; easing.type: Easing.InOutSine }
+                        }
+                        transform: Translate { y: -volFace.bob * 1.5 }
+
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            y: 3
+                            spacing: 5
+                            Rectangle {
+                                width: 4
+                                height: root.isAudioMuted ? 2 : 4
+                                radius: 2
+                                color: volFace.faceColor
+                                Behavior on height { NumberAnimation { duration: 150 } }
+                            }
+                            Rectangle {
+                                width: 4
+                                height: root.isAudioMuted ? 2 : 4
+                                radius: 2
+                                color: volFace.faceColor
+                                Behavior on height { NumberAnimation { duration: 150 } }
+                            }
+                        }
+
+                        Rectangle {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            y: 12
+                            width: root.isAudioMuted ? 9 : (6 + (volFace.activeVol / 100) * 10)
+                            height: root.isAudioMuted ? 2 : (4 + (volFace.activeVol / 100) * 4)
+                            radius: height / 2
+                            color: volFace.faceColor
+
+                            Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 2 } }
+                            Behavior on height { NumberAnimation { duration: 180 } }
+                        }
                     }
 
                     Text {

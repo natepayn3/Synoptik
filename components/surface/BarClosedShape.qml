@@ -7,6 +7,18 @@ Shape {
 
     required property var panelRoot
     required property Item panelCanvas
+
+    // Material fill: a slow-drifting radial highlight instead of one flat
+    // color, so the pill reads as painted rather than a tinted pane of glass.
+    // Drift is a plain 0..1 ping-pong - not tied to any interaction - so the
+    // panel is quietly alive even when nothing else is happening.
+    property real materialDrift: 0.0
+    SequentialAnimation on materialDrift {
+        running: true
+        loops: Animation.Infinite
+        NumberAnimation { to: 1.0; duration: 15000; easing.type: Easing.InOutSine }
+        NumberAnimation { to: 0.0; duration: 15000; easing.type: Easing.InOutSine }
+    }
     readonly property real bX: (panelRoot.isIsland ? (panelRoot.isHorizontal ? panelRoot.islandX : (panelRoot.isRight ? (panelCanvas.width - panelRoot.barH + panelRoot.halfB) : panelRoot.halfB)) : (panelRoot.isRight ? (panelCanvas.width - panelRoot.barH + panelRoot.halfB) : panelRoot.halfB)) + panelRoot.autoHideXOffset
     readonly property real bY: (panelRoot.isIsland ? (panelRoot.isHorizontal ? (panelRoot.isBottom ? (panelCanvas.height - panelRoot.barH + panelRoot.halfB) : panelRoot.halfB) : panelRoot.islandY) : (panelRoot.isBottom ? (panelCanvas.height - panelRoot.barH + panelRoot.halfB) : panelRoot.halfB)) + panelRoot.autoHideYOffset
     readonly property real bW: (panelRoot.isIsland ? (panelRoot.isHorizontal ? (panelRoot.islandX + panelRoot.animatedIslandWidth) : (panelRoot.isRight ? (panelCanvas.width - panelRoot.halfB) : (panelRoot.barH - panelRoot.halfB))) : (panelRoot.isHorizontal ? (panelCanvas.width - panelRoot.halfB) : (panelRoot.isRight ? (panelCanvas.width - panelRoot.halfB) : (panelRoot.barH - panelRoot.halfB)))) + panelRoot.autoHideXOffset
@@ -26,7 +38,16 @@ Shape {
     }
 
     ShapePath {
-        fillColor: Config.bgPanel
+        fillGradient: RadialGradient {
+            centerX: closedShape.bX + (closedShape.bW - closedShape.bX) * (0.3 + closedShape.materialDrift * 0.4)
+            centerY: closedShape.bY + (closedShape.bH - closedShape.bY) * 0.5
+            centerRadius: Math.max(closedShape.bW - closedShape.bX, closedShape.bH - closedShape.bY) * 1.1
+            focalX: centerX
+            focalY: centerY
+            GradientStop { position: 0.0; color: Qt.tint(Config.bgPanel, Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.16)) }
+            GradientStop { position: 0.6; color: Config.bgPanel }
+            GradientStop { position: 1.0; color: Qt.darker(Config.bgPanel, 1.12) }
+        }
         strokeWidth: panelRoot.borderWidth
         strokeColor: shellRoot.currentBorderColor
         joinStyle: ShapePath.RoundJoin

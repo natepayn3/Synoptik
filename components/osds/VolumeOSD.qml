@@ -154,14 +154,58 @@ Item {
                     color: Qt.rgba(255, 255, 255, 0.06)
                     Layout.alignment: Qt.AlignVCenter | Qt.AlignHCenter
 
-                    Text {
+                    // Same tiny face as the Control Center volume slider, instead
+                    // of a speaker icon - mouth grows with the level, flattens
+                    // when muted.
+                    Item {
+                        id: volFace
                         anchors.centerIn: parent
-                        text: osdRoot.isMuted 
-                            ? "volume_off" 
-                            : (osdRoot.volume === 0 ? "volume_mute" : (osdRoot.volume < 50 ? "volume_down" : "volume_up"))
-                        font.family: "Material Symbols Outlined"
-                        font.pixelSize: 22
-                        color: osdRoot.isMuted ? Config.textMuted : Config.accent
+                        width: 26
+                        height: 26
+
+                        readonly property real activeVol: Math.max(0, osdRoot.animVolume)
+                        readonly property color faceColor: osdRoot.isMuted ? Config.textMuted : Config.accent
+
+                        property real bob: 0.0
+                        SequentialAnimation on bob {
+                            running: true
+                            loops: Animation.Infinite
+                            NumberAnimation { to: 1.0; duration: 900; easing.type: Easing.InOutSine }
+                            NumberAnimation { to: 0.0; duration: 900; easing.type: Easing.InOutSine }
+                        }
+                        transform: Translate { y: -volFace.bob * 1.5 }
+
+                        Row {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            y: 4
+                            spacing: 6
+                            Rectangle {
+                                width: 5
+                                height: osdRoot.isMuted ? 2 : 5
+                                radius: 2
+                                color: volFace.faceColor
+                                Behavior on height { NumberAnimation { duration: 150 } }
+                            }
+                            Rectangle {
+                                width: 5
+                                height: osdRoot.isMuted ? 2 : 5
+                                radius: 2
+                                color: volFace.faceColor
+                                Behavior on height { NumberAnimation { duration: 150 } }
+                            }
+                        }
+
+                        Rectangle {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            y: 15
+                            width: osdRoot.isMuted ? 11 : (7 + (volFace.activeVol / 100) * 12)
+                            height: osdRoot.isMuted ? 2 : (5 + (volFace.activeVol / 100) * 5)
+                            radius: height / 2
+                            color: volFace.faceColor
+
+                            Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 2 } }
+                            Behavior on height { NumberAnimation { duration: 180 } }
+                        }
                     }
                 }
 

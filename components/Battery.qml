@@ -155,12 +155,68 @@ Item {
                     Layout.fillWidth: true
                     spacing: 8
 
-                    Text {
-                        text: root.battCapacity + "% Available"
-                        color: Config.textMain
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontSubhead)
-                        font.bold: true
+                    RowLayout {
+                        spacing: 10
+
+                        // A small creature whose body fills like a liquid gauge
+                        // instead of reading the level off a plain bar - droops
+                        // and closes its eyes once things get critical.
+                        Item {
+                            id: battCreature
+                            Layout.preferredWidth: 30
+                            Layout.preferredHeight: 30
+
+                            readonly property bool isCritical: root.battCapacity <= 15 && root.battStatus !== "Charging"
+                            readonly property color bodyColor: isCritical ? "#ef4444" : Config.accent
+
+                            property real bob: 0.0
+                            SequentialAnimation on bob {
+                                running: true
+                                loops: Animation.Infinite
+                                NumberAnimation { to: 1.0; duration: 1600; easing.type: Easing.InOutSine }
+                                NumberAnimation { to: 0.0; duration: 1600; easing.type: Easing.InOutSine }
+                            }
+                            transform: Translate { y: battCreature.isCritical ? 0 : -battCreature.bob * 2 }
+
+                            Rectangle {
+                                id: creatureBody
+                                anchors.fill: parent
+                                radius: 15
+                                color: Qt.rgba(255, 255, 255, 0.06)
+                                border.width: 1
+                                border.color: Qt.rgba(255, 255, 255, 0.14)
+                                clip: true
+
+                                Rectangle {
+                                    id: creatureFill
+                                    anchors.left: parent.left
+                                    anchors.right: parent.right
+                                    anchors.bottom: parent.bottom
+                                    height: parent.height * Math.max(0.06, root.battCapacity / 100)
+                                    color: battCreature.bodyColor
+
+                                    Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutQuad } }
+                                    Behavior on color { ColorAnimation { duration: 200 } }
+                                }
+                            }
+
+                            // Eyes - droop to sleepy slits once critical, otherwise open
+                            Row {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                y: 10
+                                spacing: 6
+                                Rectangle { width: 4; height: battCreature.isCritical ? 2 : 4; radius: 2; color: Config.textMain; Behavior on height { NumberAnimation { duration: 200 } } }
+                                Rectangle { width: 4; height: battCreature.isCritical ? 2 : 4; radius: 2; color: Config.textMain; Behavior on height { NumberAnimation { duration: 200 } } }
+                            }
+                        }
+
+                        Text {
+                            text: root.battCapacity + "% Available"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontSubhead)
+                            font.bold: true
+                        }
                     }
 
                     // Slider Container
@@ -171,14 +227,27 @@ Item {
                         // Unclipped glow layer matching track corner radius
                         RectangularGlow {
                             id: activeGlow
+                            readonly property bool isCritical: root.battCapacity <= 15 && root.battStatus !== "Charging"
+
                             anchors.fill: battFillContainer
                             glowRadius: 16
                             spread: 0.2
                             color: root.battCapacity <= 15 ? "#ef4444" : Config.accent
                             cornerRadius: battTrack.radius
-                            opacity: root.battStatus === "Charging" && battFillContainer.width > 0 ? 0.5 : 0.0
+                            opacity: (root.battStatus === "Charging" || isCritical) && battFillContainer.width > 0 ? 0.5 : 0.0
 
                             Behavior on opacity { NumberAnimation { duration: 150 } }
+
+                            // Ambient breathing pulse once the battery is genuinely
+                            // critical (draining, not just charging through a low
+                            // reading) - the glow visibly breathes to read as urgent
+                            // rather than sitting at one flat brightness.
+                            SequentialAnimation {
+                                running: activeGlow.isCritical
+                                loops: Animation.Infinite
+                                NumberAnimation { target: activeGlow; property: "glowRadius"; to: 26; duration: 900; easing.type: Easing.InOutSine }
+                                NumberAnimation { target: activeGlow; property: "glowRadius"; to: 16; duration: 900; easing.type: Easing.InOutSine }
+                            }
                         }
 
                         // Unclipped reference container tracking physical fill dimensions
@@ -211,6 +280,30 @@ Item {
                                 height: parent.height
                                 radius: Config.cornerRadius / 1.5
                                 color: root.battCapacity <= 15 ? "#ef4444" : Config.accent
+                            }
+
+                            // Charging shimmer - a soft highlight sweeping across the
+                            // fill so "charging" reads as active energy, not just a
+                            // static color change.
+                            Rectangle {
+                                id: chargeSheen
+                                visible: root.battStatus === "Charging" && battFillContainer.width > 0
+                                width: Math.max(1, battFillContainer.width * 0.4)
+                                height: parent.height
+                                x: -width
+                                gradient: Gradient {
+                                    orientation: Gradient.Horizontal
+                                    GradientStop { position: 0.0; color: Qt.rgba(1, 1, 1, 0) }
+                                    GradientStop { position: 0.5; color: Qt.rgba(1, 1, 1, 0.55) }
+                                    GradientStop { position: 1.0; color: Qt.rgba(1, 1, 1, 0) }
+                                }
+
+                                SequentialAnimation {
+                                    running: chargeSheen.visible
+                                    loops: Animation.Infinite
+                                    NumberAnimation { target: chargeSheen; property: "x"; from: -chargeSheen.width; to: battFillContainer.width; duration: 1500; easing.type: Easing.InOutSine }
+                                    PauseAnimation { duration: 550 }
+                                }
                             }
                         }
                     }
