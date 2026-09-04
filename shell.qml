@@ -646,9 +646,10 @@ ShellRoot {
         model: Quickshell.screens
 
         delegate: ClockWidget {
+            id: clockDelegate
             required property var modelData
             screen: modelData
-            visible: Config.showDesktopClock && (modelData ? Config.isClockEnabledForScreen(modelData.name) : true)
+            visible: clockDelegate.positionRestored && Config.showDesktopClock && (modelData ? Config.isClockEnabledForScreen(modelData.name) : true)
         }
     }
     Variants {

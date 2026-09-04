@@ -8,7 +8,22 @@ import ".."
 
 PanelWindow {
     id: clockWindow
-    visible: Config.showDesktopClock && (screen ? Config.isClockEnabledForScreen(screen.name) : true)
+
+    // Exposed so the outer Variants delegate in shell.qml (which shadows this
+    // visible binding entirely - see its own copy of this condition) can also
+    // gate on it. Mirrors clockContainer.initialized: true only once
+    // restorePosition() has applied the real saved x/y. Mapping the layer-shell
+    // surface before that happened used to bake the default (100, 100) position
+    // into its first input-region commit; a later restorePosition() move
+    // updates the visible skin fine but the surface never got a fresh
+    // configure/commit to pick up the corrected input region, so the widget
+    // looked right but silently ate clicks until something (e.g. toggling it
+    // off and on) forced a remap. Not showing the window until the real
+    // position is known avoids ever mapping it with a wrong mask in the first
+    // place.
+    property alias positionRestored: clockContainer.initialized
+
+    visible: positionRestored && Config.showDesktopClock && (screen ? Config.isClockEnabledForScreen(screen.name) : true)
 
     WlrLayershell.layer: WlrLayer.Bottom
     WlrLayershell.namespace: "quickshell-desktop-clock"
