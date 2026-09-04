@@ -188,6 +188,7 @@ ColumnLayout {
 
                         Repeater {
                             model: [
+                                { id: "search", label: "Search" },
                                 { id: "cc", label: "Control Center" },
                                 { id: "overview", label: "Overview" },
                                 { id: "magic", label: "Magic" },
