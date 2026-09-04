@@ -116,9 +116,14 @@ Item {
 
     property bool processListVisible: false
 
+    // Fallback only - normally the process list reveals itself the instant
+    // its data actually lands (see processCollector.onStreamFinished), not
+    // on a fixed clock. A flat timer here would flip the list visible
+    // before the fetch finishes on a slow tick, showing an empty list that
+    // then jumps to ~40 rows a moment later - that pop was the flicker.
     Timer {
         id: processListFadeTimer
-        interval: 180
+        interval: 600
         repeat: false
         onTriggered: {
             if (cardRoot.panelExpanded) {
@@ -276,6 +281,15 @@ Item {
 
                 syncModelInPlace(globalProcessModel, parsedItems)
                 cardRoot.updateFilteredModel()
+
+                // Reveal only once there's actually something to show -
+                // the model is already populated by this point, so the
+                // list fades in with its rows instead of fading in empty
+                // and then jumping as they land.
+                if (cardRoot.panelExpanded) {
+                    processListFadeTimer.stop()
+                    cardRoot.processListVisible = true
+                }
             }
         }
     }
@@ -287,8 +301,15 @@ Item {
 
     component StatRingItem : Item {
         id: ringRow
-        width: 78
-        height: 78
+
+        // compact: stats sit below the tile (small collapsed row).
+        // !compact: stats sit to the right of the tile (expanded view).
+        property bool compact: true
+
+        implicitWidth: ringRow.compact ? 66 : (66 + 10 + statRight.implicitWidth)
+        implicitHeight: ringRow.compact ? (66 + 5 + statBelow.implicitHeight) : 66
+        width: implicitWidth
+        height: implicitHeight
 
         property string label: ""
         property real value: 0.0
@@ -298,72 +319,154 @@ Item {
 
         property real animValue: value
         Behavior on animValue {
-            NumberAnimation { duration: 500; easing.type: Easing.OutCubic }
+            NumberAnimation { duration: 400; easing.type: Easing.OutCubic }
         }
 
-        property real animStrokeWidth: ringRow.clickable && ringRow.selected ? 5.5 : 4.5
-        Behavior on animStrokeWidth {
-            NumberAnimation { duration: 150; easing.type: Easing.OutQuad }
-        }
+        readonly property bool isStressed: ringRow.animValue >= 0.75
+        readonly property bool isAlert: ringRow.animValue >= 0.4 && !ringRow.isStressed
+        readonly property bool isOverheating: ringRow.temp > 75
 
-        Shape {
-            anchors.fill: parent
-            preferredRendererType: Shape.CurveRenderer
-            asynchronous: true
-            layer.enabled: true
-            layer.samples: 4
-            layer.smooth: true
+        // Same size for all four, but a different plain, recognizable
+        // geometric shape per metric - circle, square, triangle, star -
+        // instead of either identical blobs or shapes nobody could name.
+        readonly property real bodyW: 40
+        readonly property real bodyH: 40
 
-            ShapePath {
-                fillColor: "transparent"
-                strokeColor: ringRow.clickable && ringRow.selected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(255, 255, 255, 0.08)
-                strokeWidth: ringRow.animStrokeWidth
-                PathAngleArc { 
-                    centerX: 39; centerY: 39; radiusX: 34; radiusY: 34
-                    startAngle: -90; sweepAngle: 360
+        // An icon that actually means something for each metric, instead of
+        // an arbitrary geometric shape.
+        readonly property string shapeGlyph: ringRow.label === "GPU" ? "monitor"
+            : (ringRow.label === "RAM" ? "sd_card"
+            : (ringRow.label === "DISK" ? "storage" : "memory"))
+
+        // A small accent-filled tile with a meaningful icon and a gentle
+        // shake under heavy load, instead of an abstract gauge.
+        Rectangle {
+            id: tileBody
+            x: 0
+            y: 0
+            width: 66
+            height: 66
+            radius: 14
+            color: Config.accent
+
+            Item {
+                id: creature
+                width: ringRow.bodyW
+                height: ringRow.bodyH
+                anchors.centerIn: parent
+
+                property real shakeX: 0.0
+                property real shakeY: 0.0
+                SequentialAnimation on shakeX {
+                    running: true
+                    loops: Animation.Infinite
+                    NumberAnimation { to: (ringRow.isStressed ? 1.6 : (ringRow.isAlert ? 0.6 : 0.2)); duration: ringRow.isStressed ? 60 : 500; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: (ringRow.isStressed ? -1.6 : (ringRow.isAlert ? -0.6 : -0.2)); duration: ringRow.isStressed ? 60 : 500; easing.type: Easing.InOutSine }
+                }
+                SequentialAnimation on shakeY {
+                    running: true
+                    loops: Animation.Infinite
+                    NumberAnimation { to: 1.4; duration: ringRow.isStressed ? 450 : 900; easing.type: Easing.InOutSine }
+                    NumberAnimation { to: -1.4; duration: ringRow.isStressed ? 450 : 900; easing.type: Easing.InOutSine }
+                }
+                transform: Translate { x: creature.shakeX; y: creature.shakeY }
+
+                // Plain Material Symbols shape - circle/square/triangle/star,
+                // colored by mood, no face on top.
+                Text {
+                    id: creatureBody
+                    anchors.fill: parent
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    text: ringRow.shapeGlyph
+                    font.family: "Material Symbols Outlined"
+                    font.pixelSize: parent.width * 0.95
+                    color: Config.bgBase
                 }
             }
 
-            ShapePath {
-                fillColor: "transparent"
-                strokeColor: Config.accent
-                strokeWidth: ringRow.animStrokeWidth
-                capStyle: ShapePath.RoundCap
-                PathAngleArc { 
-                    centerX: 39; centerY: 39; radiusX: 34; radiusY: 34
-                    startAngle: -90; sweepAngle: Math.max(0.1, ringRow.animValue * 360)
-                }
-            }
         }
 
+        // Label + stats live outside the creature entirely now - below it
+        // in the small collapsed row, beside it in the expanded view.
         Column {
-            anchors.centerIn: parent
-            spacing: -1
+            id: statBelow
+            visible: ringRow.compact
+            anchors.top: tileBody.bottom
+            anchors.horizontalCenter: tileBody.horizontalCenter
+            anchors.topMargin: 5
+            spacing: 0
 
             Text {
+                anchors.horizontalCenter: parent.horizontalCenter
                 text: ringRow.label
                 color: ringRow.clickable && ringRow.selected ? Config.textMain : Config.textMuted
                 font.family: Config.sysFont
                 font.pixelSize: Config.size(Config.fontMicro)
                 font.bold: true
-                anchors.horizontalCenter: parent.horizontalCenter
             }
+
+            // Usage and temperature side by side on one line instead of
+            // stacked, so the card doesn't need to grow taller to fit both.
+            Row {
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: 4
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: Math.round(ringRow.value * 100) + "%"
+                    color: Config.textMain
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontCaption)
+                    font.bold: true
+                }
+                Text {
+                    visible: ringRow.temp > 0
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: ringRow.temp + "°C"
+                    color: ringRow.isOverheating ? "#f97316" : Config.accent
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontMicro)
+                    font.bold: true
+                }
+            }
+        }
+
+        Column {
+            id: statRight
+            visible: !ringRow.compact
+            anchors.left: tileBody.right
+            anchors.verticalCenter: tileBody.verticalCenter
+            anchors.leftMargin: 10
+            spacing: 0
+
             Text {
-                text: Math.round(ringRow.value * 100) + "%"
-                color: Config.textMain
+                text: ringRow.label
+                color: ringRow.clickable && ringRow.selected ? Config.textMain : Config.textMuted
                 font.family: Config.sysFont
                 font.pixelSize: Config.size(Config.fontCaption)
                 font.bold: true
-                anchors.horizontalCenter: parent.horizontalCenter
             }
-            Text {
-                visible: ringRow.temp > 0
-                text: ringRow.temp + "°C"
-                color: Config.accent
-                font.family: Config.sysFont
-                font.pixelSize: Config.size(Config.fontMicro)
-                font.bold: true
-                anchors.horizontalCenter: parent.horizontalCenter
+            Row {
+                spacing: 5
+
+                Text {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: Math.round(ringRow.value * 100) + "%"
+                    color: Config.textMain
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontSubhead)
+                    font.bold: true
+                }
+                Text {
+                    visible: ringRow.temp > 0
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: ringRow.temp + "°C"
+                    color: ringRow.isOverheating ? "#f97316" : Config.accent
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontMicro)
+                    font.bold: true
+                }
             }
         }
 
@@ -477,10 +580,7 @@ Item {
         // ==========================================
         Item {
             id: collapsedView
-            anchors.verticalCenter: parent.verticalCenter
-            anchors.left: parent.left
-            anchors.right: parent.right
-            height: 116
+            anchors.fill: parent
             visible: opacity > 0
             enabled: !cardRoot.panelExpanded
             opacity: cardRoot.panelExpanded ? 0.0 : 1.0
@@ -493,13 +593,13 @@ Item {
                 spacing: 0
 
                 Item { Layout.fillWidth: true }
-                StatRingItem { label: "CPU"; value: cardRoot.sysCpu; temp: cardRoot.cpuTemp }
+                StatRingItem { Layout.alignment: Qt.AlignVCenter; label: "CPU"; value: cardRoot.sysCpu; temp: cardRoot.cpuTemp }
                 Item { Layout.fillWidth: true }
-                StatRingItem { label: "GPU"; value: cardRoot.sysGpu; temp: cardRoot.gpuTemp }
+                StatRingItem { Layout.alignment: Qt.AlignVCenter; label: "GPU"; value: cardRoot.sysGpu; temp: cardRoot.gpuTemp }
                 Item { Layout.fillWidth: true }
-                StatRingItem { label: "RAM"; value: cardRoot.sysRam; temp: cardRoot.ramTemp }
+                StatRingItem { Layout.alignment: Qt.AlignVCenter; label: "RAM"; value: cardRoot.sysRam; temp: cardRoot.ramTemp }
                 Item { Layout.fillWidth: true }
-                StatRingItem { label: "DISK"; value: cardRoot.sysDisk; clickable: false }
+                StatRingItem { Layout.alignment: Qt.AlignVCenter; label: "DISK"; value: cardRoot.sysDisk; clickable: false }
                 Item { Layout.fillWidth: true }
             }
         }
@@ -583,13 +683,13 @@ Item {
                         spacing: 0
 
                         Item { Layout.fillWidth: true }
-                        StatRingItem { label: "CPU"; value: cardRoot.sysCpu; temp: cardRoot.cpuTemp }
+                        StatRingItem { compact: false; label: "CPU"; value: cardRoot.sysCpu; temp: cardRoot.cpuTemp }
                         Item { Layout.fillWidth: true }
-                        StatRingItem { label: "GPU"; value: cardRoot.sysGpu; temp: cardRoot.gpuTemp }
+                        StatRingItem { compact: false; label: "GPU"; value: cardRoot.sysGpu; temp: cardRoot.gpuTemp }
                         Item { Layout.fillWidth: true }
-                        StatRingItem { label: "RAM"; value: cardRoot.sysRam; temp: cardRoot.ramTemp }
+                        StatRingItem { compact: false; label: "RAM"; value: cardRoot.sysRam; temp: cardRoot.ramTemp }
                         Item { Layout.fillWidth: true }
-                        StatRingItem { label: "DISK"; value: cardRoot.sysDisk; clickable: false }
+                        StatRingItem { compact: false; label: "DISK"; value: cardRoot.sysDisk; clickable: false }
                         Item { Layout.fillWidth: true }
                     }
                 }
@@ -601,7 +701,13 @@ Item {
                     color: Qt.rgba(0, 0, 0, 0.15)
                     radius: Config.cornerRadius / 1.5
                     clip: true
-                    visible: opacity > 0
+                    // Deliberately no `visible: opacity > 0` here - while
+                    // invisible this stays a sibling under a ColumnLayout, and
+                    // an invisible child is dropped from layout entirely,
+                    // which let the header/icon row above re-center into its
+                    // reserved space and then snap back up once it reappears.
+                    // Staying visible (just transparent) keeps its
+                    // Layout.fillHeight space reserved the whole time.
                     opacity: (cardRoot.panelExpanded && cardRoot.processListVisible) ? 1.0 : 0.0
                     Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
 
