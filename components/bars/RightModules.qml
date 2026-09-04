@@ -14,6 +14,9 @@ Rectangle {
         if (!layout) return rightCard
 
         switch (name) {
+            case "search":
+            case "launcherOsd":
+                return layout.searchBtn || rightCard
             case "cc":
             case "controlCenter":
                 return layout.ccBtn || rightCard
@@ -94,6 +97,7 @@ Rectangle {
             id: horizLayout
             spacing: 8
 
+            readonly property var searchBtn: btnSearchHoriz
             readonly property var ccBtn: btnCCHoriz
             readonly property var clockBtn: btnClockHoriz
             readonly property var overviewBtn: wsHoriz.overviewButton
@@ -104,6 +108,64 @@ Rectangle {
                 Layout.alignment: Qt.AlignVCenter
                 Layout.leftMargin: 6
                 onPopoutRequested: item => rightCard.popoutRequested(item)
+            }
+
+            Rectangle {
+                id: btnSearchHoriz
+                implicitWidth: 32
+                implicitHeight: 32
+                radius: 10
+                color: Config.showLauncherOsd ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                Layout.alignment: Qt.AlignVCenter
+
+                Behavior on color { ColorAnimation { duration: 150 } }
+
+                Item {
+                    anchors.centerIn: parent
+                    implicitWidth: searchIconHorizText.implicitWidth
+                    implicitHeight: searchIconHorizText.implicitHeight
+                    scale: searchHorizHover.hovered ? 1.25 : 1.0
+
+                    Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                    Glow {
+                        anchors.fill: searchIconHorizText
+                        source: searchIconHorizText
+                        radius: searchHorizHover.hovered ? 8 : 0
+                        samples: 16
+                        color: Config.accent
+                        spread: 0.2
+                        transparentBorder: true
+                        visible: searchHorizHover.hovered
+
+                        Behavior on radius { NumberAnimation { duration: 180 } }
+                    }
+
+                    Text {
+                        id: searchIconHorizText
+                        anchors.centerIn: parent
+                        text: Config.getIcon("search")
+                        color: (Config.showLauncherOsd || searchHorizHover.hovered) ? Config.accent : Config.textMain
+                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+
+                        Behavior on color { ColorAnimation { duration: 150 } }
+                    }
+                }
+
+                TapHandler {
+                    onTapped: {
+                        if (rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                        Config.showLauncherOsd = !Config.showLauncherOsd
+                    }
+                }
+                HoverHandler {
+                    id: searchHorizHover
+                    cursorShape: Qt.PointingHandCursor
+                    onHoveredChanged: {
+                        if (hovered && rootRef && rootRef.startPeek) rootRef.startPeek(btnSearchHoriz)
+                        else if (!hovered && rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                    }
+                }
             }
 
             Rectangle {
@@ -369,6 +431,7 @@ Rectangle {
             spacing: 6
             anchors.fill: parent
 
+            readonly property var searchBtn: btnSearchVert
             readonly property var ccBtn: btnCCVert
             readonly property var clockBtn: btnClockVert
             readonly property var overviewBtn: wsVert.overviewButton
@@ -379,6 +442,64 @@ Rectangle {
                 Layout.alignment: Qt.AlignHCenter
                 Layout.topMargin: 6
                 onPopoutRequested: item => rightCard.popoutRequested(item)
+            }
+
+            Rectangle {
+                id: btnSearchVert
+                implicitWidth: 32
+                implicitHeight: 32
+                radius: 10
+                color: Config.showLauncherOsd ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                Layout.alignment: Qt.AlignHCenter
+
+                Behavior on color { ColorAnimation { duration: 150 } }
+
+                Item {
+                    anchors.centerIn: parent
+                    implicitWidth: searchIconVertText.implicitWidth
+                    implicitHeight: searchIconVertText.implicitHeight
+                    scale: searchVertHover.hovered ? 1.25 : 1.0
+
+                    Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+                    Glow {
+                        anchors.fill: searchIconVertText
+                        source: searchIconVertText
+                        radius: searchVertHover.hovered ? 8 : 0
+                        samples: 16
+                        color: Config.accent
+                        spread: 0.2
+                        transparentBorder: true
+                        visible: searchVertHover.hovered
+
+                        Behavior on radius { NumberAnimation { duration: 180 } }
+                    }
+
+                    Text {
+                        id: searchIconVertText
+                        anchors.centerIn: parent
+                        text: Config.getIcon("search")
+                        color: (Config.showLauncherOsd || searchVertHover.hovered) ? Config.accent : Config.textMain
+                        font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 18
+
+                        Behavior on color { ColorAnimation { duration: 150 } }
+                    }
+                }
+
+                TapHandler {
+                    onTapped: {
+                        if (rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                        Config.showLauncherOsd = !Config.showLauncherOsd
+                    }
+                }
+                HoverHandler {
+                    id: searchVertHover
+                    cursorShape: Qt.PointingHandCursor
+                    onHoveredChanged: {
+                        if (hovered && rootRef && rootRef.startPeek) rootRef.startPeek(btnSearchVert)
+                        else if (!hovered && rootRef && rootRef.stopPeek) rootRef.stopPeek()
+                    }
+                }
             }
 
             Rectangle {

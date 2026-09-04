@@ -18,6 +18,7 @@ QtObject {
         "sys": "neurology",
         "batt": "battery_android_frame_full",
         "cc": "widgets",
+        "search": "search",
         "network": "lan",
         "notifications": "inbox",
         "clipboard": "content_paste",
