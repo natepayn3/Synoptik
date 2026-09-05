@@ -391,13 +391,6 @@ Item {
                 }
             }
 
-            Rectangle {
-                implicitWidth: root.isVertical ? 16 : 1
-                implicitHeight: root.isVertical ? 1 : 16
-                color: Qt.rgba(255, 255, 255, 0.15)
-                visible: (Config.workspaceShowAddBtn !== false) || (Config.workspaceShowOverviewBtn !== false) || (Config.workspaceShowSpecial !== false && (root.isMagicOccupied || root.isMagicActive || root.isMusicOccupied || root.isMusicActive || root.isPrivateOccupied || root.isPrivateActive))
-            }
-
             // --- GROUP 2: ACTION BUTTONS ---
             Flow {
                 flow: root.isVertical ? Flow.TopToBottom : Flow.LeftToRight
