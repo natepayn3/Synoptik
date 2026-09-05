@@ -673,17 +673,47 @@ Item {
         }
     }
 
+    // Target-id in-place model synchronizer - mirrors SystemMonitorCard's
+    // syncModelInPlace. Keeps each row's delegate (and its HoverHandler's
+    // hovered state) alive across refreshes instead of destroying and
+    // recreating every row. wpctl status gets re-polled on *any* new/removed
+    // PipeWire object, not just an actual device add/remove, so a plain
+    // clear()+append() here was tearing down the row under the cursor
+    // constantly - that's what made the hover highlight flicker.
+    function syncAudioModelInPlace(targetModel, newItems, keyField) {
+        for (let i = targetModel.count - 1; i >= 0; i--) {
+            let entry = targetModel.get(i)
+            let match = newItems.find(item => item[keyField] === entry[keyField])
+            if (!match) targetModel.remove(i)
+        }
+        for (let j = 0; j < newItems.length; j++) {
+            let incoming = newItems[j]
+            let foundIdx = -1
+            for (let k = 0; k < targetModel.count; k++) {
+                if (targetModel.get(k)[keyField] === incoming[keyField]) { foundIdx = k; break }
+            }
+            if (foundIdx !== -1) {
+                let existing = targetModel.get(foundIdx)
+                for (let prop in incoming) {
+                    if (existing[prop] !== incoming[prop]) targetModel.setProperty(foundIdx, prop, incoming[prop])
+                }
+            } else {
+                targetModel.append(incoming)
+            }
+        }
+    }
+
     Process {
         id: audioQueryProc
         command: ["wpctl", "status"]
         running: false
-        
+
         stdout: StdioCollector {
             onStreamFinished: {
                 let lines = this.text.split("\n")
-                sinkModel.clear()
-                sourceModel.clear()
-                
+                let parsedSinks = []
+                let parsedSources = []
+
                 let seenSinkIds = {}
                 let seenSourceIds = {}
                 let targetBlock = 0
@@ -713,16 +743,18 @@ Item {
                             seenSinkIds[id] = true
                             let finalDef = isDef && !hasDefaultSink
                             if (finalDef) hasDefaultSink = true
-                            sinkModel.append({ isDefault: finalDef, sinkTarget: id, sinkName: cleanName })
+                            parsedSinks.push({ isDefault: finalDef, sinkTarget: id, sinkName: cleanName })
                         } else if (targetBlock === 2) {
                             if (seenSourceIds[id]) continue;
                             seenSourceIds[id] = true
                             let finalDef = isDef && !hasDefaultSource
                             if (finalDef) hasDefaultSource = true
-                            sourceModel.append({ isDefault: finalDef, sourceTarget: id, sourceName: cleanName })
+                            parsedSources.push({ isDefault: finalDef, sourceTarget: id, sourceName: cleanName })
                         }
                     }
                 }
+                audioModule.syncAudioModelInPlace(sinkModel, parsedSinks, "sinkTarget")
+                audioModule.syncAudioModelInPlace(sourceModel, parsedSources, "sourceTarget")
                 if (!outTrack.isDragging && typeof shellRoot !== "undefined") {
                     audioModule.systemVolume = shellRoot.audioVolume
                     audioModule.isMuted = shellRoot.audioMuted
