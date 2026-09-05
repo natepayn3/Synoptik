@@ -36,12 +36,127 @@ Item {
     property var lastCpuTotal: 0
     property var lastCpuIdle: 0
 
+    property var diskDrives: []
+    property var diskDeviceNames: []
+    property real diskReadRate: 0.0
+    property real diskWriteRate: 0.0
+    property var lastDiskStats: null
+
+    function fmtBytes(bytes) {
+        if (!bytes || bytes <= 0) return "0 GB"
+        let gb = bytes / (1024 * 1024 * 1024)
+        return (gb < 10 ? gb.toFixed(1) : Math.round(gb)) + " GB"
+    }
+
+    function fmtPowerOn(hours) {
+        if (hours === null || hours === undefined) return ""
+        let days = hours / 24
+        if (days < 365) return Math.round(days) + " days powered on"
+        return (days / 365).toFixed(1) + " years powered on"
+    }
+
+    // Parses the marker-delimited output of diskDetailProc: an lsblk JSON
+    // block (capacity/model/fstype), a df block (used/avail per mountpoint,
+    // matched to lsblk partitions by device path), and one ___SMART___ line
+    // per physical drive with the raw busctl JSON for its NVMe controller
+    // properties (temperature/health/power-on hours - empty for non-NVMe
+    // drives since that's the only interface parsed).
+    function parseDiskDetails(raw) {
+        let lines = raw.split("\n")
+        let section = null
+        let lsblkLines = [], dfLines = [], smartMap = {}
+        for (let i = 0; i < lines.length; i++) {
+            let l = lines[i]
+            if (l === "___LSBLK___") { section = "lsblk"; continue }
+            if (l === "___DF___") { section = "df"; continue }
+            if (l.indexOf("___SMART___|") === 0) {
+                let rest = l.substring("___SMART___|".length)
+                let sep = rest.indexOf("|")
+                if (sep === -1) continue
+                let devName = rest.substring(0, sep)
+                try { smartMap[devName] = JSON.parse(rest.substring(sep + 1)) } catch (e) {}
+                continue
+            }
+            if (section === "lsblk") lsblkLines.push(l)
+            else if (section === "df") dfLines.push(l)
+        }
+
+        let dfMap = {}
+        for (let i = 0; i < dfLines.length; i++) {
+            let parts = dfLines[i].trim().split(/\s+/)
+            if (parts.length < 4) continue
+            if (!(parts[0] in dfMap)) {
+                dfMap[parts[0]] = { used: parseInt(parts[1]) || 0, avail: parseInt(parts[2]) || 0 }
+            }
+        }
+
+        let lsblkData
+        try { lsblkData = JSON.parse(lsblkLines.join("\n")) } catch (e) { return }
+
+        let drives = [], names = []
+        let devices = lsblkData.blockdevices || []
+        for (let i = 0; i < devices.length; i++) {
+            let dev = devices[i]
+            if (dev.type !== "disk" || !dev.size || dev.size <= 0 || dev.fstype === "swap") continue
+
+            let parts = []
+            let children = dev.children || []
+            for (let j = 0; j < children.length; j++) {
+                let child = children[j]
+                let mounts = (child.mountpoints || []).filter(m => m && m !== "[SWAP]")
+                if (!child.fstype || mounts.length === 0) continue
+                let mount = mounts.indexOf("/") !== -1 ? "/" : mounts[0]
+                let usage = dfMap["/dev/" + child.name] || { used: 0, avail: 0 }
+                parts.push({
+                    name: child.name,
+                    fstype: child.fstype,
+                    mount: mount,
+                    sizeBytes: child.size,
+                    usedBytes: usage.used,
+                    availBytes: usage.avail
+                })
+            }
+
+            let tempC = null, health = "", powerOnHours = null
+            let smart = smartMap[dev.name]
+            if (smart && smart.data && smart.data.length > 0) {
+                let props = smart.data[0]
+                let d = {}
+                for (let key in props) d[key] = props[key].data
+                if (d.SmartTemperature !== undefined) tempC = Math.round(d.SmartTemperature - 273.15)
+                if (d.SmartPowerOnHours !== undefined) powerOnHours = d.SmartPowerOnHours
+                if (d.SmartCriticalWarning && d.SmartCriticalWarning.length > 0) health = "Warning"
+                else if (d.SmartSelftestStatus === "success") health = "OK"
+                else if (d.SmartSelftestStatus) health = d.SmartSelftestStatus
+            }
+
+            drives.push({
+                name: dev.name,
+                model: dev.model || dev.name,
+                sizeBytes: dev.size,
+                tempC: tempC,
+                health: health,
+                powerOnHours: powerOnHours,
+                partitions: parts
+            })
+            names.push(dev.name)
+        }
+
+        cardRoot.diskDrives = drives
+        cardRoot.diskDeviceNames = names
+    }
+
     property string activeCategory: "CPU"
 
     ListModel { id: globalProcessModel }
     ListModel { id: filteredProcessModel }
 
-    onActiveCategoryChanged: updateFilteredModel()
+    onActiveCategoryChanged: {
+        updateFilteredModel()
+        if (activeCategory === "DISK" && panelExpanded && !diskDetailProc.running) {
+            diskDetailProc.running = true
+        }
+    }
 
     // Compound (PID + Category) in-place model synchronizer
     function syncModelInPlace(targetModel, newItems) {
@@ -111,6 +226,13 @@ Item {
             if (cardRoot.panelExpanded && !processListView.isHoveringRow && !allProcessesFetcher.running) {
                 allProcessesFetcher.running = true
             }
+
+            // Same idea for disk details/throughput - only worth polling
+            // while the DISK panel is actually the one open.
+            if (cardRoot.panelExpanded && cardRoot.activeCategory === "DISK") {
+                diskStatsReader.reload()
+                if (!diskDetailProc.running) diskDetailProc.running = true
+            }
         }
     }
 
@@ -137,6 +259,9 @@ Item {
             processListFadeTimer.restart()
             if (!allProcessesFetcher.running) {
                 allProcessesFetcher.running = true
+            }
+            if (cardRoot.activeCategory === "DISK" && !diskDetailProc.running) {
+                diskDetailProc.running = true
             }
         } else {
             processListFadeTimer.stop()
@@ -297,6 +422,64 @@ Item {
     Process {
         id: killerProc
         running: false
+    }
+
+    // Capacity/model/health come from lsblk, df, and the disk-management
+    // daemon (busctl/jq talking to the same service `udisksctl` uses) -
+    // no smartmontools install or sudo rule needed. Only NVMe controller
+    // properties are queried for temperature/health; a non-NVMe drive just
+    // shows capacity with no temp/health line.
+    Process {
+        id: diskDetailProc
+        command: [
+            "fish", "-c",
+            "echo '___LSBLK___'; " +
+            "lsblk -b -J -o NAME,SIZE,TYPE,FSTYPE,MOUNTPOINTS,MODEL; " +
+            "echo '___DF___'; " +
+            "df -B1 --output=source,used,avail,target | grep '^/dev/'; " +
+            "for dev in (lsblk -b -n -o NAME,TYPE,SIZE | awk '$2==\"disk\" && $3>0 && $1 !~ /^(zram|loop)/ {print $1}'); " +
+                "set -l drivepath (busctl call org.freedesktop.UDisks2 /org/freedesktop/UDisks2/block_devices/$dev org.freedesktop.DBus.Properties Get ss org.freedesktop.UDisks2.Block Drive --json=short 2>/dev/null | jq -r '.data[0].data' 2>/dev/null); " +
+                "if test -n \"$drivepath\" -a \"$drivepath\" != \"/\"; " +
+                    "set -l smart (busctl call org.freedesktop.UDisks2 \"$drivepath\" org.freedesktop.DBus.Properties GetAll s org.freedesktop.UDisks2.NVMe.Controller --json=short 2>/dev/null); " +
+                    "test -n \"$smart\"; and echo \"___SMART___|$dev|$smart\"; " +
+                "end; " +
+            "end"
+        ]
+        running: false
+        stdout: StdioCollector {
+            id: diskDetailCollector
+            onStreamFinished: {
+                let raw = diskDetailCollector.text ? diskDetailCollector.text.trim() : ""
+                diskDetailProc.running = false
+                if (!raw) return
+                cardRoot.parseDiskDetails(raw)
+            }
+        }
+    }
+
+    FileView {
+        id: diskStatsReader
+        path: "/proc/diskstats"
+        onTextChanged: {
+            if (cardRoot.diskDeviceNames.length === 0) return
+            let lines = text().split('\n')
+            let totalRead = 0, totalWrite = 0
+            for (let i = 0; i < lines.length; i++) {
+                let parts = lines[i].trim().split(/\s+/)
+                if (parts.length < 10) continue
+                if (cardRoot.diskDeviceNames.indexOf(parts[2]) === -1) continue
+                totalRead += parseInt(parts[5]) || 0
+                totalWrite += parseInt(parts[9]) || 0
+            }
+            if (cardRoot.lastDiskStats) {
+                let elapsedSec = refreshTimer.interval / 1000
+                let deltaReadMB = (totalRead - cardRoot.lastDiskStats.r) * 512 / 1e6
+                let deltaWriteMB = (totalWrite - cardRoot.lastDiskStats.w) * 512 / 1e6
+                cardRoot.diskReadRate = Math.max(0, deltaReadMB / elapsedSec)
+                cardRoot.diskWriteRate = Math.max(0, deltaWriteMB / elapsedSec)
+            }
+            cardRoot.lastDiskStats = { r: totalRead, w: totalWrite }
+        }
     }
 
     component StatRingItem : Item {
@@ -694,7 +877,7 @@ Item {
                 Item { Layout.fillWidth: true }
                 StatRingItem { Layout.alignment: Qt.AlignVCenter; label: "RAM"; value: cardRoot.sysRam; temp: cardRoot.ramTemp }
                 Item { Layout.fillWidth: true }
-                StatRingItem { Layout.alignment: Qt.AlignVCenter; label: "DISK"; value: cardRoot.sysDisk; clickable: false }
+                StatRingItem { Layout.alignment: Qt.AlignVCenter; label: "DISK"; value: cardRoot.sysDisk }
                 Item { Layout.fillWidth: true }
             }
         }
@@ -784,7 +967,7 @@ Item {
                         Item { Layout.fillWidth: true }
                         StatRingItem { Layout.alignment: Qt.AlignVCenter; compact: false; label: "RAM"; value: cardRoot.sysRam; temp: cardRoot.ramTemp }
                         Item { Layout.fillWidth: true }
-                        StatRingItem { Layout.alignment: Qt.AlignVCenter; compact: false; label: "DISK"; value: cardRoot.sysDisk; clickable: false }
+                        StatRingItem { Layout.alignment: Qt.AlignVCenter; compact: false; label: "DISK"; value: cardRoot.sysDisk }
                         Item { Layout.fillWidth: true }
                     }
                 }
@@ -814,7 +997,7 @@ Item {
                         RowLayout {
                             Layout.fillWidth: true
                             Text {
-                                text: cardRoot.activeCategory + " PROCESSES"
+                                text: cardRoot.activeCategory === "DISK" ? "DISK DETAILS" : (cardRoot.activeCategory + " PROCESSES")
                                 color: Config.textMuted
                                 font.family: Config.sysFont
                                 font.pixelSize: Config.size(Config.fontMicro)
@@ -825,6 +1008,7 @@ Item {
 
                         ListView {
                             id: processListView
+                            visible: cardRoot.activeCategory !== "DISK"
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             clip: true
@@ -955,6 +1139,147 @@ Item {
                                             }
                                         }
                                         HoverHandler { id: deleteMouse; cursorShape: Qt.PointingHandCursor }
+                                    }
+                                }
+                            }
+                        }
+
+                        Flickable {
+                            id: diskDetailFlick
+                            visible: cardRoot.activeCategory === "DISK"
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            clip: true
+                            boundsBehavior: Flickable.StopAtBounds
+                            contentHeight: diskDetailColumn.implicitHeight
+
+                            ColumnLayout {
+                                id: diskDetailColumn
+                                width: diskDetailFlick.width
+                                spacing: 12
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 6
+
+                                    Text {
+                                        text: "arrow_downward"
+                                        font.family: "Material Symbols Outlined"
+                                        font.pixelSize: 14
+                                        color: Config.accent
+                                    }
+                                    Text {
+                                        text: cardRoot.diskReadRate.toFixed(1) + " MB/s"
+                                        color: Config.textMain
+                                        font.family: Config.sysFont
+                                        font.pixelSize: Config.size(Config.fontCaption)
+                                        font.bold: true
+                                    }
+                                    Text {
+                                        text: "arrow_upward"
+                                        font.family: "Material Symbols Outlined"
+                                        font.pixelSize: 14
+                                        color: Config.accent
+                                    }
+                                    Text {
+                                        text: cardRoot.diskWriteRate.toFixed(1) + " MB/s"
+                                        color: Config.textMain
+                                        font.family: Config.sysFont
+                                        font.pixelSize: Config.size(Config.fontCaption)
+                                        font.bold: true
+                                    }
+                                    Item { Layout.fillWidth: true }
+                                }
+
+                                Repeater {
+                                    model: cardRoot.diskDrives
+
+                                    delegate: ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 6
+                                        property var drive: modelData
+
+                                        RowLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 6
+
+                                            Text {
+                                                text: drive.model
+                                                color: Config.textMain
+                                                font.family: Config.sysFont
+                                                font.pixelSize: Config.size(Config.fontCaption)
+                                                font.bold: true
+                                                Layout.fillWidth: true
+                                                elide: Text.ElideRight
+                                            }
+                                            Text {
+                                                visible: drive.tempC !== null
+                                                text: drive.tempC + "°C"
+                                                color: drive.tempC > 55 ? "#f97316" : Config.accent
+                                                font.family: Config.sysFont
+                                                font.pixelSize: Config.size(Config.fontMicro)
+                                                font.bold: true
+                                            }
+                                            Text {
+                                                visible: drive.health !== ""
+                                                text: drive.health
+                                                color: drive.health === "OK" ? Config.textMuted : "#f97316"
+                                                font.family: Config.sysFont
+                                                font.pixelSize: Config.size(Config.fontMicro)
+                                                font.bold: true
+                                            }
+                                        }
+
+                                        Text {
+                                            text: cardRoot.fmtBytes(drive.sizeBytes) + (drive.powerOnHours !== null ? "  ·  " + cardRoot.fmtPowerOn(drive.powerOnHours) : "")
+                                            color: Config.textMuted
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontMicro)
+                                        }
+
+                                        Repeater {
+                                            model: drive.partitions
+
+                                            delegate: ColumnLayout {
+                                                Layout.fillWidth: true
+                                                spacing: 3
+                                                property var part: modelData
+                                                readonly property real usedFrac: part.sizeBytes > 0 ? Math.min(1.0, part.usedBytes / part.sizeBytes) : 0
+
+                                                RowLayout {
+                                                    Layout.fillWidth: true
+                                                    Text {
+                                                        text: part.mount + "  ·  " + part.fstype
+                                                        color: Config.textMuted
+                                                        font.family: Config.sysFont
+                                                        font.pixelSize: Config.size(Config.fontMicro)
+                                                        Layout.fillWidth: true
+                                                        elide: Text.ElideRight
+                                                    }
+                                                    Text {
+                                                        text: cardRoot.fmtBytes(part.usedBytes) + " / " + cardRoot.fmtBytes(part.sizeBytes)
+                                                        color: Config.textMain
+                                                        font.family: Config.sysFont
+                                                        font.pixelSize: Config.size(Config.fontMicro)
+                                                        font.bold: true
+                                                    }
+                                                }
+
+                                                Rectangle {
+                                                    Layout.fillWidth: true
+                                                    implicitHeight: 6
+                                                    radius: 3
+                                                    color: Qt.rgba(255, 255, 255, 0.08)
+
+                                                    Rectangle {
+                                                        width: parent.width * usedFrac
+                                                        height: parent.height
+                                                        radius: 3
+                                                        color: Config.accent
+                                                    }
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                             }
