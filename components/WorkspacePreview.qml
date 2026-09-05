@@ -402,8 +402,6 @@ FocusScope {
                             width: Math.max(160, viewportFrame.width + (overviewFlyout.cardMargin * 2))
                             height: viewportFrame.height + headerRow.height + (overviewFlyout.cardMargin * 2)
 
-                            Behavior on width { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-
                             ColumnLayout {
                                 anchors.fill: parent
                                 anchors.margins: 8
@@ -473,95 +471,44 @@ FocusScope {
                                     }
 
                                     property var workspaceWindows: overviewFlyout.liveClientJson.filter(w => w.workspace.id === wsTile.workingWorkspace)
-                                    property var sortedWorkspaceWindows: {
-                                        let list = workspaceWindows.slice();
-                                        list.sort((a, b) => {
-                                            let aX = a && a.at ? a.at[0] : 0;
-                                            let bX = b && b.at ? b.at[0] : 0;
-                                            let aY = a && a.at ? a.at[1] : 0;
-                                            let bY = b && b.at ? b.at[1] : 0;
-
-                                            if (list.length <= 2) {
-                                                return aX - bX;
-                                            }
-
-                                            if (Math.abs(aY - bY) > 50) {
-                                                return aY - bY;
-                                            }
-                                            return aX - bX;
-                                        });
-                                        return list;
-                                    }
-                                    readonly property bool isGridMode: (tileHover.hovered || wsTile.isSelected) && workspaceWindows.length > 1
-
                                     implicitHeight: wsTile.monitorBounds.isVertical ? 220 : 135
                                     implicitWidth: Math.round(implicitHeight * (wsTile.monitorBounds.w / wsTile.monitorBounds.h))
-                                    width: isGridMode ? Math.max(implicitWidth, Math.min(360, Math.round(implicitWidth * 1.35))) : implicitWidth
+                                    width: implicitWidth
                                     height: implicitHeight
                                     Layout.preferredWidth: width
                                     Layout.preferredHeight: implicitHeight
-                                    
-                                    Behavior on width { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
 
-                                    property real scaleX: width / wsTile.monitorBounds.w
-                                    property real scaleY: height / wsTile.monitorBounds.h
+                                    property real scaleX: implicitWidth / wsTile.monitorBounds.w
+                                    property real scaleY: implicitHeight / wsTile.monitorBounds.h
 
                                     ScreencopyView {
                                         anchors.fill: parent
                                         captureSource: viewportFrame.targetMonitorOutput
                                         live: overviewFlyout.isOpen
                                         paintCursor: false
-                                        opacity: isGridMode ? 0.0 : 0.7
-                                        visible: wsTile.isCurrent && opacity > 0
-
-                                        readonly property bool isGridMode: (tileHover.hovered || wsTile.isSelected) && viewportFrame.workspaceWindows.length > 1
-                                        Behavior on opacity { NumberAnimation { duration: 180 } }
+                                        opacity: 0.7
+                                        visible: wsTile.isCurrent
                                     }
-                                    
+
                                     Repeater {
                                         model: viewportFrame.workspaceWindows
 
                                         delegate: Rectangle {
                                             id: windowDelegate
 
-                                            readonly property bool isGridMode: (tileHover.hovered || wsTile.isSelected) && viewportFrame.workspaceWindows.length > 1
-                                            readonly property int totalCount: viewportFrame.workspaceWindows.length
-
-                                            readonly property int cols: totalCount <= 2 ? totalCount : Math.ceil(Math.sqrt(totalCount))
-                                            readonly property int rows: Math.ceil(totalCount / cols)
-
-                                            readonly property real gap: 4
-                                            readonly property real cellW: Math.max(10, Math.floor((viewportFrame.width - (gap * (cols + 1))) / cols))
-                                            readonly property real cellH: Math.max(10, Math.floor((viewportFrame.height - (gap * (rows + 1))) / rows))
-
-                                            readonly property int spatialIndex: {
-                                                if (!modelData || !modelData.address || !viewportFrame.sortedWorkspaceWindows) return index;
-                                                let addr = modelData.address.trim().toLowerCase();
-                                                let idx = viewportFrame.sortedWorkspaceWindows.findIndex(w => w && w.address && w.address.trim().toLowerCase() === addr);
-                                                return idx !== -1 ? idx : index;
-                                            }
-
-                                            readonly property int colIndex: spatialIndex % cols
-                                            readonly property int rowIndex: Math.floor(spatialIndex / cols)
-
-                                            readonly property real gridX: gap + colIndex * (cellW + gap)
-                                            readonly property real gridY: gap + rowIndex * (cellH + gap)
-
                                             readonly property real normalX: Math.round((modelData.at[0] - wsTile.monitorBounds.originX) * viewportFrame.scaleX)
                                             readonly property real normalY: Math.round((modelData.at[1] - wsTile.monitorBounds.originY) * viewportFrame.scaleY)
                                             readonly property real normalW: Math.max(4, Math.round(modelData.size[0] * viewportFrame.scaleX))
                                             readonly property real normalH: Math.max(4, Math.round(modelData.size[1] * viewportFrame.scaleY))
 
-                                            x: isGridMode ? Math.round(gridX) : Math.round(normalX)
-                                            y: isGridMode ? Math.round(gridY) : Math.round(normalY)
-                                            width: isGridMode ? Math.round(cellW) : Math.round(normalW)
-                                            height: isGridMode ? Math.round(cellH) : Math.round(normalH)
+                                            x: normalX
+                                            y: normalY
+                                            width: normalW
+                                            height: normalH
 
                                             visible: modelData.mapped
                                             opacity: (overviewFlyout.isDraggingWindow && overviewFlyout.draggingWindowAddress === modelData.address) ? 0.4 : 1.0
                                             color: Qt.rgba(255, 255, 255, 0.08)
-                                            border.color: windowMouseArea.containsMouse ? Config.accent : (isGridMode ? Qt.rgba(255, 255, 255, 0.25) : "transparent")
-                                            border.width: windowMouseArea.containsMouse ? 2 : (isGridMode ? 1 : 0)
                                             radius: 2
                                             clip: true
 
@@ -569,7 +516,6 @@ FocusScope {
                                             Behavior on y { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
                                             Behavior on width { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
                                             Behavior on height { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
-                                            Behavior on border.color { ColorAnimation { duration: 120 } }
 
                                             property var wlToplevel: {
                                                 if (!modelData || !modelData.address) return null;
@@ -609,6 +555,19 @@ FocusScope {
                                                     elide: Text.ElideRight
                                                     horizontalAlignment: Text.AlignHCenter
                                                 }
+                                            }
+
+                                            // Drawn above the live screen capture (not the delegate's
+                                            // own border, which the capture paints over) so the
+                                            // highlight is never hidden by whatever's on screen.
+                                            Rectangle {
+                                                anchors.fill: parent
+                                                color: "transparent"
+                                                radius: 2
+                                                border.color: windowMouseArea.containsMouse ? Config.accent : "transparent"
+                                                border.width: windowMouseArea.containsMouse ? 2 : 0
+
+                                                Behavior on border.color { ColorAnimation { duration: 120 } }
                                             }
 
                                             MouseArea {
