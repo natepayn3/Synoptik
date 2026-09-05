@@ -158,58 +158,6 @@ Item {
                     RowLayout {
                         spacing: 10
 
-                        // A small creature whose body fills like a liquid gauge
-                        // instead of reading the level off a plain bar - droops
-                        // and closes its eyes once things get critical.
-                        Item {
-                            id: battCreature
-                            Layout.preferredWidth: 30
-                            Layout.preferredHeight: 30
-
-                            readonly property bool isCritical: root.battCapacity <= 15 && root.battStatus !== "Charging"
-                            readonly property color bodyColor: isCritical ? "#ef4444" : Config.accent
-
-                            property real bob: 0.0
-                            SequentialAnimation on bob {
-                                running: true
-                                loops: Animation.Infinite
-                                NumberAnimation { to: 1.0; duration: 1600; easing.type: Easing.InOutSine }
-                                NumberAnimation { to: 0.0; duration: 1600; easing.type: Easing.InOutSine }
-                            }
-                            transform: Translate { y: battCreature.isCritical ? 0 : -battCreature.bob * 2 }
-
-                            Rectangle {
-                                id: creatureBody
-                                anchors.fill: parent
-                                radius: 15
-                                color: Qt.rgba(255, 255, 255, 0.06)
-                                border.width: 1
-                                border.color: Qt.rgba(255, 255, 255, 0.14)
-                                clip: true
-
-                                Rectangle {
-                                    id: creatureFill
-                                    anchors.left: parent.left
-                                    anchors.right: parent.right
-                                    anchors.bottom: parent.bottom
-                                    height: parent.height * Math.max(0.06, root.battCapacity / 100)
-                                    color: battCreature.bodyColor
-
-                                    Behavior on height { NumberAnimation { duration: 300; easing.type: Easing.OutQuad } }
-                                    Behavior on color { ColorAnimation { duration: 200 } }
-                                }
-                            }
-
-                            // Eyes - droop to sleepy slits once critical, otherwise open
-                            Row {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                y: 10
-                                spacing: 6
-                                Rectangle { width: 4; height: battCreature.isCritical ? 2 : 4; radius: 2; color: Config.textMain; Behavior on height { NumberAnimation { duration: 200 } } }
-                                Rectangle { width: 4; height: battCreature.isCritical ? 2 : 4; radius: 2; color: Config.textMain; Behavior on height { NumberAnimation { duration: 200 } } }
-                            }
-                        }
-
                         Text {
                             text: root.battCapacity + "% Available"
                             color: Config.textMain
@@ -267,12 +215,15 @@ Item {
                         }
 
                         // Progress Track
-                        Rectangle {
+                        // ClippingRectangle (not plain Rectangle) so the fill and charging
+                        // shimmer actually respect the rounded corners instead of bleeding
+                        // past them - plain Rectangle.clip only clips to the square
+                        // bounding box.
+                        ClippingRectangle {
                             id: battTrack
                             anchors.fill: parent
                             radius: Config.cornerRadius / 1.5
                             color: Qt.rgba(0, 0, 0, 0.35)
-                            clip: true
 
                             Rectangle {
                                 id: battFill
@@ -280,6 +231,69 @@ Item {
                                 height: parent.height
                                 radius: Config.cornerRadius / 1.5
                                 color: root.battCapacity <= 15 ? "#ef4444" : Config.accent
+                            }
+
+                            // A tiny face instead of a plain fraction - same idea as the
+                            // volume slider's face-in-track, riding centered in the filled
+                            // portion so it travels with the level instead of sitting fixed.
+                            Item {
+                                id: battFace
+                                anchors.verticalCenter: parent.verticalCenter
+                                x: Math.max(0, (battFillContainer.width / 2) - (width / 2))
+                                width: 22
+                                height: 22
+
+                                readonly property bool isCritical: root.battCapacity <= 15 && root.battStatus !== "Charging"
+                                readonly property color faceColor: root.battCapacity > 10 ? Config.bgBase : Config.textMain
+
+                                // Eyes and mouth both widen with the charge level - roughly
+                                // 4px eyes / 10px mouth near empty, up to 10px / 24px at full -
+                                // a subtle stretch as the bar fills, not just the mouth.
+                                readonly property real eyeWidth: 4 + (root.battCapacity / 100) * 6
+                                readonly property real mouthWidth: isCritical ? 9 : (10 + (root.battCapacity / 100) * 14)
+
+                                property real bob: 0.0
+                                SequentialAnimation on bob {
+                                    running: true
+                                    loops: Animation.Infinite
+                                    NumberAnimation { to: 1.0; duration: 900; easing.type: Easing.InOutSine }
+                                    NumberAnimation { to: 0.0; duration: 900; easing.type: Easing.InOutSine }
+                                }
+                                transform: Translate { y: -battFace.bob * 1.5 }
+
+                                Row {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    y: 3
+                                    spacing: 5
+                                    Rectangle {
+                                        width: battFace.eyeWidth
+                                        height: battFace.isCritical ? 2 : 4
+                                        radius: height / 2
+                                        color: battFace.faceColor
+                                        Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 2 } }
+                                        Behavior on height { NumberAnimation { duration: 150 } }
+                                    }
+                                    Rectangle {
+                                        width: battFace.eyeWidth
+                                        height: battFace.isCritical ? 2 : 4
+                                        radius: height / 2
+                                        color: battFace.faceColor
+                                        Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 2 } }
+                                        Behavior on height { NumberAnimation { duration: 150 } }
+                                    }
+                                }
+
+                                Rectangle {
+                                    anchors.horizontalCenter: parent.horizontalCenter
+                                    y: 12
+                                    width: battFace.mouthWidth
+                                    height: battFace.isCritical ? 2 : (4 + (root.battCapacity / 100) * 4)
+                                    radius: height / 2
+                                    color: battFace.faceColor
+
+                                    Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 2 } }
+                                    Behavior on height { NumberAnimation { duration: 180 } }
+                                }
                             }
 
                             // Charging shimmer - a soft highlight sweeping across the
@@ -301,7 +315,7 @@ Item {
                                 SequentialAnimation {
                                     running: chargeSheen.visible
                                     loops: Animation.Infinite
-                                    NumberAnimation { target: chargeSheen; property: "x"; from: -chargeSheen.width; to: battFillContainer.width; duration: 1500; easing.type: Easing.InOutSine }
+                                    NumberAnimation { target: chargeSheen; property: "x"; from: -chargeSheen.width; to: battTrack.width; duration: 1500; easing.type: Easing.InOutSine }
                                     PauseAnimation { duration: 550 }
                                 }
                             }

@@ -305,12 +305,14 @@ ClippingRectangle {
                     }
                 }
 
-                Rectangle {
+                // ClippingRectangle (not plain Rectangle) so the fill respects the
+                // rounded corners instead of bleeding past them - plain Rectangle.clip
+                // only clips to the square bounding box.
+                ClippingRectangle {
                     id: brightTrack
                     anchors.fill: parent
                     radius: Config.cornerRadius / 1.5
                     color: Qt.rgba(0, 0, 0, 0.35)
-                    clip: true
 
                     Rectangle {
                         id: brightFill
@@ -343,13 +345,26 @@ ClippingRectangle {
 
                             Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.6 } }
 
+                            // A plain darker dot read as just a smudge rather than an eye -
+                            // a bigger pupil plus a small bright glint (the classic flat-icon
+                            // eyeball tell) sells it instead.
                             Rectangle {
+                                id: brightPupil
                                 anchors.centerIn: parent
-                                width: 6
-                                height: 6
-                                radius: 3
-                                color: Qt.darker(brightEye.faceColor, 1.6)
+                                width: 7
+                                height: 7
+                                radius: 3.5
+                                color: Qt.darker(brightEye.faceColor, 1.8)
                                 visible: brightEye.openness > 0.35
+
+                                Rectangle {
+                                    x: 1.5
+                                    y: 1.5
+                                    width: 2.5
+                                    height: 2.5
+                                    radius: 1.25
+                                    color: Qt.rgba(1, 1, 1, 0.9)
+                                }
                             }
                         }
                     }
@@ -442,12 +457,14 @@ ClippingRectangle {
                     }
                 }
 
-                Rectangle {
+                // ClippingRectangle (not plain Rectangle) so the fill respects the
+                // rounded corners instead of bleeding past them - plain Rectangle.clip
+                // only clips to the square bounding box.
+                ClippingRectangle {
                     id: volTrack
                     anchors.fill: parent
                     radius: Config.cornerRadius / 1.5
                     color: Qt.rgba(0, 0, 0, 0.35)
-                    clip: true
 
                     Rectangle {
                         id: volFill
@@ -473,6 +490,12 @@ ClippingRectangle {
                             : root.currentVolume
                         readonly property color faceColor: (!root.isAudioMuted && activeVol > 10) ? Config.bgBase : Config.textMain
 
+                        // Eyes and mouth both widen with volume - roughly 4px eyes / 8px
+                        // mouth near silent, up to 10px / 22px at full - the same widening
+                        // treatment the battery face uses.
+                        readonly property real eyeWidth: 4 + (activeVol / 100) * 6
+                        readonly property real mouthWidth: root.isAudioMuted ? 9 : (8 + (activeVol / 100) * 14)
+
                         property real bob: 0.0
                         SequentialAnimation on bob {
                             running: true
@@ -487,17 +510,19 @@ ClippingRectangle {
                             y: 3
                             spacing: 5
                             Rectangle {
-                                width: 4
+                                width: volFace.eyeWidth
                                 height: root.isAudioMuted ? 2 : 4
-                                radius: 2
+                                radius: height / 2
                                 color: volFace.faceColor
+                                Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 2 } }
                                 Behavior on height { NumberAnimation { duration: 150 } }
                             }
                             Rectangle {
-                                width: 4
+                                width: volFace.eyeWidth
                                 height: root.isAudioMuted ? 2 : 4
-                                radius: 2
+                                radius: height / 2
                                 color: volFace.faceColor
+                                Behavior on width { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 2 } }
                                 Behavior on height { NumberAnimation { duration: 150 } }
                             }
                         }
@@ -505,8 +530,8 @@ ClippingRectangle {
                         Rectangle {
                             anchors.horizontalCenter: parent.horizontalCenter
                             y: 12
-                            width: root.isAudioMuted ? 9 : (6 + (volFace.activeVol / 100) * 10)
-                            height: root.isAudioMuted ? 2 : (4 + (volFace.activeVol / 100) * 4)
+                            width: volFace.mouthWidth
+                            height: root.isAudioMuted ? 2 : (4 + (volFace.activeVol / 100) * 6)
                             radius: height / 2
                             color: volFace.faceColor
 
