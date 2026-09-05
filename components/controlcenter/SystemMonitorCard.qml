@@ -306,8 +306,12 @@ Item {
         // !compact: stats sit to the right of the tile (expanded view).
         property bool compact: true
 
-        implicitWidth: ringRow.compact ? 66 : (66 + 10 + statRight.implicitWidth)
-        implicitHeight: ringRow.compact ? (66 + 5 + statBelow.implicitHeight) : 66
+        // The tile itself shrank so the icon it holds reads bigger relative
+        // to it - the icon's own size is unchanged, just less padding around it.
+        readonly property real tileSize: 48
+
+        implicitWidth: ringRow.compact ? tileSize : (tileSize + 10 + statRight.implicitWidth)
+        implicitHeight: ringRow.compact ? (tileSize + 5 + statBelow.implicitHeight) : tileSize
         width: implicitWidth
         height: implicitHeight
 
@@ -317,18 +321,9 @@ Item {
         property bool clickable: true
         property bool selected: cardRoot.activeCategory === ringRow.label
 
-        property real animValue: value
-        Behavior on animValue {
-            NumberAnimation { duration: 400; easing.type: Easing.OutCubic }
-        }
-
-        readonly property bool isStressed: ringRow.animValue >= 0.75
-        readonly property bool isAlert: ringRow.animValue >= 0.4 && !ringRow.isStressed
         readonly property bool isOverheating: ringRow.temp > 75
 
-        // Same size for all four, but a different plain, recognizable
-        // geometric shape per metric - circle, square, triangle, star -
-        // instead of either identical blobs or shapes nobody could name.
+        // Same icon size for all four.
         readonly property real bodyW: 40
         readonly property real bodyH: 40
 
@@ -338,38 +333,138 @@ Item {
             : (ringRow.label === "RAM" ? "sd_card"
             : (ringRow.label === "DISK" ? "storage" : "memory"))
 
+        // A curated slice of Material 3's shape catalog (m3.material.io/styles/shape) -
+        // just the radially-symmetric ones, since those all reduce to the
+        // same "lobes + depth + tip sharpness" formula below. The asymmetric
+        // ones in the guide (slanted, arch, pill, arrow, fan, clamshell,
+        // ghost-ish, bun, pixel circle) have a distinct "this side vs that
+        // side" and aren't a function of angle alone, so they need a
+        // genuinely different construction and aren't attempted. Square is
+        // skipped too - it's already the permanent idle shape, so as a hover
+        // target it would be indistinguishable from not hovering at all.
+        //
+        // amp is how far each shape's minimum radius dips below baseR (its
+        // radius is baseR * (1 - amp) at the deepest point of a lobe) - the
+        // icon sits fixed at bodyW/bodyH regardless of which shape is active,
+        // so anything that dips too far below baseR uncovers the icon's
+        // corners (clover/sunny were 0.45/0.6 - roughly half the tile -
+        // before being cut for exactly this). Every entry below is kept
+        // under ~0.15 for that reason, which is why the spikier ones read as
+        // gentle bumps rather than the dramatic points in the reference
+        // image - depth had to be sacrificed for containment, so they're
+        // told apart by lobe count and tip sharpness (power) instead.
+        // phase just rotates the lobes so shapes sharing a lobe count (e.g.
+        // puffy vs. puffy diamond) can still look distinct.
+        readonly property var shapeDefs: [
+            { name: "circle", lobes: 0, amp: 0.0, power: 1 },
+            { name: "triangle", lobes: 3, amp: 0.15, power: 8, phase: -Math.PI / 2 },
+            { name: "pentagon", lobes: 5, amp: 0.13, power: 7, phase: -Math.PI / 2 },
+            { name: "gem", lobes: 6, amp: 0.12, power: 6 },
+            { name: "cookie4", lobes: 4, amp: 0.14, power: 2 },
+            { name: "cookie6", lobes: 6, amp: 0.14, power: 2 },
+            { name: "cookie7", lobes: 7, amp: 0.14, power: 2 },
+            { name: "cookie9", lobes: 9, amp: 0.13, power: 2 },
+            { name: "cookie12", lobes: 12, amp: 0.12, power: 2 },
+            { name: "clover4", lobes: 4, amp: 0.15, power: 1.3 },
+            { name: "clover8", lobes: 8, amp: 0.14, power: 1.3 },
+            { name: "sunny", lobes: 10, amp: 0.15, power: 4 },
+            { name: "verySunny", lobes: 16, amp: 0.14, power: 5 },
+            { name: "burst", lobes: 12, amp: 0.15, power: 7 },
+            { name: "softBurst", lobes: 10, amp: 0.14, power: 3 },
+            { name: "flower", lobes: 6, amp: 0.15, power: 1.8 },
+            { name: "puffy", lobes: 4, amp: 0.10, power: 1.2 },
+            { name: "puffyDiamond", lobes: 4, amp: 0.13, power: 2, phase: Math.PI / 4 }
+        ]
+        // Picked once when the tile is created, not re-rolled per hover, so
+        // each metric keeps a consistent identity while still differing from
+        // its neighbors.
+        readonly property int shapeIndex: Math.floor(Math.random() * shapeDefs.length)
+
         // A small accent-filled tile with a meaningful icon and a gentle
         // shake under heavy load, instead of an abstract gauge.
-        Rectangle {
+        //
+        // Rounded square at rest, morphing into a random shape from the M3
+        // shape catalog on hover. Built as an SVG path sampled from two
+        // blended polar radius functions (a superellipse for the square, a
+        // lobed radius for the target shape) rather than swapping between two
+        // discrete shapes, so the two interpolate into every shape in between
+        // as morphT animates instead of just cross-fading. CurveRenderer
+        // avoids the faceted/grainy look Shape's default tessellating
+        // renderer gives curves at this size.
+        Shape {
             id: tileBody
             x: 0
             y: 0
-            width: 66
-            height: 66
-            radius: 14
-            color: Config.accent
+            width: ringRow.tileSize
+            height: ringRow.tileSize
+            antialiasing: true
+            preferredRendererType: Shape.CurveRenderer
+
+            property real morphT: (ringRow.clickable && tileHover.hovered) ? 1.0 : 0.0
+            Behavior on morphT { NumberAnimation { duration: 320; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
+
+            // lobes/amp/power/phase together cover the whole shapeDefs family:
+            // amp is how deep the lobes cut in, power sharpens the tips (low =
+            // round bumps, high = pointed spikes), lobes is how many of them,
+            // phase rotates them.
+            function lobedRadius(theta, lobes, amp, power, phase) {
+                if (lobes <= 0 || amp <= 0) return 1.0
+                var m = Math.pow(Math.abs(Math.cos(lobes * (theta + (phase || 0)) / 2)), power)
+                return (1 - amp) + amp * m
+            }
+
+            function tilePath() {
+                var w = ringRow.tileSize
+                var cx = w / 2, cy = w / 2
+                var baseR = w / 2 - 2
+                var shape = ringRow.shapeDefs[ringRow.shapeIndex]
+                var n = 5
+                var t = tileBody.morphT
+                var samples = Math.max(48, shape.lobes * 8)
+                var pts = []
+                for (var i = 0; i < samples; i++) {
+                    var theta = (i / samples) * Math.PI * 2
+                    var c = Math.cos(theta), s = Math.sin(theta)
+                    var rSquare = baseR / Math.pow(Math.pow(Math.abs(c), n) + Math.pow(Math.abs(s), n), 1 / n)
+                    var rShape = baseR * tileBody.lobedRadius(theta, shape.lobes, shape.amp, shape.power, shape.phase)
+                    var r = rSquare * (1 - t) + rShape * t
+                    pts.push(Qt.point(cx + r * c, cy + r * s))
+                }
+
+                var len = pts.length
+                var d = "M " + pts[0].x.toFixed(2) + " " + pts[0].y.toFixed(2) + " "
+                for (var j = 0; j < len; j++) {
+                    var p0 = pts[(j - 1 + len) % len]
+                    var p1 = pts[j]
+                    var p2 = pts[(j + 1) % len]
+                    var p3 = pts[(j + 2) % len]
+                    var b1x = p1.x + (p2.x - p0.x) / 6
+                    var b1y = p1.y + (p2.y - p0.y) / 6
+                    var b2x = p2.x - (p3.x - p1.x) / 6
+                    var b2y = p2.y - (p3.y - p1.y) / 6
+                    d += "C " + b1x.toFixed(2) + " " + b1y.toFixed(2) + " " + b2x.toFixed(2) + " " + b2y.toFixed(2) + " " + p2.x.toFixed(2) + " " + p2.y.toFixed(2) + " "
+                }
+                d += "Z"
+                return d
+            }
+
+            ShapePath {
+                fillColor: Config.accent
+                strokeWidth: -1
+                PathSvg { path: tileBody.tilePath() }
+            }
+
+            HoverHandler {
+                id: tileHover
+                enabled: ringRow.clickable
+                cursorShape: Qt.PointingHandCursor
+            }
 
             Item {
                 id: creature
                 width: ringRow.bodyW
                 height: ringRow.bodyH
                 anchors.centerIn: parent
-
-                property real shakeX: 0.0
-                property real shakeY: 0.0
-                SequentialAnimation on shakeX {
-                    running: true
-                    loops: Animation.Infinite
-                    NumberAnimation { to: (ringRow.isStressed ? 1.6 : (ringRow.isAlert ? 0.6 : 0.2)); duration: ringRow.isStressed ? 60 : 500; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: (ringRow.isStressed ? -1.6 : (ringRow.isAlert ? -0.6 : -0.2)); duration: ringRow.isStressed ? 60 : 500; easing.type: Easing.InOutSine }
-                }
-                SequentialAnimation on shakeY {
-                    running: true
-                    loops: Animation.Infinite
-                    NumberAnimation { to: 1.4; duration: ringRow.isStressed ? 450 : 900; easing.type: Easing.InOutSine }
-                    NumberAnimation { to: -1.4; duration: ringRow.isStressed ? 450 : 900; easing.type: Easing.InOutSine }
-                }
-                transform: Translate { x: creature.shakeX; y: creature.shakeY }
 
                 // Plain Material Symbols shape - circle/square/triangle/star,
                 // colored by mood, no face on top.
@@ -380,7 +475,7 @@ Item {
                     verticalAlignment: Text.AlignVCenter
                     text: ringRow.shapeGlyph
                     font.family: "Material Symbols Outlined"
-                    font.pixelSize: parent.width * 0.95
+                    font.pixelSize: parent.width * 0.8
                     color: Config.bgBase
                 }
             }
@@ -402,7 +497,7 @@ Item {
                 text: ringRow.label
                 color: ringRow.clickable && ringRow.selected ? Config.textMain : Config.textMuted
                 font.family: Config.sysFont
-                font.pixelSize: Config.size(Config.fontMicro)
+                font.pixelSize: Config.size(Config.fontCaption)
                 font.bold: true
             }
 
@@ -417,7 +512,7 @@ Item {
                     text: Math.round(ringRow.value * 100) + "%"
                     color: Config.textMain
                     font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontCaption)
+                    font.pixelSize: Config.size(Config.fontSubhead)
                     font.bold: true
                 }
                 Text {
@@ -444,7 +539,7 @@ Item {
                 text: ringRow.label
                 color: ringRow.clickable && ringRow.selected ? Config.textMain : Config.textMuted
                 font.family: Config.sysFont
-                font.pixelSize: Config.size(Config.fontCaption)
+                font.pixelSize: Config.size(Config.fontSubhead)
                 font.bold: true
             }
             Row {
@@ -683,13 +778,13 @@ Item {
                         spacing: 0
 
                         Item { Layout.fillWidth: true }
-                        StatRingItem { compact: false; label: "CPU"; value: cardRoot.sysCpu; temp: cardRoot.cpuTemp }
+                        StatRingItem { Layout.alignment: Qt.AlignVCenter; compact: false; label: "CPU"; value: cardRoot.sysCpu; temp: cardRoot.cpuTemp }
                         Item { Layout.fillWidth: true }
-                        StatRingItem { compact: false; label: "GPU"; value: cardRoot.sysGpu; temp: cardRoot.gpuTemp }
+                        StatRingItem { Layout.alignment: Qt.AlignVCenter; compact: false; label: "GPU"; value: cardRoot.sysGpu; temp: cardRoot.gpuTemp }
                         Item { Layout.fillWidth: true }
-                        StatRingItem { compact: false; label: "RAM"; value: cardRoot.sysRam; temp: cardRoot.ramTemp }
+                        StatRingItem { Layout.alignment: Qt.AlignVCenter; compact: false; label: "RAM"; value: cardRoot.sysRam; temp: cardRoot.ramTemp }
                         Item { Layout.fillWidth: true }
-                        StatRingItem { compact: false; label: "DISK"; value: cardRoot.sysDisk; clickable: false }
+                        StatRingItem { Layout.alignment: Qt.AlignVCenter; compact: false; label: "DISK"; value: cardRoot.sysDisk; clickable: false }
                         Item { Layout.fillWidth: true }
                     }
                 }
