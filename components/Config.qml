@@ -365,6 +365,24 @@ QtObject {
     function removeMascotPhrase(index) { desktopExtras.removeMascotPhrase(index) }
     function getMascotPosition(screenName, defaultX, defaultY) { return desktopExtras.getMascotPosition(screenName, defaultX, defaultY) }
     function saveMascotPosition(screenName, x, y) { desktopExtras.saveMascotPosition(screenName, x, y) }
+    property alias showAssistant: root.desktopExtras.showAssistant
+    property alias assistantBackend: root.desktopExtras.assistantBackend
+    property alias assistantModel: root.desktopExtras.assistantModel
+    property alias assistantBadgePath: root.desktopExtras.assistantBadgePath
+    property alias assistantCustomBadges: root.desktopExtras.assistantCustomBadges
+    function addCustomBadge(path) { desktopExtras.addCustomBadge(path) }
+    function removeCustomBadge(path) { desktopExtras.removeCustomBadge(path) }
+    property alias assistantTimeoutSeconds: root.desktopExtras.assistantTimeoutSeconds
+    property alias assistantWidth: root.desktopExtras.assistantWidth
+    property alias assistantHeight: root.desktopExtras.assistantHeight
+    property alias assistantPositions: root.desktopExtras.assistantPositions
+    property alias assistantLastScreen: root.desktopExtras.assistantLastScreen
+    function saveAssistantSize(width, height) { desktopExtras.saveAssistantSize(width, height) }
+    function getAssistantPosition(screenName, defaultX, defaultY) { return desktopExtras.getAssistantPosition(screenName, defaultX, defaultY) }
+    function saveAssistantPosition(screenName, x, y) { desktopExtras.saveAssistantPosition(screenName, x, y) }
+    property alias assistantMessages: root.desktopExtras.assistantMessages
+    function appendAssistantMessage(role, text) { desktopExtras.appendAssistantMessage(role, text) }
+    function clearAssistantMessages() { desktopExtras.clearAssistantMessages() }
     property alias showDesktopMediaCard: root.desktopExtras.showDesktopMediaCard
     property alias mediaCardWidth: root.desktopExtras.mediaCardWidth
     property alias mediaCardHeight: root.desktopExtras.mediaCardHeight
@@ -827,7 +845,9 @@ QtObject {
         "lockscreenUse12Hour", "lockscreenShowSeconds", "lockscreenShowAmPm", "lockscreenDateFormat",
         "lockscreenClockSize", "lockscreenTargetMonitor", "workspaceStyle", "workspaceGlow",
         "workspaceScroll", "workspaceTooltips", "workspaceShowAddBtn", "workspaceShowOverviewBtn",
-        "workspaceShowSpecial", "workspaceContainerStyle", "wallhavenUsername", "wallhavenApiKey"
+        "workspaceShowSpecial", "workspaceContainerStyle", "wallhavenUsername", "wallhavenApiKey",
+        "showAssistant", "assistantBackend", "assistantModel", "assistantBadgePath", "assistantCustomBadges", "assistantTimeoutSeconds", "assistantWidth", "assistantHeight",
+        "assistantPositions", "assistantLastScreen", "assistantMessages"
     ]
 
     // Settings are stored as JSON via Quickshell's own FileView+JsonAdapter instead of a
@@ -1017,6 +1037,17 @@ QtObject {
             property var workspaceContainerStyle
             property var wallhavenUsername
             property var wallhavenApiKey
+            property var showAssistant
+            property var assistantBackend
+            property var assistantModel
+            property var assistantBadgePath
+            property var assistantCustomBadges
+            property var assistantTimeoutSeconds
+            property var assistantWidth
+            property var assistantHeight
+            property var assistantPositions
+            property var assistantLastScreen
+            property var assistantMessages
             property var keybinds
             property var customThemes
             property var currentThemeIndex

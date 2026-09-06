@@ -628,6 +628,7 @@ ShellRoot {
     VolumeOSD { id: volumeOsd }
     NotificationOSD { id: notificationOsd }
     Mascot { id: mascotWidget }
+    AssistantWidget { id: assistantWidget }
     MediaCardWidget { id: mediaCardWidget }
     OSK { id: oskWidget }
     Screensaver { id: screensaverWidget }

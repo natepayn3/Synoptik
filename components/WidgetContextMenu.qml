@@ -16,6 +16,13 @@ import Quickshell.Widgets
 ClippingRectangle {
     id: menu
 
+    // Widget id (matching an entry in widgetDefs below) of whatever container
+    // this particular menu instance lives inside, e.g. "mascot" for the
+    // instance nested in Mascot.qml. Left blank for instances not hosted by
+    // any single toggleable widget (the empty-desktop catcher in
+    // DesktopContextArea.qml) - toggling never has to close those.
+    property string hostWidgetId: ""
+
     // --- OPEN/CLOSE MORPH: ported from UnifiedSurface.qml's popout squish
     // rather than the flat uniform-scale spring this used before. `progress`
     // drives an OutBack/InBack bounce (same durations/overshoot as the bar
@@ -152,7 +159,8 @@ ClippingRectangle {
         { id: "sysinfo", icon: "monitor_heart", label: "System Info",      enabled: Config.showDesktopSysInfo },
         { id: "cava",    icon: "graphic_eq",    label: "Audio Visualizer", enabled: Config.showDesktopCava },
         { id: "mascot",  icon: "pets",          label: "Desktop Mascot",   enabled: Config.showMascot },
-        { id: "media",   icon: "album",         label: "Media Player",    enabled: Config.showDesktopMediaCard }
+        { id: "media",   icon: "album",         label: "Media Player",    enabled: Config.showDesktopMediaCard },
+        { id: "assistant", icon: "smart_toy",   label: "Assistant",       enabled: Config.showAssistant }
     ]
 
     function toggle(id) {
@@ -161,6 +169,7 @@ ClippingRectangle {
         else if (id === "cava") Config.showDesktopCava = !Config.showDesktopCava
         else if (id === "mascot") Config.showMascot = !Config.showMascot
         else if (id === "media") Config.showDesktopMediaCard = !Config.showDesktopMediaCard
+        else if (id === "assistant") Config.showAssistant = !Config.showAssistant
     }
 
     // Opens at (localX, localY) in `container`'s coordinate space, clamped so
@@ -332,11 +341,15 @@ ClippingRectangle {
 
                 TapHandler {
                     onTapped: {
-                        // close() first: toggle() can flip a widget's
-                        // Config.showDesktopX off, which synchronously tears
-                        // down that widget's subtree - including this menu -
-                        // so `menu` must not be touched after the call.
-                        menu.close()
+                        // Only close first when this toggle turns off the very
+                        // widget hosting this menu instance - that can tear down
+                        // this menu's own container, so `menu` must not be
+                        // touched after such a toggle. Toggling anything else
+                        // (a different widget, or turning one on) never disturbs
+                        // this menu's container, so it stays open and the user
+                        // can flip several toggles from one right-click.
+                        let closesOwnHost = (modelData.id === menu.hostWidgetId)
+                        if (closesOwnHost) menu.close()
                         menu.toggle(modelData.id)
                     }
                 }

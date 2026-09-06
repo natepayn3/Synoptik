@@ -324,7 +324,7 @@ PanelWindow {
             }
         }
 
-        WidgetContextMenu { id: widgetMenu }
+        WidgetContextMenu { id: widgetMenu; hostWidgetId: "cava" }
     }
 
     // Visible skin, decoupled from cavaContainer (the drag anchor / hit

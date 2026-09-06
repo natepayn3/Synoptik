@@ -274,7 +274,7 @@ PanelWindow {
             }
         }
 
-        WidgetContextMenu { id: widgetMenu }
+        WidgetContextMenu { id: widgetMenu; hostWidgetId: "mascot" }
     }
 
     // Visible skin, decoupled from petContainer (the drag anchor / hit

@@ -502,7 +502,14 @@ PanelWindow {
         }
 
         readonly property real edgeThickness: 6
-        readonly property real cornerSize: 14
+        // Scales with the user's actual configured corner rounding rather
+        // than a fixed guess - a corner grab zone sized to match/undercut
+        // Config.cornerRadius would sit almost entirely inside the visually
+        // rounded-away area, making it very hard to click precisely (with a
+        // large cornerRadius, easy to miss the corner and clip the edge
+        // zone instead - the "touchy" feel). The 18 floor covers square/
+        // barely-rounded corners, where a tiny zone is just as annoying.
+        readonly property real cornerSize: Math.max(18, Config.cornerRadius + 8)
 
         ResizeEdge {
             edges: Qt.TopEdge
@@ -545,7 +552,7 @@ PanelWindow {
             width: mediaCardContainer.cornerSize; height: mediaCardContainer.cornerSize
         }
 
-        WidgetContextMenu { id: widgetMenu }
+        WidgetContextMenu { id: widgetMenu; hostWidgetId: "media" }
     }
 
     // Visible skin, decoupled from mediaCardContainer (the drag/resize
@@ -1043,37 +1050,6 @@ PanelWindow {
                         }
                     }
                 }
-            }
-
-            // Re-attach / close button - always on top so it never falls
-            // through to the move areas beneath it.
-            Item {
-                id: closeButton
-                anchors.top: parent.top
-                anchors.right: parent.right
-                anchors.margins: 5
-                implicitWidth: 18
-                implicitHeight: 18
-                z: 50
-                opacity: closeHover.hovered ? 1.0 : 0.45
-                Behavior on opacity { NumberAnimation { duration: 150 } }
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: width / 2
-                    color: Qt.rgba(0, 0, 0, 0.45)
-                }
-
-                Text {
-                    anchors.centerIn: parent
-                    text: "close"
-                    font.family: "Material Symbols Outlined"
-                    font.pixelSize: 12
-                    color: "#ffffff"
-                }
-
-                TapHandler { onTapped: Config.showDesktopMediaCard = false }
-                HoverHandler { id: closeHover; cursorShape: Qt.PointingHandCursor }
             }
 
             // --- MOVE + RIGHT-CLICK WIDGET MENU ---

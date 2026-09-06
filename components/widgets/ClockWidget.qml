@@ -621,7 +621,7 @@ PanelWindow {
             }
         }
 
-        WidgetContextMenu { id: widgetMenu }
+        WidgetContextMenu { id: widgetMenu; hostWidgetId: "clock" }
     }
 
     // Visible skin, decoupled from clockContainer (the drag anchor / hit

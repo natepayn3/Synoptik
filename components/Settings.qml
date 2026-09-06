@@ -28,13 +28,13 @@ Item {
     function expandActiveCategory(sectionId) {
         if ([0, 16, 1, 17, 2, 3, 12, 21].includes(sectionId)) visualsExpanded = true
         else if ([4, 5, 6, 7].includes(sectionId)) connectivityExpanded = true
-        else if ([8, 9, 10, 13, 14, 15, 18, 19, 20].includes(sectionId)) widgetsExpanded = true
+        else if ([8, 9, 10, 13, 14, 15, 18, 19, 20, 22].includes(sectionId)) widgetsExpanded = true
     }
 
     function getSectionCategory(sectionId) {
         if ([0, 16, 1, 17, 2, 3, 12, 21].includes(sectionId)) return "VISUALS"
         if ([4, 5, 6, 7].includes(sectionId)) return "CONNECTIVITY"
-        if ([8, 9, 10, 13, 15, 18, 19, 20].includes(sectionId)) return "WIDGETS"
+        if ([8, 9, 10, 13, 15, 18, 19, 20, 22].includes(sectionId)) return "WIDGETS"
         if (sectionId === 11) return "SYSTEM"
         return "GENERAL"
     }
@@ -61,6 +61,7 @@ Item {
             case 18: return "Screensaver"
             case 20: return "Retro Shader"
             case 21: return "Audio Visualizer"
+            case 22: return "Assistant"
             case 11: return "Shell"
             default: return "Settings"
         }
@@ -88,6 +89,7 @@ Item {
             case 18: return "tv"
             case 20: return "videogame_asset"
             case 21: return "graphic_eq"
+            case 22: return "support_agent"
             case 11: return "terminal"
             default: return "settings"
         }
@@ -656,7 +658,8 @@ Item {
                                     { id: 13, name: "Sounds",       icon: "volume_up" },
                                     { id: 15, name: "Lockscreen",   icon: "lock" },
                                     { id: 18, name: "Screensaver",  icon: "tv" },
-                                    { id: 20, name: "Retro Shader", icon: "videogame_asset" }
+                                    { id: 20, name: "Retro Shader", icon: "videogame_asset" },
+                                    { id: 22, name: "Assistant",    icon: "support_agent" }
                                 ]
 
                                 delegate: Rectangle {
@@ -929,6 +932,7 @@ Item {
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 10; visible: active; sourceComponent: KeyboardSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 20; visible: active; sourceComponent: ShaderSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 21; visible: active; sourceComponent: CavaSettings {} }
+                    Loader { anchors.fill: parent; active: settingsRoot.activeSection === 22; visible: active; sourceComponent: AssistantSettings {} }
 
                     // Shell View (Section 11)
                     Loader {

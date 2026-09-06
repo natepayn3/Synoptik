@@ -359,7 +359,7 @@ PanelWindow {
             }
         }
 
-        WidgetContextMenu { id: widgetMenu }
+        WidgetContextMenu { id: widgetMenu; hostWidgetId: "sysinfo" }
     }
         // Visible skin, decoupled from infoContainer (the drag anchor / hit
         // region above) precisely so Behavior can animate it - see the note
