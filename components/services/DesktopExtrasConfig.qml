@@ -71,6 +71,12 @@ QtObject {
     // hit that ceiling on an ordinary question.
     property int assistantTimeoutSeconds: 120
 
+    // Text scale for the conversation area (message bubbles + input field) -
+    // a single global value, not per-screen, since the assistant is a
+    // single roaming instance like Mascot/the media card rather than one
+    // instance per monitor.
+    property real assistantFontScale: 1.0
+
     // Badge image shown in the header and inline next to assistant replies,
     // same "" -> fall back to a default glyph pattern as mascotPath.
     property string assistantBadgePath: ""
@@ -244,4 +250,5 @@ QtObject {
     onAssistantModelChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
     onAssistantBadgePathChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
     onAssistantTimeoutSecondsChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
+    onAssistantFontScaleChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
 }

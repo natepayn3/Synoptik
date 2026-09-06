@@ -373,6 +373,7 @@ QtObject {
     function addCustomBadge(path) { desktopExtras.addCustomBadge(path) }
     function removeCustomBadge(path) { desktopExtras.removeCustomBadge(path) }
     property alias assistantTimeoutSeconds: root.desktopExtras.assistantTimeoutSeconds
+    property alias assistantFontScale: root.desktopExtras.assistantFontScale
     property alias assistantWidth: root.desktopExtras.assistantWidth
     property alias assistantHeight: root.desktopExtras.assistantHeight
     property alias assistantPositions: root.desktopExtras.assistantPositions
@@ -846,7 +847,7 @@ QtObject {
         "lockscreenClockSize", "lockscreenTargetMonitor", "workspaceStyle", "workspaceGlow",
         "workspaceScroll", "workspaceTooltips", "workspaceShowAddBtn", "workspaceShowOverviewBtn",
         "workspaceShowSpecial", "workspaceContainerStyle", "wallhavenUsername", "wallhavenApiKey",
-        "showAssistant", "assistantBackend", "assistantModel", "assistantBadgePath", "assistantCustomBadges", "assistantTimeoutSeconds", "assistantWidth", "assistantHeight",
+        "showAssistant", "assistantBackend", "assistantModel", "assistantBadgePath", "assistantCustomBadges", "assistantTimeoutSeconds", "assistantFontScale", "assistantWidth", "assistantHeight",
         "assistantPositions", "assistantLastScreen", "assistantMessages"
     ]
 
@@ -1043,6 +1044,7 @@ QtObject {
             property var assistantBadgePath
             property var assistantCustomBadges
             property var assistantTimeoutSeconds
+            property var assistantFontScale
             property var assistantWidth
             property var assistantHeight
             property var assistantPositions

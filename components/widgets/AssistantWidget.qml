@@ -156,6 +156,11 @@ PanelWindow {
         }
     }
 
+    function adjustFontScale(delta) {
+        let next = Math.round((Config.assistantFontScale + delta) * 10) / 10
+        Config.assistantFontScale = Math.max(0.75, Math.min(2.0, next))
+    }
+
     function backendLabel() {
         if (Config.assistantBackend === "codex") return "Codex CLI"
         if (Config.assistantBackend === "gemini") return "Gemini CLI"
@@ -794,6 +799,26 @@ PanelWindow {
                     Item { Layout.fillWidth: true }
 
                     Text {
+                        text: "text_decrease"
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 16
+                        color: fontDecHover.hovered ? Config.accent : Config.textMuted
+
+                        TapHandler { onTapped: assistantWindow.adjustFontScale(-0.1) }
+                        HoverHandler { id: fontDecHover; cursorShape: Qt.PointingHandCursor }
+                    }
+
+                    Text {
+                        text: "text_increase"
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 16
+                        color: fontIncHover.hovered ? Config.accent : Config.textMuted
+
+                        TapHandler { onTapped: assistantWindow.adjustFontScale(0.1) }
+                        HoverHandler { id: fontIncHover; cursorShape: Qt.PointingHandCursor }
+                    }
+
+                    Text {
                         text: "delete_sweep"
                         font.family: "Material Symbols Outlined"
                         font.pixelSize: 16
@@ -821,7 +846,7 @@ PanelWindow {
                             : "Say hello - this runs " + assistantWindow.backendLabel() + " in headless mode, using whatever account it's already signed into on this machine."
                         color: Config.textMuted
                         font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontCaption)
+                        font.pixelSize: Config.size(Config.fontCaption) * Config.assistantFontScale
                         wrapMode: Text.WordWrap
                         horizontalAlignment: Text.AlignHCenter
                     }
@@ -865,7 +890,7 @@ PanelWindow {
                                         text: modelData.text
                                         color: Config.textMain
                                         font.family: Config.sysFont
-                                        font.pixelSize: Config.size(Config.fontCaption)
+                                        font.pixelSize: Config.size(Config.fontCaption) * Config.assistantFontScale
                                         wrapMode: Text.WordWrap
                                     }
                                 }
@@ -906,7 +931,7 @@ PanelWindow {
 
                     Rectangle {
                         Layout.fillWidth: true
-                        implicitHeight: 32
+                        implicitHeight: Math.max(32, Config.size(Config.fontCaption) * Config.assistantFontScale + 16)
                         radius: Config.cornerRadius / 2
                         color: Qt.rgba(0, 0, 0, 0.15)
                         border.width: 1
@@ -921,7 +946,7 @@ PanelWindow {
                             enabled: !assistantWindow.assistantBusy
                             color: Config.textMain
                             font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
+                            font.pixelSize: Config.size(Config.fontCaption) * Config.assistantFontScale
                             verticalAlignment: TextInput.AlignVCenter
                             selectByMouse: true
                             clip: true
@@ -931,7 +956,7 @@ PanelWindow {
                                 text: "Ask your assistant..."
                                 color: Config.textMuted
                                 font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontCaption)
+                                font.pixelSize: Config.size(Config.fontCaption) * Config.assistantFontScale
                                 verticalAlignment: Text.AlignVCenter
                                 visible: chatInput.text.length === 0 && !chatInput.activeFocus
                             }
