@@ -34,17 +34,26 @@ PanelWindow {
 
     WlrLayershell.layer: WlrLayer.Bottom
     WlrLayershell.namespace: "quickshell-assistant"
-    // OnDemand only while the chat input actually has focus (or the widget
-    // menu is open) - NOT for the whole time the panel is visible. Holding
-    // OnDemand continuously, the whole panel's lifetime, collided with
-    // Settings' own surface (also OnDemand the whole time it's open, see
-    // UnifiedSurface.qml) - Hyprland doesn't like two layer-shell surfaces
-    // both claiming exclusive keyboard focus at once, and force-closed
-    // Settings as a result. A mouse click into the text field still works
-    // fine even at WlrKeyboardFocus.None (pointer input isn't gated by
-    // this), so this flips to OnDemand right as the field gains focus -
-    // well before the user's next actual keystroke.
-    WlrLayershell.keyboardFocus: ((typeof chatInput !== "undefined" && chatInput.activeFocus) || (typeof widgetMenu !== "undefined" && widgetMenu.visible))
+    // OnDemand only while the chat input has focus, is merely hovered, or
+    // the widget menu is open - NOT for the whole time the panel is
+    // visible. Holding OnDemand continuously, the whole panel's lifetime,
+    // collided with Settings' own surface (also OnDemand the whole time
+    // it's open, see UnifiedSurface.qml) - Hyprland doesn't like two
+    // layer-shell surfaces both claiming exclusive keyboard focus at once,
+    // and force-closed Settings as a result.
+    //
+    // The hover condition (not just activeFocus) exists because granting
+    // OnDemand is an async round-trip to the compositor - gating purely on
+    // activeFocus meant the very first click's own keystrokes could arrive
+    // before Hyprland finished the grant and get silently dropped, so
+    // typing only "worked" after a second click gave the round-trip time to
+    // finish. Requesting it on hover instead starts that round-trip while
+    // the cursor is still moving toward the field, before the click even
+    // happens - mouse/pointer input isn't gated by keyboardFocus at all, so
+    // hovering and clicking both still work fine at None in the meantime.
+    WlrLayershell.keyboardFocus: ((typeof chatInput !== "undefined" && chatInput.activeFocus)
+            || (typeof chatInputHover !== "undefined" && chatInputHover.hovered)
+            || (typeof widgetMenu !== "undefined" && widgetMenu.visible))
         ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     anchors {
@@ -932,7 +941,7 @@ PanelWindow {
                                 text = ""
                             }
 
-                            HoverHandler { cursorShape: Qt.IBeamCursor }
+                            HoverHandler { id: chatInputHover; cursorShape: Qt.IBeamCursor }
                         }
                     }
 
