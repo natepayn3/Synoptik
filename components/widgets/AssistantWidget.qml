@@ -763,6 +763,8 @@ PanelWindow {
                         }
                     }
 
+                    Item { Layout.fillWidth: true }
+
                     Rectangle {
                         id: backendPill
                         implicitWidth: backendPillRow.implicitWidth + 16
@@ -795,8 +797,6 @@ PanelWindow {
                         TapHandler { onTapped: assistantWindow.backendMenuOpen = !assistantWindow.backendMenuOpen }
                         HoverHandler { id: backendPillHover; cursorShape: Qt.PointingHandCursor }
                     }
-
-                    Item { Layout.fillWidth: true }
 
                     Text {
                         text: "text_decrease"
