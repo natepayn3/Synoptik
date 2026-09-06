@@ -30,6 +30,7 @@ PanelWindow {
         codexCheck.running = true
         geminiCheck.running = true
         ollamaCheck.running = true
+        ollamaModelListProcess.running = true
     }
 
     WlrLayershell.layer: WlrLayer.Bottom
@@ -210,6 +211,56 @@ PanelWindow {
     }
 
 
+    // Ollama's CLI does its own client-side line wrapping by writing a word,
+    // then - if it decided that word doesn't fit - backing the cursor up
+    // over it and erasing before rewriting it at the start of the next line
+    // (confirmed empirically: captured raw output is littered with
+    // "<partial word>\x1b[<n>D\x1b[K\n<full word>..." runs). Since the output
+    // is captured as plain text rather than actually rendered in a
+    // terminal, those bytes would otherwise show up as literal garbage
+    // glyphs with the erased word fragment still stuck in the text.
+    // Stripping the escape codes alone isn't enough - it'd leave the erased
+    // fragment concatenated onto what replaced it - so this replays the two
+    // control codes it actually uses (cursor-back and erase-to-end-of-line)
+    // against a small per-line buffer to reconstruct what would really be
+    // visible on a terminal.
+    function stripOllamaLineWrapCodes(raw) {
+        if (!raw || raw.indexOf("\x1b") === -1) return raw
+        let lines = [""]
+        let row = 0
+        let col = 0
+        let i = 0
+        while (i < raw.length) {
+            let ch = raw[i]
+            if (ch === "\x1b" && raw[i + 1] === "[") {
+                let j = i + 2
+                let params = ""
+                while (j < raw.length && /[0-9;]/.test(raw[j])) { params += raw[j]; j++ }
+                let letter = raw[j]
+                if (letter === "D") {
+                    col = Math.max(0, col - (params.length > 0 ? parseInt(params) : 1))
+                } else if (letter === "K") {
+                    lines[row] = lines[row].slice(0, col)
+                }
+                i = j + 1
+            } else if (ch === "\r") {
+                col = 0
+                i++
+            } else if (ch === "\n") {
+                row++
+                lines[row] = ""
+                col = 0
+                i++
+            } else {
+                let line = lines[row]
+                lines[row] = line.slice(0, col) + ch + line.slice(col + 1)
+                col++
+                i++
+            }
+        }
+        return lines.join("\n")
+    }
+
     // Each send is its own fresh, memory-less process - none of the three
     // backends share conversation state across separate invocations here -
     // so continuity has to come from the prompt text itself: prior turns are
@@ -219,9 +270,15 @@ PanelWindow {
     // rather than assuming it would work.
     function buildPrompt(history, newMessage) {
         if (!history || history.length === 0) return newMessage
+        // Error/timeout/cancelled/info entries are diagnostics for the
+        // person reading the chat, not real turns - dropped here so a past
+        // failure (or a "downloading the model" notice) never gets fed back
+        // in as if the assistant had said it.
+        let realHistory = history.filter((m) => m.role !== "error" && m.role !== "info")
+        if (realHistory.length === 0) return newMessage
         let lines = ["Here is our conversation so far. Respond naturally to my latest message at the end - don't repeat earlier context back to me, just continue the conversation."]
-        for (let i = 0; i < history.length; i++) {
-            lines.push((history[i].role === "user" ? "User" : "Assistant") + ": " + history[i].text)
+        for (let i = 0; i < realHistory.length; i++) {
+            lines.push((realHistory[i].role === "user" ? "User" : "Assistant") + ": " + realHistory[i].text)
         }
         lines.push("User: " + newMessage)
         return lines.join("\n\n")
@@ -236,14 +293,34 @@ PanelWindow {
     // rather than an optional --model flag, so it gets its own branch
     // instead of sharing modelArgs.
     function backendCommand(prompt) {
-        if (Config.assistantBackend === "ollama") {
-            let model = (Config.assistantModel && Config.assistantModel.length > 0) ? Config.assistantModel : "llama3.2"
-            return ["ollama", "run", model, prompt]
-        }
         let modelArgs = (Config.assistantModel && Config.assistantModel.length > 0) ? ["--model", Config.assistantModel] : []
         if (Config.assistantBackend === "codex") return ["codex", "exec"].concat(modelArgs).concat([prompt])
         if (Config.assistantBackend === "gemini") return ["gemini", "-p", prompt].concat(modelArgs)
         return ["claude", "-p", prompt].concat(modelArgs) // "claude" (default)
+    }
+
+    // Actually launches assistantProcess for a generate call - the one place
+    // all three call sites (a normal send, a send that had to pull the model
+    // first, and a pull-then-generate) route through, so the Ollama stdin
+    // workaround below only has to be written once.
+    //
+    // `ollama run` blocks forever reading stdin, waiting for piped input
+    // that never comes, unless it actually gets EOF - confirmed empirically
+    // that Quickshell's Process still leaves its own end of the stdin pipe
+    // open even with stdinEnabled: false (the child's fd 0 stays a live pipe
+    // whose write end the *parent* quietly keeps open), so disabling it
+    // there doesn't help. Routing through a real shell that can redirect
+    // stdin from /dev/null does - model and prompt travel as env vars rather
+    // than being interpolated into the command string, so this stays just
+    // as injection-safe as passing them as plain argv would be.
+    function launchAssistantProcess(prompt) {
+        if (Config.assistantBackend === "ollama") {
+            assistantProcess.environment = { "OLLAMA_RUN_MODEL": assistantWindow.ollamaModelName(), "OLLAMA_RUN_PROMPT": prompt }
+            assistantProcess.command = ["fish", "-c", "ollama run \"$OLLAMA_RUN_MODEL\" \"$OLLAMA_RUN_PROMPT\" < /dev/null"]
+        } else {
+            assistantProcess.command = assistantWindow.backendCommand(prompt)
+        }
+        assistantProcess.running = true
     }
 
     property bool assistantBusy: false
@@ -257,6 +334,57 @@ PanelWindow {
     // whether it's been 2 seconds or 2 minutes.
     property real requestStartMs: 0
     property int elapsedSeconds: 0
+
+    // Ollama-only: the prompt is held here between the "is the model already
+    // pulled" check and the actual generate call, since those are two
+    // separate process launches for this backend only (see sendMessage).
+    // Empty during a standalone pull triggered from the model switcher
+    // (pullModelStandalone) rather than from an actual chat message - that's
+    // how the pull-finished handler tells the two apart.
+    property string pendingPrompt: ""
+    property bool pullActive: false
+    property int pullPercent: 0
+    property string pullStatus: ""
+    property bool modelMenuOpen: false
+    property var availableOllamaModels: []
+
+    function refreshOllamaModelList() {
+        ollamaModelListProcess.running = true
+    }
+
+    // Pulls a model on its own, outside of sending a chat message - used by
+    // the model switcher's "pull new model" row. Reuses the same
+    // startOllamaPull()/ollamaPullProcess machinery a chat send does; an
+    // empty pendingPrompt is what tells the pull-finished handler not to
+    // follow up with a generate call once it's done.
+    function pullModelStandalone(modelName) {
+        let trimmed = (modelName || "").trim()
+        if (!trimmed || assistantWindow.assistantBusy) return
+        Config.assistantModel = trimmed
+        assistantWindow.pendingPrompt = ""
+        assistantWindow.assistantBusy = true
+        assistantWindow.requestStartMs = Date.now()
+        assistantWindow.elapsedSeconds = 0
+        assistantWindow.startOllamaPull()
+    }
+
+    function ollamaModelName() {
+        return (Config.assistantModel && Config.assistantModel.length > 0) ? Config.assistantModel : "llama3.2"
+    }
+
+    // `ollama list`'s NAME column always carries a tag (bare "llama3.2" is
+    // stored and shown as "llama3.2:latest") - a model name configured
+    // without one still has to match that.
+    function ollamaHasModel(listText) {
+        let want = ollamaModelName()
+        let candidates = want.indexOf(":") >= 0 ? [want] : [want, want + ":latest"]
+        let lines = (listText || "").split("\n").slice(1)
+        for (let i = 0; i < lines.length; i++) {
+            let name = lines[i].trim().split(/\s+/)[0]
+            if (name && candidates.indexOf(name) !== -1) return true
+        }
+        return false
+    }
 
     Timer {
         id: elapsedTicker
@@ -274,9 +402,29 @@ PanelWindow {
         assistantBusy = true
         assistantWindow.requestStartMs = Date.now()
         assistantWindow.elapsedSeconds = 0
+        assistantWindow.pendingPrompt = fullPrompt
+        // Ollama needs an extra step first: unlike the other backends
+        // (each already signed into a hosted account), a fresh Ollama model
+        // is a multi-GB download that has never happened yet the first time
+        // it's selected - checked here so that download gets its own
+        // visible progress instead of just looking like a long, silent hang
+        // (see startOllamaPull()).
         assistantWatchdog.restart()
-        assistantProcess.command = backendCommand(fullPrompt)
-        assistantProcess.running = true
+        if (Config.assistantBackend === "ollama") {
+            ollamaListCheck.running = true
+        } else {
+            assistantWindow.launchAssistantProcess(fullPrompt)
+        }
+    }
+
+    function startOllamaPull() {
+        assistantWindow.pullActive = true
+        assistantWindow.pullPercent = 0
+        assistantWindow.pullStatus = "pulling manifest"
+        Config.appendAssistantMessage("info", assistantWindow.ollamaModelName() + " isn't downloaded yet - pulling it now. This only happens once.")
+        assistantWatchdog.restart()
+        ollamaPullProcess.command = ["curl", "-sN", "http://localhost:11434/api/pull", "-d", JSON.stringify({ model: assistantWindow.ollamaModelName(), stream: true })]
+        ollamaPullProcess.running = true
     }
 
     // Manual cancel - same "running = false" mechanism the watchdog timeout
@@ -287,8 +435,13 @@ PanelWindow {
         if (!assistantBusy) return
         assistantWatchdog.stop()
         assistantBusy = false
-        assistantProcess.running = false
-        Config.appendAssistantMessage("assistant", "Cancelled.")
+        if (assistantWindow.pullActive) {
+            assistantWindow.pullActive = false
+            ollamaPullProcess.running = false
+        } else {
+            assistantProcess.running = false
+        }
+        Config.appendAssistantMessage("error", "Cancelled.")
     }
 
     Connections {
@@ -312,26 +465,158 @@ PanelWindow {
         onTriggered: {
             if (!assistantWindow.assistantBusy) return
             assistantWindow.assistantBusy = false
-            assistantProcess.running = false
-            Config.appendAssistantMessage("assistant", "Timed out waiting on " + assistantWindow.backendLabel() + " - check that it's installed, signed in, and on your PATH.")
+            if (assistantWindow.pullActive) {
+                assistantWindow.pullActive = false
+                ollamaPullProcess.running = false
+                Config.appendAssistantMessage("error", "Timed out downloading " + assistantWindow.ollamaModelName() + " - check your network connection and that " + assistantWindow.pullStatus + " isn't just stuck.")
+            } else {
+                assistantProcess.running = false
+                Config.appendAssistantMessage("error", "Timed out waiting on " + assistantWindow.backendLabel() + " - check that it's installed, signed in, and on your PATH.")
+            }
+        }
+    }
+
+    // Ollama-only: checked before every send because a model can be switched
+    // (or a fresh pull can be interrupted, leaving it half-downloaded) at any
+    // time in Settings - so "is it already here" is asked fresh each time
+    // rather than cached from an earlier check.
+    Process {
+        id: ollamaListCheck
+        command: ["ollama", "list"]
+        stdout: StdioCollector { id: ollamaListStdout; waitForEnd: true }
+        onExited: (exitCode) => {
+            if (!assistantWindow.assistantBusy) return
+            if (exitCode === 0 && assistantWindow.ollamaHasModel(ollamaListStdout.text)) {
+                assistantWatchdog.restart()
+                assistantWindow.launchAssistantProcess(assistantWindow.pendingPrompt)
+            } else if (exitCode !== 0) {
+                assistantWatchdog.stop()
+                assistantWindow.assistantBusy = false
+                Config.appendAssistantMessage("error", "Couldn't reach Ollama - is the server running? Try `ollama serve`.")
+            } else {
+                assistantWindow.startOllamaPull()
+            }
+        }
+    }
+
+    // Powers the model switcher dropdown - refreshed whenever it's opened
+    // and after any pull finishes, so a model just pulled from the switcher
+    // itself shows up without needing to reopen the widget.
+    Process {
+        id: ollamaModelListProcess
+        command: ["ollama", "list"]
+        stdout: StdioCollector { id: ollamaModelListStdout; waitForEnd: true }
+        onExited: (exitCode) => {
+            if (exitCode !== 0) {
+                assistantWindow.availableOllamaModels = []
+                return
+            }
+            let lines = (ollamaModelListStdout.text || "").split("\n").slice(1)
+            let names = []
+            for (let i = 0; i < lines.length; i++) {
+                let name = lines[i].trim().split(/\s+/)[0]
+                if (name) names.push(name)
+            }
+            assistantWindow.availableOllamaModels = names
+        }
+    }
+
+    // Streams `ollama pull`'s own progress (via its plain HTTP API instead of
+    // the `ollama pull` CLI, whose progress bar is drawn with carriage
+    // returns and ANSI escapes meant for a terminal, not for parsing) so a
+    // first-time multi-GB model download shows real percentage instead of
+    // just a growing elapsed-time counter that looks identical to a hang.
+    Process {
+        id: ollamaPullProcess
+        stdout: SplitParser {
+            onRead: data => {
+                let line = data.trim()
+                if (!line) return
+                assistantWatchdog.restart()
+                let obj
+                try { obj = JSON.parse(line) } catch (e) { return }
+                if (obj.error) {
+                    assistantWatchdog.stop()
+                    assistantWindow.pullActive = false
+                    assistantWindow.assistantBusy = false
+                    ollamaPullProcess.running = false
+                    Config.appendAssistantMessage("error", "Failed to download " + assistantWindow.ollamaModelName() + ": " + obj.error)
+                    return
+                }
+                if (obj.status) assistantWindow.pullStatus = obj.status
+                if (obj.total && obj.completed !== undefined) {
+                    assistantWindow.pullPercent = Math.round((obj.completed / obj.total) * 100)
+                }
+                if (obj.status === "success") {
+                    assistantWindow.pullActive = false
+                    assistantWindow.refreshOllamaModelList()
+                    // An empty pendingPrompt means this pull came from the
+                    // model switcher, not from sending a message - nothing
+                    // to follow up with, so just report it finished.
+                    if (assistantWindow.pendingPrompt.length > 0) {
+                        assistantWatchdog.restart()
+                        assistantWindow.launchAssistantProcess(assistantWindow.pendingPrompt)
+                    } else {
+                        assistantWatchdog.stop()
+                        assistantWindow.assistantBusy = false
+                        Config.appendAssistantMessage("info", "Downloaded " + assistantWindow.ollamaModelName() + " - ready to chat.")
+                    }
+                }
+            }
+        }
+        stderr: StdioCollector { id: ollamaPullStderr; waitForEnd: true }
+        onExited: (exitCode) => {
+            // A clean pull already flipped pullActive off from the
+            // "success" status line above - this only fires for real for a
+            // curl that died before that line ever arrived (network drop,
+            // server not running, disk full, etc).
+            if (!assistantWindow.assistantBusy || !assistantWindow.pullActive) return
+            assistantWatchdog.stop()
+            assistantWindow.pullActive = false
+            assistantWindow.assistantBusy = false
+            let err = ollamaPullStderr.text ? ollamaPullStderr.text.trim() : ""
+            Config.appendAssistantMessage("error", "Failed to download " + assistantWindow.ollamaModelName() + (err.length > 0 ? ": " + err : " - curl exited " + exitCode + ". Is Ollama running? Try `ollama serve`."))
         }
     }
 
     Process {
         id: assistantProcess
+        // Confirmed empirically: `ollama run <model> <prompt>` checks
+        // whether stdin is a TTY and, if not, blocks waiting to read
+        // additional piped input before it'll generate anything - and
+        // Process's stdin defaults to an open, never-closed pipe (no EOF
+        // ever arrives since nothing here writes to or closes it), so every
+        // Ollama call hung forever until its own watchdog timeout killed it.
+        // The other backends never read stdin at all, so disabling it here
+        // is safe for all four.
+        stdinEnabled: false
         stdout: StdioCollector { id: assistantStdout; waitForEnd: true }
         stderr: StdioCollector { id: assistantStderr; waitForEnd: true }
 
+        // On a non-zero exit the CLIs still write their own human-readable
+        // explanation to stdout before exiting (confirmed empirically - e.g.
+        // Claude CLI's "usage limit reached" / "issue with the selected
+        // model" messages land on stdout, not stderr) - previously that text
+        // was thrown away whenever exitCode wasn't 0, leaving only a bare
+        // "exit code 1" behind it. Now stdout wins whenever it has anything
+        // in it, success or failure, and stderr is just the fallback for the
+        // rarer case where the CLI died before printing anything useful.
         onExited: (exitCode, exitStatus) => {
             if (!assistantWindow.assistantBusy) return
             assistantWatchdog.stop()
             assistantWindow.assistantBusy = false
             let outText = assistantStdout.text ? assistantStdout.text.trim() : ""
             let errText = assistantStderr.text ? assistantStderr.text.trim() : ""
-            let reply = (exitCode === 0 && outText.length > 0)
-                ? outText
-                : ("Error running " + Config.assistantBackend + ": " + (errText.length > 0 ? errText : ("exit code " + exitCode)))
-            Config.appendAssistantMessage("assistant", reply)
+            if (Config.assistantBackend === "ollama") outText = assistantWindow.stripOllamaLineWrapCodes(outText)
+            if (exitCode === 0 && outText.length > 0) {
+                Config.appendAssistantMessage("assistant", outText)
+            } else if (outText.length > 0) {
+                Config.appendAssistantMessage("error", outText)
+            } else if (errText.length > 0) {
+                Config.appendAssistantMessage("error", errText)
+            } else {
+                Config.appendAssistantMessage("error", assistantWindow.backendLabel() + " exited with code " + exitCode + " and printed nothing.")
+            }
         }
     }
 
@@ -677,6 +962,152 @@ PanelWindow {
                 }
             }
         }
+
+        // Ollama model switcher: lists whatever's already pulled locally,
+        // plus a field to pull a new one by name - so picking or fetching a
+        // model never has to leave the widget for a terminal. Same
+        // positioning approach as backendDropdown above.
+        Rectangle {
+            id: modelDropdown
+            visible: assistantWindow.modelMenuOpen
+            z: 999
+            width: 200
+            implicitHeight: modelDropdownColumn.implicitHeight + 8
+            radius: Config.cornerRadius / 2
+            color: Config.bgPanel
+            border.width: Config.showBorders ? Config.borderThickness : 1
+            border.color: (typeof shellRoot !== "undefined" && shellRoot.currentBorderColor) ? shellRoot.currentBorderColor : Qt.rgba(255, 255, 255, 0.1)
+
+            function reposition() {
+                if (typeof modelPill === "undefined") return
+                let pos = modelPill.mapToItem(assistantContainer, 0, modelPill.height + 4)
+                modelDropdown.x = pos.x
+                modelDropdown.y = pos.y
+            }
+            onVisibleChanged: if (visible) reposition()
+
+            Column {
+                id: modelDropdownColumn
+                anchors.fill: parent
+                anchors.margins: 4
+                spacing: 2
+
+                Repeater {
+                    model: assistantWindow.availableOllamaModels
+
+                    Rectangle {
+                        width: modelDropdownColumn.width
+                        implicitHeight: 28
+                        radius: Config.cornerRadius / 3
+                        color: assistantWindow.ollamaModelName() === modelData
+                            ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.18)
+                            : (modelRowHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : "transparent")
+
+                        Text {
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            anchors.leftMargin: 8
+                            anchors.rightMargin: 8
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: modelData
+                            elide: Text.ElideRight
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                        }
+
+                        TapHandler {
+                            onTapped: {
+                                Config.assistantModel = modelData
+                                assistantWindow.modelMenuOpen = false
+                            }
+                        }
+                        HoverHandler { id: modelRowHover; cursorShape: Qt.PointingHandCursor }
+                    }
+                }
+
+                Text {
+                    visible: assistantWindow.availableOllamaModels.length === 0
+                    width: modelDropdownColumn.width
+                    text: "No models pulled yet"
+                    color: Config.textMuted
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontMicro)
+                    wrapMode: Text.WordWrap
+                    horizontalAlignment: Text.AlignHCenter
+                }
+
+                Rectangle {
+                    width: modelDropdownColumn.width
+                    height: 1
+                    color: Qt.rgba(255, 255, 255, 0.08)
+                }
+
+                RowLayout {
+                    width: modelDropdownColumn.width
+                    spacing: 4
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: 28
+                        radius: Config.cornerRadius / 3
+                        color: "transparent"
+                        border.width: 1
+                        border.color: newModelInput.activeFocus ? Config.accent : Qt.rgba(255, 255, 255, 0.12)
+                        clip: true
+
+                        TextInput {
+                            id: newModelInput
+                            anchors.fill: parent
+                            anchors.margins: 6
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                            verticalAlignment: TextInput.AlignVCenter
+                            selectByMouse: true
+                            clip: true
+
+                            Text {
+                                anchors.fill: parent
+                                text: "pull new model..."
+                                color: Config.textMuted
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontMicro)
+                                verticalAlignment: Text.AlignVCenter
+                                visible: newModelInput.text.length === 0 && !newModelInput.activeFocus
+                            }
+
+                            onAccepted: {
+                                let name = newModelInput.text.trim()
+                                if (name.length === 0 || assistantWindow.assistantBusy) return
+                                assistantWindow.modelMenuOpen = false
+                                newModelInput.text = ""
+                                assistantWindow.pullModelStandalone(name)
+                            }
+                            HoverHandler { cursorShape: Qt.IBeamCursor }
+                        }
+                    }
+
+                    Text {
+                        text: "download"
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 16
+                        color: pullGoHover.hovered ? Config.accent : Config.textMuted
+
+                        TapHandler {
+                            onTapped: {
+                                let name = newModelInput.text.trim()
+                                if (name.length === 0 || assistantWindow.assistantBusy) return
+                                assistantWindow.modelMenuOpen = false
+                                newModelInput.text = ""
+                                assistantWindow.pullModelStandalone(name)
+                            }
+                        }
+                        HoverHandler { id: pullGoHover; cursorShape: Qt.PointingHandCursor }
+                    }
+                }
+            }
+        }
     }
 
     // Visible skin, decoupled from assistantContainer (the drag/resize
@@ -798,6 +1229,51 @@ PanelWindow {
                         HoverHandler { id: backendPillHover; cursorShape: Qt.PointingHandCursor }
                     }
 
+                    // Ollama is the only backend with a local, switchable
+                    // model - the others are a hosted account's own default
+                    // (or an optional --model override set once in
+                    // Settings), not something to flip between mid-chat.
+                    Rectangle {
+                        id: modelPill
+                        visible: Config.assistantBackend === "ollama"
+                        Layout.maximumWidth: 150
+                        implicitWidth: Math.min(150, modelPillRow.implicitWidth + 16)
+                        implicitHeight: modelPillRow.implicitHeight + 6
+                        radius: Config.cornerRadius / 3
+                        color: modelPillHover.hovered ? Qt.rgba(255, 255, 255, 0.14) : Qt.rgba(255, 255, 255, 0.08)
+
+                        RowLayout {
+                            id: modelPillRow
+                            anchors.centerIn: parent
+                            spacing: 3
+
+                            Text {
+                                Layout.maximumWidth: 110
+                                text: assistantWindow.ollamaModelName()
+                                elide: Text.ElideRight
+                                color: Config.textMuted
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontMicro)
+                                font.bold: true
+                            }
+
+                            Text {
+                                text: "arrow_drop_down"
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 14
+                                color: Config.textMuted
+                            }
+                        }
+
+                        TapHandler {
+                            onTapped: {
+                                assistantWindow.modelMenuOpen = !assistantWindow.modelMenuOpen
+                                if (assistantWindow.modelMenuOpen) assistantWindow.refreshOllamaModelList()
+                            }
+                        }
+                        HoverHandler { id: modelPillHover; cursorShape: Qt.PointingHandCursor }
+                    }
+
                     Text {
                         text: "text_decrease"
                         font.family: "Material Symbols Outlined"
@@ -861,6 +1337,9 @@ PanelWindow {
 
                         delegate: Item {
                             readonly property bool isUser: modelData.role === "user"
+                            readonly property bool isError: modelData.role === "error"
+                            readonly property bool isInfo: modelData.role === "info"
+                            readonly property bool isDiagnostic: isError || isInfo
                             width: messageList.width
                             implicitHeight: contentRow.implicitHeight
 
@@ -870,10 +1349,22 @@ PanelWindow {
                                 spacing: 6
 
                                 // Only the assistant gets a badge - it's the
-                                // assistant's own avatar, not the user's.
+                                // assistant's own avatar, not the user's. A
+                                // diagnostic (error or info) isn't the
+                                // assistant talking either, so it gets a
+                                // plain glyph instead.
                                 AssistantBadge {
                                     diameter: 48
-                                    visible: !isUser
+                                    visible: !isUser && !isDiagnostic
+                                    Layout.alignment: Qt.AlignTop
+                                }
+
+                                Text {
+                                    text: isError ? "warning" : "download"
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 28
+                                    color: Config.textMuted
+                                    visible: isDiagnostic
                                     Layout.alignment: Qt.AlignTop
                                 }
 
@@ -881,15 +1372,20 @@ PanelWindow {
                                     Layout.fillWidth: true
                                     implicitHeight: bubbleText.implicitHeight + 16
                                     radius: Config.cornerRadius / 2
-                                    color: isUser ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.22) : Qt.rgba(255, 255, 255, 0.06)
+                                    border.width: isDiagnostic ? 1 : 0
+                                    border.color: isError ? Qt.rgba(1, 0.6, 0.3, 0.5) : Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.4)
+                                    color: isUser
+                                        ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.22)
+                                        : (isError ? Qt.rgba(1, 0.6, 0.3, 0.12) : (isInfo ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.1) : Qt.rgba(255, 255, 255, 0.06)))
 
                                     Text {
                                         id: bubbleText
                                         anchors.fill: parent
                                         anchors.margins: 8
                                         text: modelData.text
-                                        color: Config.textMain
+                                        color: isError ? "#ffb380" : Config.textMain
                                         font.family: Config.sysFont
+                                        font.italic: isDiagnostic
                                         font.pixelSize: Config.size(Config.fontCaption) * Config.assistantFontScale
                                         wrapMode: Text.WordWrap
                                     }
@@ -906,7 +1402,9 @@ PanelWindow {
 
                     Text {
                         Layout.fillWidth: true
-                        text: "Waiting on " + assistantWindow.backendLabel() + "... (" + assistantWindow.elapsedSeconds + "s)"
+                        text: assistantWindow.pullActive
+                            ? ("Downloading " + assistantWindow.ollamaModelName() + "... " + assistantWindow.pullPercent + "%")
+                            : ("Waiting on " + assistantWindow.backendLabel() + "... (" + assistantWindow.elapsedSeconds + "s)")
                         color: Config.textMuted
                         font.family: Config.sysFont
                         font.italic: true
@@ -1032,6 +1530,10 @@ PanelWindow {
                 onClicked: (mouse) => {
                     if (assistantWindow.backendMenuOpen) {
                         assistantWindow.backendMenuOpen = false
+                        return
+                    }
+                    if (assistantWindow.modelMenuOpen) {
+                        assistantWindow.modelMenuOpen = false
                         return
                     }
                     if (widgetMenu.visible) {
