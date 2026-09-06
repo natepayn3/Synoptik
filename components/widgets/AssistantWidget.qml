@@ -52,9 +52,15 @@ PanelWindow {
     // the cursor is still moving toward the field, before the click even
     // happens - mouse/pointer input isn't gated by keyboardFocus at all, so
     // hovering and clicking both still work fine at None in the meantime.
+    // modelMenuOpen covers newModelInput (the "pull new model" field) the
+    // same way chatInput is covered above - granted for the dropdown's
+    // whole time open rather than gated on hover/focus of the field itself,
+    // since the dropdown has nothing else in it worth a pointer hover
+    // happening before a click the way chatInput's own hover trick needs.
     WlrLayershell.keyboardFocus: ((typeof chatInput !== "undefined" && chatInput.activeFocus)
             || (typeof chatInputHover !== "undefined" && chatInputHover.hovered)
-            || (typeof widgetMenu !== "undefined" && widgetMenu.visible))
+            || (typeof widgetMenu !== "undefined" && widgetMenu.visible)
+            || assistantWindow.modelMenuOpen)
         ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
 
     anchors {
@@ -978,10 +984,16 @@ PanelWindow {
             border.width: Config.showBorders ? Config.borderThickness : 1
             border.color: (typeof shellRoot !== "undefined" && shellRoot.currentBorderColor) ? shellRoot.currentBorderColor : Qt.rgba(255, 255, 255, 0.1)
 
+            // Right-aligned to the pill (unlike backendDropdown, which is
+            // left-aligned) because modelPill sits near the card's right
+            // edge - left-aligning a 200px-wide dropdown there ran it off
+            // the edge of the card entirely. Still clamped into the card's
+            // own width on top of that, in case the card gets resized down
+            // narrower than the dropdown.
             function reposition() {
                 if (typeof modelPill === "undefined") return
-                let pos = modelPill.mapToItem(assistantContainer, 0, modelPill.height + 4)
-                modelDropdown.x = pos.x
+                let pos = modelPill.mapToItem(assistantContainer, modelPill.width, modelPill.height + 4)
+                modelDropdown.x = Math.max(0, Math.min(pos.x - modelDropdown.width, assistantContainer.cardWidth - modelDropdown.width))
                 modelDropdown.y = pos.y
             }
             onVisibleChanged: if (visible) reposition()
@@ -1402,6 +1414,12 @@ PanelWindow {
 
                     Text {
                         Layout.fillWidth: true
+                        // A pulled-by-name model (e.g. a full hf.co/user/repo
+                        // reference) can easily be longer than the whole
+                        // card is wide - elided so it truncates instead of
+                        // overflowing straight through the CANCEL text next
+                        // to it.
+                        elide: Text.ElideRight
                         text: assistantWindow.pullActive
                             ? ("Downloading " + assistantWindow.ollamaModelName() + "... " + assistantWindow.pullPercent + "%")
                             : ("Waiting on " + assistantWindow.backendLabel() + "... (" + assistantWindow.elapsedSeconds + "s)")
