@@ -379,11 +379,219 @@ PanelWindow {
     function launchAssistantProcess(prompt) {
         if (Config.assistantBackend === "ollama") {
             assistantProcess.environment = { "OLLAMA_RUN_MODEL": assistantWindow.ollamaModelName(), "OLLAMA_RUN_PROMPT": prompt }
-            assistantProcess.command = ["fish", "-c", "ollama run \"$OLLAMA_RUN_MODEL\" \"$OLLAMA_RUN_PROMPT\" < /dev/null"]
+            // --hidethinking suppresses `ollama run`'s own "Thinking...
+            // .../...done thinking." terminal framing for models with native
+            // thinking support (confirmed empirically - without it, that
+            // framing and the reasoning text inside it print as plain text
+            // indistinguishable from a real reply, since it's Ollama's CLI
+            // presentation of a separate structured field, not literal
+            // <think> tags in the model's own output the way
+            // stripReasoningTags below was written to catch). Harmless
+            // no-op for a model with no thinking capability, so this is
+            // safe to pass unconditionally rather than needing to detect
+            // which kind of model is loaded first.
+            assistantProcess.command = ["fish", "-c", "ollama run --hidethinking \"$OLLAMA_RUN_MODEL\" \"$OLLAMA_RUN_PROMPT\" < /dev/null"]
         } else {
             assistantProcess.command = assistantWindow.backendCommand(prompt)
         }
         assistantProcess.running = true
+    }
+
+    // --- CLIPBOARD IMAGE PASTE (Ollama only - the other backends' CLIs have
+    // no attachment argument to put a file path into) -----------------------
+    // TextInput has no "a paste just happened" signal and no access to
+    // clipboard mime types - only whatever its own built-in paste() does
+    // internally, which is plain text. Routed through wl-paste instead (the
+    // same CLI already used the other direction for copy, see the reply
+    // bubble's wl-copy above): list-types first, cheap and instant since it
+    // only reads the clipboard's offered mime list rather than any actual
+    // data, to decide whether this paste is an image before doing anything
+    // with it.
+    property int pasteCursorPos: 0
+    property string pasteGrabPath: ""
+
+    // Ctrl+V's handler below accepts the event (blocking TextInput's own
+    // built-in paste) before this async round-trip even starts, since there
+    // is no way to know yet whether it's an image - so the cursor position
+    // has to be captured up front for clipboardTextGrab to fall back to.
+    function handlePasteShortcut() {
+        assistantWindow.pasteCursorPos = chatInput.cursorPosition
+        clipboardListTypes.running = true
+    }
+
+    // image/png preferred since "copied a screenshot" is the common case and
+    // needs no lossy re-encode; anything else offered as image/* is taken
+    // as-is in whatever order wl-paste lists it.
+    function pickImageMime(types) {
+        let list = (types || "").split("\n").map(t => t.trim()).filter(t => t.length > 0)
+        if (list.indexOf("image/png") !== -1) return "image/png"
+        return list.find(t => t.indexOf("image/") === 0) || ""
+    }
+
+    function mimeExtension(mime) {
+        if (mime === "image/jpeg") return "jpg"
+        if (mime === "image/gif") return "gif"
+        if (mime === "image/webp") return "webp"
+        return "png"
+    }
+
+    Process {
+        id: clipboardListTypes
+        command: ["wl-paste", "--list-types"]
+        stdout: StdioCollector { id: clipboardListTypesStdout; waitForEnd: true }
+        onExited: (exitCode) => {
+            let mime = exitCode === 0 ? assistantWindow.pickImageMime(clipboardListTypesStdout.text) : ""
+            if (mime.length > 0) {
+                assistantWindow.pasteGrabPath = Quickshell.env("HOME") + "/.cache/synoptik/assistant-paste-" + Date.now() + "." + assistantWindow.mimeExtension(mime)
+                // Piped through magick to cap the longest edge at 1024px
+                // (confirmed empirically: a real full-resolution 4000x2666
+                // screenshot burned through the model's entire 4096-token
+                // context as image tokens alone, leaving nothing for an
+                // actual reply - it came back truncated with empty content.
+                // Downscaling first fixed that outright, no context-size
+                // tuning needed, and avoided a second problem too: that
+                // same screenshot's ~12MB of base64 also came within range
+                // of curl argv limits before the payload-file fix below -
+                // shrinking the image here is the cheaper fix for both).
+                // The `>` in the geometry spec only shrinks, never
+                // upscales, and is single-quoted since fish would otherwise
+                // parse a bare `>` as a redirection.
+                clipboardImageGrab.command = ["fish", "-c", "mkdir -p ~/.cache/synoptik; and wl-paste -t " + mime + " | magick - -resize '1024x1024>' " + assistantWindow.pasteGrabPath]
+                clipboardImageGrab.running = true
+            } else {
+                clipboardTextGrab.running = true
+            }
+        }
+    }
+
+    Process {
+        id: clipboardImageGrab
+        onExited: (exitCode) => {
+            if (exitCode === 0) assistantWindow.pendingImagePath = assistantWindow.pasteGrabPath
+        }
+    }
+
+    // Only reached once the clipboard is confirmed to have no image mime
+    // type - the native paste was already blocked on the assumption it
+    // might be one, so plain text has to be inserted back in by hand here
+    // instead of letting TextInput's own paste() do it.
+    Process {
+        id: clipboardTextGrab
+        command: ["wl-paste"]
+        stdout: StdioCollector { id: clipboardTextGrabStdout; waitForEnd: true }
+        onExited: (exitCode) => {
+            if (exitCode !== 0) return
+            let text = clipboardTextGrabStdout.text || ""
+            if (text.length === 0) return
+            let pos = Math.max(0, Math.min(chatInput.text.length, assistantWindow.pasteCursorPos))
+            chatInput.text = chatInput.text.slice(0, pos) + text + chatInput.text.slice(pos)
+            chatInput.cursorPosition = pos + text.length
+        }
+    }
+
+    // Dispatches an Ollama generate call to whichever of the two transports
+    // it actually needs - `ollama run` for plain text (see
+    // launchAssistantProcess above), or the HTTP API for anything with an
+    // image attached, since the CLI has no way to carry image bytes at all.
+    function launchOllamaGenerate(prompt) {
+        if (assistantWindow.sendingImagePath.length > 0) {
+            assistantWindow.launchOllamaImageProcess(prompt, assistantWindow.sendingImagePath)
+        } else {
+            assistantWindow.launchAssistantProcess(prompt)
+        }
+    }
+
+    // Ollama's chat API takes images as a base64 array on the message
+    // (documented under `/api/chat`) - there's no equivalent on the `ollama
+    // run` CLI, which is why this goes over HTTP instead. `base64 -w0` keeps
+    // the encoded output on one line for the same reason ollamaPullProcess
+    // above passes its own JSON body as a single piece of text rather than
+    // through a shell - but unlike that small body, this one carries an
+    // entire image and can run into the tens of megabytes for a full-screen
+    // paste. Passing that directly as a `curl -d <body>` argv element
+    // doesn't just get slow - it can outright fail the process spawn
+    // (confirmed empirically: a real pasted screenshot's base64 crossed
+    // Linux's ~128KB single-argument limit and curl never started at all,
+    // logged only as a generic "binary could not be found" - a small test
+    // image had stayed under that limit by luck, which is why this wasn't
+    // caught immediately). Routed through a file and `curl -d @path`
+    // instead, which has no such ceiling.
+    function launchOllamaImageProcess(prompt, imagePath) {
+        imageBase64Process.promptText = prompt
+        imageBase64Process.command = ["base64", "-w0", imagePath]
+        imageBase64Process.running = true
+    }
+
+    // setText() below is not reliably synchronous in practice (confirmed
+    // empirically: curl was launched on the very next line and intermittently
+    // failed with "error encountered when reading a file" even though the
+    // exact same file, inspected moments later, was always complete and
+    // valid - a plain write/spawn-order race, not a real read failure).
+    // Waiting for this signal instead of assuming setText() already
+    // finished is the documented, race-proof way to know the write landed.
+    FileView {
+        id: ollamaChatPayloadFile
+        onSaved: {
+            ollamaChatProcess.command = ["curl", "-s", "http://localhost:11434/api/chat", "-d", "@" + ollamaChatPayloadFile.path]
+            ollamaChatProcess.running = true
+        }
+        onSaveFailed: (error) => {
+            if (!assistantWindow.assistantBusy) return
+            assistantWatchdog.stop()
+            assistantWindow.assistantBusy = false
+            assistantWindow.sendingImagePath = ""
+            Config.appendAssistantMessage("error", "Couldn't prepare the image for Ollama.")
+        }
+    }
+
+    Process {
+        id: imageBase64Process
+        property string promptText: ""
+        stdout: StdioCollector { id: imageBase64Stdout; waitForEnd: true }
+        onExited: (exitCode) => {
+            if (!assistantWindow.assistantBusy) return
+            let encoded = (exitCode === 0 && imageBase64Stdout.text) ? imageBase64Stdout.text.trim() : ""
+            if (encoded.length === 0) {
+                assistantWatchdog.stop()
+                assistantWindow.assistantBusy = false
+                assistantWindow.sendingImagePath = ""
+                Config.appendAssistantMessage("error", "Couldn't read the attached image.")
+                return
+            }
+            let body = JSON.stringify({
+                model: assistantWindow.ollamaModelName(),
+                messages: [{ role: "user", content: imageBase64Process.promptText, images: [encoded] }],
+                stream: false
+            })
+            // The paste flow (clipboardImageGrab) already created this
+            // directory before pendingImagePath could ever be set, so it's
+            // guaranteed to exist here.
+            ollamaChatPayloadFile.path = Quickshell.env("HOME") + "/.cache/synoptik/assistant-chat-payload-" + Date.now() + ".json"
+            ollamaChatPayloadFile.setText(body)
+        }
+    }
+
+    Process {
+        id: ollamaChatProcess
+        stdout: StdioCollector { id: ollamaChatStdout; waitForEnd: true }
+        stderr: StdioCollector { id: ollamaChatStderr; waitForEnd: true }
+        onExited: (exitCode) => {
+            if (!assistantWindow.assistantBusy) return
+            assistantWatchdog.stop()
+            assistantWindow.assistantBusy = false
+            assistantWindow.sendingImagePath = ""
+            let raw = ollamaChatStdout.text ? ollamaChatStdout.text.trim() : ""
+            let obj = null
+            try { obj = raw.length > 0 ? JSON.parse(raw) : null } catch (e) { obj = null }
+            if (exitCode === 0 && obj && obj.message && typeof obj.message.content === "string" && obj.message.content.length > 0) {
+                Config.appendAssistantMessage("assistant", assistantWindow.stripReasoningTags(obj.message.content))
+            } else if (obj && obj.error) {
+                Config.appendAssistantMessage("error", obj.error)
+            } else {
+                let errText = ollamaChatStderr.text ? ollamaChatStderr.text.trim() : ""
+                Config.appendAssistantMessage("error", errText.length > 0 ? errText : "Ollama returned nothing usable for that image.")
+            }
+        }
     }
 
     property bool assistantBusy: false
@@ -405,6 +613,14 @@ PanelWindow {
     // (pullModelStandalone) rather than from an actual chat message - that's
     // how the pull-finished handler tells the two apart.
     property string pendingPrompt: ""
+    // Ollama-only, vision-capable models: an image staged for the next send
+    // (attached via paste, shown as a thumbnail above the input) versus the
+    // copy actually in flight for the current request - split the same way
+    // pendingPrompt is, since the request spans an async pull-check first
+    // (see sendMessage) and the staged attachment needs to clear right away
+    // so the input looks empty again.
+    property string pendingImagePath: ""
+    property string sendingImagePath: ""
     property bool pullActive: false
     property int pullPercent: 0
     property string pullStatus: ""
@@ -477,9 +693,17 @@ PanelWindow {
 
     function sendMessage(text) {
         let trimmed = (text || "").trim()
-        if (!trimmed || assistantBusy) return
-        let fullPrompt = assistantWindow.buildPrompt(Config.assistantMessages, trimmed)
-        Config.appendAssistantMessage("user", trimmed)
+        let imagePath = assistantWindow.pendingImagePath
+        if ((!trimmed && !imagePath) || assistantBusy) return
+        // A vision request still needs some instruction text to answer - but
+        // requiring the user to type something every single time they just
+        // want "what is this" would make the common case more annoying than
+        // it needs to be.
+        let messageText = trimmed.length > 0 ? trimmed : "What's in this image?"
+        let fullPrompt = assistantWindow.buildPrompt(Config.assistantMessages, messageText)
+        Config.appendAssistantMessage("user", messageText, imagePath)
+        assistantWindow.pendingImagePath = ""
+        assistantWindow.sendingImagePath = imagePath
         assistantBusy = true
         assistantWindow.requestStartMs = Date.now()
         assistantWindow.elapsedSeconds = 0
@@ -564,6 +788,10 @@ PanelWindow {
         if (assistantWindow.pullActive) {
             assistantWindow.pullActive = false
             ollamaPullProcess.running = false
+        } else if (assistantWindow.sendingImagePath.length > 0) {
+            assistantWindow.sendingImagePath = ""
+            imageBase64Process.running = false
+            ollamaChatProcess.running = false
         } else {
             assistantProcess.running = false
         }
@@ -599,6 +827,11 @@ PanelWindow {
                 assistantWindow.pullActive = false
                 ollamaPullProcess.running = false
                 Config.appendAssistantMessage("error", "Timed out downloading " + assistantWindow.ollamaModelName() + " - check your network connection and that " + assistantWindow.pullStatus + " isn't just stuck.")
+            } else if (assistantWindow.sendingImagePath.length > 0) {
+                assistantWindow.sendingImagePath = ""
+                imageBase64Process.running = false
+                ollamaChatProcess.running = false
+                Config.appendAssistantMessage("error", "Timed out waiting on Ollama for that image.")
             } else {
                 assistantProcess.running = false
                 Config.appendAssistantMessage("error", "Timed out waiting on " + assistantWindow.backendLabel() + " - check that it's installed, signed in, and on your PATH.")
@@ -620,7 +853,7 @@ PanelWindow {
                 assistantWindow.ollamaServeStarting = false
                 ollamaServeRetryTimer.stop()
                 assistantWatchdog.restart()
-                assistantWindow.launchAssistantProcess(assistantWindow.pendingPrompt)
+                assistantWindow.launchOllamaGenerate(assistantWindow.pendingPrompt)
             } else if (exitCode !== 0) {
                 // First failure this request: try bringing the server up
                 // ourselves. A failure while ollamaServeStarting is already
@@ -730,7 +963,7 @@ PanelWindow {
                     // to follow up with, so just report it finished.
                     if (assistantWindow.pendingPrompt.length > 0) {
                         assistantWatchdog.restart()
-                        assistantWindow.launchAssistantProcess(assistantWindow.pendingPrompt)
+                        assistantWindow.launchOllamaGenerate(assistantWindow.pendingPrompt)
                     } else {
                         assistantWatchdog.stop()
                         assistantWindow.assistantBusy = false
@@ -1552,7 +1785,7 @@ PanelWindow {
                                 Rectangle {
                                     id: bubbleRect
                                     Layout.fillWidth: true
-                                    implicitHeight: bubbleText.implicitHeight + 16
+                                    implicitHeight: bubbleContent.implicitHeight + 16
                                     radius: Config.cornerRadius / 2
                                     border.width: isDiagnostic ? 1 : 0
                                     border.color: isError ? Qt.rgba(1, 0.6, 0.3, 0.5) : Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.4)
@@ -1562,16 +1795,37 @@ PanelWindow {
 
                                     HoverHandler { id: bubbleHover }
 
-                                    Text {
-                                        id: bubbleText
+                                    ColumnLayout {
+                                        id: bubbleContent
                                         anchors.fill: parent
                                         anchors.margins: 8
-                                        text: modelData.text
-                                        color: isError ? "#ffb380" : Config.textMain
-                                        font.family: Config.sysFont
-                                        font.italic: isDiagnostic
-                                        font.pixelSize: Config.size(Config.fontCaption) * Config.assistantFontScale
-                                        wrapMode: Text.WordWrap
+                                        spacing: 6
+
+                                        // Invisible (no imagePath) items take
+                                        // no space in a ColumnLayout, so a
+                                        // plain text message's bubble sizes
+                                        // exactly as it did before this was
+                                        // added.
+                                        Image {
+                                            Layout.fillWidth: true
+                                            Layout.preferredHeight: 160
+                                            Layout.maximumHeight: 160
+                                            visible: !!modelData.imagePath
+                                            source: modelData.imagePath ? assistantWindow.formatFileUrl(modelData.imagePath) : ""
+                                            fillMode: Image.PreserveAspectFit
+                                            asynchronous: true
+                                        }
+
+                                        Text {
+                                            id: bubbleText
+                                            Layout.fillWidth: true
+                                            text: modelData.text
+                                            color: isError ? "#ffb380" : Config.textMain
+                                            font.family: Config.sysFont
+                                            font.italic: isDiagnostic
+                                            font.pixelSize: Config.size(Config.fontCaption) * Config.assistantFontScale
+                                            wrapMode: Text.WordWrap
+                                        }
                                     }
 
                                     // Copy-to-clipboard for assistant replies
@@ -1691,6 +1945,48 @@ PanelWindow {
 
                 RowLayout {
                     Layout.fillWidth: true
+                    spacing: 6
+                    visible: assistantWindow.pendingImagePath.length > 0
+
+                    Rectangle {
+                        implicitWidth: 36
+                        implicitHeight: 36
+                        radius: Config.cornerRadius / 3
+                        color: Qt.rgba(255, 255, 255, 0.08)
+                        clip: true
+
+                        Image {
+                            anchors.fill: parent
+                            anchors.margins: 2
+                            source: assistantWindow.pendingImagePath.length > 0 ? assistantWindow.formatFileUrl(assistantWindow.pendingImagePath) : ""
+                            fillMode: Image.PreserveAspectCrop
+                            asynchronous: true
+                        }
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: "Image attached"
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.italic: true
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        elide: Text.ElideRight
+                    }
+
+                    Text {
+                        text: "close"
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 16
+                        color: removeImageHover.hovered ? Config.accent : Config.textMuted
+
+                        TapHandler { onTapped: assistantWindow.pendingImagePath = "" }
+                        HoverHandler { id: removeImageHover; cursorShape: Qt.PointingHandCursor }
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
                     spacing: 8
 
                     Rectangle {
@@ -1728,6 +2024,17 @@ PanelWindow {
                             onAccepted: {
                                 assistantWindow.sendMessage(text)
                                 text = ""
+                            }
+
+                            // Only Ollama gets a special Ctrl+V - the other
+                            // backends' CLIs have no argument to attach an
+                            // image to anyway, so their paste stays the
+                            // built-in plain-text behavior untouched below.
+                            Keys.onPressed: (event) => {
+                                if (Config.assistantBackend === "ollama" && event.key === Qt.Key_V && (event.modifiers & Qt.ControlModifier)) {
+                                    event.accepted = true
+                                    assistantWindow.handlePasteShortcut()
+                                }
                             }
 
                             HoverHandler { id: chatInputHover; cursorShape: Qt.IBeamCursor }

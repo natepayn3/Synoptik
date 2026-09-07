@@ -157,9 +157,13 @@ QtObject {
     readonly property int assistantMaxMessages: 100
     property var assistantMessages: []
 
-    function appendAssistantMessage(role, text) {
+    // imagePath is a cache-file reference (not the image bytes themselves) -
+    // keeps a pasted screenshot from bloating the persisted settings file
+    // the same way the message text does. Optional so every existing
+    // call site (plain text messages) doesn't need to change.
+    function appendAssistantMessage(role, text, imagePath) {
         let list = assistantMessages ? assistantMessages.slice() : []
-        list.push({ role: role, text: text })
+        list.push({ role: role, text: text, imagePath: imagePath || "" })
         if (list.length > assistantMaxMessages) list = list.slice(list.length - assistantMaxMessages)
         assistantMessages = list
     }
