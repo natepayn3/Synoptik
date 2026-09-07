@@ -1745,6 +1745,8 @@ PanelWindow {
                     color: Qt.rgba(0, 0, 0, 0.15)
                     clip: true
 
+                    HoverHandler { id: messagePaneHover }
+
                     Text {
                         anchors.centerIn: parent
                         width: parent.width - 32
@@ -1887,6 +1889,58 @@ PanelWindow {
                                 }
                             }
                         }
+                    }
+
+                    // Jump-to-top / jump-to-bottom, floating in this pane's
+                    // own corners rather than living in the toolbar above -
+                    // that row (avatar, title, backend pill, model pill,
+                    // font controls, clear) is already tight enough that
+                    // this widget can't be resized small and still show
+                    // everything in it.
+                    Rectangle {
+                        anchors.top: parent.top
+                        anchors.right: parent.right
+                        anchors.margins: 6
+                        width: 22
+                        height: 22
+                        radius: 5
+                        z: 5
+                        visible: Config.assistantMessages && Config.assistantMessages.length > 0 && (messagePaneHover.hovered || scrollTopIconHover.hovered)
+                        color: scrollTopIconHover.hovered ? Qt.rgba(255, 255, 255, 0.18) : Qt.rgba(0, 0, 0, 0.35)
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "keyboard_double_arrow_up"
+                            font.family: "Material Symbols Outlined"
+                            font.pixelSize: 14
+                            color: Config.textMuted
+                        }
+
+                        TapHandler { onTapped: messageList.positionViewAtBeginning() }
+                        HoverHandler { id: scrollTopIconHover; cursorShape: Qt.PointingHandCursor }
+                    }
+
+                    Rectangle {
+                        anchors.bottom: parent.bottom
+                        anchors.right: parent.right
+                        anchors.margins: 6
+                        width: 22
+                        height: 22
+                        radius: 5
+                        z: 5
+                        visible: Config.assistantMessages && Config.assistantMessages.length > 0 && (messagePaneHover.hovered || scrollBottomIconHover.hovered)
+                        color: scrollBottomIconHover.hovered ? Qt.rgba(255, 255, 255, 0.18) : Qt.rgba(0, 0, 0, 0.35)
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "keyboard_double_arrow_down"
+                            font.family: "Material Symbols Outlined"
+                            font.pixelSize: 14
+                            color: Config.textMuted
+                        }
+
+                        TapHandler { onTapped: messageList.positionViewAtEnd() }
+                        HoverHandler { id: scrollBottomIconHover; cursorShape: Qt.PointingHandCursor }
                     }
                 }
 
