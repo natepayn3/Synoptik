@@ -822,6 +822,37 @@ PanelWindow {
             Qt.callLater(function() {
                 if (typeof messageList !== "undefined") messageList.positionViewAtEnd()
             })
+            scrollSettleTimer.ticksLeft = 15
+            scrollSettleTimer.restart()
+        }
+    }
+
+    // appendAssistantMessage swaps in a whole new array (see
+    // DesktopExtrasConfig), so messageList's model reset rebuilds every
+    // delegate instead of just adding one. On a long conversation that
+    // rebuild spans several frames - word-wrapped text and the async Image
+    // in a delegate only reach their real height after layout catches up -
+    // so the single positionViewAtEnd() above (which runs right after the
+    // swap) lands on an estimate of the end, not the real one, leaving the
+    // view scrolled up from where it should be.
+    //
+    // A previous attempt fixed this by re-calling positionViewAtEnd() from
+    // messageList's onContentHeightChanged, but that let the fix trigger
+    // itself: repositioning perturbed the content height, which fired the
+    // handler again, forever - pegging a CPU core and leaking memory until
+    // the shell had to be killed. Ticking a fixed, small number of times
+    // here instead re-asserts the same fix while staying provably bounded -
+    // it always stops after 15 ticks (600ms) regardless of what the
+    // content height does.
+    Timer {
+        id: scrollSettleTimer
+        interval: 40
+        repeat: true
+        property int ticksLeft: 0
+        onTriggered: {
+            if (typeof messageList !== "undefined") messageList.positionViewAtEnd()
+            ticksLeft -= 1
+            if (ticksLeft <= 0) stop()
         }
     }
 
