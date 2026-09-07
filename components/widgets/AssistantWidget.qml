@@ -1407,37 +1407,72 @@ PanelWindow {
                     }
                 }
 
-                RowLayout {
+                ColumnLayout {
                     Layout.fillWidth: true
                     visible: assistantWindow.assistantBusy
-                    spacing: 6
+                    spacing: 4
 
-                    Text {
+                    // Real download progress, driven by the same pullPercent
+                    // that streams in from ollamaPullProcess's parsed JSON
+                    // (see that Process above) - a filled track instead of
+                    // just a number, so a stalled download is visible as a
+                    // stalled bar and not just a text string that happens to
+                    // repeat. Only shown for the pull itself; a plain
+                    // generate call has no percentage to report, just the
+                    // elapsed-time text below.
+                    Rectangle {
                         Layout.fillWidth: true
-                        // A pulled-by-name model (e.g. a full hf.co/user/repo
-                        // reference) can easily be longer than the whole
-                        // card is wide - elided so it truncates instead of
-                        // overflowing straight through the CANCEL text next
-                        // to it.
-                        elide: Text.ElideRight
-                        text: assistantWindow.pullActive
-                            ? ("Downloading " + assistantWindow.ollamaModelName() + "... " + assistantWindow.pullPercent + "%")
-                            : ("Waiting on " + assistantWindow.backendLabel() + "... (" + assistantWindow.elapsedSeconds + "s)")
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.italic: true
-                        font.pixelSize: Config.size(Config.fontMicro)
+                        visible: assistantWindow.pullActive
+                        implicitHeight: 5
+                        radius: 2.5
+                        color: Qt.rgba(255, 255, 255, 0.08)
+                        clip: true
+
+                        Rectangle {
+                            height: parent.height
+                            radius: parent.radius
+                            color: Config.accent
+                            width: parent.width * Math.max(0, Math.min(100, assistantWindow.pullPercent)) / 100
+
+                            Behavior on width {
+                                NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+                            }
+                        }
                     }
 
-                    Text {
-                        text: "CANCEL"
-                        color: cancelWaitHover.hovered ? Config.accent : Config.textMuted
-                        font.family: Config.sysFont
-                        font.bold: true
-                        font.pixelSize: Config.size(Config.fontMicro)
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
 
-                        TapHandler { onTapped: assistantWindow.cancelRequest() }
-                        HoverHandler { id: cancelWaitHover; cursorShape: Qt.PointingHandCursor }
+                        Text {
+                            Layout.fillWidth: true
+                            // A pulled-by-name model (e.g. a full hf.co/user/repo
+                            // reference) can easily be longer than the whole
+                            // card is wide - elided so it truncates instead of
+                            // overflowing straight through the CANCEL text next
+                            // to it.
+                            elide: Text.ElideRight
+                            text: assistantWindow.pullActive
+                                ? (assistantWindow.pullPercent > 0
+                                    ? (assistantWindow.ollamaModelName() + " - " + assistantWindow.pullPercent + "%")
+                                    : (assistantWindow.ollamaModelName() + " - " + assistantWindow.pullStatus))
+                                : ("Waiting on " + assistantWindow.backendLabel() + "... (" + assistantWindow.elapsedSeconds + "s)")
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.italic: true
+                            font.pixelSize: Config.size(Config.fontMicro)
+                        }
+
+                        Text {
+                            text: "CANCEL"
+                            color: cancelWaitHover.hovered ? Config.accent : Config.textMuted
+                            font.family: Config.sysFont
+                            font.bold: true
+                            font.pixelSize: Config.size(Config.fontMicro)
+
+                            TapHandler { onTapped: assistantWindow.cancelRequest() }
+                            HoverHandler { id: cancelWaitHover; cursorShape: Qt.PointingHandCursor }
+                        }
                     }
                 }
 
