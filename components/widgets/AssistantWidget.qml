@@ -274,6 +274,16 @@ PanelWindow {
     // actually gives real continuity (asked it to remember a fact, then
     // asked it back two turns later in a fresh process - it recalled it)
     // rather than assuming it would work.
+    //
+    // Capped to the most recent maxPromptHistoryMessages (separate from -
+    // and much smaller than - Config's own 100-message display/storage
+    // cap): with no cap, every single send re-transmitted the *entire*
+    // conversation so far, so a long-running chat meant an ever-growing
+    // prompt on every turn - slower and more expensive on every hosted
+    // backend, and eventually big enough to risk silently overflowing the
+    // model's own context window. Recent history is what actually matters
+    // for continuity anyway.
+    readonly property int maxPromptHistoryMessages: 30
     function buildPrompt(history, newMessage) {
         if (!history || history.length === 0) return newMessage
         // Error/timeout/cancelled/info entries are diagnostics for the
@@ -282,6 +292,9 @@ PanelWindow {
         // in as if the assistant had said it.
         let realHistory = history.filter((m) => m.role !== "error" && m.role !== "info")
         if (realHistory.length === 0) return newMessage
+        if (realHistory.length > assistantWindow.maxPromptHistoryMessages) {
+            realHistory = realHistory.slice(realHistory.length - assistantWindow.maxPromptHistoryMessages)
+        }
         let lines = ["Here is our conversation so far. Respond naturally to my latest message at the end - don't repeat earlier context back to me, just continue the conversation."]
         for (let i = 0; i < realHistory.length; i++) {
             lines.push((realHistory[i].role === "user" ? "User" : "Assistant") + ": " + realHistory[i].text)
@@ -443,18 +456,33 @@ PanelWindow {
     function startOllamaServeAndRetry() {
         assistantWindow.ollamaServeStarting = true
         Config.appendAssistantMessage("info", "Ollama isn't running - starting it now.")
-        // Routed through fish -c so stdout/stderr can be redirected to
-        // /dev/null (`serve` logs continuously - every request, plus
-        // startup GPU/model discovery - and setsid -f detaches it from this
+        // Routed through fish -c so stdout/stderr can be redirected to a log
+        // file (`serve` logs continuously - every request, plus startup
+        // GPU/model discovery - and setsid -f detaches it from this
         // Process's own pipes, which nothing here ever reads; once the
         // unread pipe's buffer fills, the detached process blocks on
         // write() and hangs forever mid-startup, exactly like `ollama run`
         // blocking on unread stdin above) and stdin closed for the same
-        // never-read-it reason as that stdin workaround.
-        ollamaServeProcess.command = ["fish", "-c", "setsid -f ollama serve > /dev/null 2>&1 < /dev/null"]
+        // never-read-it reason as that stdin workaround. `>` (not `>>`)
+        // truncates on every attempt, so the log always reflects only the
+        // most recent start - see reportOllamaServeTimeout() below, which
+        // tails it if this never comes up.
+        ollamaServeProcess.command = ["fish", "-c", "mkdir -p ~/.cache/synoptik; and setsid -f ollama serve > ~/.cache/synoptik/ollama-serve.log 2>&1 < /dev/null"]
         ollamaServeProcess.running = true
         assistantWatchdog.restart()
         ollamaServeRetryTimer.restart()
+    }
+
+    // Called from assistantWatchdog when it times out while
+    // ollamaServeStarting is still true. The launcher process above always
+    // exits successfully near-instantly regardless of whether the detached
+    // `ollama serve` itself went on to actually start (see its comment), so
+    // this is the only way to surface a real reason - tailing what it
+    // logged (port already in use, permission denied, etc) instead of just
+    // a generic "it didn't come up".
+    function reportOllamaServeTimeout() {
+        ollamaServeLogTail.command = ["fish", "-c", "tail -n 8 ~/.cache/synoptik/ollama-serve.log 2>/dev/null"]
+        ollamaServeLogTail.running = true
     }
 
     function startOllamaPull() {
@@ -510,7 +538,7 @@ PanelWindow {
             if (assistantWindow.ollamaServeStarting) {
                 assistantWindow.ollamaServeStarting = false
                 ollamaServeRetryTimer.stop()
-                Config.appendAssistantMessage("error", "Timed out waiting for Ollama to start - try running `ollama serve` yourself.")
+                assistantWindow.reportOllamaServeTimeout()
             } else if (assistantWindow.pullActive) {
                 assistantWindow.pullActive = false
                 ollamaPullProcess.running = false
@@ -559,6 +587,18 @@ PanelWindow {
     // command returned, not that the server stopped.
     Process {
         id: ollamaServeProcess
+    }
+
+    // Reads back whatever startOllamaServeAndRetry's ollama-serve.log ended
+    // up with - see reportOllamaServeTimeout() above.
+    Process {
+        id: ollamaServeLogTail
+        stdout: StdioCollector { id: ollamaServeLogTailStdout; waitForEnd: true }
+        onExited: {
+            let tail = ollamaServeLogTailStdout.text ? ollamaServeLogTailStdout.text.trim() : ""
+            Config.appendAssistantMessage("error", "Timed out waiting for Ollama to start - try running `ollama serve` yourself to see why."
+                + (tail.length > 0 ? "\n\nLast lines from its log:\n" + tail : ""))
+        }
     }
 
     // Repolls ollamaListCheck until the just-started server answers.
@@ -1445,7 +1485,7 @@ PanelWindow {
                                 }
 
                                 Text {
-                                    text: isError ? "warning" : "download"
+                                    text: isError ? "warning" : "info"
                                     font.family: "Material Symbols Outlined"
                                     font.pixelSize: 28
                                     color: Config.textMuted
