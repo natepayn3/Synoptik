@@ -351,6 +351,12 @@ PanelWindow {
     property bool pullActive: false
     property int pullPercent: 0
     property string pullStatus: ""
+    // Set while ollamaListCheck has come back unreachable and
+    // ollamaServeProcess has been launched to bring the server up -
+    // distinguishes "still starting, keep polling" from a fresh failure in
+    // ollamaListCheck's own handler, and lets the watchdog/cancel paths know
+    // there's a retry timer to stop too.
+    property bool ollamaServeStarting: false
     property bool modelMenuOpen: false
     property var availableOllamaModels: []
 
@@ -423,6 +429,34 @@ PanelWindow {
         }
     }
 
+    // Called the first time ollamaListCheck comes back unreachable for this
+    // request. `setsid -f` forks and starts a new session before execing
+    // ollama, so the launcher command here exits immediately (confirmed via
+    // `setsid --help`) while the actual server keeps running fully detached
+    // from this Process object - it has to survive independently since the
+    // widget's own process lifecycle is much shorter than a long-running
+    // server. ollamaListCheck is then re-polled on a short timer until the
+    // server answers or assistantWatchdog's own timeout gives up - a cold
+    // start (CUDA/driver enumeration on first launch since boot, on a
+    // discrete GPU especially) can take a lot longer than a warm one, so
+    // there's no separate, tighter cap here duplicating the watchdog's job.
+    function startOllamaServeAndRetry() {
+        assistantWindow.ollamaServeStarting = true
+        Config.appendAssistantMessage("info", "Ollama isn't running - starting it now.")
+        // Routed through fish -c so stdout/stderr can be redirected to
+        // /dev/null (`serve` logs continuously - every request, plus
+        // startup GPU/model discovery - and setsid -f detaches it from this
+        // Process's own pipes, which nothing here ever reads; once the
+        // unread pipe's buffer fills, the detached process blocks on
+        // write() and hangs forever mid-startup, exactly like `ollama run`
+        // blocking on unread stdin above) and stdin closed for the same
+        // never-read-it reason as that stdin workaround.
+        ollamaServeProcess.command = ["fish", "-c", "setsid -f ollama serve > /dev/null 2>&1 < /dev/null"]
+        ollamaServeProcess.running = true
+        assistantWatchdog.restart()
+        ollamaServeRetryTimer.restart()
+    }
+
     function startOllamaPull() {
         assistantWindow.pullActive = true
         assistantWindow.pullPercent = 0
@@ -440,6 +474,8 @@ PanelWindow {
     function cancelRequest() {
         if (!assistantBusy) return
         assistantWatchdog.stop()
+        ollamaServeRetryTimer.stop()
+        assistantWindow.ollamaServeStarting = false
         assistantBusy = false
         if (assistantWindow.pullActive) {
             assistantWindow.pullActive = false
@@ -471,7 +507,11 @@ PanelWindow {
         onTriggered: {
             if (!assistantWindow.assistantBusy) return
             assistantWindow.assistantBusy = false
-            if (assistantWindow.pullActive) {
+            if (assistantWindow.ollamaServeStarting) {
+                assistantWindow.ollamaServeStarting = false
+                ollamaServeRetryTimer.stop()
+                Config.appendAssistantMessage("error", "Timed out waiting for Ollama to start - try running `ollama serve` yourself.")
+            } else if (assistantWindow.pullActive) {
                 assistantWindow.pullActive = false
                 ollamaPullProcess.running = false
                 Config.appendAssistantMessage("error", "Timed out downloading " + assistantWindow.ollamaModelName() + " - check your network connection and that " + assistantWindow.pullStatus + " isn't just stuck.")
@@ -493,15 +533,48 @@ PanelWindow {
         onExited: (exitCode) => {
             if (!assistantWindow.assistantBusy) return
             if (exitCode === 0 && assistantWindow.ollamaHasModel(ollamaListStdout.text)) {
+                assistantWindow.ollamaServeStarting = false
+                ollamaServeRetryTimer.stop()
                 assistantWatchdog.restart()
                 assistantWindow.launchAssistantProcess(assistantWindow.pendingPrompt)
             } else if (exitCode !== 0) {
-                assistantWatchdog.stop()
-                assistantWindow.assistantBusy = false
-                Config.appendAssistantMessage("error", "Couldn't reach Ollama - is the server running? Try `ollama serve`.")
+                // First failure this request: try bringing the server up
+                // ourselves. A failure while ollamaServeStarting is already
+                // true just means it isn't up *yet* - ollamaServeRetryTimer
+                // is already polling, so there's nothing more to do here
+                // than let it keep ticking.
+                if (!assistantWindow.ollamaServeStarting) {
+                    assistantWindow.startOllamaServeAndRetry()
+                }
             } else {
+                assistantWindow.ollamaServeStarting = false
+                ollamaServeRetryTimer.stop()
                 assistantWindow.startOllamaPull()
             }
+        }
+    }
+
+    // Launches `ollama serve` detached (see startOllamaServeAndRetry's
+    // comment) - this Process object's own exit just means the launcher
+    // command returned, not that the server stopped.
+    Process {
+        id: ollamaServeProcess
+    }
+
+    // Repolls ollamaListCheck until the just-started server answers.
+    // assistantWatchdog (restarted alongside this in
+    // startOllamaServeAndRetry) is the only timeout that applies here - see
+    // that function's comment for why a second, tighter one would be wrong.
+    Timer {
+        id: ollamaServeRetryTimer
+        interval: 500
+        repeat: true
+        onTriggered: {
+            if (!assistantWindow.assistantBusy || !assistantWindow.ollamaServeStarting) {
+                ollamaServeRetryTimer.stop()
+                return
+            }
+            if (!ollamaListCheck.running) ollamaListCheck.running = true
         }
     }
 
@@ -1456,7 +1529,9 @@ PanelWindow {
                                 ? (assistantWindow.pullPercent > 0
                                     ? (assistantWindow.ollamaModelName() + " - " + assistantWindow.pullPercent + "%")
                                     : (assistantWindow.ollamaModelName() + " - " + assistantWindow.pullStatus))
-                                : ("Waiting on " + assistantWindow.backendLabel() + "... (" + assistantWindow.elapsedSeconds + "s)")
+                                : (assistantWindow.ollamaServeStarting
+                                    ? ("Starting Ollama... (" + assistantWindow.elapsedSeconds + "s)")
+                                    : ("Waiting on " + assistantWindow.backendLabel() + "... (" + assistantWindow.elapsedSeconds + "s)"))
                             color: Config.textMuted
                             font.family: Config.sysFont
                             font.italic: true
