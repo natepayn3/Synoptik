@@ -267,6 +267,50 @@ PanelWindow {
         return lines.join("\n")
     }
 
+    // Some locally-run models (reasoning-tuned ones especially - DeepSeek-R1
+    // distills, QwQ, Qwen3's thinking mode, etc, which is most of what shows
+    // up under a plain HF GGUF pull) write their entire chain-of-thought as
+    // plain visible text ahead of the real answer, wrapped in a <think>
+    // block by convention. Headless -p mode on the hosted CLIs doesn't
+    // surface this (they keep reasoning internal), so this only ever
+    // matters for Ollama in practice, but it's applied to every backend's
+    // output unconditionally since the tags simply won't appear otherwise.
+    //
+    // The opening <think> tag is frequently missing from the captured text
+    // even though the closing one is present - confirmed empirically: it's
+    // part of the model's fixed prompt template, pre-filled ahead of
+    // generation rather than a token the model itself emits, so plain
+    // stdout capture never sees it. A lone closing tag with no opener
+    // earlier in the text is treated the same way: everything up to and
+    // including it is reasoning.
+    //
+    // A second, separate case: some community GGUF conversions carry a
+    // broken chat template that leaves OpenAI "harmony" format's own
+    // channel/message control tokens as literal visible text instead of
+    // consuming them internally - stripped too, best-effort (including a
+    // bare leftover "<channel|>" with no channel name, seen in practice),
+    // since there's no way to know in advance which converted models will
+    // do this or exactly how mangled the leftovers will be.
+    function stripReasoningTags(text) {
+        if (!text) return text
+        let stripped = text
+            .replace(/<think>[\s\S]*?<\/think>/gi, "")
+            .replace(/<thinking>[\s\S]*?<\/thinking>/gi, "")
+        if (!/<think>/i.test(stripped) && /<\/think(ing)?>/i.test(stripped)) {
+            stripped = stripped.replace(/^[\s\S]*?<\/think(ing)?>/i, "")
+        }
+        stripped = stripped
+            .replace(/<\|?channel\|?>\s*analysis\s*<\|?message\|?>[\s\S]*?(?=<\|?channel\|?>\s*final\s*<\|?message\|?>|$)/gi, "")
+            .replace(/<\|?channel\|?>\s*final\s*<\|?message\|?>/gi, "")
+            .trim()
+            .replace(/^<\|?channel\|?>\s*/i, "")
+            .trim()
+        // A model that only ever emitted reasoning (got cut off, or never
+        // reached a "final" channel) would otherwise leave nothing to show -
+        // better to fall back to the raw text than a blank reply.
+        return stripped.length > 0 ? stripped : text.trim()
+    }
+
     // Each send is its own fresh, memory-less process - none of the three
     // backends share conversation state across separate invocations here -
     // so continuity has to come from the prompt text itself: prior turns are
@@ -393,8 +437,20 @@ PanelWindow {
         assistantWindow.startOllamaPull()
     }
 
+    // Ollama's own registry silently drops a URL scheme - `ollama list`
+    // shows "huggingface.co/user/repo:tag" even when the model was pulled by
+    // pasting a full "https://huggingface.co/user/repo:tag" URL into the
+    // pull field (confirmed empirically: same model, `ollama list`'s NAME
+    // column never carries the scheme). Stripped here, the single place
+    // every other use of the model name routes through, so list-matching
+    // (ollamaHasModel), the pull request, `ollama run`, and the pill label
+    // all agree with what `ollama list` will actually show - otherwise
+    // ollamaHasModel compares a scheme-prefixed string that can never match,
+    // and every single chat message re-triggers a "not downloaded yet" pull
+    // even though the model is already there.
     function ollamaModelName() {
-        return (Config.assistantModel && Config.assistantModel.length > 0) ? Config.assistantModel : "llama3.2"
+        let raw = (Config.assistantModel && Config.assistantModel.length > 0) ? Config.assistantModel : "llama3.2"
+        return raw.replace(/^https?:\/\//i, "")
     }
 
     // `ollama list`'s NAME column always carries a tag (bare "llama3.2" is
@@ -728,7 +784,7 @@ PanelWindow {
             let errText = assistantStderr.text ? assistantStderr.text.trim() : ""
             if (Config.assistantBackend === "ollama") outText = assistantWindow.stripOllamaLineWrapCodes(outText)
             if (exitCode === 0 && outText.length > 0) {
-                Config.appendAssistantMessage("assistant", outText)
+                Config.appendAssistantMessage("assistant", assistantWindow.stripReasoningTags(outText))
             } else if (outText.length > 0) {
                 Config.appendAssistantMessage("error", outText)
             } else if (errText.length > 0) {
