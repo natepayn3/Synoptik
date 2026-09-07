@@ -311,6 +311,24 @@ PanelWindow {
         return stripped.length > 0 ? stripped : text.trim()
     }
 
+    // QML's Text item renders every "\n" as a hard line break, not just
+    // paragraph boundaries - so a model that hard-wraps its own output at a
+    // fixed column width (some local/fine-tuned models do, likely picked up
+    // from plain-text training data), or one that puts a newline after every
+    // sentence, ends up looking broken mid-paragraph even though the bubble
+    // has plenty of width left. Markdown's soft/hard break distinction is
+    // the fix: collapse single newlines within a paragraph into a space (so
+    // WordWrap reflows normally), but keep a blank line (two-plus newlines)
+    // as a real paragraph break. Used for display only - the raw text (used
+    // for clipboard copy and prompt history) is left untouched.
+    function normalizeMessageText(text) {
+        if (!text) return text
+        return text
+            .split(/\n{2,}/)
+            .map((para) => para.replace(/\s*\n\s*/g, " ").trim())
+            .join("\n\n")
+    }
+
     // Each send is its own fresh, memory-less process - none of the three
     // backends share conversation state across separate invocations here -
     // so continuity has to come from the prompt text itself: prior turns are
@@ -1819,7 +1837,7 @@ PanelWindow {
                                         Text {
                                             id: bubbleText
                                             Layout.fillWidth: true
-                                            text: modelData.text
+                                            text: assistantWindow.normalizeMessageText(modelData.text)
                                             color: isError ? "#ffb380" : Config.textMain
                                             font.family: Config.sysFont
                                             font.italic: isDiagnostic
