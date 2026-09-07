@@ -1494,6 +1494,7 @@ PanelWindow {
                                 }
 
                                 Rectangle {
+                                    id: bubbleRect
                                     Layout.fillWidth: true
                                     implicitHeight: bubbleText.implicitHeight + 16
                                     radius: Config.cornerRadius / 2
@@ -1502,6 +1503,8 @@ PanelWindow {
                                     color: isUser
                                         ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.22)
                                         : (isError ? Qt.rgba(1, 0.6, 0.3, 0.12) : (isInfo ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.1) : Qt.rgba(255, 255, 255, 0.06)))
+
+                                    HoverHandler { id: bubbleHover }
 
                                     Text {
                                         id: bubbleText
@@ -1514,6 +1517,45 @@ PanelWindow {
                                         font.pixelSize: Config.size(Config.fontCaption) * Config.assistantFontScale
                                         wrapMode: Text.WordWrap
                                     }
+
+                                    // Copy-to-clipboard for assistant replies
+                                    // only - not the user's own typed text,
+                                    // and not error/info diagnostics, which
+                                    // aren't real replies. Hover-revealed
+                                    // rather than a permanent icon on every
+                                    // bubble, which would clutter a card
+                                    // this narrow. Same wl-copy pattern
+                                    // LauncherOSD.qml already uses for its
+                                    // calculator result - execDetached's
+                                    // argv array needs no shell escaping.
+                                    Rectangle {
+                                        visible: !isUser && !isDiagnostic && (bubbleHover.hovered || copyFeedback.running)
+                                        anchors.top: parent.top
+                                        anchors.right: parent.right
+                                        anchors.margins: 4
+                                        width: 22
+                                        height: 22
+                                        radius: 5
+                                        color: copyIconHover.hovered ? Qt.rgba(255, 255, 255, 0.18) : Qt.rgba(0, 0, 0, 0.35)
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: copyFeedback.running ? "check" : "content_copy"
+                                            font.family: "Material Symbols Outlined"
+                                            font.pixelSize: 13
+                                            color: copyFeedback.running ? "#8fdc9a" : Config.textMuted
+                                        }
+
+                                        TapHandler {
+                                            onTapped: {
+                                                Quickshell.execDetached(["wl-copy", modelData.text])
+                                                copyFeedback.restart()
+                                            }
+                                        }
+                                        HoverHandler { id: copyIconHover; cursorShape: Qt.PointingHandCursor }
+                                    }
+
+                                    Timer { id: copyFeedback; interval: 1200 }
                                 }
                             }
                         }
