@@ -1,0 +1,14 @@
+#!/bin/sh
+# Strip Claude Code attribution trailers before they ever reach a commit.
+# GitHub renders "Co-Authored-By:" as a visible co-author badge next to the
+# repo owner's name in the commit list - this user does not want that under
+# any circumstance, no matter what an assistant session's default template
+# says. Enforced here so it doesn't depend on an assistant remembering to
+# omit it every single time.
+MSG_FILE="$1"
+TMP_FILE="$(mktemp)"
+
+grep -v -E '^Co-Authored-By: Claude|^Claude-Session:' "$MSG_FILE" > "$TMP_FILE"
+# Trim blank line(s) left trailing at end-of-file by the removed trailer(s).
+sed -e :a -e '/^\n*$/{$d;N;ba' -e '}' "$TMP_FILE" > "$MSG_FILE"
+rm -f "$TMP_FILE"
