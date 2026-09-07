@@ -368,6 +368,7 @@ QtObject {
     property alias showAssistant: root.desktopExtras.showAssistant
     property alias assistantBackend: root.desktopExtras.assistantBackend
     property alias assistantModel: root.desktopExtras.assistantModel
+    property alias assistantOllamaModel: root.desktopExtras.assistantOllamaModel
     property alias assistantBadgePath: root.desktopExtras.assistantBadgePath
     property alias assistantCustomBadges: root.desktopExtras.assistantCustomBadges
     function addCustomBadge(path) { desktopExtras.addCustomBadge(path) }
@@ -847,7 +848,7 @@ QtObject {
         "lockscreenClockSize", "lockscreenTargetMonitor", "workspaceStyle", "workspaceGlow",
         "workspaceScroll", "workspaceTooltips", "workspaceShowAddBtn", "workspaceShowOverviewBtn",
         "workspaceShowSpecial", "workspaceContainerStyle", "wallhavenUsername", "wallhavenApiKey",
-        "showAssistant", "assistantBackend", "assistantModel", "assistantBadgePath", "assistantCustomBadges", "assistantTimeoutSeconds", "assistantFontScale", "assistantWidth", "assistantHeight",
+        "showAssistant", "assistantBackend", "assistantModel", "assistantOllamaModel", "assistantBadgePath", "assistantCustomBadges", "assistantTimeoutSeconds", "assistantFontScale", "assistantWidth", "assistantHeight",
         "assistantPositions", "assistantLastScreen", "assistantMessages"
     ]
 
@@ -1041,6 +1042,7 @@ QtObject {
             property var showAssistant
             property var assistantBackend
             property var assistantModel
+            property var assistantOllamaModel
             property var assistantBadgePath
             property var assistantCustomBadges
             property var assistantTimeoutSeconds
@@ -1084,6 +1086,29 @@ QtObject {
 
                 if (settingsAdapter.isFloatingBar !== undefined && settingsAdapter.barFrameStyle === undefined) {
                     root.barFrameStyle = settingsAdapter.isFloatingBar ? "floating" : "edge"
+                }
+
+                // assistantModel and assistantOllamaModel used to be the
+                // same field - a saved settings.json from before that split
+                // has whatever was last selected sitting in assistantModel
+                // alone, regardless of which backend happens to be active
+                // *now* (switching backends never cleared it, so it can
+                // easily be a stale Ollama model name left behind after
+                // switching back to Claude/Codex/Gemini - confirmed exactly
+                // this in practice: assistantBackend "claude" saved
+                // alongside assistantModel "llama3.2:latest", which
+                // `claude -p --model llama3.2:latest` naturally rejects).
+                // Checking the current backend at migration time is exactly
+                // the wrong test - the widget's Ollama model switcher was
+                // always the far more common way this field got a value in
+                // the first place, so it's moved (not copied) unconditionally.
+                // Falsy rather than strictly undefined, since an earlier cut
+                // of this migration already wrote an explicit "" once,
+                // which would otherwise permanently defeat an undefined
+                // check on every future load.
+                if (!settingsAdapter.assistantOllamaModel && settingsAdapter.assistantModel) {
+                    root.assistantOllamaModel = settingsAdapter.assistantModel
+                    root.assistantModel = ""
                 }
 
                 if (settingsAdapter.customThemes !== undefined && Array.isArray(settingsAdapter.customThemes)) {

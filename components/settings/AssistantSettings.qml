@@ -221,7 +221,15 @@ Item {
             }
         }
 
-        // MODEL OVERRIDE FIELD (optional, passed as --model to the CLI)
+        // MODEL OVERRIDE FIELD (optional, passed as --model to the CLI) -
+        // one field that reads/writes whichever of Config.assistantModel /
+        // Config.assistantOllamaModel matches the currently selected
+        // backend, since those are stored separately (see
+        // assistantOllamaModel's own comment in DesktopExtrasConfig.qml for
+        // why: they used to share one field, and picking/pulling an Ollama
+        // model here or from the assistant widget's own switcher would
+        // silently overwrite whatever --model override was set for
+        // Claude/Codex/Gemini).
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 4
@@ -246,7 +254,7 @@ Item {
                     id: modelInput
                     anchors.fill: parent
                     anchors.margins: 6
-                    text: Config.assistantModel || ""
+                    text: (Config.assistantBackend === "ollama" ? Config.assistantOllamaModel : Config.assistantModel) || ""
                     color: Config.textMain
                     font.family: Config.sysFont
                     font.pixelSize: Config.size(Config.fontCaption)
@@ -264,7 +272,10 @@ Item {
                         visible: modelInput.text.length === 0 && !modelInput.activeFocus
                     }
 
-                    onEditingFinished: Config.assistantModel = text.trim()
+                    onEditingFinished: {
+                        if (Config.assistantBackend === "ollama") Config.assistantOllamaModel = text.trim()
+                        else Config.assistantModel = text.trim()
+                    }
                     HoverHandler { cursorShape: Qt.IBeamCursor }
                 }
             }

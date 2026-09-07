@@ -429,7 +429,7 @@ PanelWindow {
     function pullModelStandalone(modelName) {
         let trimmed = (modelName || "").trim()
         if (!trimmed || assistantWindow.assistantBusy) return
-        Config.assistantModel = trimmed
+        Config.assistantOllamaModel = trimmed
         assistantWindow.pendingPrompt = ""
         assistantWindow.assistantBusy = true
         assistantWindow.requestStartMs = Date.now()
@@ -449,7 +449,7 @@ PanelWindow {
     // and every single chat message re-triggers a "not downloaded yet" pull
     // even though the model is already there.
     function ollamaModelName() {
-        let raw = (Config.assistantModel && Config.assistantModel.length > 0) ? Config.assistantModel : "llama3.2"
+        let raw = (Config.assistantOllamaModel && Config.assistantOllamaModel.length > 0) ? Config.assistantOllamaModel : "llama3.2"
         return raw.replace(/^https?:\/\//i, "")
     }
 
@@ -1199,7 +1199,7 @@ PanelWindow {
 
                         TapHandler {
                             onTapped: {
-                                Config.assistantModel = modelData
+                                Config.assistantOllamaModel = modelData
                                 assistantWindow.modelMenuOpen = false
                             }
                         }

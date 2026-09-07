@@ -62,8 +62,16 @@ QtObject {
     // personal subscription or API key that CLI is configured with) is
     // entirely that CLI's own business.
     property bool showAssistant: false
-    property string assistantBackend: "claude" // "claude" | "codex" | "gemini"
-    property string assistantModel: "" // optional --model override passed to the backend CLI
+    property string assistantBackend: "claude" // "claude" | "codex" | "gemini" | "ollama"
+    property string assistantModel: "" // optional --model override passed to claude/codex/gemini only
+    // Ollama's own model selection lives separately from assistantModel
+    // above - they used to share one field, which meant picking/pulling an
+    // Ollama model (from the widget's own in-panel switcher) silently
+    // overwrote whatever --model override was set for Claude/Codex/Gemini,
+    // so switching back to one of those backends would try to launch it
+    // with an Ollama model name (e.g. "claude --model llama3.2:latest",
+    // which claude naturally rejects as an unknown model).
+    property string assistantOllamaModel: ""
 
     // How long to wait for a reply before giving up - some backends/models/
     // questions genuinely take longer than a short fixed timeout. 120s (was
