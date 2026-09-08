@@ -121,7 +121,7 @@ Item {
         id: cacheProc
         running: false
         command: [
-            "sh", "-c", 
+            "fish", "-c", 
             "mkdir -p /tmp/cliphist; " +
             "cliphist list | head -n 40 | while read -r id line; do " +
                 "img_path=\"/tmp/cliphist/$id.png\"; " +
@@ -176,7 +176,7 @@ Item {
     Process {
         id: wipeProc
         running: false
-        command: ["fish", "-c", "cliphist wipe; and rm -rf /tmp/cliphist/*"]
+        command: ["sh", "-c", "cliphist wipe && rm -rf /tmp/cliphist/*"]
         onExited: {
             refreshClipboard()
         }
@@ -449,7 +449,7 @@ Item {
                                 }
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: {
-                                    copyProc.command = ["fish", "-c", "cliphist list | awk 'BEGIN{FS=\"\\t\"} $1 == \"" + itemId + "\" {print $0}' | cliphist decode | wl-copy"]
+                                    copyProc.command = ["sh", "-c", "cliphist list | awk 'BEGIN{FS=\"\\t\"} $1 == \"" + itemId + "\" {print $0}' | cliphist decode | wl-copy"]
                                     copyProc.running = false
                                     copyProc.running = true
                                 }
@@ -481,7 +481,7 @@ Item {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor
                                     onClicked: {
-                                        deleteSingleProc.command = ["fish", "-c", "cliphist list | awk -F '\\t' '$1 == \"" + itemId + "\"' | cliphist delete; and rm -f /tmp/cliphist/" + itemId + ".png"]
+                                        deleteSingleProc.command = ["fish", "-c", "cliphist list | awk -F '\\t' '$1 == \"" + itemId + "\"' | cliphist delete && rm -f /tmp/cliphist/" + itemId + ".png"]
                                         deleteSingleProc.running = false
                                         deleteSingleProc.running = true
                                     }

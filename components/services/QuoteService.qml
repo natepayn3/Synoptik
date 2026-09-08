@@ -75,7 +75,7 @@ QtObject {
         }
 
         if (cmd !== "") {
-            qFetcher.command = ["fish", "-c", cmd]
+            qFetcher.command = ["sh", "-c", cmd]
             qFetcher.running = true
         } else {
             processQuoteQueue()

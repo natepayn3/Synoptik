@@ -408,7 +408,7 @@ PanelWindow {
             // no-op for a model with no thinking capability, so this is
             // safe to pass unconditionally rather than needing to detect
             // which kind of model is loaded first.
-            assistantProcess.command = ["fish", "-c", "ollama run --hidethinking \"$OLLAMA_RUN_MODEL\" \"$OLLAMA_RUN_PROMPT\" < /dev/null"]
+            assistantProcess.command = ["sh", "-c", "ollama run --hidethinking \"$OLLAMA_RUN_MODEL\" \"$OLLAMA_RUN_PROMPT\" < /dev/null"]
         } else {
             assistantProcess.command = assistantWindow.backendCommand(prompt)
         }
@@ -779,7 +779,7 @@ PanelWindow {
     // logged (port already in use, permission denied, etc) instead of just
     // a generic "it didn't come up".
     function reportOllamaServeTimeout() {
-        ollamaServeLogTail.command = ["fish", "-c", "tail -n 8 ~/.cache/synoptik/ollama-serve.log 2>/dev/null"]
+        ollamaServeLogTail.command = ["sh", "-c", "tail -n 8 ~/.cache/synoptik/ollama-serve.log 2>/dev/null"]
         ollamaServeLogTail.running = true
     }
 

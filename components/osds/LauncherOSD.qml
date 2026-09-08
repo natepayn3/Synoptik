@@ -343,7 +343,7 @@ print(json.dumps(results))
             app.execute();
         } else if (app.execString) {
             let cleanExec = app.execString.replace(/%[uUfFkKcCiI]/g, "").trim();
-            Quickshell.execDetached(["fish", "-c", cleanExec]);
+            Quickshell.execDetached(["sh", "-c", cleanExec]);
         }
         Config.showLauncherOsd = false;
     }

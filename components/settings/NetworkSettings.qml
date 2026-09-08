@@ -221,7 +221,7 @@ Item {
                 cmd = `nmcli device connect ${root.localIfName}`
             }
         }
-        localNetToggleProc.command = ["fish", "-c", cmd]
+        localNetToggleProc.command = ["sh", "-c", cmd]
         localNetToggleProc.running = true
     }
 
@@ -938,7 +938,7 @@ while True:
                                         } else {
                                             let parsedPath = fileUrl.toString().replace("file://", "")
                                             let typeStr = parsedPath.endsWith(".conf") ? "wireguard" : "openvpn"
-                                            vpnImporter.command = ["fish", "-c", `nmcli connection import type ${typeStr} file "${parsedPath}"`]
+                                            vpnImporter.command = ["sh", "-c", `nmcli connection import type ${typeStr} file "${parsedPath}"`]
                                             vpnImporter.running = true
                                             root.showFileBrowser = false
                                         }

@@ -14,7 +14,7 @@ QtObject {
 
     property Process caffeineCheckBinaryProc: Process {
         id: caffeineCheckBinaryProc
-        command: ["fish", "-c", "which hypridle"]
+        command: ["sh", "-c", "which hypridle"]
         running: true
         stdout: StdioCollector {
             onStreamFinished: {
@@ -26,7 +26,7 @@ QtObject {
 
     property Process caffeineCheckStatusProc: Process {
         id: caffeineCheckStatusProc
-        command: ["fish", "-c", "pgrep -x hypridle"]
+        command: ["sh", "-c", "pgrep -x hypridle"]
         running: false
         stdout: StdioCollector { id: caffeineStatusOutput }
 
@@ -90,9 +90,9 @@ QtObject {
     function setHypridleRunning(enable) {
         let cmd = enable
             ? "systemctl --user start hypridle.service"
-            : "pkill -x hypridle; and systemctl --user stop hypridle.service; and systemctl --user reset-failed hypridle.service"
+            : "pkill -x hypridle && systemctl --user stop hypridle.service && systemctl --user reset-failed hypridle.service"
 
-        caffeineExecProc.command = ["fish", "-c", cmd]
+        caffeineExecProc.command = ["sh", "-c", cmd]
         caffeineExecProc.running = true
     }
 

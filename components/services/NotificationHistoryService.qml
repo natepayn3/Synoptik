@@ -61,14 +61,14 @@ QtObject {
                 return
             }
             let jsonStr = JSON.stringify(root.entries, null, 2)
-            saver.command = ["fish", "-c", "printf '%s' '" + jsonStr.replace(/'/g, "'\\''") + "' > " + root.historyPath]
+            saver.command = ["sh", "-c", "printf '%s' '" + jsonStr.replace(/'/g, "'\\''") + "' > " + root.historyPath]
             saver.running = true
         }
     }
 
     property Process loaderProcess: Process {
         id: loader
-        command: ["fish", "-c", "cat " + root.historyPath + " 2>/dev/null"]
+        command: ["sh", "-c", "cat " + root.historyPath + " 2>/dev/null"]
         stdout: StdioCollector {
             onStreamFinished: {
                 let text = this.text ? this.text.trim() : ""

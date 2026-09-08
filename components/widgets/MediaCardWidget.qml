@@ -141,7 +141,7 @@ PanelWindow {
 
     Process {
         id: mediaPosProc
-        command: ["fish", "-c", "playerctl position; playerctl metadata mpris:length"]
+        command: ["sh", "-c", "playerctl position; playerctl metadata mpris:length"]
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
@@ -172,7 +172,7 @@ PanelWindow {
     // gated on this panel's own visibility instead of Control Center's.
     Process {
         id: cavaProc
-        command: ["fish", "-c", "printf '[general]\\nbars = 32\\nsensitivity = 150\\n[output]\\nmethod = raw\\ndata_format = ascii\\nascii_max_range = 255\\nbar_delimiter = 59\\nframe_delimiter = 10\\n' | cava -p /dev/stdin"]
+        command: ["sh", "-c", "printf '[general]\\nbars = 32\\nsensitivity = 150\\n[output]\\nmethod = raw\\ndata_format = ascii\\nascii_max_range = 255\\nbar_delimiter = 59\\nframe_delimiter = 10\\n' | cava -p /dev/stdin"]
         running: Config.showDesktopMediaCard && mediaCardWindow.mediaStatus === "Playing"
 
         stdout: SplitParser {

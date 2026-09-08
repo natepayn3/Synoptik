@@ -99,7 +99,7 @@ QtObject {
         if (!cavaRoot.active) return
         let conf = cavaRoot.buildConfigText()
         let cmd = "mkdir -p " + cavaRoot.confDir + " && printf '%s' '" + conf.replace(/'/g, "'\\''") + "' > " + cavaRoot.confPath
-        confWriter.command = ["fish", "-c", cmd]
+        confWriter.command = ["sh", "-c", cmd]
         confWriter.running = true
     }
 

@@ -72,7 +72,7 @@ Item {
 
     function stopRecording() {
         // Send SIGINT to gracefully close recording file
-        Quickshell.execDetached(["fish", "-c", "pkill -2 wf-recorder"])
+        Quickshell.execDetached(["sh", "-c", "pkill -2 wf-recorder"])
         root.isRecording = false
         Config.isRecording = false
         Config.showScreenRecorder = false

@@ -48,7 +48,7 @@ Item {
 
     Process {
         id: initPinFile
-        command: ["fish", "-c", "if not test -f ~/.cache/quickshell_launcher_pins.json; echo '{\"pins\":[]}'> ~/.cache/quickshell_launcher_pins.json; end"]
+        command: ["sh", "-c", "[ -f ~/.cache/quickshell_launcher_pins.json ] || echo '{\"pins\":[]}' > ~/.cache/quickshell_launcher_pins.json"]
         running: true
         onExited: appLauncherModule.pinFilePath = Quickshell.env("HOME") + "/.cache/quickshell_launcher_pins.json"
     }
@@ -91,7 +91,7 @@ Item {
         appLauncherModule.updateModel();
         
         let jsonStr = JSON.stringify({ "pins": currentPins }); 
-        Quickshell.execDetached(["fish", "-c", "echo '" + jsonStr.replace(/'/g, "'\\''") + "' > ~/.cache/quickshell_launcher_pins.json"]);
+        Quickshell.execDetached(["sh", "-c", "echo '" + jsonStr.replace(/'/g, "'\\''") + "' > ~/.cache/quickshell_launcher_pins.json"]);
     } 
 
     function updateModel() {
@@ -138,7 +138,7 @@ Item {
             app.execute();
         } else if (app.execString) {
             let cleanExec = app.execString.replace(/%[uUfFkKcCiI]/g, "").trim();
-            Quickshell.execDetached(["fish", "-c", cleanExec]);
+            Quickshell.execDetached(["sh", "-c", cleanExec]);
         }
         Config.showAppLauncher = false;
     }

@@ -10,6 +10,6 @@ QtObject {
     // triggers the same capture pipeline from both the IPC handler and the
     // LeftModules button instead of duplicating the command in each.
     function capture() {
-        Quickshell.execDetached(["fish", "-c", "sleep 0.1; grim -g (slurp) -t ppm - | satty --filename -"])
+        Quickshell.execDetached(["sh", "-c", "sleep 0.1; grim -g \"$(slurp)\" -t ppm - | satty --filename -"])
     }
 }

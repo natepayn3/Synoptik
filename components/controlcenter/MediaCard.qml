@@ -44,7 +44,7 @@ Item {
     // Position Poller
     Process {
         id: mediaPosProc
-        command: ["fish", "-c", "playerctl position; playerctl metadata mpris:length; playerctl metadata --format '{{playerName}}'"]
+        command: ["sh", "-c", "playerctl position; playerctl metadata mpris:length; playerctl metadata --format '{{playerName}}'"]
         running: false
         stdout: StdioCollector {
             onStreamFinished: {

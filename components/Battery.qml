@@ -35,7 +35,7 @@ Item {
     // Detailed Stats Poller
     Process {
         id: battDetailProc
-        command: ["fish", "-c", "cat /sys/class/power_supply/" + root.battName + "/power_now 2>/dev/null; or echo 0"]
+        command: ["sh", "-c", "cat /sys/class/power_supply/" + root.battName + "/power_now 2>/dev/null || echo 0"]
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
