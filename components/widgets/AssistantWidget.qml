@@ -30,7 +30,6 @@ PanelWindow {
         codexCheck.running = true
         geminiCheck.running = true
         ollamaCheck.running = true
-        ollamaModelListProcess.running = true
     }
 
     WlrLayershell.layer: WlrLayer.Bottom
@@ -213,7 +212,14 @@ PanelWindow {
     Process {
         id: ollamaCheck
         command: ["which", "ollama"]
-        onExited: (exitCode) => assistantWindow.ollamaDetected = (exitCode === 0)
+        onExited: (exitCode) => {
+            assistantWindow.ollamaDetected = (exitCode === 0)
+            // Only spawn `ollama list` (below) once we know the binary exists -
+            // running it unconditionally at startup meant every shell load on a
+            // machine without Ollama installed logged a process-spawn-failure
+            // warning for no reason.
+            if (exitCode === 0) assistantWindow.refreshOllamaModelList()
+        }
     }
 
 
