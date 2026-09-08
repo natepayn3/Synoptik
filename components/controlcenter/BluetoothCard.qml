@@ -77,10 +77,29 @@ Item {
         if (!visible) panelExpanded = false
     }
 
+    // visualBackground's x/y Behavior below should only smooth the deliberate
+    // jump between the collapsed (in-card) and expanded (full-panel) spot on
+    // an open/close tap. The rest of the time collapsedX/collapsedY already
+    // tracks the tile's live on-screen position frame-by-frame - including
+    // while the card is mid-flight settling back into place after a drag -
+    // so leaving that Behavior on unconditionally stacked a second smoothing
+    // pass on top of an already-moving target and made it visibly lag behind
+    // for the whole multi-second settle instead of tracking it instantly.
+    property bool expandTransitioning: false
+
     onPanelExpandedChanged: {
         if (panelExpanded && hasHardware && isPowered) {
             execTriggerScan()
         }
+        expandTransitioning = true
+        expandTransitionResetTimer.restart()
+    }
+
+    Timer {
+        id: expandTransitionResetTimer
+        interval: 260
+        repeat: false
+        onTriggered: cardRoot.expandTransitioning = false
     }
 
     readonly property real collapsedX: {
@@ -125,8 +144,8 @@ Item {
         opacity: cardRoot.hasHardware ? 1.0 : 0.4
         enabled: cardRoot.hasHardware
 
-        Behavior on x { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
-        Behavior on y { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+        Behavior on x { enabled: cardRoot.expandTransitioning; NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
+        Behavior on y { enabled: cardRoot.expandTransitioning; NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
         Behavior on width { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
         Behavior on height { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
         Behavior on opacity { NumberAnimation { duration: 150 } }
