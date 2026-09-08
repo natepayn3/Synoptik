@@ -25,6 +25,28 @@ Item {
         fetchBtStatusProc.running = true
     }
 
+    // Material Symbols has a discrete glyph per battery level rather than one
+    // fillable icon, so map the percentage onto the nearest bar. Mirrors the
+    // levels the desktop battery module already uses.
+    function batteryGlyph(pct) {
+        if (pct < 0) return ""
+        if (pct >= 95) return "battery_full"
+        if (pct >= 85) return "battery_6_bar"
+        if (pct >= 70) return "battery_5_bar"
+        if (pct >= 55) return "battery_4_bar"
+        if (pct >= 40) return "battery_3_bar"
+        if (pct >= 25) return "battery_2_bar"
+        if (pct >= 10) return "battery_1_bar"
+        return "battery_alert"
+    }
+
+    function batteryColor(pct) {
+        if (pct < 0) return Config.textMuted
+        if (pct <= 10) return "#e0564f"
+        if (pct <= 25) return "#e0a24f"
+        return Config.textMuted
+    }
+
     function getDeviceIcon(name) {
         let n = (name || "").toLowerCase()
         if (n.includes("headphone") || n.includes("headset") || n.includes("airpod") || n.includes("wh-") || n.includes("wf-") || n.includes("buds") || n.includes("audio") || n.includes("earphone") || n.includes("pods")) return "headphones"
@@ -255,7 +277,7 @@ Item {
                             TapHandler {
                                 enabled: root.hasAdapter
                                 onTapped: {
-                                    powerBtProc.command = ["fish", "-c", "bluetoothctl power " + (root.isPowered ? "off" : "on")]
+                                    powerBtProc.command = ["sh", "-c", "bluetoothctl power " + (root.isPowered ? "off" : "on")]
                                     powerBtProc.running = true
                                 }
                             }
@@ -318,6 +340,7 @@ Item {
                             required property string name
                             required property bool connected
                             required property bool paired
+                            required property int battery
                             readonly property bool isConnecting: root.connectingMac === mac
 
                             Layout.fillWidth: true
@@ -414,6 +437,37 @@ Item {
                                                 font.pixelSize: 9
                                                 font.bold: true
                                                 color: Config.accent
+                                            }
+                                        }
+
+                                        // BATTERY BADGE - only for a connected device that
+                                        // actually reports a level (parser uses -1 = unknown).
+                                        Rectangle {
+                                            visible: connected && battery >= 0
+                                            implicitWidth: battBadgeRow.implicitWidth + 10
+                                            implicitHeight: 16
+                                            radius: 8
+                                            color: Qt.rgba(255, 255, 255, 0.1)
+
+                                            RowLayout {
+                                                id: battBadgeRow
+                                                anchors.centerIn: parent
+                                                spacing: 2
+
+                                                Text {
+                                                    text: root.batteryGlyph(battery)
+                                                    font.family: "Material Symbols Outlined"
+                                                    font.pixelSize: 11
+                                                    color: root.batteryColor(battery)
+                                                }
+
+                                                Text {
+                                                    text: battery + "%"
+                                                    font.family: Config.sysFont
+                                                    font.pixelSize: 9
+                                                    font.bold: true
+                                                    color: root.batteryColor(battery)
+                                                }
                                             }
                                         }
                                     }
@@ -603,7 +657,7 @@ Item {
 
     Process {
         id: fetchBtStatusProc
-        command: ["fish", "-c", "bluetoothctl show"]
+        command: ["sh", "-c", "bluetoothctl show"]
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
@@ -658,11 +712,24 @@ Item {
                         connectedNames.push(name)
                     }
 
+                    // BlueZ reports battery as `Battery Percentage: 0x50 (80)` on
+                    // the same `bluetoothctl info` output already being parsed here,
+                    // so this costs no extra process. The line is only present while
+                    // the device is connected AND exposes a battery service - most
+                    // headsets and mice do, plain speakers don't - so -1 means
+                    // "unknown" and the UI omits the readout entirely rather than
+                    // showing a misleading 0%.
+                    let battMatch = text.match(/Battery Percentage:\s*0x[0-9a-fA-F]+\s*\((\d+)\)/)
+                        || text.match(/Battery Percentage:\s*(\d+)/)
+                    let battery = battMatch ? parseInt(battMatch[1]) : -1
+                    if (isNaN(battery) || battery < 0 || battery > 100) battery = -1
+
                     newResults.push({
                         mac: mac,
                         name: name,
                         connected: isConn,
-                        paired: text.includes("Paired: yes")
+                        paired: text.includes("Paired: yes"),
+                        battery: battery
                     })
                 }
 
@@ -688,6 +755,7 @@ Item {
                         if (cur.name !== item.name) btModel.setProperty(tIndex, "name", item.name)
                         if (cur.connected !== item.connected) btModel.setProperty(tIndex, "connected", item.connected)
                         if (cur.paired !== item.paired) btModel.setProperty(tIndex, "paired", item.paired)
+                        if (cur.battery !== item.battery) btModel.setProperty(tIndex, "battery", item.battery)
                     } else {
                         toAppend.push(item)
                     }
@@ -711,7 +779,7 @@ Item {
     function triggerScan() {
         if (!root.hasAdapter) return
         root.isScanning = true
-        scanBtProc.command = ["fish", "-c", "bluetoothctl --timeout 5 scan on"]
+        scanBtProc.command = ["sh", "-c", "bluetoothctl --timeout 5 scan on"]
         scanBtProc.running = true
     }
 
@@ -720,7 +788,7 @@ Item {
     function execBtCmd(cmd, mac = "") { 
         if (!root.hasAdapter) return
         root.connectingMac = mac
-        execBtProc.command = ["fish", "-c", cmd]
+        execBtProc.command = ["sh", "-c", cmd]
         execBtProc.running = true 
     }
 }

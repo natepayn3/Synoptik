@@ -38,6 +38,28 @@ Item {
         id: btModel
     }
 
+    // Material Symbols has a discrete glyph per battery level rather than one
+    // fillable icon, so map the percentage onto the nearest bar. Mirrors the
+    // levels the desktop battery module already uses.
+    function batteryGlyph(pct) {
+        if (pct < 0) return ""
+        if (pct >= 95) return "battery_full"
+        if (pct >= 85) return "battery_6_bar"
+        if (pct >= 70) return "battery_5_bar"
+        if (pct >= 55) return "battery_4_bar"
+        if (pct >= 40) return "battery_3_bar"
+        if (pct >= 25) return "battery_2_bar"
+        if (pct >= 10) return "battery_1_bar"
+        return "battery_alert"
+    }
+
+    function batteryColor(pct) {
+        if (pct < 0) return Config.textMuted
+        if (pct <= 10) return "#e0564f"
+        if (pct <= 25) return "#e0a24f"
+        return Config.textMuted
+    }
+
     function getDeviceIcon(name) {
         let n = (name || "").toLowerCase()
         if (n.includes("headset") || n.includes("buds") || n.includes("airpods") || n.includes("wh-") || n.includes("wf-") || n.includes("quietcomfort") || n.includes("bose") || n.includes("sony") || n.includes("audio") || n.includes("ear") || n.includes("freebuds") || n.includes("headphone")) return "headphones"
@@ -543,6 +565,30 @@ Item {
                                             }
                                         }
 
+                                        // Battery readout, shown only for a connected device that
+                                        // actually reports one (see the parser's -1 = unknown).
+                                        RowLayout {
+                                            spacing: 2
+                                            visible: model.connected && model.battery >= 0
+                                            Layout.alignment: Qt.AlignVCenter
+
+                                            Text {
+                                                text: cardRoot.batteryGlyph(model.battery)
+                                                font.family: "Material Symbols Outlined"
+                                                font.pixelSize: Config.size(Config.fontCaption)
+                                                color: cardRoot.batteryColor(model.battery)
+                                                verticalAlignment: Text.AlignVCenter
+                                            }
+
+                                            Text {
+                                                text: model.battery + "%"
+                                                font.family: Config.sysFont
+                                                font.pixelSize: Config.size(Config.fontMicro)
+                                                color: cardRoot.batteryColor(model.battery)
+                                                verticalAlignment: Text.AlignVCenter
+                                            }
+                                        }
+
                                         Text {
                                             text: isExpanded ? "expand_less" : "expand_more"
                                             font.family: "Material Symbols Outlined"
@@ -839,7 +885,7 @@ Item {
     function execTogglePower(turnOn) {
         if (!cardRoot.hasHardware) return
         cardRoot.isPowered = turnOn
-        toggleBtProc.command = ["fish", "-c", `bluetoothctl power ${turnOn ? "on" : "off"}`]
+        toggleBtProc.command = ["sh", "-c", `bluetoothctl power ${turnOn ? "on" : "off"}`]
         toggleBtProc.running = true
     }
 
@@ -871,7 +917,7 @@ Item {
         id: scanBtProc; running: false
         function startScan() {
             cardRoot.isScanning = true
-            command = ["fish", "-c", "bluetoothctl --timeout 6 scan on"]
+            command = ["sh", "-c", "bluetoothctl --timeout 6 scan on"]
             running = true
         }
         onExited: {
@@ -883,7 +929,7 @@ Item {
         id: connectBtProc; running: false
         function connectDevice(mac) {
             cardRoot.connectingMac = mac
-            command = ["fish", "-c", `bluetoothctl connect '${mac}'`]
+            command = ["sh", "-c", `bluetoothctl connect '${mac}'`]
             running = true
         }
         onExited: {
@@ -894,7 +940,7 @@ Item {
     Process {
         id: disconnectBtProc; running: false
         function disconnect(mac) {
-            command = ["fish", "-c", `bluetoothctl disconnect '${mac}'`]
+            command = ["sh", "-c", `bluetoothctl disconnect '${mac}'`]
             running = true
         }
         onExited: fetchBtStatusProc.running = true
@@ -903,7 +949,7 @@ Item {
         id: pairBtProc; running: false
         function pairDevice(mac) {
             cardRoot.connectingMac = mac
-            command = ["fish", "-c", `bluetoothctl pair '${mac}'; bluetoothctl trust '${mac}'; bluetoothctl connect '${mac}'`]
+            command = ["sh", "-c", `bluetoothctl pair '${mac}'; bluetoothctl trust '${mac}'; bluetoothctl connect '${mac}'`]
             running = true
         }
         onExited: {
@@ -915,7 +961,7 @@ Item {
     Process {
         id: removeBtProc; running: false
         function removeDevice(mac) {
-            command = ["fish", "-c", `bluetoothctl disconnect '${mac}'; bluetoothctl untrust '${mac}'; bluetoothctl remove '${mac}'`]
+            command = ["sh", "-c", `bluetoothctl disconnect '${mac}'; bluetoothctl untrust '${mac}'; bluetoothctl remove '${mac}'`]
             running = true
         }
         onExited: fetchBtStatusProc.running = true
@@ -951,11 +997,24 @@ Item {
                         connectedNames.push(name)
                     }
 
+                    // BlueZ reports battery as `Battery Percentage: 0x50 (80)` on
+                    // the same `bluetoothctl info` output already being parsed here,
+                    // so this costs no extra process. The line is only present while
+                    // the device is connected AND exposes a battery service - most
+                    // headsets and mice do, plain speakers don't - so -1 means
+                    // "unknown" and the UI omits the readout entirely rather than
+                    // showing a misleading 0%.
+                    let battMatch = text.match(/Battery Percentage:\s*0x[0-9a-fA-F]+\s*\((\d+)\)/)
+                        || text.match(/Battery Percentage:\s*(\d+)/)
+                    let battery = battMatch ? parseInt(battMatch[1]) : -1
+                    if (isNaN(battery) || battery < 0 || battery > 100) battery = -1
+
                     newResults.push({
                         mac: mac,
                         name: name,
                         connected: isConn,
-                        paired: text.includes("Paired: yes")
+                        paired: text.includes("Paired: yes"),
+                        battery: battery
                     })
                 }
 
@@ -979,6 +1038,7 @@ Item {
                         if (cur.name !== item.name) btModel.setProperty(tIndex, "name", item.name)
                         if (cur.connected !== item.connected) btModel.setProperty(tIndex, "connected", item.connected)
                         if (cur.paired !== item.paired) btModel.setProperty(tIndex, "paired", item.paired)
+                        if (cur.battery !== item.battery) btModel.setProperty(tIndex, "battery", item.battery)
                     } else {
                         toAppend.push(item)
                     }
@@ -997,7 +1057,7 @@ Item {
 
     Process {
         id: fetchBtStatusProc
-        command: ["fish", "-c", "bluetoothctl show"]
+        command: ["sh", "-c", "bluetoothctl show"]
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
