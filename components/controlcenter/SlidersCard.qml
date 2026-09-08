@@ -56,6 +56,26 @@ ClippingRectangle {
     // that race was the cause of the single visible "jump" while dragging.
     property bool isDraggingAppVol: false
 
+    // Chrome/Chromium never report a per-tab title to the audio mixer - every
+    // stream just says "Google Chrome". The shell's always-on playerctl
+    // follower (shell.qml, also used by MediaCard) tracks the title of
+    // whichever tab currently owns the "now playing" session, so a browser
+    // row can borrow that instead of its generic app name. But it's a single
+    // system-wide title with no way to tell which stream it actually belongs
+    // to - so it's only trustworthy when exactly one browser stream is in the
+    // list. With two+ browser rows there's no way to tell them apart, so they
+    // all fall back to the plain "Google Chrome" name instead of all showing
+    // the same wrong/duplicated title.
+    readonly property string liveMediaTitle: (typeof shellRoot !== "undefined" && shellRoot.mediaTitle) ? shellRoot.mediaTitle : ""
+
+    function singleBrowserStream() {
+        let browserCount = 0
+        for (let i = 0; i < appVolumeModel.count; i++) {
+            if (appVolumeModel.get(i).isBrowser) browserCount++
+        }
+        return browserCount === 1
+    }
+
     HoverHandler { id: cardHover }
 
     ColumnLayout {
@@ -663,7 +683,9 @@ ClippingRectangle {
 
                     Text {
                         Layout.preferredWidth: 84
-                        text: model.appName
+                        text: (model.isBrowser && root.liveMediaTitle !== "" && root.singleBrowserStream())
+                            ? root.liveMediaTitle
+                            : model.appName
                         color: Config.textMain
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontMicro)
@@ -804,6 +826,12 @@ ClippingRectangle {
                     // itself, so it's left out of the list.
                     if (!props["application.name"] && name === "quickshell") continue
 
+                    // Chrome/Chromium report a generic name+"Playback" for every
+                    // tab - flagged here so the delegate can swap in the real
+                    // "now playing" title instead (see root.liveMediaTitle).
+                    let binary = props["application.process.binary"] || ""
+                    let isBrowser = /chrome|chromium/i.test(name) || /chrome|chromium/i.test(binary)
+
                     let channels = item.volume ? Object.keys(item.volume) : []
                     let pct = 0
                     if (channels.length > 0) {
@@ -820,7 +848,8 @@ ClippingRectangle {
                         iconName: props["application.icon_name"] || "",
                         volumePct: pct,
                         isMuted: !!item.mute,
-                        isCorked: !!item.corked
+                        isCorked: !!item.corked,
+                        isBrowser: isBrowser
                     })
                 }
                 root.syncAppVolumeModelInPlace(rows)
