@@ -57,7 +57,7 @@ Item {
     property var allReminders: ({})
 
     // Persistence
-    readonly property string storagePath: Quickshell.shellDir.toString().replace(/^file:\/\//, "") + "/reminders.json"
+    readonly property string storagePath: Config.shellDir + "/reminders.json"
 
     function saveReminders() {
         var currentList = []
@@ -74,7 +74,7 @@ Item {
         allReminders = updated
 
         var jsonStr = JSON.stringify(allReminders)
-        saveProcess.command = ["fish", "-c", "printf '%s\\n' '" + jsonStr.replace(/'/g, "'\\''") + "' > " + storagePath]
+        saveProcess.command = ["sh", "-c", "printf '%s\\n' '" + jsonStr.replace(/'/g, "'\\''") + "' > " + storagePath]
         saveProcess.running = true
     }
 

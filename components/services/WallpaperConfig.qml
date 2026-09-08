@@ -32,7 +32,7 @@ QtObject {
     property Process wallhavenSyncProcess: Process {
         id: wallhavenSyncProcess
         command: [
-            Quickshell.env("HOME") + "/.config/quickshell/Synoptik/scripts/wallhaven_sync.sh",
+            (wallpaperRoot.configRef ? wallpaperRoot.configRef.scriptsDir : "") + "/wallhaven_sync.sh",
             wallpaperRoot.wallhavenApiKey || "",
             wallpaperRoot.wallhavenUsername || "",
             Quickshell.env("HOME") + "/Pictures/Wallpapers"

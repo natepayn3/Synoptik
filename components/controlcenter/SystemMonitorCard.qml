@@ -340,12 +340,10 @@ Item {
     // order.
     Process {
         id: diskGpuProc
-        // Quickshell.shellDir isn't reliably a plain filesystem path (see
-        // Config.qml/Calendar.qml's own defensive file:// stripping on it)
-        // - WallpaperConfig.qml's existing script launch uses a hardcoded
-        // $HOME-relative path instead, so this matches that already-proven
-        // pattern rather than risk Process failing to exec a URL string.
-        command: [Quickshell.env("HOME") + "/.config/quickshell/Synoptik/scripts/gpu_stats.sh"]
+        // Config.scriptsDir is shellDir with the file:// prefix already stripped,
+        // so this stays a plain filesystem path Process can exec while still
+        // following the checkout wherever it actually lives.
+        command: [Config.scriptsDir + "/gpu_stats.sh"]
         running: false
         stdout: StdioCollector {
             id: diskGpuCollector
