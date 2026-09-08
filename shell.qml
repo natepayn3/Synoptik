@@ -109,7 +109,7 @@ ShellRoot {
     // --- 1. BATTERY TELEMETRY (FileView on sysfs) ---
     Process {
         id: battDetectProc
-        command: ["fish", "-c", "if test -d /sys/class/power_supply/BAT0; echo BAT0; else if test -d /sys/class/power_supply/BAT1; echo BAT1; end"]
+        command: ["sh", "-c", "if [ -d /sys/class/power_supply/BAT0 ]; then echo BAT0; elif [ -d /sys/class/power_supply/BAT1 ]; then echo BAT1; fi"]
         running: true
         stdout: StdioCollector {
             onStreamFinished: {
@@ -325,7 +325,17 @@ ShellRoot {
         }
     }
 
-    // Fallback sync check (relaxed to 60s since monitors handle real-time events)
+    // Fallback sync check (relaxed to 60s since monitors handle real-time events).
+    //
+    // Everything restarted here is a one-shot that has already exited by the time
+    // the timer fires, so the false -> true flip is safe. mediaFollowerProc is
+    // deliberately NOT in this list: it's a long-lived `playerctl --follow` stream
+    // that is always running, so flipping it here hit exactly the same-tick restart
+    // CavaService.qml:launchCava() documents as broken (the old process needs real
+    // wall-clock time to die). It also had nothing to re-sync - --follow is already
+    // event-driven - so all the restart did was tear down a healthy stream every
+    // minute and blank the media card until the next MPRIS event, which for a
+    // paused player may never arrive.
     Timer {
         interval: 60000
         running: true
@@ -335,7 +345,6 @@ ShellRoot {
             btStateProc.running = false; btStateProc.running = true
             vpnStateProc.running = false; vpnStateProc.running = true
             recordStatusProc.running = false; recordStatusProc.running = true
-            mediaFollowerProc.running = false; mediaFollowerProc.running = true
             if (shellRoot.hasBattery) { battCapacityReader.reload(); battStatusReader.reload() }
         }
     }
@@ -362,105 +371,44 @@ ShellRoot {
     }
 
     // --- SCREEN-AWARE IPC HANDLERS ---
+    // Each panel verb is a one-liner over Config.togglePanel(), which closes
+    // every other panel via the single flag table in Config.qml. These used to
+    // be ten hand-maintained close lists - see the comment on Config.panelFlagByView
+    // for the bug that drift caused.
     IpcHandler {
         target: "power"
-        function toggle(): void {
-            if (!shellRoot.isFocusedBarEnabled) return;
-            if (!Config.showPower) {
-                Config.showSettings = false; Config.showWallpaper = false; Config.showAppLauncher = false;
-                Config.showLauncherOsd = false;
-                Config.showCalendar = false; Config.showBattery = false;
-                Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
-                Config.showClipboard = false; Config.showMirror = false;
-            }
-            Config.showPower = !Config.showPower
-        }
+        function toggle(): void { if (shellRoot.isFocusedBarEnabled) Config.togglePanel("power") }
     }
 
     IpcHandler {
         target: "launcher"
-        function toggle(): void {
-            if (!shellRoot.isFocusedBarEnabled) return;
-            if (!Config.showAppLauncher) {
-                Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
-                Config.showLauncherOsd = false;
-                Config.showCalendar = false; Config.showBattery = false;
-                Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
-                Config.showClipboard = false; Config.showMirror = false;
-            }
-            Config.showAppLauncher = !Config.showAppLauncher
-        }
+        function toggle(): void { if (shellRoot.isFocusedBarEnabled) Config.togglePanel("appLauncher") }
     }
 
     IpcHandler {
         target: "launcherosd"
-        function toggle(): void {
-            if (!shellRoot.isFocusedBarEnabled) return;
-            if (!Config.showLauncherOsd) {
-                Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
-                Config.showAppLauncher = false;
-                Config.showCalendar = false; Config.showBattery = false;
-                Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
-                Config.showClipboard = false; Config.showMirror = false;
-            }
-            Config.showLauncherOsd = !Config.showLauncherOsd
-        }
+        function toggle(): void { if (shellRoot.isFocusedBarEnabled) Config.togglePanel("launcherOsd") }
         function open(): void {
-            if (!shellRoot.isFocusedBarEnabled) return;
-            Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
-            Config.showAppLauncher = false;
-            Config.showCalendar = false; Config.showBattery = false;
-            Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
-            Config.showClipboard = false; Config.showMirror = false;
+            if (!shellRoot.isFocusedBarEnabled) return
+            Config.closePanels("launcherOsd")
             Config.showLauncherOsd = true
         }
-        function hide(): void {
-            Config.showLauncherOsd = false
-        }
+        function hide(): void { Config.showLauncherOsd = false }
     }
 
     IpcHandler {
         target: "wallpaper"
-        function toggle(): void {
-            if (!shellRoot.isFocusedBarEnabled) return;
-            if (!Config.showWallpaper) {
-                Config.showPower = false; Config.showSettings = false; Config.showAppLauncher = false;
-                Config.showLauncherOsd = false;
-                Config.showCalendar = false; Config.showBattery = false;
-                Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
-                Config.showClipboard = false; Config.showMirror = false;
-            }
-            Config.showWallpaper = !Config.showWallpaper
-        }
+        function toggle(): void { if (shellRoot.isFocusedBarEnabled) Config.togglePanel("wallpaper") }
     }
 
     IpcHandler {
         target: "workspaceoverview"
-        function toggle(): void {
-            if (!shellRoot.isFocusedBarEnabled) return;
-            if (!Config.showWorkspacePreview) {
-                Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
-                Config.showAppLauncher = false; Config.showLauncherOsd = false; Config.showCalendar = false;
-                Config.showBattery = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
-                Config.showClipboard = false; Config.showMirror = false;
-            }
-            Config.showWorkspacePreview = !Config.showWorkspacePreview
-        }
+        function toggle(): void { if (shellRoot.isFocusedBarEnabled) Config.togglePanel("workspacePreview") }
     }
 
     IpcHandler {
         target: "settings"
-        function toggle(): void {
-            if (!shellRoot.isFocusedBarEnabled) return;
-            if (!Config.showSettings) {
-                Config.showPower = false; Config.showWallpaper = false; Config.showAppLauncher = false;
-                Config.showLauncherOsd = false;
-                Config.showCalendar = false; Config.showBattery = false;
-                Config.showWorkspacePreview = false; Config.showControlCenter = false; Config.showScreenRecorder = false;
-                Config.showClipboard = false; Config.showMirror = false;
-            }
-            Config.showSettings = !Config.showSettings
-        }
+        function toggle(): void { if (shellRoot.isFocusedBarEnabled) Config.togglePanel("settings") }
     }
 
     IpcHandler {
@@ -472,44 +420,37 @@ ShellRoot {
 
     IpcHandler {
         target: "clipboard"
-        function toggle(): void {
-            if (!shellRoot.isFocusedBarEnabled) return;
-            if (!Config.showClipboard) {
-                Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
-                Config.showAppLauncher = false; Config.showLauncherOsd = false; Config.showCalendar = false;
-                Config.showBattery = false; Config.showWorkspacePreview = false; Config.showControlCenter = false;
-                Config.showScreenRecorder = false; Config.showMirror = false;
-            }
-            Config.showClipboard = !Config.showClipboard
-        }
+        function toggle(): void { if (shellRoot.isFocusedBarEnabled) Config.togglePanel("clipboard") }
     }
 
     IpcHandler {
         target: "recorder"
-        function toggle(): void {
-            if (!shellRoot.isFocusedBarEnabled) return;
-            if (!Config.showScreenRecorder) {
-                Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
-                Config.showAppLauncher = false; Config.showLauncherOsd = false; Config.showCalendar = false;
-                Config.showBattery = false; Config.showWorkspacePreview = false; Config.showControlCenter = false;
-                Config.showClipboard = false; Config.showMirror = false;
-            }
-            Config.showScreenRecorder = !Config.showScreenRecorder
-        }
+        function toggle(): void { if (shellRoot.isFocusedBarEnabled) Config.togglePanel("screenRecorder") }
     }
 
     IpcHandler {
         target: "mirror"
-        function toggle(): void {
-            if (!shellRoot.isFocusedBarEnabled) return;
-            if (!Config.showMirror) {
-                Config.showPower = false; Config.showSettings = false; Config.showWallpaper = false;
-                Config.showAppLauncher = false; Config.showLauncherOsd = false; Config.showCalendar = false;
-                Config.showBattery = false; Config.showWorkspacePreview = false; Config.showControlCenter = false;
-                Config.showClipboard = false; Config.showScreenRecorder = false;
-            }
-            Config.showMirror = !Config.showMirror
-        }
+        function toggle(): void { if (shellRoot.isFocusedBarEnabled) Config.togglePanel("mirror") }
+    }
+
+    // Closes whatever drawer panel is open, whatever it is - the IPC twin of
+    // the Escape key handler on the drawer Loader below.
+    IpcHandler {
+        target: "panel"
+        function close(): void { Config.closeAllPanels() }
+    }
+
+    // Profiles are named snapshots of the whole settings file, so exposing them
+    // over IPC means a Hyprland keybind (or a laptop-dock script) can switch the
+    // entire shell layout in one call - which is the desktop-vs-laptop case these
+    // exist for in the first place.
+    IpcHandler {
+        target: "profile"
+        function save(name: string): void { Config.saveProfile(name) }
+        function load(name: string): void { Config.loadProfile(name) }
+        function remove(name: string): void { Config.deleteProfile(name) }
+        function list(): string { return (Config.profileNames || []).join("\n") }
+        function active(): string { return Config.activeProfile }
     }
 
     IpcHandler {
@@ -588,6 +529,18 @@ ShellRoot {
                     }
                 }
 
+                // One Escape handler for every drawer panel. AppLauncher and
+                // Wallpaper handled their own; Power, Clipboard, ControlCenter,
+                // Settings, Network and Audio declared no Keys handler at all, so
+                // Escape did nothing in half the shell depending on which panel
+                // you happened to open. Focus already lands here (focus: true
+                // above), and this fires only for panels that don't accept the
+                // key themselves, so the launcher's own handler still wins.
+                Keys.onEscapePressed: event => {
+                    Config.closeAllPanels()
+                    event.accepted = true
+                }
+
                 sourceComponent: {
                     switch (mainSurface.activeView) {
                         case "workspacePreview": return workspacePreviewComp;
@@ -597,7 +550,6 @@ ShellRoot {
                         case "calendar": return calendarComp;
                         case "audio": return audioComp;
                         case "network": return networkComp;
-                        case "systemMonitor": return systemMonitorComp;
                         case "battery": return batteryComp;
                         case "clipboard": return clipboardComp;
                         case "screenRecorder": return screenRecorderComp;

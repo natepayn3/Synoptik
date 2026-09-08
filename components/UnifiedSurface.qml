@@ -639,7 +639,6 @@ PanelWindow {
             else if (Config.showCalendar) nextView = "calendar"
             else if (Config.showAudio) nextView = "audio"
             else if (Config.showNetwork) nextView = "network"
-            else if (Config.showSystemMonitor) nextView = "systemMonitor"
             else if (Config.showBattery) nextView = "battery"
             else if (Config.showClipboard) nextView = "clipboard"
             else if (Config.showScreenRecorder) nextView = "screenRecorder"
@@ -670,30 +669,11 @@ PanelWindow {
         }
     }
 
+    // Thin adapter over Config.closePanels() - the flag table lives there so
+    // shell.qml's IpcHandlers arbitrate identically instead of each carrying
+    // their own (drifted) copy of this list. "none" closes everything.
     function closeOthers(except) {
-        let isOsdTrigger = (except === "osd" || except === "notifOsd")
-
-        if (except !== "osd" && typeof Config.showOSD !== "undefined") Config.showOSD = false
-        if (except !== "notifOsd" && typeof Config.showNotificationOsd !== "undefined") Config.showNotificationOsd = false
-
-        if (!isOsdTrigger) {
-            if (except !== "workspacePreview") Config.showWorkspacePreview = false
-            if (except !== "power") Config.showPower = false
-            if (except !== "wallpaper") Config.showWallpaper = false
-            if (except !== "appLauncher") Config.showAppLauncher = false
-            if (except !== "launcherOsd") Config.showLauncherOsd = false
-            if (except !== "calendar") Config.showCalendar = false
-            if (except !== "audio") Config.showAudio = false
-            if (except !== "network") Config.showNetwork = false
-            if (except !== "systemMonitor") Config.showSystemMonitor = false
-            if (except !== "battery") Config.showBattery = false
-            if (except !== "clipboard") Config.showClipboard = false
-            if (except !== "screenRecorder") Config.showScreenRecorder = false
-            if (except !== "mirror" && !Config.mirrorPinned) Config.showMirror = false
-            if (except !== "controlCenter") Config.showControlCenter = false
-            if (except !== "settings") Config.showSettings = false
-            if (except !== "taskOverflow" && typeof Config.showTaskOverflow !== "undefined") Config.showTaskOverflow = false
-        }
+        Config.closePanels(except === "none" ? "" : except)
     }
 
     Connections {
