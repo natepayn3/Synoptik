@@ -155,7 +155,6 @@ Rectangle {
                 "network",
                 "clipboard",
                 "wallpaper",
-                "launcher",
                 "audio",
                 "settings",
                 "screenshot"
@@ -191,7 +190,6 @@ Rectangle {
                         case "network": return networkComp
                         case "clipboard": return clipComp
                         case "wallpaper": return wallpaperComp
-                        case "launcher": return launcherComp
                         case "audio": return audioComp
                         case "settings": return settingsComp
                         case "screenshot": return screenshotComp
@@ -666,76 +664,6 @@ Rectangle {
                 cursorShape: Qt.PointingHandCursor 
                 onHoveredChanged: {
                     if (hovered && rootRef && rootRef.startPeek) rootRef.startPeek(btnSettings)
-                    else if (!hovered && rootRef && rootRef.stopPeek) rootRef.stopPeek()
-                }
-            }
-        }
-    }
-
-    Component {
-        id: launcherComp
-        Rectangle {
-            id: btnLauncher
-            implicitWidth: 32
-            implicitHeight: 32
-            radius: 10
-            color: Config.showAppLauncher ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-
-            Behavior on color { ColorAnimation { duration: 150 } }
-
-            Item {
-                anchors.centerIn: parent
-                implicitWidth: launcherIconText.implicitWidth
-                implicitHeight: launcherIconText.implicitHeight
-                scale: launcherHover.hovered ? 1.25 : 1.0
-
-                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
-
-                Glow {
-                    anchors.fill: launcherIconText
-                    source: launcherIconText
-                    radius: launcherHover.hovered ? 8 : 0
-                    samples: 16
-                    color: Config.accent
-                    spread: 0.2
-                    transparentBorder: true
-                    visible: launcherHover.hovered
-
-                    Behavior on radius { NumberAnimation { duration: 180 } }
-                }
-
-                Text {
-                    id: launcherIconText
-                    anchors.centerIn: parent
-                    text: Config.getIcon("launcher")
-                    color: (Config.showAppLauncher || launcherHover.hovered) ? Config.accent : Config.textMain
-                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
-
-                    Behavior on color { ColorAnimation { duration: 150 } }
-                }
-            }
-
-            Rectangle {
-                anchors.top: parent.top; anchors.right: parent.right
-                anchors.topMargin: 2; anchors.rightMargin: 2
-                width: 5; height: 5; radius: 2.5
-                color: Config.accent
-                visible: !Config.leftCardCollapsed && Config.isPinned("launcher")
-            }
-
-            TapHandler { 
-                onTapped: { 
-                    if (rootRef && rootRef.stopPeek) rootRef.stopPeek()
-                    popoutRequested(btnLauncher)
-                    Config.showAppLauncher = !Config.showAppLauncher 
-                } 
-            }
-            TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("launcher") }
-            HoverHandler { 
-                id: launcherHover
-                cursorShape: Qt.PointingHandCursor 
-                onHoveredChanged: {
-                    if (hovered && rootRef && rootRef.startPeek) rootRef.startPeek(btnLauncher)
                     else if (!hovered && rootRef && rootRef.stopPeek) rootRef.stopPeek()
                 }
             }

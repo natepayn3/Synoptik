@@ -97,7 +97,6 @@ QtObject {
     property bool showSettings: false
     property bool showCalendar: false
     property bool showWallpaper: false
-    property bool showAppLauncher: false
     property bool showLauncherOsd: false
     property bool showNetwork: false
     property bool showAudio: false
@@ -132,7 +131,6 @@ QtObject {
         "workspacePreview": "showWorkspacePreview",
         "power":            "showPower",
         "wallpaper":        "showWallpaper",
-        "appLauncher":      "showAppLauncher",
         "launcherOsd":      "showLauncherOsd",
         "calendar":         "showCalendar",
         "audio":            "showAudio",
@@ -791,7 +789,7 @@ QtObject {
             : ""
 
         let bindLines = []
-        let bindKeys = ["wallpaper", "launcher", "launcherosd", "settings", "workspaceoverview", "clipboard", "lockscreen", "shader"]
+        let bindKeys = ["wallpaper", "launcherosd", "settings", "workspaceoverview", "clipboard", "lockscreen", "shader"]
         bindKeys.forEach(bk => {
             let b = (root.keybinds && root.keybinds[bk]) ? root.keybinds[bk] : root.defaultKeybinds[bk]
             if (b) {
@@ -1173,6 +1171,13 @@ QtObject {
                             cmd = cmd.replace(/ipc call lockscreen (unlock|toggle)\b/, "ipc call lockscreen lock")
                         }
 
+                        // AppLauncher merged into LauncherOSD and its bar icon/
+                        // keybind were retired outright (LauncherOSD is reachable
+                        // from the search icon instead) - drop a leftover
+                        // "launcher" bind from a settings.json saved before that
+                        // rather than resurrect it pointing at anything.
+                        if (k === "launcher") return
+
                         cleaned[k] = {
                             mod: (item.mod || "SUPER").replace(/mainMod/g, "SUPER").replace(/\.\./g, "").replace(/["']/g, "").trim(),
                             key: item.key || "",
@@ -1182,7 +1187,7 @@ QtObject {
                     root.keybinds = cleaned
                 }
 
-                let defaultLeft = ["power", "recorder", "mirror", "screenshot", "wallpaper", "settings", "launcher", "audio", "batt", "network", "clipboard"]
+                let defaultLeft = ["power", "recorder", "mirror", "screenshot", "wallpaper", "settings", "audio", "batt", "network", "clipboard"]
                 let currentLeft = Array.isArray(root.leftCardOrder) ? root.leftCardOrder.slice() : []
                 defaultLeft.forEach(mod => {
                     if (!currentLeft.includes(mod)) currentLeft.push(mod)

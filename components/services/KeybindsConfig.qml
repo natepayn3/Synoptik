@@ -6,7 +6,6 @@ QtObject {
     // --- SHELL KEYBIND CUSTOMIZATION (SUPER EXCLUSIVE) ---
     readonly property var defaultKeybinds: ({
         "wallpaper":         { mod: "SUPER",         key: "B",     cmd: "qs -c Synoptik ipc call wallpaper toggle" },
-        "launcher":          { mod: "SUPER",         key: "A",     cmd: "qs -c Synoptik ipc call launcher toggle" },
         "launcherosd":       { mod: "SUPER",         key: "F",     cmd: "qs -c Synoptik ipc call launcherosd toggle" },
         "settings":          { mod: "SUPER",         key: "Space", cmd: "qs -c Synoptik ipc call settings toggle" },
         "workspaceoverview": { mod: "SUPER",         key: "TAB",   cmd: "qs -c Synoptik ipc call workspaceoverview toggle" },

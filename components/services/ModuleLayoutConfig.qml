@@ -13,7 +13,6 @@ QtObject {
         "screenshot": "crop",
         "wallpaper": "wall_art",
         "settings": "build",
-        "launcher": "terminal_2",
         "audio": "ear_sound",
         "sys": "neurology",
         "batt": "battery_android_frame_full",
@@ -72,7 +71,7 @@ QtObject {
     onRightCardCollapsedChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
 
     // --- DYNAMIC MODULE ORDERING ---
-    property var leftCardOrder: ["power", "settings", "wallpaper", "launcher", "recorder", "mirror", "audio", "batt", "network", "clipboard", "screenshot"]
+    property var leftCardOrder: ["power", "settings", "wallpaper", "recorder", "mirror", "audio", "batt", "network", "clipboard", "screenshot"]
     property var rightCardOrder: ["clock", "cc"]
 
     function moveModule(cardKey, iconId, direction) {

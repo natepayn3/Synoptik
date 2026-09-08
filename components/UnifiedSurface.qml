@@ -553,15 +553,19 @@ PanelWindow {
     property string activeView: "none"
 
     function refreshPopoutPos() {
-        // Closing (activeView "none") intentionally leaves isCentered untouched so the
-        // shrink-away animation keeps collapsing toward whatever anchor it opened from
-        // (center for the launcher OSD, the origin button for everything else) instead
-        // of snapping to a stale popoutXOffset mid-close.
+        // Closing (activeView "none") intentionally leaves isCentered/popoutOffset
+        // untouched so the shrink-away animation keeps collapsing toward whatever
+        // anchor it opened from instead of snapping to a stale value mid-close.
         if (activeView === "none" || activeView === "workspacePreview") return
 
-        // 0. Command Launcher OSD: always centered under the bar
+        // 0. Command Launcher OSD: anchor to its search bar icon (RightModules),
+        // same as every other panel - it used to always center under the bar
+        // instead, which looked disconnected from its trigger icon in bar
+        // layouts where that icon isn't itself centered.
         if (activeView === "launcherOsd") {
-            root.isCentered = true
+            root.isCentered = false
+            let btn = rightCard ? (rightCard.getButton("search") || rightCard) : null
+            if (btn) setPopoutPos(btn)
             return
         }
 
@@ -590,7 +594,6 @@ PanelWindow {
         switch (activeView) {
             // Left Card Modules
             case "settings":       btn = leftCard ? (leftCard.getButton("settings") || leftCard) : null; break
-            case "appLauncher":    btn = leftCard ? (leftCard.getButton("launcher") || leftCard) : null; break
             case "power":          btn = leftCard ? (leftCard.getButton("power") || leftCard) : null; break
             case "wallpaper":      btn = leftCard ? (leftCard.getButton("wallpaper") || leftCard) : null; break
             case "screenRecorder": btn = leftCard ? (leftCard.getButton("recorder") || leftCard) : null; break
@@ -635,7 +638,6 @@ PanelWindow {
             else if (Config.showWorkspacePreview) nextView = "workspacePreview"
             else if (Config.showPower) nextView = "power"
             else if (Config.showWallpaper) nextView = "wallpaper"
-            else if (Config.showAppLauncher) nextView = "appLauncher"
             else if (Config.showCalendar) nextView = "calendar"
             else if (Config.showAudio) nextView = "audio"
             else if (Config.showNetwork) nextView = "network"
@@ -731,8 +733,7 @@ PanelWindow {
             }
             updateActiveView()
         }
-        function onShowAppLauncherChanged() { if (Config.showAppLauncher) { closeOthers("appLauncher"); let btn = leftCard ? leftCard.getButton("launcher") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
-        function onShowLauncherOsdChanged() { if (Config.showLauncherOsd) { closeOthers("launcherOsd") } updateActiveView() }
+        function onShowLauncherOsdChanged() { if (Config.showLauncherOsd) { closeOthers("launcherOsd"); let btn = rightCard ? rightCard.getButton("search") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowPowerChanged() { if (Config.showPower) { closeOthers("power"); let btn = leftCard ? leftCard.getButton("power") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowWallpaperChanged() { if (Config.showWallpaper) { closeOthers("wallpaper"); let btn = leftCard ? leftCard.getButton("wallpaper") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowCalendarChanged() { if (Config.showCalendar) { closeOthers("calendar"); let btn = rightCard ? rightCard.getButton("clock") : null; if (btn) setPopoutPos(btn); } updateActiveView() }

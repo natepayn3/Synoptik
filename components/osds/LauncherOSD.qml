@@ -20,6 +20,63 @@ Item {
     property string searchMode: "apps"
     property string queryText: ""
     property var filteredApps: []
+    // "Browse apps" toggle - AppLauncher.qml's whole reason to exist was
+    // showing the full app list with an empty query; this reuses the exact
+    // same result rows/filtering instead of a second list implementation.
+    property bool browsingAllApps: false
+
+    // --- APP PINS (ported from AppLauncher.qml, same cache file so existing
+    // pins carry over) ---
+    property string pinFilePath: ""
+    property var localPins: []
+
+    Process {
+        id: initPinFile
+        command: ["sh", "-c", "[ -f ~/.cache/quickshell_launcher_pins.json ] || echo '{\"pins\":[]}' > ~/.cache/quickshell_launcher_pins.json"]
+        running: true
+        onExited: osdRoot.pinFilePath = Quickshell.env("HOME") + "/.cache/quickshell_launcher_pins.json"
+    }
+
+    FileView {
+        id: pinCacheReader
+        path: osdRoot.pinFilePath
+        onTextChanged: {
+            let cleanText = text().trim();
+            if (!cleanText || cleanText === "[]") return;
+            try {
+                let parsed = JSON.parse(cleanText);
+                if (parsed && parsed.pins) {
+                    osdRoot.localPins = parsed.pins;
+                    if (osdRoot.searchMode === "apps") osdRoot.updateModel();
+                }
+            } catch(e) {}
+        }
+    }
+
+    function isAppPinned(app) {
+        if (!app) return false;
+        let pins = osdRoot.localPins;
+        if (!pins || pins.length === 0) return false;
+        let appId = app.id || "";
+        return pins.includes(appId) || pins.some(p => p.endsWith("/" + appId + ".desktop") || p === appId);
+    }
+
+    function togglePin(app) {
+        if (!app || !app.id) return;
+        let appId = app.id;
+        let currentPins = osdRoot.localPins.slice();
+        let idx = currentPins.findIndex(p => p === appId || p.endsWith("/" + appId + ".desktop"));
+        if (idx !== -1) {
+            currentPins.splice(idx, 1);
+        } else {
+            currentPins.push(appId);
+        }
+        osdRoot.localPins = currentPins;
+        osdRoot.updateModel();
+
+        let jsonStr = JSON.stringify({ "pins": currentPins });
+        Quickshell.execDetached(["sh", "-c", "echo '" + jsonStr.replace(/'/g, "'\\''") + "' > ~/.cache/quickshell_launcher_pins.json"]);
+    }
     property var filteredFiles: []
     property var filteredCommands: []
 
@@ -61,14 +118,13 @@ Item {
     readonly property int maxVisibleRows: 5
     readonly property real resultsAreaHeight: {
         if (searchMode === "calc") return 68
-        if (searchInput.text === "" || currentResults.length === 0) return 52
+        if ((searchInput.text === "" && !browsingAllApps) || currentResults.length === 0) return 52
         return Math.min(currentResults.length, maxVisibleRows) * resultRowHeight + 16
     }
 
     // --- STATIC IPC COMMAND REGISTRY ---
     // Mirrors the IpcHandler targets/functions registered in shell.qml + Config.qml
     readonly property var ipcCommands: [
-        { target: "launcher",          fn: "toggle",     name: "App Launcher",      icon: "terminal_2" },
         { target: "settings",          fn: "toggle",     name: "Settings",          icon: "build" },
         { target: "wallpaper",         fn: "toggle",     name: "Wallpaper Picker",  icon: "wall_art" },
         { target: "workspaceoverview", fn: "toggle",     name: "Workspace Overview", icon: "select_window_2" },
@@ -78,7 +134,6 @@ Item {
         { target: "mirror",            fn: "toggle",     name: "Camera Mirror",     icon: "photo_camera" },
         { target: "satty",             fn: "screenshot", name: "Take Screenshot (Satty)",   icon: "crop" },
         { target: "lockscreen",        fn: "lock",       name: "Lock Session",              icon: "lock" },
-        { target: "lockscreen",        fn: "unlock",     name: "Unlock Session",            icon: "lock_open" },
         { target: "screensaver",       fn: "start",      name: "Start Screensaver",         icon: "hourglass_empty" },
         { target: "screensaver",       fn: "stop",       name: "Stop Screensaver",          icon: "hourglass_disabled" },
         { target: "shader",            fn: "toggle",     name: "Retro Shader",              icon: "videogame_asset" }
@@ -281,7 +336,7 @@ print(json.dumps(results))
             osdRoot.searchMode = "apps";
             let query = raw.trim().toLowerCase();
 
-            if (query === "") {
+            if (query === "" && !osdRoot.browsingAllApps) {
                 osdRoot.filteredApps = [];
             } else {
                 let rawApps = DesktopEntries.applications ? DesktopEntries.applications.values : [];
@@ -291,19 +346,25 @@ print(json.dumps(results))
                     let app = rawApps[i];
                     if (app.noDisplay) continue;
 
-                    let nameMatch = app.name && app.name.toLowerCase().includes(query);
-                    let genMatch = app.genericName && app.genericName.toLowerCase().includes(query);
-                    let descMatch = app.comment && app.comment.toLowerCase().includes(query);
-                    let catMatch = app.categories && app.categories.some(c => c.toLowerCase().includes(query));
-                    let kwMatch = app.keywords && app.keywords.some(k => k.toLowerCase().includes(query));
+                    if (query !== "") {
+                        let nameMatch = app.name && app.name.toLowerCase().includes(query);
+                        let genMatch = app.genericName && app.genericName.toLowerCase().includes(query);
+                        let descMatch = app.comment && app.comment.toLowerCase().includes(query);
+                        let catMatch = app.categories && app.categories.some(c => c.toLowerCase().includes(query));
+                        let kwMatch = app.keywords && app.keywords.some(k => k.toLowerCase().includes(query));
 
-                    if (!nameMatch && !genMatch && !descMatch && !catMatch && !kwMatch) continue;
+                        if (!nameMatch && !genMatch && !descMatch && !catMatch && !kwMatch) continue;
+                    }
 
                     apps.push(app);
                 }
 
-                apps.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-                osdRoot.filteredApps = apps;
+                // Pinned apps float to the top, same as AppLauncher.qml used to.
+                let pinned = apps.filter(a => osdRoot.isAppPinned(a));
+                let unpinned = apps.filter(a => !osdRoot.isAppPinned(a));
+                pinned.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+                unpinned.sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+                osdRoot.filteredApps = pinned.concat(unpinned);
             }
         }
 
@@ -323,8 +384,10 @@ print(json.dumps(results))
         target: Config
         function onShowLauncherOsdChanged() {
             if (Config.showLauncherOsd) {
+                osdRoot.browsingAllApps = false;
                 searchInput.text = "";
                 searchInput.forceActiveFocus();
+                pinCacheReader.reload();
                 osdRoot.updateModel();
             }
         }
@@ -500,6 +563,56 @@ print(json.dumps(results))
                             font.letterSpacing: 0.6
                         }
                     }
+
+                    // Browse-all-apps toggle - the whole reason AppLauncher.qml
+                    // used to exist separately was showing every installed app
+                    // with an empty query; this just flips the same result list
+                    // below into showing everything instead of building a
+                    // second app-list UI.
+                    Rectangle {
+                        visible: osdRoot.searchMode === "apps"
+                        Layout.alignment: Qt.AlignVCenter
+                        implicitWidth: browseRow.implicitWidth + 20
+                        implicitHeight: 26
+                        radius: 13
+                        color: osdRoot.browsingAllApps
+                            ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.22)
+                            : (browseHover.hovered ? Qt.rgba(255, 255, 255, 0.1) : Qt.rgba(255, 255, 255, 0.05))
+                        border.width: 1
+                        border.color: osdRoot.browsingAllApps ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.45) : Qt.rgba(255, 255, 255, 0.1)
+
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        RowLayout {
+                            id: browseRow
+                            anchors.centerIn: parent
+                            spacing: 4
+
+                            Text {
+                                text: osdRoot.browsingAllApps ? "close" : "apps"
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 14
+                                color: osdRoot.browsingAllApps ? Config.accent : Config.textMuted
+                            }
+
+                            Text {
+                                text: osdRoot.browsingAllApps ? "Hide apps" : "Browse apps"
+                                color: osdRoot.browsingAllApps ? Config.accent : Config.textMuted
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontMicro)
+                                font.bold: true
+                            }
+                        }
+
+                        TapHandler {
+                            onTapped: {
+                                osdRoot.browsingAllApps = !osdRoot.browsingAllApps
+                                osdRoot.updateModel()
+                                searchInput.forceActiveFocus()
+                            }
+                        }
+                        HoverHandler { id: browseHover; cursorShape: Qt.PointingHandCursor }
+                    }
                 }
 
                 // Divider between the search row and the results
@@ -558,7 +671,7 @@ print(json.dumps(results))
                     // Empty-state clues — a single slim row, shown until the user types anything
                     RowLayout {
                         anchors.centerIn: parent
-                        visible: searchInput.text === "" && osdRoot.searchMode !== "calc"
+                        visible: searchInput.text === "" && !osdRoot.browsingAllApps && osdRoot.searchMode !== "calc"
                         spacing: 22
 
                         Repeater {
@@ -589,10 +702,10 @@ print(json.dumps(results))
 
                     Text {
                         anchors.centerIn: parent
-                        visible: searchInput.text !== "" && osdRoot.currentResults.length === 0 && osdRoot.searchMode !== "calc"
+                        visible: (searchInput.text !== "" || osdRoot.browsingAllApps) && osdRoot.currentResults.length === 0 && osdRoot.searchMode !== "calc"
                         text: osdRoot.searchMode === "files" && osdRoot.queryText.trim() === ""
                             ? "Type to search files..."
-                            : "No results"
+                            : (osdRoot.browsingAllApps ? "No apps found" : "No results")
                         color: Config.textMuted
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontCaption)
@@ -604,7 +717,7 @@ print(json.dumps(results))
                         anchors.fill: parent
                         anchors.margins: 8
                         clip: true
-                        visible: searchInput.text !== "" && osdRoot.currentResults.length > 0
+                        visible: (searchInput.text !== "" || osdRoot.browsingAllApps) && osdRoot.currentResults.length > 0
                         spacing: 2
                         keyNavigationEnabled: false
                         boundsBehavior: Flickable.StopAtBounds
@@ -620,6 +733,7 @@ print(json.dumps(results))
                                 : (itemHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : "transparent")
 
                             property var resultItem: modelData
+                            property bool isPinned: osdRoot.searchMode === "apps" && osdRoot.isAppPinned(modelData)
 
                             Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -665,6 +779,7 @@ print(json.dumps(results))
                                         text: osdRoot.resultTitle(modelData)
                                         font.family: Config.sysFont
                                         font.pixelSize: Config.size(Config.fontBody)
+                                        font.bold: resultDelegate.isPinned
                                         color: Config.textMain
                                         Layout.fillWidth: true
                                         elide: Text.ElideRight
@@ -679,11 +794,21 @@ print(json.dumps(results))
                                         elide: Text.ElideRight
                                     }
                                 }
+
+                                Text {
+                                    text: "keep"
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 18
+                                    color: Config.accent
+                                    visible: resultDelegate.isPinned
+                                    Layout.alignment: Qt.AlignVCenter
+                                }
                             }
 
                             MouseArea {
                                 id: itemHover
                                 anchors.fill: parent
+                                acceptedButtons: Qt.LeftButton | Qt.RightButton
                                 cursorShape: Qt.PointingHandCursor
                                 hoverEnabled: true
 
@@ -709,7 +834,13 @@ print(json.dumps(results))
                                     lastScreenY = -1;
                                 }
 
-                                onClicked: osdRoot.activateResult(resultDelegate.resultItem)
+                                onClicked: (mouse) => {
+                                    if (mouse.button === Qt.RightButton && osdRoot.searchMode === "apps") {
+                                        osdRoot.togglePin(resultDelegate.resultItem);
+                                    } else {
+                                        osdRoot.activateResult(resultDelegate.resultItem);
+                                    }
+                                }
                             }
                         }
 

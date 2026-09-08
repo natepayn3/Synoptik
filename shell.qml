@@ -381,11 +381,6 @@ ShellRoot {
     }
 
     IpcHandler {
-        target: "launcher"
-        function toggle(): void { if (shellRoot.isFocusedBarEnabled) Config.togglePanel("appLauncher") }
-    }
-
-    IpcHandler {
         target: "launcherosd"
         function toggle(): void { if (shellRoot.isFocusedBarEnabled) Config.togglePanel("launcherOsd") }
         function open(): void {
@@ -527,8 +522,8 @@ ShellRoot {
                     }
                 }
 
-                // One Escape handler for every drawer panel. AppLauncher and
-                // Wallpaper handled their own; Power, Clipboard, ControlCenter,
+                // One Escape handler for every drawer panel. Wallpaper handles
+                // its own; Power, Clipboard, ControlCenter,
                 // Settings, Network and Audio declared no Keys handler at all, so
                 // Escape did nothing in half the shell depending on which panel
                 // you happened to open. Focus already lands here (focus: true
@@ -544,7 +539,6 @@ ShellRoot {
                         case "workspacePreview": return workspacePreviewComp;
                         case "power": return powerComp;
                         case "wallpaper": return wallpaperComp;
-                        case "appLauncher": return appLauncherComp;
                         case "calendar": return calendarComp;
                         case "audio": return audioComp;
                         case "network": return networkComp;
@@ -564,7 +558,6 @@ ShellRoot {
     Component { id: workspacePreviewComp; WorkspacePreview {} }
     Component { id: powerComp; Power {} }
     Component { id: wallpaperComp; Wallpaper {} }
-    Component { id: appLauncherComp; AppLauncher {} }
     Component { id: calendarComp; Calendar {} }
     Component { id: audioComp; Audio {} }
     Component { id: networkComp; Network {} }
