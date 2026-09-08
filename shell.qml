@@ -455,14 +455,12 @@ ShellRoot {
 
     IpcHandler {
         target: "lockscreen"
+        // Unlocking must only ever happen via successful PAM auth in Lockscreen.qml.
+        // Do not add an unlock()/toggle() here - it would let any process running as
+        // this user (or the SUPER+L keybind, which still fires while locked) bypass
+        // the password prompt entirely.
         function lock(): void {
             Config.sessionLocked = true
-        }
-        function unlock(): void {
-            Config.sessionLocked = false
-        }
-        function toggle(): void {
-            Config.sessionLocked = !Config.sessionLocked
         }
     }
 
