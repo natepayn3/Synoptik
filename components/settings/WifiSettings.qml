@@ -266,7 +266,7 @@ Item {
                                 enabled: root.hasAdapter
                                 onTapped: {
                                     let nextState = root.wifiPowered ? "off" : "on"
-                                    toggleWifiProc.command = ["fish", "-c", "nmcli radio wifi " + nextState]
+                                    toggleWifiProc.command = ["sh", "-c", "nmcli radio wifi " + nextState]
                                     toggleWifiProc.running = true
                                 }
                             }
@@ -849,7 +849,7 @@ Item {
 
     Process {
         id: fetchWifiStatusProc
-        command: ["fish", "-c", "nmcli -t -f TYPE device | grep -q '^wifi$' && echo 'YES' || echo 'NO'; echo '---'; nmcli -t -f WIFI g; echo '---'; nmcli -t -f TYPE,NAME connection show --active | awk -F: '$1 ~ /802-11-wireless|wifi/ {print $2; exit}'; echo '---'; nmcli -t -f TYPE,NAME connection show | awk -F: '$1 ~ /802-11-wireless|wifi/ {print $2}'; echo '---'; nmcli -t -f ACTIVE,SSID,SECURITY device wifi"]
+        command: ["sh", "-c", "nmcli -t -f TYPE device | grep -q '^wifi$' && echo 'YES' || echo 'NO'; echo '---'; nmcli -t -f WIFI g; echo '---'; nmcli -t -f TYPE,NAME connection show --active | awk -F: '$1 ~ /802-11-wireless|wifi/ {print $2; exit}'; echo '---'; nmcli -t -f TYPE,NAME connection show | awk -F: '$1 ~ /802-11-wireless|wifi/ {print $2}'; echo '---'; nmcli -t -f ACTIVE,SSID,SECURITY device wifi"]
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
@@ -917,7 +917,7 @@ Item {
     function triggerScan() {
         if (root.wifiScanning || !root.hasAdapter) return
         root.wifiScanning = true
-        scanProc.command = ["fish", "-c", "nmcli device wifi rescan"]
+        scanProc.command = ["sh", "-c", "nmcli device wifi rescan"]
         scanProc.running = true
         scanTimeoutTimer.restart()
     }
@@ -934,16 +934,26 @@ Item {
         root.errorSsid = ""
         root.connectionError = ""
         
+        // The PSK is handed over as an environment variable and dereferenced
+        // inside the shell rather than interpolated into the command string.
+        // As an argv word (`nmcli ... password <plaintext>`) the key sat in
+        // /proc/<pid>/cmdline for the life of the connect, readable by any
+        // local process - a plain `ps aux` was enough. Same approach
+        // AssistantWidget.qml already uses for OLLAMA_RUN_PROMPT.
+        //
+        // The SSID stays interpolated - it isn't a secret - but keeps its
+        // single-quote escaping so odd network names still parse.
         let escapedSsid = ssid.replace(/'/g, "'\"'\"'")
         let cmd = ""
         if (password.length > 0) {
-            let escapedPass = password.replace(/'/g, "'\"'\"'")
-            cmd = `nmcli device wifi connect '${escapedSsid}' password '${escapedPass}'`
+            cmd = `nmcli device wifi connect '${escapedSsid}' password "$SYN_WIFI_PSK"`
+            connProc.environment = ({ "SYN_WIFI_PSK": password })
         } else {
             cmd = `nmcli connection up id '${escapedSsid}' 2>/dev/null || nmcli device wifi connect '${escapedSsid}'`
+            connProc.environment = ({})
         }
-        
-        connProc.command = ["fish", "-c", cmd]
+
+        connProc.command = ["sh", "-c", cmd]
         connProc.running = true
     }
     

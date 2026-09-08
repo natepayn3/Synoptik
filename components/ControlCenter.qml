@@ -583,7 +583,7 @@ Item {
 
     Process {
         id: cavaProc
-        command: ["fish", "-c", "printf '[general]\\nbars = 32\\nsensitivity = 150\\n[output]\\nmethod = raw\\ndata_format = ascii\\nascii_max_range = 255\\nbar_delimiter = 59\\nframe_delimiter = 10\\n' | cava -p /dev/stdin"]
+        command: ["sh", "-c", "printf '[general]\\nbars = 32\\nsensitivity = 150\\n[output]\\nmethod = raw\\ndata_format = ascii\\nascii_max_range = 255\\nbar_delimiter = 59\\nframe_delimiter = 10\\n' | cava -p /dev/stdin"]
         running: Config.showControlCenter && mediaCardComponent.mediaStatus === "Playing"
         
         stdout: SplitParser {
@@ -604,7 +604,7 @@ Item {
 
     Process {
         id: detectWifiAdapterProc
-        command: ["fish", "-c", "nmcli -t -f TYPE device | grep -q '^wifi$' && echo 'YES' || echo 'NO'"]
+        command: ["sh", "-c", "nmcli -t -f TYPE device | grep -q '^wifi$' && echo 'YES' || echo 'NO'"]
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
@@ -615,7 +615,7 @@ Item {
 
     Process {
         id: detectBtAdapterProc
-        command: ["fish", "-c", "bluetoothctl list | grep -q 'Controller' && echo 'YES' || echo 'NO'"]
+        command: ["sh", "-c", "bluetoothctl list | grep -q 'Controller' && echo 'YES' || echo 'NO'"]
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
@@ -627,7 +627,7 @@ Item {
 
     Process {
         id: detectBacklightProc
-        command: ["fish", "-c", "brightnessctl --list | grep -q 'backlight' && echo 'YES' || echo 'NO'"]
+        command: ["sh", "-c", "brightnessctl --list | grep -q 'backlight' && echo 'YES' || echo 'NO'"]
         running: true
         stdout: StdioCollector {
             onStreamFinished: {
@@ -639,7 +639,7 @@ Item {
 
     Process {
         id: fetchBrightnessProc
-        command: ["fish", "-c", "brightnessctl -m | cut -d',' -f4 | tr -d '%'"]
+        command: ["sh", "-c", "brightnessctl -m | cut -d',' -f4 | tr -d '%'"]
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
@@ -653,7 +653,7 @@ Item {
         id: setBrightnessProc
         running: false
         function setVal(pct) {
-            command = ["fish", "-c", `brightnessctl set ${pct}%`]
+            command = ["sh", "-c", `brightnessctl set ${pct}%`]
             running = true
         }
     }
@@ -690,7 +690,7 @@ Item {
 
     function toggleWifiPower(turnOn) {
         if (!root.hasWifiAdapter) return
-        toggleWifiProc.command = ["fish", "-c", turnOn ? "rfkill unblock wifi; nmcli radio wifi on" : "nmcli radio wifi off"]
+        toggleWifiProc.command = ["sh", "-c", turnOn ? "rfkill unblock wifi; nmcli radio wifi on" : "nmcli radio wifi off"]
         toggleWifiProc.running = true
     }
 
@@ -774,17 +774,23 @@ Item {
             root.errorSsid = ""
             root.connectionError = ""
 
+            // Same PSK handling as WifiSettings.connectWifi(): the key goes over
+            // the environment and is dereferenced inside the shell, so it never
+            // appears in /proc/<pid>/cmdline where any local `ps aux` could read
+            // it. The SSID isn't secret and stays interpolated (still escaped).
             let safeSsid = ssidTarget.replace(/'/g, "'\"'\"'")
             let cmd = ""
             if (password && password.trim() !== "") {
-                let safePass = password.replace(/'/g, "'\"'\"'")
-                cmd = `nmcli dev wifi connect '${safeSsid}' password '${safePass}'`
+                cmd = `nmcli dev wifi connect '${safeSsid}' password "$SYN_WIFI_PSK"`
+                environment = ({ "SYN_WIFI_PSK": password })
             } else if (isKnown) {
                 cmd = `nmcli connection up id '${safeSsid}'`
+                environment = ({})
             } else {
                 cmd = `nmcli dev wifi connect '${safeSsid}'`
+                environment = ({})
             }
-            command = ["fish", "-c", cmd]
+            command = ["sh", "-c", cmd]
             running = false
             running = true
         }
@@ -823,7 +829,7 @@ Item {
 
     Process {
         id: fetchWifiStatusProc
-        command: ["fish", "-c", "nmcli radio wifi; echo '---'; nmcli -t -f ACTIVE,SIGNAL,SECURITY,SSID dev wifi; echo '---'; nmcli -t -f NAME connection show"]
+        command: ["sh", "-c", "nmcli radio wifi; echo '---'; nmcli -t -f ACTIVE,SIGNAL,SECURITY,SSID dev wifi; echo '---'; nmcli -t -f NAME connection show"]
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
