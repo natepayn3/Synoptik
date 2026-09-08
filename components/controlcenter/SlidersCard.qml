@@ -3,6 +3,7 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import Qt5Compat.GraphicalEffects
 import Quickshell.Widgets
+import Quickshell.Io
 import ".."
 import "../settings"
 
@@ -44,6 +45,16 @@ ClippingRectangle {
     property bool isUserDraggingVol: false
     property real localRatio: 0.0
     signal volumeChanged(int pct)
+
+    // --- PER-APP VOLUME MIXER (right-click the volume slider to expand) ---
+    property bool volumeExpanded: false
+    property int pendingAppVolIndex: -1
+    property int pendingAppVolValue: 0
+    // True for the duration of any per-app row's press-drag-release, so the
+    // background re-poll (see the Connections at the bottom of this file)
+    // can never land mid-drag and overwrite the row you're actively moving -
+    // that race was the cause of the single visible "jump" while dragging.
+    property bool isDraggingAppVol: false
 
     HoverHandler { id: cardHover }
 
@@ -560,6 +571,7 @@ ClippingRectangle {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
                         preventStealing: true
+                        acceptedButtons: Qt.LeftButton | Qt.RightButton
 
                         function applyDrag(mouseXPos) {
                             let trackW = volTrack.width
@@ -567,7 +579,7 @@ ClippingRectangle {
 
                             let ratio = Math.max(0.0, Math.min(1.0, mouseXPos / trackW))
                             root.localRatio = ratio
-                            
+
                             let pct = Math.round(ratio * 100)
                             if (pct !== root.currentVolume) {
                                 root.volumeChanged(pct)
@@ -575,12 +587,16 @@ ClippingRectangle {
                         }
 
                         onPressed: mouse => {
+                            if (mouse.button === Qt.RightButton) {
+                                root.volumeExpanded = !root.volumeExpanded
+                                return
+                            }
                             root.isUserDraggingVol = true
                             applyDrag(mouse.x)
                         }
 
                         onPositionChanged: mouse => {
-                            if (pressed) {
+                            if (pressed && (pressedButtons & Qt.LeftButton)) {
                                 applyDrag(mouse.x)
                             }
                         }
@@ -591,6 +607,263 @@ ClippingRectangle {
 
                     HoverHandler { id: volHover }
                 }
+            }
+        }
+
+        // ==========================================
+        // SECTION 3: PER-APP VOLUME MIXER
+        // ==========================================
+        // Right-click the volume slider above to expand this. Backed by
+        // `pactl -f json list sink-inputs` - each PipeWire playback stream
+        // gets its own row. Kept in sync the same event-driven way Audio.qml
+        // tracks its sink/source device lists: shell.qml's `pactl subscribe`
+        // is already running for the master volume, so a "sink-input" event
+        // on that same stream just debounces a re-list here instead of
+        // starting a second subscribe process.
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 6
+            visible: root.volumeExpanded
+
+            Text {
+                Layout.fillWidth: true
+                visible: appVolumeModel.count === 0
+                text: "No apps are currently playing audio."
+                color: Config.textMuted
+                font.family: Config.sysFont
+                font.pixelSize: Config.size(Config.fontMicro)
+                font.italic: true
+                horizontalAlignment: Text.AlignHCenter
+            }
+
+            Repeater {
+                model: appVolumeModel
+
+                delegate: RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    opacity: model.isCorked ? 0.5 : 1.0
+
+                    Behavior on opacity { NumberAnimation { duration: 150 } }
+
+                    Rectangle {
+                        implicitWidth: 26
+                        implicitHeight: 26
+                        radius: 8
+                        color: Qt.rgba(255, 255, 255, 0.08)
+
+                        Image {
+                            anchors.fill: parent
+                            anchors.margins: 4
+                            source: Config.getAppIcon(model.iconName)
+                            fillMode: Image.PreserveAspectFit
+                            asynchronous: true
+                        }
+                    }
+
+                    Text {
+                        Layout.preferredWidth: 84
+                        text: model.appName
+                        color: Config.textMain
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        elide: Text.ElideRight
+                    }
+
+                    // Compact track - same fill/handle idea as the main sliders,
+                    // without the face animation (would be too busy repeated
+                    // once per app row).
+                    Item {
+                        id: appTrack
+                        Layout.fillWidth: true
+                        implicitHeight: 22
+
+                        property real displayRatio: (root.pendingAppVolIndex === model.streamIndex)
+                            ? (root.pendingAppVolValue / 100.0)
+                            : (model.volumePct / 100.0)
+
+                        Rectangle {
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: parent.width
+                            height: 5
+                            radius: 2.5
+                            color: Qt.rgba(0, 0, 0, 0.35)
+
+                            Rectangle {
+                                width: parent.width * Math.min(1.0, appTrack.displayRatio)
+                                height: parent.height
+                                radius: 2.5
+                                color: model.isMuted ? Config.textMuted : Config.accent
+                            }
+                        }
+
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            preventStealing: true
+
+                            function applyDrag(mouseXPos) {
+                                if (appTrack.width <= 0) return
+                                let ratio = Math.max(0.0, Math.min(1.0, mouseXPos / appTrack.width))
+                                let pct = Math.round(ratio * 100)
+                                root.pendingAppVolIndex = model.streamIndex
+                                root.pendingAppVolValue = pct
+                                appVolumeWriteTimer.restart()
+                            }
+
+                            onPressed: mouse => {
+                                root.isDraggingAppVol = true
+                                applyDrag(mouse.x)
+                            }
+                            onPositionChanged: mouse => { if (pressed) applyDrag(mouse.x) }
+                            onReleased: root.isDraggingAppVol = false
+                            onCanceled: root.isDraggingAppVol = false
+                        }
+                    }
+
+                    Text {
+                        Layout.preferredWidth: 30
+                        horizontalAlignment: Text.AlignRight
+                        text: (root.pendingAppVolIndex === model.streamIndex ? root.pendingAppVolValue : model.volumePct) + "%"
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                    }
+
+                    Text {
+                        text: model.isMuted ? "volume_off" : "volume_up"
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 16
+                        color: model.isMuted ? Config.textMuted : Config.accent
+
+                        TapHandler {
+                            onTapped: {
+                                appVolumeMuteProc.command = ["pactl", "set-sink-input-mute", String(model.streamIndex), model.isMuted ? "0" : "1"]
+                                appVolumeMuteProc.running = true
+                            }
+                        }
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    }
+                }
+            }
+        }
+    }
+
+    // --- PER-APP VOLUME MIXER BACKEND ---
+    ListModel { id: appVolumeModel }
+
+    // Target-id in-place model synchronizer - same idea as Audio.qml's
+    // syncAudioModelInPlace, so a row's MouseArea/drag state isn't torn down
+    // and recreated on every re-list (which fires on every "sink-input"
+    // pactl event, not just an actual add/remove).
+    function syncAppVolumeModelInPlace(newItems) {
+        for (let i = appVolumeModel.count - 1; i >= 0; i--) {
+            let entry = appVolumeModel.get(i)
+            let match = newItems.find(item => item.streamIndex === entry.streamIndex)
+            if (!match) appVolumeModel.remove(i)
+        }
+        for (let j = 0; j < newItems.length; j++) {
+            let incoming = newItems[j]
+            let foundIdx = -1
+            for (let k = 0; k < appVolumeModel.count; k++) {
+                if (appVolumeModel.get(k).streamIndex === incoming.streamIndex) { foundIdx = k; break }
+            }
+            if (foundIdx !== -1) {
+                let existing = appVolumeModel.get(foundIdx)
+                for (let prop in incoming) {
+                    if (existing[prop] !== incoming[prop]) appVolumeModel.setProperty(foundIdx, prop, incoming[prop])
+                }
+            } else {
+                appVolumeModel.append(incoming)
+            }
+        }
+    }
+
+    Process {
+        id: appVolumeListProc
+        command: ["pactl", "-f", "json", "list", "sink-inputs"]
+        running: false
+
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let parsed = []
+                try {
+                    parsed = JSON.parse(this.text || "[]")
+                } catch (e) {
+                    return
+                }
+
+                let rows = []
+                for (let i = 0; i < parsed.length; i++) {
+                    let item = parsed[i]
+                    let props = item.properties || {}
+                    let name = props["application.name"] || props["media.name"] || "Unknown"
+
+                    // The shell's own UI sound effects show up as a stream too
+                    // (media.name "quickshell") - not something to mix against
+                    // itself, so it's left out of the list.
+                    if (!props["application.name"] && name === "quickshell") continue
+
+                    let channels = item.volume ? Object.keys(item.volume) : []
+                    let pct = 0
+                    if (channels.length > 0) {
+                        let sum = 0
+                        for (let c = 0; c < channels.length; c++) {
+                            sum += parseInt(item.volume[channels[c]].value_percent) || 0
+                        }
+                        pct = Math.round(sum / channels.length)
+                    }
+
+                    rows.push({
+                        streamIndex: item.index,
+                        appName: name,
+                        iconName: props["application.icon_name"] || "",
+                        volumePct: pct,
+                        isMuted: !!item.mute,
+                        isCorked: !!item.corked
+                    })
+                }
+                root.syncAppVolumeModelInPlace(rows)
+            }
+        }
+    }
+
+    Timer {
+        id: appVolumeDebounceTimer
+        interval: 200
+        repeat: false
+        onTriggered: {
+            appVolumeListProc.running = false
+            appVolumeListProc.running = true
+        }
+    }
+
+    Timer {
+        id: appVolumeWriteTimer
+        interval: 30
+        repeat: false
+        onTriggered: {
+            if (root.pendingAppVolIndex < 0) return
+            appVolumeSetProc.command = ["pactl", "set-sink-input-volume", String(root.pendingAppVolIndex), root.pendingAppVolValue + "%"]
+            appVolumeSetProc.running = true
+        }
+    }
+
+    Process { id: appVolumeSetProc; running: false }
+    Process { id: appVolumeMuteProc; running: false }
+
+    onVolumeExpandedChanged: {
+        if (volumeExpanded) appVolumeListProc.running = true
+    }
+
+    // shellRoot already runs `pactl subscribe` shell-wide for the master
+    // volume (see shell.qml) - reuse that instead of starting a second
+    // subscribe process just for this card.
+    Connections {
+        target: (typeof shellRoot !== "undefined") ? shellRoot : null
+        function onAudioSubscribeEvent(data) {
+            if (root.volumeExpanded && !root.isDraggingAppVol && data.includes("sink-input")) {
+                appVolumeDebounceTimer.restart()
             }
         }
     }
