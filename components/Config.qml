@@ -1159,10 +1159,24 @@ QtObject {
                     let cleaned = {}
                     Object.keys(settingsAdapter.keybinds).forEach(k => {
                         let item = settingsAdapter.keybinds[k]
+                        let cmd = item.cmd || ""
+
+                        // The lockscreen IPC handler dropped unlock()/toggle() - they
+                        // let anything running as this user (or this very keybind,
+                        // fired while the lock surface was up) skip PAM entirely and
+                        // unlock with no password. Only lock() remains, so a
+                        // settings.json saved before that fix still points this bind
+                        // at a function that no longer exists and would silently do
+                        // nothing. Rewritten here (not just in the shipped default)
+                        // so existing installs self-heal instead of losing the bind.
+                        if (/ipc call lockscreen (unlock|toggle)\b/.test(cmd)) {
+                            cmd = cmd.replace(/ipc call lockscreen (unlock|toggle)\b/, "ipc call lockscreen lock")
+                        }
+
                         cleaned[k] = {
                             mod: (item.mod || "SUPER").replace(/mainMod/g, "SUPER").replace(/\.\./g, "").replace(/["']/g, "").trim(),
                             key: item.key || "",
-                            cmd: item.cmd || ""
+                            cmd: cmd
                         }
                     })
                     root.keybinds = cleaned
