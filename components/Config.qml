@@ -112,6 +112,81 @@ QtObject {
     property bool showClipboard: false
     property bool showScreenRecorder: false
 
+    // --- MUTUALLY EXCLUSIVE PANEL ARBITRATION ---
+    // Every drawer view maps to exactly one of these flags. This table is the
+    // single source of truth for "what counts as a panel": UnifiedSurface's
+    // closeOthers() and shell.qml's IpcHandlers both route through closePanels()
+    // below instead of each re-listing the flags by hand.
+    //
+    // They used to. The ten IpcHandlers each carried their own hand-maintained
+    // close list, and every one of them had drifted - none cleared showAudio,
+    // showNetwork or showTaskOverflow. That was a live bug, not just repetition:
+    // opening the Audio panel from the bar and then hitting the launcher keybind
+    // left showAudio stuck true (the launcher just outranks it in
+    // updateActiveView), so closing the launcher popped the Audio panel open
+    // instead of closing the drawer. Adding an eleventh panel meant ten correct
+    // edits; now it means one line here.
+    // Keyed by the view name UnifiedSurface.activeView uses, so callers speak
+    // one vocabulary ("power") rather than mixing view names and flag names.
+    readonly property var panelFlagByView: ({
+        "workspacePreview": "showWorkspacePreview",
+        "power":            "showPower",
+        "wallpaper":        "showWallpaper",
+        "appLauncher":      "showAppLauncher",
+        "launcherOsd":      "showLauncherOsd",
+        "calendar":         "showCalendar",
+        "audio":            "showAudio",
+        "network":          "showNetwork",
+        "battery":          "showBattery",
+        "clipboard":        "showClipboard",
+        "screenRecorder":   "showScreenRecorder",
+        "mirror":           "showMirror",
+        "controlCenter":    "showControlCenter",
+        "settings":         "showSettings",
+        "taskOverflow":     "showTaskOverflow"
+    })
+
+    // The two OSDs deliberately sit outside the panel table: they're transient
+    // takeovers layered over whatever panel is open, and closeOthers() has
+    // always preserved the underlying panel state when one of them fires.
+    readonly property var osdFlagByView: ({
+        "osd":      "showOSD",
+        "notifOsd": "showNotificationOsd"
+    })
+
+    // Clears every panel flag except the one backing `exceptView`. Pass "none"
+    // or "" to close everything. An OSD view only clears the other OSD.
+    function closePanels(exceptView) {
+        let keep = exceptView || ""
+        let isOsd = root.osdFlagByView.hasOwnProperty(keep)
+
+        Object.keys(root.osdFlagByView).forEach(v => {
+            if (v !== keep) root[root.osdFlagByView[v]] = false
+        })
+        if (isOsd) return
+
+        Object.keys(root.panelFlagByView).forEach(v => {
+            if (v === keep) return
+            // A pinned mirror is a persistent desktop widget, not a drawer
+            // panel - it survives another panel opening, same as before.
+            if (v === "mirror" && root.mirrorPinned) return
+            root[root.panelFlagByView[v]] = false
+        })
+    }
+
+    // Opens `view` exclusively, or closes it if it's already the open one.
+    function togglePanel(view) {
+        let flag = root.panelFlagByView[view]
+        if (!flag) return
+        let wasOpen = root[flag] === true
+        root.closePanels(wasOpen ? "" : view)
+        root[flag] = !wasOpen
+    }
+
+    // Closes whatever drawer panel is currently open. Used by the Escape
+    // handler in shell.qml and by the `hide` IPC verbs.
+    function closeAllPanels() { root.closePanels("") }
+
     // --- NAVIGATION PERSISTENCE ---
     property int lastSettingsSection: 0
     onLastSettingsSectionChanged: { if (isLoaded) saveSettings() }
@@ -492,7 +567,7 @@ QtObject {
 
     property Process monitorDetector: Process {
         id: monDetector
-        command: ["fish", "-c", "hyprctl monitors -j"]
+        command: ["sh", "-c", "hyprctl monitors -j"]
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
@@ -676,7 +751,7 @@ QtObject {
 
         let cmd = "python3 -c \"" + pyScript.replace(/"/g, '\\"') + "\" && hyprctl reload"
 
-        writer.command = ["fish", "-c", cmd]
+        writer.command = ["sh", "-c", cmd]
         writer.running = true
     }
 
@@ -792,13 +867,21 @@ QtObject {
 
         let cmd = "python3 -c \"" + pyScript.replace(/"/g, '\\"') + "\" && hyprctl reload"
 
-        writer.command = ["fish", "-c", cmd]
+        writer.command = ["sh", "-c", cmd]
         writer.running = true
     }
 
 
     // Persistence
-    readonly property string settingsPath: Quickshell.shellDir.toString().replace(/^file:\/\//, "") + "/settings.json"
+    // Quickshell.shellDir comes back as a file:// URL, so every consumer has to
+    // strip that prefix before handing it to Process/FileView. That stripping was
+    // duplicated in three files and skipped entirely in two more (which hardcoded
+    // "$HOME/.config/quickshell/Synoptik" and so broke under XDG_CONFIG_HOME or a
+    // renamed checkout) - do it once here and let everything else use shellDir.
+    readonly property string shellDir: Quickshell.shellDir.toString().replace(/^file:\/\//, "")
+    readonly property string scriptsDir: root.shellDir + "/scripts"
+
+    readonly property string settingsPath: root.shellDir + "/settings.json"
 
     // Every plain key persisted to settings.json - shared by both the save and load
     // directions below via settingsAdapter. This used to be two independently
@@ -862,6 +945,14 @@ QtObject {
     property FileView settingsFile: FileView {
         id: settingsFileImpl
         path: root.settingsPath
+
+        // Write to a temp file and rename over the original, so a crash or a
+        // `killall qs` mid-write can't leave a half-written settings.json
+        // behind. Stated explicitly rather than relying on the default: this
+        // file is ~190 keys of irreplaceable user preference, and the Reload
+        // button in Settings deliberately SIGKILLs the shell moments after a
+        // save can have been queued.
+        atomicWrites: true
 
         JsonAdapter {
             id: settingsAdapter
@@ -1084,7 +1175,11 @@ QtObject {
                 })
                 root.leftCardOrder = currentLeft
 
-                if (settingsAdapter.isFloatingBar !== undefined && settingsAdapter.barFrameStyle === undefined) {
+                // JsonAdapter re-serializes every declared property, so once this
+                // shim has run the file carries `"isFloatingBar": null` forever -
+                // `!= null` (loose, catches undefined too) keeps that written-back
+                // null from reading as a real legacy value.
+                if (settingsAdapter.isFloatingBar != null && settingsAdapter.barFrameStyle === undefined) {
                     root.barFrameStyle = settingsAdapter.isFloatingBar ? "floating" : "edge"
                 }
 
@@ -1154,8 +1249,241 @@ QtObject {
         // no settings.json yet (settingsAdapter properties simply stay undefined, so
         // the generic copy loop above is a no-op and root keeps its compiled-in
         // defaults, same as before).
-        onLoaded: applyLoadedSettings()
-        onLoadFailed: (error) => applyLoadedSettings()
+        // Fired once the settings write has actually landed on disk. A profile
+        // snapshot is just a copy of that file, so waiting for this signal is
+        // what keeps saveProfile() from racing the write it just requested.
+        // Fast path: the settings write landed, so the file on disk is current
+        // and the profile snapshot can be copied from it immediately.
+        onSaved: root.commitProfileSave()
+        onSaveFailed: root.pendingProfileSave = ""
+
+        onLoaded: {
+            applyLoadedSettings()
+            // Snapshot only after a parse that actually succeeded, so the .bak
+            // is always a known-good file rather than whatever was last written.
+            root.backupSettings()
+        }
+
+        // A load failure used to fall straight through to applyLoadedSettings(),
+        // which silently left every one of ~190 keys at its compiled-in default -
+        // indistinguishable, from the user's side, from the shell having thrown
+        // their entire configuration away with no message. Now a corrupt file is
+        // rolled back to the last known-good snapshot and the user is told.
+        onLoadFailed: (error) => {
+            if (root.settingsRecoveryAttempted) {
+                applyLoadedSettings()
+                return
+            }
+            root.settingsRecoveryAttempted = true
+            settingsRecoveryProc.running = true
+        }
+    }
+
+    // Guards against a recover -> reload -> fail -> recover loop when both the
+    // settings file and its backup are unreadable (or neither exists, which is
+    // just a normal first run).
+    property bool settingsRecoveryAttempted: false
+
+    // --- CONFIGURATION PROFILES ---
+    // Named snapshots of the whole settings file. A profile is literally a copy
+    // of settings.json, so saving and loading reuse the exact same serialize and
+    // apply paths the shell already uses at startup - there is no second list of
+    // "what belongs in a profile" to drift out of sync with persistedKeys, and a
+    // profile stays a plain JSON file the user can read, diff, or share.
+    //
+    // This is the desktop-vs-laptop split the README describes as the whole
+    // reason Synoptik exists (bar on the left on one machine, a collapsed
+    // auto-hiding pill on the other) - previously that meant reconfiguring by
+    // hand every time.
+    readonly property string profilesDir: root.shellDir + "/profiles"
+    property var profileNames: []
+    property string pendingProfileSave: ""
+
+    // The active profile name is deliberately NOT a persistedKey: loading a
+    // profile overwrites settings.json wholesale, so a name stored in there
+    // would be clobbered by whatever the snapshot happened to contain. It gets
+    // its own one-line marker file next to the profiles instead.
+    property string activeProfile: ""
+    readonly property string activeProfilePath: root.profilesDir + "/.active"
+
+    onActiveProfileChanged: {
+        if (!root.isLoaded) return
+        activeProfileWriteProc.command = ["sh", "-c",
+            "mkdir -p '" + root.profilesDir + "' && printf '%s' '"
+            + root.sanitizeProfileName(root.activeProfile) + "' > '" + root.activeProfilePath + "'"]
+        activeProfileWriteProc.running = true
+    }
+
+    property Process activeProfileWriteProc: Process { id: activeProfileWriteProc; running: false }
+
+    property Process activeProfileReadProc: Process {
+        id: activeProfileReadProc
+        running: false
+        command: ["sh", "-c", "cat '" + root.activeProfilePath + "' 2>/dev/null"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let name = root.sanitizeProfileName(this.text.trim())
+                // Only adopt it if that profile still exists on disk.
+                if (name !== "" && root.profileNames.indexOf(name) >= 0) root.activeProfile = name
+            }
+        }
+    }
+
+    // Profile names become filenames, so anything that could escape profilesDir
+    // or confuse the shell quoting is stripped rather than escaped.
+    function sanitizeProfileName(name) {
+        let clean = (name || "").replace(/[^A-Za-z0-9 _-]/g, "").trim().slice(0, 48)
+        return clean
+    }
+
+    function saveProfile(name) {
+        let clean = root.sanitizeProfileName(name)
+        if (clean === "") return
+        root.pendingProfileSave = clean
+        // Force the write now rather than waiting out the 400ms debounce - the
+        // snapshot has to reflect what the user is looking at right now.
+        saveTimer.stop()
+        root.writeSettingsNow()
+        // ...but writeAdapter() is a no-op when the serialized data is byte-identical
+        // to what's already on disk, and in that case FileView never emits saved().
+        // That is the *normal* case here: clicking "Save profile" changes no setting,
+        // so waiting on onSaved alone meant the snapshot was silently never written.
+        // If saved() doesn't arrive, the file was already current and we copy anyway.
+        profileSaveFallback.restart()
+    }
+
+    property Timer profileSaveFallback: Timer {
+        id: profileSaveFallback
+        interval: 250
+        repeat: false
+        onTriggered: root.commitProfileSave()
+    }
+
+    // Copies the (now current) settings.json to the profile. Guarded on
+    // pendingProfileSave so it runs exactly once whether it was reached via
+    // onSaved or via the fallback above, never twice.
+    function commitProfileSave() {
+        if (root.pendingProfileSave === "") return
+        let name = root.pendingProfileSave
+        root.pendingProfileSave = ""
+        profileSaveFallback.stop()
+        profileWriteProc.savedProfile = name
+        profileWriteProc.command = ["sh", "-c",
+            "mkdir -p '" + root.profilesDir + "' && cp -f '" + root.settingsPath
+            + "' '" + root.profilesDir + "/" + name + ".json'"]
+        profileWriteProc.running = false
+        profileWriteProc.running = true
+    }
+
+    function loadProfile(name) {
+        let clean = root.sanitizeProfileName(name)
+        if (clean === "") return
+        profileLoadProc.targetProfile = clean
+        profileLoadProc.command = ["sh", "-c",
+            "src='" + root.profilesDir + "/" + clean + ".json'; "
+            + "[ -s \"$src\" ] || exit 1; cp -f \"$src\" '" + root.settingsPath + "'"]
+        profileLoadProc.running = true
+    }
+
+    function deleteProfile(name) {
+        let clean = root.sanitizeProfileName(name)
+        if (clean === "") return
+        profileDeleteProc.command = ["sh", "-c",
+            "rm -f '" + root.profilesDir + "/" + clean + ".json'"]
+        profileDeleteProc.running = true
+        if (root.activeProfile === clean) root.activeProfile = ""
+    }
+
+    function refreshProfiles() {
+        profileListProc.running = false
+        profileListProc.running = true
+    }
+
+    property Process profileListProc: Process {
+        id: profileListProc
+        running: false
+        command: ["sh", "-c",
+            "ls -1 '" + root.profilesDir + "' 2>/dev/null | sed -n 's/\\.json$//p' | sort"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                let out = this.text.trim()
+                root.profileNames = out === "" ? [] : out.split("\n")
+                // Resolved after the list so the marker can be validated against it.
+                activeProfileReadProc.running = true
+            }
+        }
+    }
+
+    property Process profileWriteProc: Process {
+        id: profileWriteProc
+        running: false
+        property string savedProfile: ""
+        onExited: (exitCode) => {
+            if (exitCode !== 0) return
+            // Saving a snapshot of the current setup makes that profile the one
+            // you're now on, so the card reflects it without a redundant Load.
+            root.activeProfile = profileWriteProc.savedProfile
+            root.refreshProfiles()
+        }
+    }
+
+    property Process profileDeleteProc: Process {
+        id: profileDeleteProc
+        running: false
+        onExited: root.refreshProfiles()
+    }
+
+    // Copying the profile over settings.json and reloading runs it through the
+    // ordinary startup path (applyLoadedSettings -> theme/border/shader sync),
+    // so a profile switch lands exactly like a fresh launch would.
+    property Process profileLoadProc: Process {
+        id: profileLoadProc
+        running: false
+        property string targetProfile: ""
+        onExited: (exitCode) => {
+            if (exitCode !== 0) return
+            root.activeProfile = profileLoadProc.targetProfile
+            root.settingsRecoveryAttempted = false
+            settingsFileImpl.reload()
+        }
+    }
+
+    function backupSettings() {
+        settingsBackupProc.running = false
+        settingsBackupProc.running = true
+    }
+
+    // Only overwrites the .bak when the live file is non-empty, so an empty or
+    // truncated settings.json can never clobber a good snapshot.
+    property Process settingsBackupProc: Process {
+        id: settingsBackupProc
+        running: false
+        command: ["sh", "-c",
+            "f=" + root.settingsPath + "; [ -s \"$f\" ] && cp -f \"$f\" \"$f.bak\" || true"]
+    }
+
+    // Exits 0 only when a backup was actually restored, so the reload below
+    // (and the notification) fire only in the real recovery case.
+    property Process settingsRecoveryProc: Process {
+        id: settingsRecoveryProc
+        running: false
+        command: ["sh", "-c",
+            "f=" + root.settingsPath + "; " +
+            "if [ -s \"$f.bak\" ] && [ -s \"$f\" ]; then " +
+            "  cp -f \"$f\" \"$f.corrupt\"; cp -f \"$f.bak\" \"$f\"; exit 0; " +
+            "fi; exit 1"]
+        onExited: (exitCode) => {
+            if (exitCode === 0) {
+                Quickshell.execDetached(["notify-send", "-u", "critical", "Synoptik",
+                    "settings.json was unreadable and has been restored from the last good backup. The unreadable copy was kept as settings.json.corrupt."])
+                settingsFileImpl.reload()
+            } else {
+                // Nothing to restore - first run, or the backup is gone too.
+                // applyLoadedSettings() is declared on the FileView itself, so
+                // it has to be reached through its id from out here.
+                settingsFileImpl.applyLoadedSettings()
+            }
+        }
     }
 
     function saveSettings() {
@@ -1217,7 +1545,31 @@ QtObject {
     function applyTheme(index) { appearance.applyTheme(index) }
     function setTheme(index) { appearance.setTheme(index) }
 
+    // persistedKeys and settingsAdapter's property list are two hand-maintained
+    // parallel lists: adding a setting means declaring it on its service, aliasing
+    // it here, adding a `property var` to the adapter AND adding the name to
+    // persistedKeys. Miss the adapter line and the key silently stops persisting -
+    // no error, no warning, the setting just quietly resets on every restart.
+    //
+    // This turns that silent failure into a loud one. It only reads (via `in`),
+    // never assigns, so it can't perturb a load in progress. If the introspection
+    // isn't supported at all it reports every key as missing, which is meaningless -
+    // so that case is treated as "can't check" and stays quiet rather than crying
+    // wolf on startup.
+    function validatePersistedKeys() {
+        let missing = []
+        for (let i = 0; i < root.persistedKeys.length; i++) {
+            let k = root.persistedKeys[i]
+            if (!(k in settingsAdapter)) missing.push(k)
+        }
+        if (missing.length === 0 || missing.length === root.persistedKeys.length) return
+        console.warn("Synoptik/Config: " + missing.length + " persisted key(s) have no matching "
+            + "`property var` on settingsAdapter and will NOT be saved: " + missing.join(", "))
+    }
+
     Component.onCompleted: {
         if (!enableIris) applyTheme(currentThemeIndex)
+        validatePersistedKeys()
+        refreshProfiles()
     }
 }

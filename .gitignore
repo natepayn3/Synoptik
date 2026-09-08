@@ -1,2 +1,9 @@
 *.json
 settings.json
+
+# settings.json sidecars written by the corruption-recovery path in Config.qml
+*.bak
+*.corrupt
+# Saved configuration profiles + the active-profile marker: per-machine
+# user state, same as settings.json.
+profiles/
