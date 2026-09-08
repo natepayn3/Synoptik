@@ -18,8 +18,20 @@ FocusScope {
     property string paletteMode: Config.lockscreenShapePalette || "vibrant"
     property string maskStyle: Config.lockscreenMaskStyle || "shapes"
 
+    // Standalone (default) owns its own hidden TextInput - used by the Settings
+    // preview, which has no lock surface to bind password/shapeItems to.
+    // On the real lock screen (Lockscreen.qml sets standalone: false) typing is
+    // owned entirely by the surface's own hidden input; this bar only displays
+    // the externally-bound password/shapeItems and forwards clicks via
+    // focusRequested() instead of grabbing focus itself. Letting this bar's own
+    // hiddenInput take focus there let a click mid-password silently switch which
+    // buffer keystrokes landed in, desyncing what was typed from what got
+    // submitted.
+    property bool standalone: true
+
     signal submitPassword(string pass)
     signal clearRequested()
+    signal focusRequested()
 
     implicitWidth: 440
     implicitHeight: 58
@@ -27,6 +39,10 @@ FocusScope {
     focus: true
 
     function forceFocus() {
+        if (!barRoot.standalone) {
+            barRoot.focusRequested()
+            return
+        }
         barRoot.forceActiveFocus()
         hiddenInput.forceActiveFocus()
     }
@@ -89,7 +105,7 @@ FocusScope {
         width: 0
         height: 0
         opacity: 0
-        focus: true
+        focus: barRoot.standalone
         cursorVisible: false
         inputMethodHints: Qt.ImhNoAutoUppercase | Qt.ImhNoPredictiveText
 
@@ -100,6 +116,7 @@ FocusScope {
         }
 
         onTextChanged: {
+            if (!barRoot.standalone) return
             barRoot.password = text
             let items = []
             for (let i = 0; i < text.length; i++) {
@@ -109,12 +126,14 @@ FocusScope {
         }
 
         Keys.onReturnPressed: {
+            if (!barRoot.standalone) return
             if (barRoot.password.length > 0 && !barRoot.isAuthenticating) {
                 barRoot.submitPassword(barRoot.password)
             }
         }
 
         Keys.onEnterPressed: {
+            if (!barRoot.standalone) return
             if (barRoot.password.length > 0 && !barRoot.isAuthenticating) {
                 barRoot.submitPassword(barRoot.password)
             }

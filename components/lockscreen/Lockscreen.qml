@@ -701,6 +701,7 @@ Scope {
                             id: passBar
                             Layout.alignment: Qt.AlignHCenter
                             Layout.fillWidth: true
+                            standalone: false
                             password: lockscreenScope.currentPassword
                             shapeItems: lockscreenScope.shapeItems
                             isAuthenticating: lockscreenScope.isAuthenticating
@@ -716,6 +717,10 @@ Scope {
 
                             onClearRequested: {
                                 lockscreenScope.clearInput()
+                            }
+
+                            onFocusRequested: {
+                                globalScreenInput.forceActiveFocus()
                             }
                         }
 
