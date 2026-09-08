@@ -25,11 +25,25 @@ Item {
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
     property real sysCpu: 0.0
+    // Combined GPU reading for the single collapsed HUD tile - max() of the
+    // two GPUs below, so the tile lights up whenever either one is actually
+    // busy instead of only ever reflecting the dGPU.
     property real sysGpu: 0.0
     property real sysRam: 0.0
     property real sysDisk: 0.0
 
+    // Split out per-GPU on a hybrid-graphics laptop (Intel iGPU + NVIDIA
+    // dGPU) - see gpu_stats.sh's header comment for why nvidia-smi alone
+    // (the previous approach) can never see the iGPU, which is what
+    // actually decodes video in a browser on this kind of setup.
+    property real sysGpuIntel: 0.0
+    property real sysGpuNvidia: 0.0
+    property int gpuTempIntel: 0
+    property int gpuTempNvidia: 0
+
     property int cpuTemp: 0
+    // Combined tile's temp: whichever GPU is currently the busier one, to
+    // match sysGpu's own max()-of-the-two semantics.
     property int gpuTemp: 0
     property int ramTemp: 0
 
@@ -318,48 +332,56 @@ Item {
         }
     }
 
+    // See scripts/gpu_stats.sh's header comment for why this is a script
+    // rather than an inline fish -c one-liner (the previous approach) -
+    // deriving iGPU busy% from /proc/*/fdinfo needs real per-process
+    // dedup logic that isn't reasonable to inline, and the CPU-temp lookup
+    // needs to match coretemp by name rather than trust hwmon enumeration
+    // order.
     Process {
         id: diskGpuProc
-        command: [
-            "fish", "-c",
-            "set -l gpu (cat /sys/class/drm/card*/device/gpu_busy_percent 2>/dev/null | sort -nr | head -n1 | string trim); " +
-            "if test -z \"$gpu\" -a -e /dev/nvidiactl; and command -q nvidia-smi; " +
-                "set gpu (nvidia-smi --query-gpu=utilization.gpu,utilization.decoder --format=csv,noheader,nounits 2>/dev/null | awk -F', ' '{print ($1 > $2 ? $1 : $2)}' | head -n1 | string trim); " +
-            "end; " +
-            "test -n \"$gpu\"; and echo $gpu; or echo 0; " +
-
-            "df / | awk 'NR==2 {print $5}' | sed 's/%//'; " +
-
-            "set -l cpu_t (cat (find /sys/class/hwmon -maxdepth 1 -name 'hwmon*' 2>/dev/null)/temp1_input 2>/dev/null | head -n1); " +
-            "test -n \"$cpu_t\"; and math -s0 \"$cpu_t / 1000\"; or echo 0; " +
-
-            "set -l gtemp (cat (find /sys/class/hwmon -maxdepth 1 -name 'hwmon*' 2>/dev/null)/temp1_input 2>/dev/null | head -n1); " +
-            "if test -z \"$gtemp\" -a -e /dev/nvidiactl; and command -q nvidia-smi; " +
-                "set gtemp (nvidia-smi --query-gpu=temperature.gpu --format=csv,noheader,nounits 2>/dev/null | head -n1 | string trim); " +
-                "test -n \"$gtemp\"; and echo $gtemp; or echo 0; " +
-            "else; " +
-                "test -n \"$gtemp\"; and math -s0 \"$gtemp / 1000\"; or echo 0; " +
-            "end; " +
-            "echo 0"
-        ]
+        // Quickshell.shellDir isn't reliably a plain filesystem path (see
+        // Config.qml/Calendar.qml's own defensive file:// stripping on it)
+        // - WallpaperConfig.qml's existing script launch uses a hardcoded
+        // $HOME-relative path instead, so this matches that already-proven
+        // pattern rather than risk Process failing to exec a URL string.
+        command: [Quickshell.env("HOME") + "/.config/quickshell/Synoptik/scripts/gpu_stats.sh"]
         running: false
         stdout: StdioCollector {
             id: diskGpuCollector
             onStreamFinished: {
                 let raw = diskGpuCollector.text ? diskGpuCollector.text.trim() : ""
                 if (!raw) return
-                
-                let lines = raw.split("\n")
-                if (lines.length >= 2) {
-                    let rawGpu = parseFloat(lines[0].trim()) || 0.0
-                    cardRoot.sysGpu = rawGpu / 100.0
-                    let rawDisk = parseFloat(lines[1].trim()) || 0.0
-                    cardRoot.sysDisk = rawDisk / 100.0
-                }
-                if (lines.length >= 3) cardRoot.cpuTemp = Math.round(parseFloat(lines[2].trim()) || 0)
-                if (lines.length >= 4) cardRoot.gpuTemp = Math.round(parseFloat(lines[3].trim()) || 0)
-                if (lines.length >= 5) cardRoot.ramTemp = Math.round(parseFloat(lines[4].trim()) || 0)
-                
+
+                let lines = raw.split("\n").map(l => l.trim())
+                if (lines.length < 5) return
+
+                let nvidiaUtil = parseFloat(lines[0]) || 0.0
+                let rawDisk = parseFloat(lines[1]) || 0.0
+                let cpuT = parseFloat(lines[2]) || 0
+                let nvidiaT = parseFloat(lines[3]) || 0
+                // Already a finished percent, computed in the script from
+                // its own persisted per-client state - see its header
+                // comment for why that delta math has to live there
+                // rather than here (it needs a baseline per GPU client,
+                // not just one prior sample of a single combined number).
+                let intelPct = parseFloat(lines[4]) || 0.0
+
+                cardRoot.sysDisk = rawDisk / 100.0
+                cardRoot.cpuTemp = Math.round(cpuT)
+                cardRoot.sysGpuNvidia = Math.max(0, Math.min(100, nvidiaUtil)) / 100.0
+                cardRoot.gpuTempNvidia = Math.round(nvidiaT)
+                cardRoot.sysGpuIntel = Math.max(0, Math.min(100, intelPct)) / 100.0
+                // No dedicated Intel iGPU thermal sensor exists on this
+                // kind of client hardware (confirmed empirically - there's
+                // no i915 hwmon device at all) - the iGPU shares the CPU's
+                // die/package, so its package temp is the closest real
+                // reading available rather than showing a fabricated 0.
+                cardRoot.gpuTempIntel = cardRoot.cpuTemp
+
+                cardRoot.sysGpu = Math.max(cardRoot.sysGpuIntel, cardRoot.sysGpuNvidia)
+                cardRoot.gpuTemp = cardRoot.sysGpuIntel >= cardRoot.sysGpuNvidia ? cardRoot.gpuTempIntel : cardRoot.gpuTempNvidia
+
                 diskGpuProc.running = false
             }
         }
@@ -525,7 +547,7 @@ Item {
         readonly property color liveColor: (meterRoot.isOverheating || meterRoot.value > 0.85) ? "#f97316" : Config.accent
 
         // An icon that actually means something for each metric.
-        readonly property string glyph: meterRoot.label === "GPU" ? "monitor"
+        readonly property string glyph: (meterRoot.label === "GPU" || meterRoot.label === "iGPU" || meterRoot.label === "dGPU") ? "monitor"
             : (meterRoot.label === "RAM" ? "sd_card"
             : (meterRoot.label === "DISK" ? "storage" : "memory"))
 
@@ -627,6 +649,17 @@ Item {
                     spacing: 4
 
                     Text {
+                        // Fixed width (not auto-sized) so every tile's Row
+                        // is the same total width regardless of how many
+                        // digits its own value/temp happen to have this
+                        // tick - without it, e.g. a 1-digit "3%" next to a
+                        // 2-digit "66°C" made this Row narrower than a
+                        // neighboring tile showing "12%" next to a
+                        // 0-width-reserved temp, so each tile centered to a
+                        // different total width and the "%" digits drifted
+                        // out of column across tiles instead of lining up.
+                        width: 26
+                        horizontalAlignment: Text.AlignRight
                         anchors.verticalCenter: parent.verticalCenter
                         text: Math.round(meterRoot.value * 100) + "%"
                         color: Config.textMain
@@ -641,6 +674,8 @@ Item {
                         // once vertically centered against them, its icon
                         // tile sits visibly lower than theirs.
                         opacity: meterRoot.temp > 0 ? 1 : 0
+                        width: 30
+                        horizontalAlignment: Text.AlignLeft
                         anchors.verticalCenter: parent.verticalCenter
                         text: (meterRoot.temp > 0 ? meterRoot.temp : 0) + "°C"
                         color: meterRoot.isOverheating ? "#f97316" : Config.accent
@@ -998,7 +1033,11 @@ Item {
 
                 Rectangle {
                     Layout.fillWidth: true
-                    implicitHeight: 210
+                    // +38 over the original 210 to fit the new iGPU/dGPU
+                    // row (32 tall + 6 spacing) without shrinking the load
+                    // graph below it, which has Layout.fillHeight and would
+                    // otherwise silently absorb the difference.
+                    implicitHeight: 248
                     color: Qt.rgba(0, 0, 0, 0.15)
                     radius: Config.cornerRadius / 1.5
 
@@ -1008,7 +1047,18 @@ Item {
                         spacing: 6
 
                         HudMeter { Layout.fillWidth: true; compact: false; label: "CPU"; value: cardRoot.sysCpu; temp: cardRoot.cpuTemp }
-                        HudMeter { Layout.fillWidth: true; compact: false; label: "GPU"; value: cardRoot.sysGpu; temp: cardRoot.gpuTemp }
+                        // Split from the single collapsed-tile "GPU" reading
+                        // into the two real GPUs on a hybrid-graphics laptop
+                        // - the expanded panel has the horizontal room the
+                        // collapsed strip doesn't, so this is where the
+                        // breakdown actually lives (see sysGpuIntel's own
+                        // comment for why nvidia-smi alone can't see the
+                        // iGPU that browser video decode actually runs on).
+                        // Not clickable - there's no "iGPU"/"dGPU" process
+                        // category (only CPU/GPU/RAM exist below), so these
+                        // would otherwise switch to an empty process list.
+                        HudMeter { Layout.fillWidth: true; compact: false; label: "iGPU"; value: cardRoot.sysGpuIntel; temp: cardRoot.gpuTempIntel; clickable: false }
+                        HudMeter { Layout.fillWidth: true; compact: false; label: "dGPU"; value: cardRoot.sysGpuNvidia; temp: cardRoot.gpuTempNvidia; clickable: false }
                         HudMeter { Layout.fillWidth: true; compact: false; label: "RAM"; value: cardRoot.sysRam; temp: cardRoot.ramTemp }
                         HudMeter { Layout.fillWidth: true; compact: false; label: "DISK"; value: cardRoot.sysDisk }
 
