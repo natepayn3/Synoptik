@@ -642,23 +642,29 @@ Item {
                     font.bold: true
                 }
 
-                Row {
+                Item {
+                    // Fixed total width (not a plain Row) so every tile
+                    // reserves the same footprint regardless of whether it
+                    // has a temp reading - needed so CPU/GPU's icon tiles
+                    // don't sit lower than RAM/DISK's once centered against
+                    // them. But reserving that space by right-aligning the
+                    // percent in a column sized for "percent + temp" left
+                    // RAM/DISK's lone percent looking shoved left instead of
+                    // centered, since there was nothing visible next to it
+                    // to fill out the rest of the row - hence explicit x
+                    // positions below instead of a Row: a tile with a temp
+                    // keeps the percent right-aligned in its own column (so
+                    // CPU's "10%" and GPU's "34%" line up with each other),
+                    // one without centers the percent across the full width.
+                    id: vLabelRow
                     anchors.horizontalCenter: parent.horizontalCenter
-                    spacing: 4
+                    width: 60
+                    height: Math.max(pctLabel.implicitHeight, tempLabel.implicitHeight)
 
                     Text {
-                        // Fixed width (not auto-sized) so every tile's Row
-                        // is the same total width regardless of how many
-                        // digits its own value/temp happen to have this
-                        // tick - without it, e.g. a 1-digit "3%" next to a
-                        // 2-digit "66°C" made this Row narrower than a
-                        // neighboring tile showing "12%" next to a
-                        // 0-width-reserved temp, so each tile centered to a
-                        // different total width and the "%" digits drifted
-                        // out of column across tiles instead of lining up.
-                        width: 26
-                        horizontalAlignment: Text.AlignRight
+                        id: pctLabel
                         anchors.verticalCenter: parent.verticalCenter
+                        x: meterRoot.temp > 0 ? (26 - width) : (vLabelRow.width - width) / 2
                         text: Math.round(meterRoot.value * 100) + "%"
                         color: Config.textMain
                         font.family: Config.sysFont
@@ -666,16 +672,12 @@ Item {
                         font.bold: true
                     }
                     Text {
-                        // opacity (not visible) so this always reserves its
-                        // space - a meter with no temp reading (RAM/DISK)
-                        // otherwise ends up a row shorter than CPU/GPU and,
-                        // once vertically centered against them, its icon
-                        // tile sits visibly lower than theirs.
-                        opacity: meterRoot.temp > 0 ? 1 : 0
-                        width: 30
-                        horizontalAlignment: Text.AlignLeft
+                        id: tempLabel
+                        visible: meterRoot.temp > 0
                         anchors.verticalCenter: parent.verticalCenter
-                        text: (meterRoot.temp > 0 ? meterRoot.temp : 0) + "°C"
+                        anchors.left: pctLabel.right
+                        anchors.leftMargin: 4
+                        text: meterRoot.temp + "°C"
                         color: meterRoot.isOverheating ? "#f97316" : Config.accent
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontMicro)
