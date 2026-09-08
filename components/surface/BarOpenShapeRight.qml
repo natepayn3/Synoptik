@@ -94,8 +94,8 @@ Shape {
             x: panelRoot.isRightFlush ? (openShapeRightFloating.rX + panelRoot.halfB - panelRoot.currentWidth) : (openShapeRightFloating.rX + panelRoot.halfB - panelRoot.wingW)
             y: panelRoot.isRightFlush ? (panelRoot.islandBarB - panelRoot.radius) : panelRoot.pRight
             control1X: panelRoot.isRightFlush ? (openShapeRightFloating.rX + panelRoot.halfB - panelRoot.currentWidth) : (openShapeRightFloating.rX + panelRoot.halfB)
-            control1Y: panelRoot.isRightFlush ? (panelRoot.islandBarB - panelRoot.radius) : (panelRoot.pRight + (panelRoot.wingW * 0.5))
-            control2X: panelRoot.isRightFlush ? (openShapeRightFloating.rX + panelRoot.halfB - panelRoot.currentWidth) : (openShapeRightFloating.rX + panelRoot.halfB - (panelRoot.wingW * 0.5))
+            control1Y: panelRoot.isRightFlush ? (panelRoot.islandBarB - panelRoot.radius) : (panelRoot.pRight + (panelRoot.wingW * (1 - panelRoot.wingK)))
+            control2X: panelRoot.isRightFlush ? (openShapeRightFloating.rX + panelRoot.halfB - panelRoot.currentWidth) : (openShapeRightFloating.rX + panelRoot.halfB - (panelRoot.wingW * (1 - panelRoot.wingK)))
             control2Y: panelRoot.isRightFlush ? (panelRoot.islandBarB - panelRoot.radius) : panelRoot.pRight
         }
 
@@ -135,10 +135,10 @@ Shape {
         PathCubic {
             x: panelRoot.isLeftFlush ? (panelCanvas.width - panelRoot.halfB - panelRoot.barRadius) : (openShapeRightFloating.rX + panelRoot.halfB)
             y: panelRoot.isLeftFlush ? panelRoot.islandBarT : (panelRoot.pLeft - panelRoot.wingW)
-            control1X: panelRoot.isLeftFlush ? (panelCanvas.width - panelRoot.halfB - panelRoot.barRadius) : (openShapeRightFloating.rX + panelRoot.halfB - (panelRoot.wingW * 0.5))
+            control1X: panelRoot.isLeftFlush ? (panelCanvas.width - panelRoot.halfB - panelRoot.barRadius) : (openShapeRightFloating.rX + panelRoot.halfB - (panelRoot.wingW * (1 - panelRoot.wingK)))
             control1Y: panelRoot.isLeftFlush ? panelRoot.islandBarT : panelRoot.pLeft
             control2X: panelRoot.isLeftFlush ? (panelCanvas.width - panelRoot.halfB - panelRoot.barRadius) : (openShapeRightFloating.rX + panelRoot.halfB)
-            control2Y: panelRoot.isLeftFlush ? panelRoot.islandBarT : (panelRoot.pLeft - (panelRoot.wingW * 0.5))
+            control2Y: panelRoot.isLeftFlush ? panelRoot.islandBarT : (panelRoot.pLeft - (panelRoot.wingW * (1 - panelRoot.wingK)))
         }
 
         PathLine {

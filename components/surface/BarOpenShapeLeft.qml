@@ -66,8 +66,8 @@ Shape {
             x: panelRoot.isLeftFlush ? (panelRoot.barH - panelRoot.halfB + panelRoot.currentWidth) : (panelRoot.barH - panelRoot.halfB + panelRoot.wingW)
             y: panelRoot.isLeftFlush ? (panelRoot.islandBarT + panelRoot.radius) : panelRoot.pLeft
             control1X: panelRoot.isLeftFlush ? (panelRoot.barH - panelRoot.halfB + panelRoot.currentWidth) : (panelRoot.barH - panelRoot.halfB)
-            control1Y: panelRoot.isLeftFlush ? (panelRoot.islandBarT + panelRoot.radius) : (panelRoot.pLeft - (panelRoot.wingW * 0.5))
-            control2X: panelRoot.isLeftFlush ? (panelRoot.barH - panelRoot.halfB + panelRoot.currentWidth) : (panelRoot.barH - panelRoot.halfB + (panelRoot.wingW * 0.5))
+            control1Y: panelRoot.isLeftFlush ? (panelRoot.islandBarT + panelRoot.radius) : (panelRoot.pLeft - (panelRoot.wingW * (1 - panelRoot.wingK)))
+            control2X: panelRoot.isLeftFlush ? (panelRoot.barH - panelRoot.halfB + panelRoot.currentWidth) : (panelRoot.barH - panelRoot.halfB + (panelRoot.wingW * (1 - panelRoot.wingK)))
             control2Y: panelRoot.isLeftFlush ? (panelRoot.islandBarT + panelRoot.radius) : panelRoot.pLeft
         }
 
@@ -108,10 +108,10 @@ Shape {
         PathCubic {
             x: panelRoot.isRightFlush ? (panelRoot.halfB + panelRoot.barRadius) : (panelRoot.barH - panelRoot.halfB)
             y: panelRoot.isRightFlush ? panelRoot.islandBarB : (panelRoot.pRight + panelRoot.wingW)
-            control1X: panelRoot.isRightFlush ? (panelRoot.halfB + panelRoot.barRadius) : (panelRoot.barH - panelRoot.halfB + (panelRoot.wingW * 0.5))
+            control1X: panelRoot.isRightFlush ? (panelRoot.halfB + panelRoot.barRadius) : (panelRoot.barH - panelRoot.halfB + (panelRoot.wingW * (1 - panelRoot.wingK)))
             control1Y: panelRoot.isRightFlush ? panelRoot.islandBarB : panelRoot.pRight
             control2X: panelRoot.isRightFlush ? (panelRoot.halfB + panelRoot.barRadius) : (panelRoot.barH - panelRoot.halfB)
-            control2Y: panelRoot.isRightFlush ? panelRoot.islandBarB : (panelRoot.pRight + (panelRoot.wingW * 0.5))
+            control2Y: panelRoot.isRightFlush ? panelRoot.islandBarB : (panelRoot.pRight + (panelRoot.wingW * (1 - panelRoot.wingK)))
         }
 
         // Bottom bar return line and inner corner arcs

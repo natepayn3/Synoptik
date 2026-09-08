@@ -67,8 +67,8 @@ Item {
                 x: panelRoot.inX + panelRoot.inW - panelRoot.wingW
                 y: panelRoot.pLeft
                 control1X: panelRoot.inX + panelRoot.inW
-                control1Y: panelRoot.pLeft - panelRoot.wingW * 0.5
-                control2X: panelRoot.inX + panelRoot.inW - panelRoot.wingW * 0.5
+                control1Y: panelRoot.pLeft - panelRoot.wingW * (1 - panelRoot.wingK)
+                control2X: panelRoot.inX + panelRoot.inW - panelRoot.wingW * (1 - panelRoot.wingK)
                 control2Y: panelRoot.pLeft
             }
 
@@ -106,10 +106,10 @@ Item {
             PathCubic {
                 x: panelRoot.inX + panelRoot.inW
                 y: panelRoot.pRight + panelRoot.wingW
-                control1X: panelRoot.inX + panelRoot.inW - panelRoot.wingW * 0.5
+                control1X: panelRoot.inX + panelRoot.inW - panelRoot.wingW * (1 - panelRoot.wingK)
                 control1Y: panelRoot.pRight
                 control2X: panelRoot.inX + panelRoot.inW
-                control2Y: panelRoot.pRight + panelRoot.wingW * 0.5
+                control2Y: panelRoot.pRight + panelRoot.wingW * (1 - panelRoot.wingK)
             }
 
         }
@@ -139,10 +139,10 @@ Item {
             PathCubic {
                 x: panelRoot.rightBarPopL
                 y: panelRoot.inY + panelRoot.wingW
-                control1X: panelRoot.rightBarPopL - panelRoot.wingW * 0.5
+                control1X: panelRoot.rightBarPopL - panelRoot.wingW * (1 - panelRoot.wingK)
                 control1Y: panelRoot.inY
                 control2X: panelRoot.rightBarPopL
-                control2Y: panelRoot.inY + panelRoot.wingW * 0.5
+                control2Y: panelRoot.inY + panelRoot.wingW * (1 - panelRoot.wingK)
             }
 
             PathLine {
@@ -166,10 +166,10 @@ Item {
             PathCubic {
                 x: panelRoot.inX + panelRoot.inW
                 y: panelRoot.pRight + panelRoot.wingW
-                control1X: panelRoot.inX + panelRoot.inW - panelRoot.wingW * 0.5
+                control1X: panelRoot.inX + panelRoot.inW - panelRoot.wingW * (1 - panelRoot.wingK)
                 control1Y: panelRoot.pRight
                 control2X: panelRoot.inX + panelRoot.inW
-                control2Y: panelRoot.pRight + panelRoot.wingW * 0.5
+                control2Y: panelRoot.pRight + panelRoot.wingW * (1 - panelRoot.wingK)
             }
 
         }
@@ -195,8 +195,8 @@ Item {
                 x: panelRoot.inX + panelRoot.inW - panelRoot.wingW
                 y: panelRoot.pLeft
                 control1X: panelRoot.inX + panelRoot.inW
-                control1Y: panelRoot.pLeft - panelRoot.wingW * 0.5
-                control2X: panelRoot.inX + panelRoot.inW - panelRoot.wingW * 0.5
+                control1Y: panelRoot.pLeft - panelRoot.wingW * (1 - panelRoot.wingK)
+                control2X: panelRoot.inX + panelRoot.inW - panelRoot.wingW * (1 - panelRoot.wingK)
                 control2Y: panelRoot.pLeft
             }
 
@@ -222,8 +222,8 @@ Item {
                 x: panelRoot.rightBarPopL - panelRoot.wingW
                 y: panelRoot.inY + panelRoot.inH
                 control1X: panelRoot.rightBarPopL
-                control1Y: panelRoot.inY + panelRoot.inH - panelRoot.wingW * 0.5
-                control2X: panelRoot.rightBarPopL - panelRoot.wingW * 0.5
+                control1Y: panelRoot.inY + panelRoot.inH - panelRoot.wingW * (1 - panelRoot.wingK)
+                control2X: panelRoot.rightBarPopL - panelRoot.wingW * (1 - panelRoot.wingK)
                 control2Y: panelRoot.inY + panelRoot.inH
             }
 
@@ -271,8 +271,8 @@ Item {
                 x: panelRoot.inX + panelRoot.inW - panelRoot.wingW
                 y: panelRoot.pLeft
                 control1X: panelRoot.inX + panelRoot.inW - panelRoot.halfB
-                control1Y: panelRoot.pLeft - panelRoot.wingW * 0.5
-                control2X: panelRoot.inX + panelRoot.inW - panelRoot.wingW * 0.5
+                control1Y: panelRoot.pLeft - panelRoot.wingW * (1 - panelRoot.wingK)
+                control2X: panelRoot.inX + panelRoot.inW - panelRoot.halfB - (panelRoot.wingW - panelRoot.halfB) * (1 - panelRoot.wingK)
                 control2Y: panelRoot.pLeft
             }
 
@@ -310,10 +310,10 @@ Item {
             PathCubic {
                 x: panelRoot.inX + panelRoot.inW - panelRoot.halfB
                 y: panelRoot.pRight + panelRoot.wingW
-                control1X: panelRoot.inX + panelRoot.inW - panelRoot.wingW * 0.5
+                control1X: panelRoot.inX + panelRoot.inW - panelRoot.halfB - (panelRoot.wingW - panelRoot.halfB) * (1 - panelRoot.wingK)
                 control1Y: panelRoot.pRight
                 control2X: panelRoot.inX + panelRoot.inW - panelRoot.halfB
-                control2Y: panelRoot.pRight + panelRoot.wingW * 0.5
+                control2Y: panelRoot.pRight + panelRoot.wingW * (1 - panelRoot.wingK)
             }
 
             PathLine {
@@ -380,10 +380,10 @@ Item {
             PathCubic {
                 x: panelRoot.rightBarPopL
                 y: panelRoot.inY + panelRoot.halfB + panelRoot.wingW
-                control1X: panelRoot.rightBarPopL - panelRoot.wingW * 0.5
+                control1X: panelRoot.rightBarPopL - panelRoot.wingW * (1 - panelRoot.wingK)
                 control1Y: panelRoot.inY + panelRoot.halfB
                 control2X: panelRoot.rightBarPopL
-                control2Y: panelRoot.inY + panelRoot.halfB + panelRoot.wingW * 0.5
+                control2Y: panelRoot.inY + panelRoot.halfB + panelRoot.wingW * (1 - panelRoot.wingK)
             }
 
             PathLine {
@@ -407,10 +407,10 @@ Item {
             PathCubic {
                 x: panelRoot.inX + panelRoot.inW - panelRoot.halfB
                 y: panelRoot.pRight + panelRoot.wingW
-                control1X: panelRoot.inX + panelRoot.inW - panelRoot.wingW * 0.5
+                control1X: panelRoot.inX + panelRoot.inW - panelRoot.halfB - (panelRoot.wingW - panelRoot.halfB) * (1 - panelRoot.wingK)
                 control1Y: panelRoot.pRight
                 control2X: panelRoot.inX + panelRoot.inW - panelRoot.halfB
-                control2Y: panelRoot.pRight + panelRoot.wingW * 0.5
+                control2Y: panelRoot.pRight + panelRoot.wingW * (1 - panelRoot.wingK)
             }
 
             PathLine {
@@ -491,8 +491,8 @@ Item {
                 x: panelRoot.inX + panelRoot.inW - panelRoot.halfB - panelRoot.wingW
                 y: panelRoot.pLeft
                 control1X: panelRoot.inX + panelRoot.inW - panelRoot.halfB
-                control1Y: panelRoot.pLeft - panelRoot.wingW * 0.5
-                control2X: panelRoot.inX + panelRoot.inW - panelRoot.halfB - panelRoot.wingW * 0.5
+                control1Y: panelRoot.pLeft - panelRoot.wingW * (1 - panelRoot.wingK)
+                control2X: panelRoot.inX + panelRoot.inW - panelRoot.halfB - panelRoot.wingW * (1 - panelRoot.wingK)
                 control2Y: panelRoot.pLeft
             }
 
@@ -518,9 +518,9 @@ Item {
                 x: panelRoot.rightBarPopL - panelRoot.wingW
                 y: panelRoot.inY + panelRoot.inH - panelRoot.halfB
                 control1X: panelRoot.rightBarPopL
-                control1Y: panelRoot.inY + panelRoot.inH - panelRoot.halfB - panelRoot.wingW * 0.5
-                control2X: panelRoot.rightBarPopL - panelRoot.wingW * 0.5
-                control2Y: panelRoot.inY + panelRoot.inH
+                control1Y: panelRoot.inY + panelRoot.inH - panelRoot.halfB - panelRoot.wingW * (1 - panelRoot.wingK)
+                control2X: panelRoot.rightBarPopL - panelRoot.wingW * (1 - panelRoot.wingK)
+                control2Y: panelRoot.inY + panelRoot.inH - panelRoot.halfB
             }
 
             PathLine {

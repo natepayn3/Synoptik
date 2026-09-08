@@ -66,10 +66,10 @@ Item {
             PathCubic {
                 x: panelRoot.pRight
                 y: panelRoot.inY + panelRoot.inH - panelRoot.wingW
-                control1X: panelRoot.pRight + panelRoot.wingW * 0.5
+                control1X: panelRoot.pRight + panelRoot.wingW * (1 - panelRoot.wingK)
                 control1Y: panelRoot.inY + panelRoot.inH
                 control2X: panelRoot.pRight
-                control2Y: panelRoot.inY + panelRoot.inH - panelRoot.wingW * 0.5
+                control2Y: panelRoot.inY + panelRoot.inH - panelRoot.wingW * (1 - panelRoot.wingK)
             }
 
             PathLine {
@@ -107,8 +107,8 @@ Item {
                 x: panelRoot.pLeft - panelRoot.wingW
                 y: panelRoot.inY + panelRoot.inH
                 control1X: panelRoot.pLeft
-                control1Y: panelRoot.inY + panelRoot.inH - panelRoot.wingW * 0.5
-                control2X: panelRoot.pLeft - panelRoot.wingW * 0.5
+                control1Y: panelRoot.inY + panelRoot.inH - panelRoot.wingW * (1 - panelRoot.wingK)
+                control2X: panelRoot.pLeft - panelRoot.wingW * (1 - panelRoot.wingK)
                 control2Y: panelRoot.inY + panelRoot.inH
             }
 
@@ -134,10 +134,10 @@ Item {
             PathCubic {
                 x: panelRoot.pRight
                 y: panelRoot.inY + panelRoot.inH - panelRoot.wingW
-                control1X: panelRoot.pRight + panelRoot.wingW * 0.5
+                control1X: panelRoot.pRight + panelRoot.wingW * (1 - panelRoot.wingK)
                 control1Y: panelRoot.inY + panelRoot.inH
                 control2X: panelRoot.pRight
-                control2Y: panelRoot.inY + panelRoot.inH - panelRoot.wingW * 0.5
+                control2Y: panelRoot.inY + panelRoot.inH - panelRoot.wingW * (1 - panelRoot.wingK)
             }
 
             PathLine {
@@ -161,10 +161,10 @@ Item {
             PathCubic {
                 x: panelRoot.inX
                 y: panelRoot.bottomBarPopT - panelRoot.wingW
-                control1X: panelRoot.inX + panelRoot.wingW * 0.5
+                control1X: panelRoot.inX + panelRoot.wingW * (1 - panelRoot.wingK)
                 control1Y: panelRoot.bottomBarPopT
                 control2X: panelRoot.inX
-                control2Y: panelRoot.bottomBarPopT - panelRoot.wingW * 0.5
+                control2Y: panelRoot.bottomBarPopT - panelRoot.wingW * (1 - panelRoot.wingK)
             }
 
             PathLine {
@@ -194,10 +194,17 @@ Item {
             PathCubic {
                 x: panelRoot.pLeft
                 y: panelRoot.inY + panelRoot.inH - panelRoot.wingW
-                control1X: panelRoot.pLeft
-                control1Y: panelRoot.inY + panelRoot.inH - panelRoot.wingW * 0.5
-                control2X: panelRoot.pLeft - panelRoot.wingW * 0.5
-                control2Y: panelRoot.inY + panelRoot.inH
+                // Corner at (pLeft, inY+inH): this path arrives horizontally from the
+                // left and leaves vertically upward, so control1 must run along x
+                // (sharing the start's y) and control2 along y (sharing the end's x).
+                // The two were swapped, which sent both handles diagonally and gave
+                // this wing a ~2x handle - 22.36 where a true quarter arc wants 11.05.
+                // The same corner traversed the other way, further up, was already
+                // written correctly; this is now its exact mirror.
+                control1X: panelRoot.pLeft - panelRoot.wingW * (1 - panelRoot.wingK)
+                control1Y: panelRoot.inY + panelRoot.inH
+                control2X: panelRoot.pLeft
+                control2Y: panelRoot.inY + panelRoot.inH - panelRoot.wingW * (1 - panelRoot.wingK)
             }
 
             PathLine {
@@ -221,10 +228,10 @@ Item {
             PathCubic {
                 x: panelRoot.inX + panelRoot.inW
                 y: panelRoot.bottomBarPopT - panelRoot.wingW
-                control1X: panelRoot.inX + panelRoot.inW - panelRoot.wingW * 0.5
+                control1X: panelRoot.inX + panelRoot.inW - panelRoot.wingW * (1 - panelRoot.wingK)
                 control1Y: panelRoot.bottomBarPopT
                 control2X: panelRoot.inX + panelRoot.inW
-                control2Y: panelRoot.bottomBarPopT - panelRoot.wingW * 0.5
+                control2Y: panelRoot.bottomBarPopT - panelRoot.wingW * (1 - panelRoot.wingK)
             }
 
             PathLine {
@@ -283,10 +290,10 @@ Item {
             PathCubic {
                 x: panelRoot.pRight
                 y: panelRoot.inY + panelRoot.inH - panelRoot.halfB - panelRoot.wingW
-                control1X: panelRoot.pRight + panelRoot.wingW * 0.5
+                control1X: panelRoot.pRight + panelRoot.wingW * (1 - panelRoot.wingK)
                 control1Y: panelRoot.inY + panelRoot.inH - panelRoot.halfB
                 control2X: panelRoot.pRight
-                control2Y: panelRoot.inY + panelRoot.inH - panelRoot.halfB - panelRoot.wingW * 0.5
+                control2Y: panelRoot.inY + panelRoot.inH - panelRoot.halfB - panelRoot.wingW * (1 - panelRoot.wingK)
             }
 
             PathLine {
@@ -324,9 +331,9 @@ Item {
                 x: panelRoot.pLeft - panelRoot.wingW
                 y: panelRoot.inY + panelRoot.inH - panelRoot.halfB
                 control1X: panelRoot.pLeft
-                control1Y: panelRoot.inY + panelRoot.inH - panelRoot.halfB - panelRoot.wingW * 0.5
-                control2X: panelRoot.pLeft - panelRoot.wingW * 0.5
-                control2Y: panelRoot.inY + panelRoot.inH
+                control1Y: panelRoot.inY + panelRoot.inH - panelRoot.halfB - panelRoot.wingW * (1 - panelRoot.wingK)
+                control2X: panelRoot.pLeft - panelRoot.wingW * (1 - panelRoot.wingK)
+                control2Y: panelRoot.inY + panelRoot.inH - panelRoot.halfB
             }
 
             PathLine {
@@ -406,10 +413,10 @@ Item {
             PathCubic {
                 x: panelRoot.pRight
                 y: panelRoot.inY + panelRoot.inH - panelRoot.halfB - panelRoot.wingW
-                control1X: panelRoot.pRight + panelRoot.wingW * 0.5
+                control1X: panelRoot.pRight + panelRoot.wingW * (1 - panelRoot.wingK)
                 control1Y: panelRoot.inY + panelRoot.inH - panelRoot.halfB
                 control2X: panelRoot.pRight
-                control2Y: panelRoot.inY + panelRoot.inH - panelRoot.halfB - panelRoot.wingW * 0.5
+                control2Y: panelRoot.inY + panelRoot.inH - panelRoot.halfB - panelRoot.wingW * (1 - panelRoot.wingK)
             }
 
             PathLine {
@@ -433,10 +440,10 @@ Item {
             PathCubic {
                 x: panelRoot.inX + panelRoot.halfB
                 y: panelRoot.bottomBarPopT - panelRoot.wingH
-                control1X: panelRoot.inX + panelRoot.halfB + panelRoot.wingW * 0.5
+                control1X: panelRoot.inX + panelRoot.halfB + panelRoot.wingW * (1 - panelRoot.wingK)
                 control1Y: panelRoot.bottomBarPopT
                 control2X: panelRoot.inX + panelRoot.halfB
-                control2Y: panelRoot.bottomBarPopT - panelRoot.wingH * 0.5
+                control2Y: panelRoot.bottomBarPopT - panelRoot.wingH * (1 - panelRoot.wingK)
             }
 
             PathLine {
@@ -491,8 +498,8 @@ Item {
                 x: panelRoot.inX + panelRoot.inW - panelRoot.halfB - panelRoot.wingW
                 y: panelRoot.bottomBarPopT
                 control1X: panelRoot.inX + panelRoot.inW - panelRoot.halfB
-                control1Y: panelRoot.bottomBarPopT - panelRoot.wingW * 0.5
-                control2X: panelRoot.inX + panelRoot.inW - panelRoot.halfB - panelRoot.wingW * 0.5
+                control1Y: panelRoot.bottomBarPopT - panelRoot.wingW * (1 - panelRoot.wingK)
+                control2X: panelRoot.inX + panelRoot.inW - panelRoot.halfB - panelRoot.wingW * (1 - panelRoot.wingK)
                 control2Y: panelRoot.bottomBarPopT
             }
 
@@ -518,9 +525,9 @@ Item {
                 x: panelRoot.pLeft - panelRoot.wingW
                 y: panelRoot.inY + panelRoot.inH - panelRoot.halfB
                 control1X: panelRoot.pLeft
-                control1Y: panelRoot.inY + panelRoot.inH - panelRoot.halfB - panelRoot.wingW * 0.5
-                control2X: panelRoot.pLeft - panelRoot.wingW * 0.5
-                control2Y: panelRoot.inY + panelRoot.inH
+                control1Y: panelRoot.inY + panelRoot.inH - panelRoot.halfB - panelRoot.wingW * (1 - panelRoot.wingK)
+                control2X: panelRoot.pLeft - panelRoot.wingW * (1 - panelRoot.wingK)
+                control2Y: panelRoot.inY + panelRoot.inH - panelRoot.halfB
             }
 
             PathLine {
