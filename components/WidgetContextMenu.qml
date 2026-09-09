@@ -160,7 +160,8 @@ ClippingRectangle {
         { id: "cava",    icon: "graphic_eq",    label: "Audio Visualizer", enabled: Config.showDesktopCava },
         { id: "mascot",  icon: "pets",          label: "Desktop Mascot",   enabled: Config.showMascot },
         { id: "media",   icon: "album",         label: "Media Player",    enabled: Config.showDesktopMediaCard },
-        { id: "assistant", icon: "smart_toy",   label: "Assistant",       enabled: Config.showAssistant }
+        { id: "assistant", icon: "smart_toy",   label: "Assistant",       enabled: Config.showAssistant },
+        { id: "mirror",  icon: "photo_camera",  label: "Mirror",          enabled: Config.showMirror }
     ]
 
     function toggle(id) {
@@ -170,6 +171,7 @@ ClippingRectangle {
         else if (id === "mascot") Config.showMascot = !Config.showMascot
         else if (id === "media") Config.showDesktopMediaCard = !Config.showDesktopMediaCard
         else if (id === "assistant") Config.showAssistant = !Config.showAssistant
+        else if (id === "mirror") Config.showMirror = !Config.showMirror
     }
 
     // Opens at (localX, localY) in `container`'s coordinate space, clamped so

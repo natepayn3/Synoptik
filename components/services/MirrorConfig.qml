@@ -11,11 +11,43 @@ QtObject {
     property bool mirrorShowPanel: true
     property bool mirrorMirrored: true
     property bool mirrorKeepAspect: true
-    property bool mirrorExpanded: false
-    property bool mirrorPinned: false
-    property string mirrorAnchorPos: "center"
     property bool mirrorLoading: false
     property string mirrorError: ""
+
+    // --- DESKTOP WIDGET POSITION & PERSISTENCE ---
+    // Single roaming instance (only one camera feed makes sense at a time),
+    // same as Mascot/MediaCard/Assistant - mirrorLastScreen records which
+    // screen it's on so a restart doesn't just fall back to whatever
+    // monitor happens to be focused/first.
+    property var mirrorPositions: ({})
+    property string mirrorLastScreen: ""
+
+    function getMirrorPosition(screenName, defaultX, defaultY) {
+        if (mirrorPositions && mirrorPositions[screenName]) {
+            return mirrorPositions[screenName]
+        }
+        return { x: defaultX, y: defaultY }
+    }
+
+    function saveMirrorPosition(screenName, x, y) {
+        let current = Object.assign({}, mirrorPositions)
+        current[screenName] = { x: x, y: y }
+        mirrorPositions = current
+        mirrorLastScreen = screenName
+        if (configRef) configRef.saveSettings()
+    }
+
+    // Corner-drag resizable, same as MediaCardWidget.qml - see its file
+    // comment for why a layer-shell surface needs this manual approach
+    // instead of a native resize protocol.
+    property real mirrorWidth: 380
+    property real mirrorHeight: 340
+
+    function saveMirrorSize(width, height) {
+        mirrorWidth = width
+        mirrorHeight = height
+        if (configRef) configRef.saveSettings()
+    }
 
     // Lazy load the QtMultimedia backend only when mirror is visible
     property Loader mirrorLoader: Loader {
@@ -108,23 +140,8 @@ QtObject {
     readonly property CaptureSession mirrorCaptureSession: mirrorLoader.item ? mirrorLoader.item.captureSession : null
     readonly property MediaDevices mirrorMediaDevices: mirrorLoader.item ? mirrorLoader.item.mediaDevices : null
 
-    function cycleMirrorAnchor(direction) {
-        if (direction === "up" || direction === "left" || direction === "prev") {
-            if (mirrorAnchorPos === "bottom") mirrorAnchorPos = "center"
-            else if (mirrorAnchorPos === "center") mirrorAnchorPos = "top"
-            else mirrorAnchorPos = "bottom"
-        } else if (direction === "down" || direction === "right" || direction === "next") {
-            if (mirrorAnchorPos === "top") mirrorAnchorPos = "center"
-            else if (mirrorAnchorPos === "center") mirrorAnchorPos = "bottom"
-            else mirrorAnchorPos = "top"
-        }
-    }
-
     onShowMirrorChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
     onMirrorShowPanelChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
     onMirrorMirroredChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
     onMirrorKeepAspectChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
-    onMirrorExpandedChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
-    onMirrorPinnedChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
-    onMirrorAnchorPosChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
 }

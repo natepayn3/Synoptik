@@ -6,19 +6,83 @@ import Qt.labs.platform
 import Qt5Compat.GraphicalEffects
 import Quickshell
 import Quickshell.Widgets
+import Quickshell.Wayland
+import Quickshell.Hyprland
 import ".."
 
-Item {
-    id: mirrorRoot
-    focus: true
+// Desktop widget counterpart to Mascot.qml/MediaCardWidget.qml - a single
+// roaming camera-preview card (only one camera feed makes sense at a time,
+// so this follows the singleton pattern, not the per-screen one Clock/Cava/
+// SysInfo use). Toggled from the shared WidgetContextMenu right-click menu
+// like every other desktop widget, instead of a dedicated bar icon/popout.
+// Same layer-shell PanelWindow + drag-anchor/ghostBody architecture as the
+// rest of components/widgets - see MediaCardWidget.qml's file comment for
+// why (manual local x/y instead of startSystemMove()).
+PanelWindow {
+    id: mirrorWindow
+    visible: Config.showMirror
 
-    Keys.onLeftPressed: (event) => { anchorControls.cycleAnchor(anchorControls.isHorizontal ? "left" : "up"); event.accepted = true }
-    Keys.onUpPressed: (event) => { anchorControls.cycleAnchor(anchorControls.isHorizontal ? "left" : "up"); event.accepted = true }
-    Keys.onRightPressed: (event) => { anchorControls.cycleAnchor(anchorControls.isHorizontal ? "right" : "down"); event.accepted = true }
-    Keys.onDownPressed: (event) => { anchorControls.cycleAnchor(anchorControls.isHorizontal ? "right" : "down"); event.accepted = true }
+    Component.onCompleted: {
+        let activeName = Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""
+        let found = Quickshell.screens.find(s => s.name === activeName)
+        mirrorWindow.screen = found || Quickshell.screens[0]
+    }
 
-    implicitWidth: Config.mirrorExpanded ? 640 : 380
-    implicitHeight: mainColumn.implicitHeight + (Config.cardMargin * 2)
+    WlrLayershell.layer: WlrLayer.Bottom
+    WlrLayershell.namespace: "quickshell-mirror"
+    WlrLayershell.keyboardFocus: (typeof widgetMenu !== "undefined" && widgetMenu.visible) ? WlrKeyboardFocus.OnDemand : WlrKeyboardFocus.None
+
+    anchors {
+        top: true
+        bottom: true
+        left: true
+        right: true
+    }
+
+    color: "transparent"
+    // -1 opts this surface out of other surfaces' exclusive zones, same as
+    // ClockWidget/CavaWidget/Mascot - otherwise Hyprland shrinks this
+    // full-screen surface to skip the bar's reserved strip, leaving nowhere
+    // there to drag the card into.
+    exclusiveZone: -1
+
+    readonly property size minCardSize: Qt.size(300, 220)
+    readonly property size maxCardSize: Qt.size(900, 700)
+
+    // Math.max/Math.min don't actually clamp a NaN input - it just
+    // propagates straight through untouched, so a corrupted/missing saved
+    // size always falls back to a valid one instead of silently producing
+    // an invisible zero-size card. Same guard as MediaCardWidget.qml.
+    function clampSize(value, lo, hi, fallback) {
+        if (typeof value !== "number" || !isFinite(value)) return fallback
+        return Math.max(lo, Math.min(hi, value))
+    }
+
+    // The third region only matters while the mouse is down - see
+    // CavaWidget.qml's identical mask comment for the full explanation of
+    // why (fast flicks outrunning a small input region on a layer-shell
+    // surface). Also gated on mirrorContainer.anyResizeActive, not just
+    // dragArea.pressed: the resize edges are only a few px thick, so even
+    // modest cursor movement past the edge being dragged would otherwise
+    // outrun the mask almost immediately - that was the resize feeling
+    // like it kept "letting go" unless dragged extremely slowly.
+    mask: Region {
+        Region { item: mirrorContainer }
+        Region { item: (typeof widgetMenu !== "undefined" && widgetMenu.visible) ? widgetMenu : null }
+        Region { item: (dragArea.pressed || mirrorContainer.anyResizeActive) ? fullScreenDragCatch : null }
+    }
+
+    Item { id: fullScreenDragCatch; anchors.fill: parent }
+
+    SnapGridOverlay {
+        anchors.fill: parent
+        gridSize: ghostBody.gridSize
+        active: dragArea.drag.active && Config.snapDesktopWidgets
+        targetX: ghostBody.x
+        targetY: ghostBody.y
+        targetWidth: ghostBody.width
+        targetHeight: ghostBody.height
+    }
 
     function takeSnapshot() {
         let timestamp = Qt.formatDateTime(new Date(), "yyyyMMdd_hhmmss")
@@ -41,9 +105,9 @@ Item {
         if (Config.mirrorCaptureSession) {
             Config.mirrorCaptureSession.videoOutput = localOutput
             if (Config.mirrorCaptureSession.camera) {
-                if (mirrorRoot.visible && Config.showMirror) {
+                if (mirrorWindow.visible && Config.showMirror) {
                     // Deferred so this (potentially slow) hardware open never blocks
-                    // the popout's opening animation or the loading overlay's first frame.
+                    // the widget's opening animation or the loading overlay's first frame.
                     Qt.callLater(() => {
                         if (Config.mirrorCaptureSession && Config.mirrorCaptureSession.camera) {
                             Config.mirrorCaptureSession.camera.active = true
@@ -64,7 +128,7 @@ Item {
         target: Config
         ignoreUnknownSignals: true
         function onMirrorCaptureSessionChanged() {
-            mirrorRoot.attachSession()
+            mirrorWindow.attachSession()
         }
         function onShowMirrorChanged() {
             if (!Config.mirrorCaptureSession || !Config.mirrorCaptureSession.camera) return
@@ -80,372 +144,594 @@ Item {
         }
     }
 
-    ColumnLayout {
-        id: mainColumn
-        anchors.fill: parent
-        anchors.margins: Config.cardMargin
-        spacing: Config.cardMargin / 2
+    // Invisible drag/resize-anchor / hit-region. Owns cardWidth/cardHeight -
+    // the ghostBody visual skin below just mirrors them - same split as
+    // MediaCardWidget.qml's mediaCardContainer/ghostBody.
+    Item {
+        id: mirrorContainer
+        z: 10
 
-        // ClippingRectangle (not plain Rectangle) so the watermark actually
-        // respects the rounded corners instead of bleeding past them - plain
-        // Rectangle.clip only clips to the square bounding box.
-        ClippingRectangle {
-            Layout.fillWidth: true
-            implicitHeight: cardLayout.implicitHeight + (Config.cardMargin * 2)
-            color: Qt.rgba(255, 255, 255, 0.05)
-            radius: Config.cornerRadius
+        property real dragX: 0
+        property real dragY: 0
+        property real cardWidth: 380
+        property real cardHeight: 340
+        property bool initialized: false
 
-            // GRAPHIC WATERMARK
-            Watermark {
-                icon: Config.getIcon("mirror")
-                iconSize: 150
-                seed: 28
+        x: dragX
+        y: dragY
+        width: cardWidth
+        height: cardHeight
+
+        Timer {
+            id: sizeSaveDebounce
+            interval: 400
+            onTriggered: Config.saveMirrorSize(mirrorContainer.cardWidth, mirrorContainer.cardHeight)
+        }
+        onCardWidthChanged: sizeSaveDebounce.restart()
+        onCardHeightChanged: sizeSaveDebounce.restart()
+
+        // Restores the last dragged-to position (falling back to
+        // screen-center) once both the parent window has a real size and
+        // Config has finished loading - same two-trigger pattern as
+        // Mascot.qml/ClockWidget.qml, since either can lag behind.
+        Connections {
+            target: mirrorWindow
+            function onWidthChanged() { mirrorContainer.restorePosition() }
+            function onHeightChanged() { mirrorContainer.restorePosition() }
+        }
+
+        Connections {
+            target: Config
+            function onIsLoadedChanged() { if (Config.isLoaded) mirrorContainer.restorePosition() }
+        }
+
+        function restorePosition() {
+            if (initialized || mirrorWindow.width <= 0 || mirrorWindow.height <= 0 || !Config.isLoaded) return
+
+            // mirrorWindow's own Component.onCompleted picks a screen from
+            // Hyprland.focusedMonitor before Config has loaded (needed just
+            // to get *some* size for the width/height guard above) - correct
+            // it to the remembered screen now that we actually know it.
+            if (Config.mirrorLastScreen && mirrorWindow.screen && Config.mirrorLastScreen !== mirrorWindow.screen.name) {
+                let savedScreen = Quickshell.screens.find(s => s.name === Config.mirrorLastScreen)
+                if (savedScreen) mirrorWindow.screen = savedScreen
             }
 
-            ColumnLayout {
-                id: cardLayout
-                anchors.fill: parent
-                anchors.margins: Config.cardMargin
-                spacing: 12
+            cardWidth = mirrorWindow.clampSize(Config.mirrorWidth, mirrorWindow.minCardSize.width, mirrorWindow.maxCardSize.width, 380)
+            cardHeight = mirrorWindow.clampSize(Config.mirrorHeight, mirrorWindow.minCardSize.height, mirrorWindow.maxCardSize.height, 340)
 
-                // HEADER
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
+            let defaultX = Math.max(0, (mirrorWindow.width / 2) - (cardWidth / 2))
+            let defaultY = Math.max(0, (mirrorWindow.height / 2) - (cardHeight / 2))
 
-                    Item {
-                        implicitWidth: mirrorTitleText.implicitWidth
-                        implicitHeight: mirrorTitleText.implicitHeight
-                        Layout.fillWidth: true
+            let savedPos = mirrorWindow.screen
+                ? Config.getMirrorPosition(mirrorWindow.screen.name, defaultX, defaultY)
+                : { x: defaultX, y: defaultY }
 
-                        Glow {
-                            anchors.fill: mirrorTitleText
-                            source: mirrorTitleText
-                            radius: 8
-                            samples: 16
-                            color: Config.accent
-                            spread: 0.2
-                            transparentBorder: true
-                            visible: Config.clockShowGlow && mirrorRoot.visible && (typeof mainSurface !== "undefined" ? mainSurface.progress >= 0.95 : true)
-                        }
+            dragX = savedPos.x
+            dragY = savedPos.y
+            initialized = true
+        }
 
-                        Text {
-                            id: mirrorTitleText
-                            anchors.fill: parent
-                            text: "MIRROR"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontTitle)
-                            font.bold: true
-                            font.italic: true
-                            elide: Text.ElideRight
-                        }
-                    }
+        // Called from both drag.onActiveChanged and dragArea.onReleased below -
+        // belt and suspenders against a lost/missed release event leaving
+        // drag.active stuck true, same as the other widgets' commitGridSnap().
+        // Idempotent: re-running this against an already-grid-aligned position
+        // is a no-op.
+        function commitGridSnap() {
+            if (!Config.snapDesktopWidgets) return
+            dragX = Math.round(dragX / ghostBody.gridSize) * ghostBody.gridSize
+            dragY = Math.round(dragY / ghostBody.gridSize) * ghostBody.gridSize
+            if (mirrorWindow.screen) {
+                Config.saveMirrorPosition(mirrorWindow.screen.name, dragX, dragY)
+            }
+        }
 
-                    // DYNAMIC ORIENTATION ANCHOR ARROWS
-                    GridLayout {
-                        id: anchorControls
-                        columns: isHorizontal ? 2 : 1
-                        rows: isHorizontal ? 1 : 2
-                        columnSpacing: 4
-                        rowSpacing: 4
-                        Layout.alignment: Qt.AlignVCenter
+        Component.onCompleted: restorePosition()
 
-                        readonly property bool isHorizontal: {
-                            if (typeof Config.isHorizontal !== "undefined") return !!Config.isHorizontal;
-                            if (typeof Config.barPosition !== "undefined") return Config.barPosition === "top" || Config.barPosition === "bottom";
-                            if (typeof Config.isBarHorizontal !== "undefined") return !!Config.isBarHorizontal;
-                            if (typeof Config.orientation !== "undefined") return Config.orientation === Qt.Horizontal || Config.orientation === "horizontal";
-                            return Config.barPosition !== "left" && Config.barPosition !== "right";
-                        }
+        onXChanged: {
+            checkScreenBoundary()
+            if (initialized && mirrorWindow.screen && (dragArea.drag.active || anyResizeActive)) {
+                Config.saveMirrorPosition(mirrorWindow.screen.name, dragX, dragY)
+            }
+        }
+        onYChanged: {
+            checkScreenBoundary()
+            if (initialized && mirrorWindow.screen && (dragArea.drag.active || anyResizeActive)) {
+                Config.saveMirrorPosition(mirrorWindow.screen.name, dragX, dragY)
+            }
+        }
 
-                        function cycleAnchor(direction) {
-                            if (typeof Config.cycleMirrorAnchor === "function") {
-                                Config.cycleMirrorAnchor(direction);
-                            }
-                        }
+        // Lets a drag carry the card across onto a different monitor - same
+        // approach as Mascot.qml's checkScreenBoundary().
+        function checkScreenBoundary() {
+            if (!dragArea.drag.active || !mirrorWindow.screen) return
 
-                        // LEFT / UP ARROW
-                        Rectangle {
-                            implicitWidth: 20; implicitHeight: 20; radius: 10
-                            color: prevHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+            let globalX = mirrorWindow.screen.x + mirrorContainer.x
+            let globalY = mirrorWindow.screen.y + mirrorContainer.y
 
-                            Text {
-                                anchors.centerIn: parent
-                                text: anchorControls.isHorizontal ? "keyboard_arrow_left" : "keyboard_arrow_up"
-                                color: (Config.mirrorAnchorPos === "top")
-                                    ? Config.accent 
-                                    : (prevHover.hovered ? Config.textMain : Config.textMuted)
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 20
-                                font.bold: true
-                            }
+            let centerX = globalX + (mirrorContainer.width / 2)
+            let centerY = globalY + (mirrorContainer.height / 2)
 
-                            TapHandler { onTapped: anchorControls.cycleAnchor(anchorControls.isHorizontal ? "left" : "up") }
-                            HoverHandler { id: prevHover; cursorShape: Qt.PointingHandCursor }
-                        }
+            for (let i = 0; i < Quickshell.screens.length; i++) {
+                let s = Quickshell.screens[i]
+                if (s === mirrorWindow.screen) continue
 
-                        // RIGHT / DOWN ARROW
-                        Rectangle {
-                            implicitWidth: 20; implicitHeight: 20; radius: 10
-                            color: nextHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                if (centerX >= s.x && centerX <= (s.x + s.width) &&
+                    centerY >= s.y && centerY <= (s.y + s.height)) {
 
-                            Text {
-                                anchors.centerIn: parent
-                                text: anchorControls.isHorizontal ? "keyboard_arrow_right" : "keyboard_arrow_down"
-                                color: (Config.mirrorAnchorPos === "bottom")
-                                    ? Config.accent 
-                                    : (nextHover.hovered ? Config.textMain : Config.textMuted)
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 20
-                                font.bold: true
-                            }
+                    let newLocalX = globalX - s.x
+                    let newLocalY = globalY - s.y
 
-                            TapHandler { onTapped: anchorControls.cycleAnchor(anchorControls.isHorizontal ? "right" : "down") }
-                            HoverHandler { id: nextHover; cursorShape: Qt.PointingHandCursor }
-                        }
-                    }
+                    mirrorWindow.screen = s
+                    mirrorContainer.dragX = newLocalX
+                    mirrorContainer.dragY = newLocalY
+                    break
+                }
+            }
+        }
 
-                    // ASPECT / CROP TOGGLE BUTTON
-                    Rectangle {
-                        implicitWidth: 26; implicitHeight: 26; radius: 13
-                        color: cropBtnHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+        // True while any ResizeEdge below is mid-drag - a left/top-edge
+        // resize moves dragX/dragY as a side effect (keeping the opposite
+        // corner fixed), so those position writes need to persist too, not
+        // just the ones from dragArea's own move gesture.
+        property bool anyResizeActive: false
 
-                        Text {
-                            anchors.centerIn: parent
-                            text: Config.mirrorKeepAspect ? "crop" : "crop_free"
-                            color: Config.mirrorKeepAspect ? Config.accent : Config.textMuted
-                            font.family: "Material Symbols Outlined"
-                            font.pixelSize: 16
-                            font.bold: true
-                        }
+        // --- MANUAL RESIZE ---
+        // No native resize protocol exists for a layer-shell surface - see
+        // MediaCardWidget.qml's file comment for the full rationale. Same
+        // synchronous, lag-free approach: absolute cursor position mapped
+        // into mirrorWindow (screen-anchored, never moves) tracked
+        // cumulatively since press.
+        component ResizeEdge: MouseArea {
+            id: resizeEdge
+            required property int edges
 
-                        TapHandler { onTapped: Config.mirrorKeepAspect = !Config.mirrorKeepAspect }
-                        HoverHandler { id: cropBtnHover; cursorShape: Qt.PointingHandCursor }
-                    }
+            hoverEnabled: true
+            cursorShape: {
+                if (edges === (Qt.LeftEdge | Qt.TopEdge) || edges === (Qt.RightEdge | Qt.BottomEdge)) return Qt.SizeFDiagCursor
+                if (edges === (Qt.RightEdge | Qt.TopEdge) || edges === (Qt.LeftEdge | Qt.BottomEdge)) return Qt.SizeBDiagCursor
+                if (edges === Qt.LeftEdge || edges === Qt.RightEdge) return Qt.SizeHorCursor
+                return Qt.SizeVerCursor
+            }
 
-                    // CANVAS EXPAND BUTTON (2X SIZE TOGGLE)
-                    Rectangle {
-                        implicitWidth: 26; implicitHeight: 26; radius: 13
-                        color: expandBtnHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+            property real startAbsX: 0
+            property real startAbsY: 0
+            property real startWidth: 0
+            property real startHeight: 0
+            property real startDragX: 0
+            property real startDragY: 0
 
-                        Text {
-                            anchors.centerIn: parent
-                            text: Config.mirrorExpanded ? "fit_screen" : "aspect_ratio"
-                            color: Config.mirrorExpanded ? Config.accent : Config.textMuted
-                            font.family: "Material Symbols Outlined"
-                            font.pixelSize: 16
-                            font.bold: true
-                        }
+            onPressed: (mouse) => {
+                let abs = mapToItem(fullScreenDragCatch, mouse.x, mouse.y)
+                startAbsX = abs.x
+                startAbsY = abs.y
+                startWidth = mirrorContainer.cardWidth
+                startHeight = mirrorContainer.cardHeight
+                startDragX = mirrorContainer.dragX
+                startDragY = mirrorContainer.dragY
+                mirrorContainer.anyResizeActive = true
+            }
 
-                        TapHandler { onTapped: Config.mirrorExpanded = !Config.mirrorExpanded }
-                        HoverHandler { id: expandBtnHover; cursorShape: Qt.PointingHandCursor }
-                    }
+            onPositionChanged: (mouse) => {
+                // hoverEnabled (needed so cursorShape updates before a
+                // click) makes this fire on plain hover too, not just a
+                // real drag - without this guard the resize math runs
+                // against uninitialized start* values on the very first
+                // hover event.
+                if (!resizeEdge.pressed) return
 
-                    // PIN PANEL BUTTON
-                    Rectangle {
-                        implicitWidth: 26; implicitHeight: 26; radius: 13
-                        color: pinBtnHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+                let abs = mapToItem(fullScreenDragCatch, mouse.x, mouse.y)
+                let deltaX = abs.x - startAbsX
+                let deltaY = abs.y - startAbsY
 
-                        Text {
-                            anchors.centerIn: parent
-                            text: "push_pin"
-                            color: Config.mirrorPinned ? Config.accent : Config.textMuted
-                            font.family: "Material Symbols Outlined"
-                            font.pixelSize: 16
-                            font.bold: true
-                            rotation: Config.mirrorPinned ? 45 : 0
-
-                            Behavior on rotation {
-                                NumberAnimation { duration: 150 }
-                            }
-                        }
-
-                        TapHandler { onTapped: Config.mirrorPinned = !Config.mirrorPinned }
-                        HoverHandler { id: pinBtnHover; cursorShape: Qt.PointingHandCursor }
-                    }
-
-                    // CLOSE BUTTON
-                    Rectangle {
-                        implicitWidth: 26; implicitHeight: 26; radius: 13
-                        color: closeBtnHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-
-                        Text {
-                            anchors.centerIn: parent
-                            text: "close"
-                            color: Config.textMuted
-                            font.family: "Material Symbols Outlined"
-                            font.pixelSize: 16
-                            font.bold: true
-                        }
-
-                        TapHandler { onTapped: Config.showMirror = false }
-                        HoverHandler { id: closeBtnHover; cursorShape: Qt.PointingHandCursor }
-                    }
+                let newWidth = startWidth
+                let newDragX = startDragX
+                if (edges & Qt.RightEdge) {
+                    newWidth = mirrorWindow.clampSize(startWidth + deltaX, mirrorWindow.minCardSize.width, mirrorWindow.maxCardSize.width, startWidth)
+                } else if (edges & Qt.LeftEdge) {
+                    newWidth = mirrorWindow.clampSize(startWidth - deltaX, mirrorWindow.minCardSize.width, mirrorWindow.maxCardSize.width, startWidth)
+                    newDragX = startDragX + (startWidth - newWidth)
                 }
 
-                // CAMERA DISPLAY CANVAS
-                Rectangle {
-                    id: cameraCanvas
-                    Layout.fillWidth: true
-                    implicitHeight: Config.mirrorExpanded ? 440 : 250
-                    radius: Config.cornerRadius / 2
-                    color: Qt.rgba(0, 0, 0, 0.35)
-                    border.width: Config.showBorders ? Config.borderThickness : 0
-                    border.color: (typeof shellRoot !== "undefined" && shellRoot.currentBorderColor) ? shellRoot.currentBorderColor : Config.accent
-                    clip: true
+                let newHeight = startHeight
+                let newDragY = startDragY
+                if (edges & Qt.BottomEdge) {
+                    newHeight = mirrorWindow.clampSize(startHeight + deltaY, mirrorWindow.minCardSize.height, mirrorWindow.maxCardSize.height, startHeight)
+                } else if (edges & Qt.TopEdge) {
+                    newHeight = mirrorWindow.clampSize(startHeight - deltaY, mirrorWindow.minCardSize.height, mirrorWindow.maxCardSize.height, startHeight)
+                    newDragY = startDragY + (startHeight - newHeight)
+                }
 
-                    Item {
-                        id: videoWrapper
-                        anchors.fill: parent
-                        anchors.margins: Config.showBorders ? Config.borderThickness : 0
-                        clip: true
+                mirrorContainer.cardWidth = newWidth
+                mirrorContainer.cardHeight = newHeight
+                mirrorContainer.dragX = newDragX
+                mirrorContainer.dragY = newDragY
+            }
 
-                        VideoOutput {
-                            id: localOutput
-                            anchors.fill: parent
-                            fillMode: Config.mirrorKeepAspect ? VideoOutput.PreserveAspectCrop : VideoOutput.PreserveAspectFit
-                            visible: true
+            onReleased: {
+                mirrorContainer.anyResizeActive = false
+                mirrorContainer.commitGridSnap()
+            }
+            onCanceled: mirrorContainer.anyResizeActive = false
+        }
 
-                            transform: Scale {
-                                origin.x: localOutput.width / 2
-                                xScale: Config.mirrorMirrored ? 1 : -1
+        readonly property real edgeThickness: 6
+        // Scales with the user's actual configured corner rounding rather
+        // than a fixed guess - see MediaCardWidget.qml's identical comment.
+        readonly property real cornerSize: Math.max(18, Config.cornerRadius + 8)
+
+        ResizeEdge {
+            edges: Qt.TopEdge
+            anchors { top: parent.top; left: parent.left; right: parent.right; leftMargin: mirrorContainer.cornerSize; rightMargin: mirrorContainer.cornerSize }
+            height: mirrorContainer.edgeThickness
+        }
+        ResizeEdge {
+            edges: Qt.BottomEdge
+            anchors { bottom: parent.bottom; left: parent.left; right: parent.right; leftMargin: mirrorContainer.cornerSize; rightMargin: mirrorContainer.cornerSize }
+            height: mirrorContainer.edgeThickness
+        }
+        ResizeEdge {
+            edges: Qt.LeftEdge
+            anchors { left: parent.left; top: parent.top; bottom: parent.bottom; topMargin: mirrorContainer.cornerSize; bottomMargin: mirrorContainer.cornerSize }
+            width: mirrorContainer.edgeThickness
+        }
+        ResizeEdge {
+            edges: Qt.RightEdge
+            anchors { right: parent.right; top: parent.top; bottom: parent.bottom; topMargin: mirrorContainer.cornerSize; bottomMargin: mirrorContainer.cornerSize }
+            width: mirrorContainer.edgeThickness
+        }
+        ResizeEdge {
+            edges: Qt.LeftEdge | Qt.TopEdge
+            anchors { top: parent.top; left: parent.left }
+            width: mirrorContainer.cornerSize; height: mirrorContainer.cornerSize
+        }
+        ResizeEdge {
+            edges: Qt.RightEdge | Qt.TopEdge
+            anchors { top: parent.top; right: parent.right }
+            width: mirrorContainer.cornerSize; height: mirrorContainer.cornerSize
+        }
+        ResizeEdge {
+            edges: Qt.LeftEdge | Qt.BottomEdge
+            anchors { bottom: parent.bottom; left: parent.left }
+            width: mirrorContainer.cornerSize; height: mirrorContainer.cornerSize
+        }
+        ResizeEdge {
+            edges: Qt.RightEdge | Qt.BottomEdge
+            anchors { bottom: parent.bottom; right: parent.right }
+            width: mirrorContainer.cornerSize; height: mirrorContainer.cornerSize
+        }
+
+        WidgetContextMenu { id: widgetMenu; hostWidgetId: "mirror" }
+    }
+
+    // Visible skin, decoupled from mirrorContainer (the drag anchor / hit
+    // region above) precisely so Behavior can animate it - see the note by
+    // mirrorContainer.x for why. Hosts the actual card content AND the drag
+    // MouseArea (kept at a lower z than the card's own buttons below, same
+    // as MediaCardWidget.qml) so button clicks take priority over dragging.
+    Item {
+        id: ghostBody
+        readonly property real gridSize: 24
+
+        // Snap ON: round to a visible grid, no easing. Snap OFF: the exact
+        // position, eased in via Behavior below. Only round to the grid
+        // *while actively dragging* - at rest this must equal
+        // mirrorContainer exactly, or the visible skin and the invisible
+        // hit-region it's grabbed by permanently drift apart.
+        x: (Config.snapDesktopWidgets && dragArea.drag.active) ? Math.round(mirrorContainer.x / gridSize) * gridSize : mirrorContainer.x
+        y: (Config.snapDesktopWidgets && dragArea.drag.active) ? Math.round(mirrorContainer.y / gridSize) * gridSize : mirrorContainer.y
+        // Size never grid-snaps (only position does) and never lags behind
+        // a live resize - direct mirror, no Behavior.
+        width: mirrorContainer.cardWidth
+        height: mirrorContainer.cardHeight
+
+        Behavior on x {
+            enabled: !Config.snapDesktopWidgets
+            NumberAnimation {
+                duration: Config.motionService.durationFastSpatial
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Config.motionService.expressiveFastSpatialPoints
+            }
+        }
+        Behavior on y {
+            enabled: !Config.snapDesktopWidgets
+            NumberAnimation {
+                duration: Config.motionService.durationFastSpatial
+                easing.type: Easing.BezierSpline
+                easing.bezierCurve: Config.motionService.expressiveFastSpatialPoints
+            }
+        }
+
+        Item {
+            id: mainColumn
+            anchors.fill: parent
+            anchors.margins: Config.cardMargin
+
+            // ClippingRectangle (not plain Rectangle) so the watermark actually
+            // respects the rounded corners instead of bleeding past them - plain
+            // Rectangle.clip only clips to the square bounding box. The panel's
+            // border lives here (the outer edge of the widget), not on the
+            // camera canvas inside it.
+            ClippingRectangle {
+                anchors.fill: parent
+                color: Qt.rgba(255, 255, 255, 0.05)
+                radius: Config.cornerRadius
+                border.width: Config.showBorders ? Config.borderThickness : 0
+                border.color: (typeof shellRoot !== "undefined" && shellRoot.currentBorderColor) ? shellRoot.currentBorderColor : Config.accent
+
+                // GRAPHIC WATERMARK
+                Watermark {
+                    icon: Config.getIcon("mirror")
+                    iconSize: 150
+                    seed: 28
+                }
+
+                ColumnLayout {
+                    id: cardLayout
+                    anchors.fill: parent
+                    anchors.margins: Config.cardMargin
+                    spacing: 12
+
+                    // HEADER
+                    RowLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        Item {
+                            implicitWidth: mirrorTitleText.implicitWidth
+                            implicitHeight: mirrorTitleText.implicitHeight
+                            Layout.fillWidth: true
+
+                            Glow {
+                                anchors.fill: mirrorTitleText
+                                source: mirrorTitleText
+                                radius: 8
+                                samples: 16
+                                color: Config.accent
+                                spread: 0.2
+                                transparentBorder: true
+                                visible: Config.clockShowGlow
                             }
 
-                            Component.onCompleted: {
-                                mirrorRoot.attachSession()
+                            Text {
+                                id: mirrorTitleText
+                                anchors.fill: parent
+                                text: "MIRROR"
+                                color: Config.textMain
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontTitle)
+                                font.bold: true
+                                font.italic: true
+                                elide: Text.ElideRight
                             }
-                            Component.onDestruction: {
-                                if (Config.mirrorCaptureSession && Config.mirrorCaptureSession.videoOutput === localOutput) {
-                                    Config.mirrorCaptureSession.videoOutput = null
-                                }
+                        }
+
+                        // ASPECT / CROP TOGGLE BUTTON
+                        Rectangle {
+                            implicitWidth: 26; implicitHeight: 26; radius: 13
+                            color: cropBtnHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: Config.mirrorKeepAspect ? "crop" : "crop_free"
+                                color: Config.mirrorKeepAspect ? Config.accent : Config.textMuted
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 16
+                                font.bold: true
                             }
+
+                            TapHandler { onTapped: Config.mirrorKeepAspect = !Config.mirrorKeepAspect }
+                            HoverHandler { id: cropBtnHover; cursorShape: Qt.PointingHandCursor }
                         }
                     }
 
-                    // LOADING / ERROR OVERLAY
+                    // CAMERA DISPLAY CANVAS
                     Rectangle {
-                        id: loadingOverlay
-                        anchors.fill: videoWrapper
-                        color: Qt.rgba(15 / 255, 15 / 255, 18 / 255, 0.92)
-                        z: 90
+                        id: cameraCanvas
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
                         radius: Config.cornerRadius / 2
-                        visible: opacity > 0
-                        opacity: (Config.mirrorLoading || (Config.mirrorError && Config.mirrorError !== "")) ? 1.0 : 0.0
+                        color: Qt.rgba(0, 0, 0, 0.35)
+                        clip: true
 
-                        Behavior on opacity {
-                            NumberAnimation { duration: 300; easing.type: Easing.InOutQuad }
-                        }
+                        Item {
+                            id: videoWrapper
+                            anchors.fill: parent
+                            clip: true
 
-                        ColumnLayout {
-                            anchors.centerIn: parent
-                            spacing: 10
+                            VideoOutput {
+                                id: localOutput
+                                anchors.fill: parent
+                                fillMode: Config.mirrorKeepAspect ? VideoOutput.PreserveAspectCrop : VideoOutput.PreserveAspectFit
+                                visible: true
 
-                            Item {
-                                Layout.alignment: Qt.AlignHCenter
-                                implicitWidth: 40
-                                implicitHeight: 40
+                                transform: Scale {
+                                    origin.x: localOutput.width / 2
+                                    xScale: Config.mirrorMirrored ? 1 : -1
+                                }
 
-                                Text {
-                                    id: spinnerIcon
-                                    anchors.centerIn: parent
-                                    text: (Config.mirrorError && Config.mirrorError !== "") ? "videocam_off" : "progress_activity"
-                                    color: (Config.mirrorError && Config.mirrorError !== "") ? "#ff5555" : Config.accent
-                                    font.family: "Material Symbols Outlined"
-                                    font.pixelSize: 32
-                                    font.bold: true
-
-                                    RotationAnimation on rotation {
-                                        from: 0
-                                        to: 360
-                                        duration: 1100
-                                        loops: Animation.Infinite
-                                        running: Config.mirrorLoading && (!Config.mirrorError || Config.mirrorError === "")
+                                Component.onCompleted: {
+                                    mirrorWindow.attachSession()
+                                }
+                                Component.onDestruction: {
+                                    if (Config.mirrorCaptureSession && Config.mirrorCaptureSession.videoOutput === localOutput) {
+                                        Config.mirrorCaptureSession.videoOutput = null
                                     }
                                 }
                             }
-
-                            Text {
-                                Layout.alignment: Qt.AlignHCenter
-                                text: (Config.mirrorError && Config.mirrorError !== "") ? Config.mirrorError : "Loading..."
-                                color: (Config.mirrorError && Config.mirrorError !== "") ? "#ff8888" : Config.textMain
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontBody)
-                                font.bold: true
-                            }
                         }
-                    }
 
-                    // SNAPSHOT FLASH OVERLAY
-                    Rectangle {
-                        id: flashOverlay
-                        anchors.fill: videoWrapper
-                        color: "#ffffff"
-                        opacity: 0.0
-                        z: 99
-                        radius: Config.cornerRadius / 2
-
-                        NumberAnimation on opacity {
-                            id: flashAnimation
-                            running: false
-                            from: 0.85
-                            to: 0.0
-                            duration: 200
-                            easing.type: Easing.OutQuad
-                        }
-                    }
-
-                    // CANVAS OVERLAY CONTROLS
-                    RowLayout {
-                        anchors.bottom: parent.bottom
-                        anchors.right: parent.right
-                        anchors.margins: 10
-                        spacing: 8
-                        z: 100
-
-                        // FLIP HORIZONTAL TOGGLE
+                        // LOADING / ERROR OVERLAY
                         Rectangle {
-                            implicitWidth: 32; implicitHeight: 32; radius: 16
-                            color: flipHover.hovered ? Config.accent : Qt.rgba(0, 0, 0, 0.4)
-                            opacity: flipHover.hovered ? 1.0 : 0.7
+                            id: loadingOverlay
+                            anchors.fill: videoWrapper
+                            color: Qt.rgba(15 / 255, 15 / 255, 18 / 255, 0.92)
+                            z: 90
+                            radius: Config.cornerRadius / 2
+                            visible: opacity > 0
+                            opacity: (Config.mirrorLoading || (Config.mirrorError && Config.mirrorError !== "")) ? 1.0 : 0.0
 
-                            Behavior on color { ColorAnimation { duration: 150 } }
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: "flip_camera_android"
-                                color: "#ffffff"
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 18
-                                font.bold: true
+                            Behavior on opacity {
+                                NumberAnimation { duration: 300; easing.type: Easing.InOutQuad }
                             }
 
-                            TapHandler { onTapped: Config.mirrorMirrored = !Config.mirrorMirrored }
-                            HoverHandler { id: flipHover; cursorShape: Qt.PointingHandCursor }
+                            ColumnLayout {
+                                anchors.centerIn: parent
+                                spacing: 10
+
+                                Item {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    implicitWidth: 40
+                                    implicitHeight: 40
+
+                                    Text {
+                                        id: spinnerIcon
+                                        anchors.centerIn: parent
+                                        text: (Config.mirrorError && Config.mirrorError !== "") ? "videocam_off" : "progress_activity"
+                                        color: (Config.mirrorError && Config.mirrorError !== "") ? "#ff5555" : Config.accent
+                                        font.family: "Material Symbols Outlined"
+                                        font.pixelSize: 32
+                                        font.bold: true
+
+                                        RotationAnimation on rotation {
+                                            from: 0
+                                            to: 360
+                                            duration: 1100
+                                            loops: Animation.Infinite
+                                            running: Config.mirrorLoading && (!Config.mirrorError || Config.mirrorError === "")
+                                        }
+                                    }
+                                }
+
+                                Text {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    text: (Config.mirrorError && Config.mirrorError !== "") ? Config.mirrorError : "Loading..."
+                                    color: (Config.mirrorError && Config.mirrorError !== "") ? "#ff8888" : Config.textMain
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontBody)
+                                    font.bold: true
+                                }
+                            }
                         }
 
-                        // SNAPSHOT BUTTON
+                        // SNAPSHOT FLASH OVERLAY
                         Rectangle {
-                            implicitWidth: 32; implicitHeight: 32; radius: 16
-                            color: snapHover.hovered ? Config.accent : Qt.rgba(0, 0, 0, 0.4)
-                            opacity: snapHover.hovered ? 1.0 : 0.7
+                            id: flashOverlay
+                            anchors.fill: videoWrapper
+                            color: "#ffffff"
+                            opacity: 0.0
+                            z: 99
+                            radius: Config.cornerRadius / 2
 
-                            Behavior on color { ColorAnimation { duration: 150 } }
+                            NumberAnimation on opacity {
+                                id: flashAnimation
+                                running: false
+                                from: 0.85
+                                to: 0.0
+                                duration: 200
+                                easing.type: Easing.OutQuad
+                            }
+                        }
 
-                            Text {
-                                anchors.centerIn: parent
-                                text: "photo_camera"
-                                color: "#ffffff"
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 18
-                                font.bold: true
+                        // CANVAS OVERLAY CONTROLS
+                        RowLayout {
+                            anchors.bottom: parent.bottom
+                            anchors.right: parent.right
+                            anchors.margins: 10
+                            spacing: 8
+                            z: 100
+
+                            // FLIP HORIZONTAL TOGGLE
+                            Rectangle {
+                                implicitWidth: 32; implicitHeight: 32; radius: 16
+                                color: flipHover.hovered ? Config.accent : Qt.rgba(0, 0, 0, 0.4)
+                                opacity: flipHover.hovered ? 1.0 : 0.7
+
+                                Behavior on color { ColorAnimation { duration: 150 } }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "flip_camera_android"
+                                    color: "#ffffff"
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 18
+                                    font.bold: true
+                                }
+
+                                TapHandler { onTapped: Config.mirrorMirrored = !Config.mirrorMirrored }
+                                HoverHandler { id: flipHover; cursorShape: Qt.PointingHandCursor }
                             }
 
-                            TapHandler { onTapped: mirrorRoot.takeSnapshot() }
-                            HoverHandler { id: snapHover; cursorShape: Qt.PointingHandCursor }
+                            // SNAPSHOT BUTTON
+                            Rectangle {
+                                implicitWidth: 32; implicitHeight: 32; radius: 16
+                                color: snapHover.hovered ? Config.accent : Qt.rgba(0, 0, 0, 0.4)
+                                opacity: snapHover.hovered ? 1.0 : 0.7
+
+                                Behavior on color { ColorAnimation { duration: 150 } }
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "photo_camera"
+                                    color: "#ffffff"
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 18
+                                    font.bold: true
+                                }
+
+                                TapHandler { onTapped: mirrorWindow.takeSnapshot() }
+                                HoverHandler { id: snapHover; cursorShape: Qt.PointingHandCursor }
+                            }
                         }
                     }
                 }
+            }
+        }
+
+        // --- MOVE + RIGHT-CLICK WIDGET MENU ---
+        // Declared after the card content above so buttons keep click
+        // priority, but z:-1 makes that explicit too - same as
+        // MediaCardWidget.qml's dragArea.
+        MouseArea {
+            id: dragArea
+            anchors.fill: parent
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            cursorShape: Qt.PointingHandCursor
+            z: -1
+
+            property bool dragMoved: false
+
+            onPressed: dragMoved = false
+
+            drag {
+                target: mirrorContainer
+                axis: Drag.XAndYAxis
+
+                onActiveChanged: {
+                    if (!drag.active) mirrorContainer.commitGridSnap()
+                }
+            }
+
+            onReleased: if (dragMoved) mirrorContainer.commitGridSnap()
+
+            onPositionChanged: {
+                if (drag.active) {
+                    dragMoved = true
+                    mirrorContainer.dragX = mirrorContainer.x
+                    mirrorContainer.dragY = mirrorContainer.y
+                }
+            }
+
+            onClicked: (mouse) => {
+                if (widgetMenu.visible) {
+                    widgetMenu.close()
+                    return
+                }
+                if (mouse.button === Qt.RightButton) {
+                    widgetMenu.openAt(mouse.x, mouse.y, mirrorContainer, mirrorWindow.width, mirrorWindow.height)
+                    return
+                }
+                Config.closeWidgetMenus()
             }
         }
     }

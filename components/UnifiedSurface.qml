@@ -103,18 +103,6 @@ PanelWindow {
     property real popoutYOffset: actualScreenHeight / 2.0
     property bool isCentered: false
 
-    property Timer mirrorReopenTimer: Timer {
-        id: mirrorReopenTimer
-        interval: 120
-        repeat: false
-        onTriggered: {
-            if (Config.showMirror) {
-                updateMirrorPopoutPos()
-                root.isOpen = true
-            }
-        }
-    }
-
     property Timer barLayoutReopenTimer: Timer {
         id: barLayoutReopenTimer
         interval: 220
@@ -124,25 +112,6 @@ PanelWindow {
                 root.refreshPopoutPos()
                 root.isOpen = true
             }
-        }
-    }
-
-    function updateMirrorPopoutPos() {
-        if (root.activeView !== "mirror") return
-
-        let screenCenter = isHorizontal 
-            ? (inX + (inW / 2.0)) 
-            : (inY + (inH / 2.0))
-
-        if (Config.mirrorAnchorPos === "top") {
-            if (isHorizontal) root.popoutXOffset = inX + (rawChildWidth / 2.0) + 12
-            else root.popoutYOffset = inY + (rawChildHeight / 2.0) + 12
-        } else if (Config.mirrorAnchorPos === "bottom") {
-            if (isHorizontal) root.popoutXOffset = (inX + inW) - (rawChildWidth / 2.0) - 12
-            else root.popoutYOffset = (inY + inH) - (rawChildHeight / 2.0) - 12
-        } else {
-            if (isHorizontal) root.popoutXOffset = screenCenter
-            else root.popoutYOffset = screenCenter
         }
     }
 
@@ -233,14 +202,6 @@ PanelWindow {
     // Explicit state variables declared in scope
     property real lastOpenWidth: rawChildWidth
     property real lastOpenHeight: rawChildHeight
-
-    onRawChildWidthChanged: {
-        if (activeView === "mirror") updateMirrorPopoutPos()
-    }
-
-    onRawChildHeightChanged: {
-        if (activeView === "mirror") updateMirrorPopoutPos()
-    }
 
     SoundEffect {
         id: openSoundPlayer
@@ -418,7 +379,7 @@ PanelWindow {
 
     HyprlandFocusGrab {
         id: focusGrab
-        active: root.isOpen && root.activeView !== "osd" && root.activeView !== "notifOsd" && !(root.activeView === "mirror" && Config.mirrorPinned) && (!screen || screen.name === (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""))
+        active: root.isOpen && root.activeView !== "osd" && root.activeView !== "notifOsd" && (!screen || screen.name === (Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""))
         windows: [root]
         onCleared: {
             root.closeOthers("none")
@@ -597,7 +558,6 @@ PanelWindow {
             case "power":          btn = leftCard ? (leftCard.getButton("power") || leftCard) : null; break
             case "wallpaper":      btn = leftCard ? (leftCard.getButton("wallpaper") || leftCard) : null; break
             case "screenRecorder": btn = leftCard ? (leftCard.getButton("recorder") || leftCard) : null; break
-            case "mirror":         btn = leftCard ? (leftCard.getButton("mirror") || leftCard) : null; break
             case "audio":          btn = leftCard ? (leftCard.getButton("audio") || leftCard) : null; break
             case "network":        btn = leftCard ? (leftCard.getButton("network") || leftCard) : null; break
             case "battery":        btn = leftCard ? (leftCard.getButton("batt") || leftCard) : null; break
@@ -610,10 +570,8 @@ PanelWindow {
             case "calendar":         btn = rightCard ? (rightCard.getButton("clock") || rightCard) : null; break
         }
 
-        // Snap popout offset to the active button position or anchor mode
-        if (activeView === "mirror") {
-            updateMirrorPopoutPos()
-        } else if (btn) {
+        // Snap popout offset to the active button position
+        if (btn) {
             setPopoutPos(btn)
         }
     }
@@ -645,11 +603,7 @@ PanelWindow {
             else if (Config.showClipboard) nextView = "clipboard"
             else if (Config.showScreenRecorder) nextView = "screenRecorder"
             else if (Config.showControlCenter) nextView = "controlCenter"
-            else if (Config.showMirror && !Config.mirrorPinned) nextView = "mirror"
             else if (typeof Config.showTaskOverflow !== "undefined" && Config.showTaskOverflow) nextView = "taskOverflow"
-
-            // Pinned Fallback Panels (Active when no temporary unpinned panel is open)
-            else if (Config.showMirror && Config.mirrorPinned) nextView = "mirror"
         }
 
         if (nextView === "none") {
@@ -742,21 +696,6 @@ PanelWindow {
         function onShowBatteryChanged() { if (Config.showBattery) { closeOthers("battery"); let btn = leftCard ? leftCard.getButton("batt") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowClipboardChanged() { if (Config.showClipboard) { closeOthers("clipboard"); let btn = leftCard ? leftCard.getButton("clipboard") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
         function onShowScreenRecorderChanged() { if (Config.showScreenRecorder) { closeOthers("screenRecorder"); let btn = leftCard ? leftCard.getButton("recorder") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
-        function onShowMirrorChanged() {
-            if (Config.showMirror) {
-                closeOthers("mirror")
-            }
-            updateActiveView()
-            if (Config.showMirror) {
-                updateMirrorPopoutPos()
-            }
-        }
-        function onMirrorAnchorPosChanged() {
-            if (activeView === "mirror") {
-                root.isOpen = false
-                mirrorReopenTimer.restart()
-            }
-        }
         function onShowControlCenterChanged() { if (Config.showControlCenter) { closeOthers("controlCenter"); let btn = rightCard ? rightCard.getButton("cc") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
     }
 

@@ -81,14 +81,17 @@ QtObject {
     property alias mirrorShowPanel: root.mirror.mirrorShowPanel
     property alias mirrorMirrored: root.mirror.mirrorMirrored
     property alias mirrorKeepAspect: root.mirror.mirrorKeepAspect
-    property alias mirrorExpanded: root.mirror.mirrorExpanded
-    property alias mirrorPinned: root.mirror.mirrorPinned
-    property alias mirrorAnchorPos: root.mirror.mirrorAnchorPos
     property alias mirrorLoading: root.mirror.mirrorLoading
     property alias mirrorError: root.mirror.mirrorError
+    property alias mirrorPositions: root.mirror.mirrorPositions
+    property alias mirrorLastScreen: root.mirror.mirrorLastScreen
+    property alias mirrorWidth: root.mirror.mirrorWidth
+    property alias mirrorHeight: root.mirror.mirrorHeight
     readonly property alias mirrorCaptureSession: root.mirror.mirrorCaptureSession
     readonly property alias mirrorMediaDevices: root.mirror.mirrorMediaDevices
-    function cycleMirrorAnchor(direction) { mirror.cycleMirrorAnchor(direction) }
+    function getMirrorPosition(screenName, defaultX, defaultY) { return mirror.getMirrorPosition(screenName, defaultX, defaultY) }
+    function saveMirrorPosition(screenName, x, y) { mirror.saveMirrorPosition(screenName, x, y) }
+    function saveMirrorSize(width, height) { mirror.saveMirrorSize(width, height) }
 
     // --- INITIALIZATION GUARD ---
     property bool isLoaded: false
@@ -138,7 +141,6 @@ QtObject {
         "battery":          "showBattery",
         "clipboard":        "showClipboard",
         "screenRecorder":   "showScreenRecorder",
-        "mirror":           "showMirror",
         "controlCenter":    "showControlCenter",
         "settings":         "showSettings",
         "taskOverflow":     "showTaskOverflow"
@@ -165,9 +167,6 @@ QtObject {
 
         Object.keys(root.panelFlagByView).forEach(v => {
             if (v === keep) return
-            // A pinned mirror is a persistent desktop widget, not a drawer
-            // panel - it survives another panel opening, same as before.
-            if (v === "mirror" && root.mirrorPinned) return
             root[root.panelFlagByView[v]] = false
         })
     }
@@ -908,7 +907,7 @@ QtObject {
         "nightModeScheduleEnd", "pixelShaderEnabled", "pixelShaderMode", "pixelShaderSize",
         "pixelShaderLevels", "pixelShaderPalette", "pixelShaderDither", "pixelShaderGrid",
         "pixelShaderBoost", "showMirror", "mirrorShowPanel", "mirrorMirrored", "mirrorKeepAspect",
-        "mirrorExpanded", "mirrorPinned", "mirrorAnchorPos", "leftCardOrder", "rightCardOrder",
+        "mirrorPositions", "mirrorLastScreen", "mirrorWidth", "mirrorHeight", "leftCardOrder", "rightCardOrder",
         "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides", "surfaceRadius",
         "borderThickness", "cardMargin", "ccCardArrangement", "calendarArrangement", "showDesktopClock", "clockStyle", "clockScale",
         "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", "clockShowBackground",
@@ -1030,9 +1029,10 @@ QtObject {
             property var mirrorShowPanel
             property var mirrorMirrored
             property var mirrorKeepAspect
-            property var mirrorExpanded
-            property var mirrorPinned
-            property var mirrorAnchorPos
+            property var mirrorPositions
+            property var mirrorLastScreen
+            property var mirrorWidth
+            property var mirrorHeight
             property var leftCardOrder
             property var rightCardOrder
             property var leftCardCollapsed
@@ -1187,7 +1187,7 @@ QtObject {
                     root.keybinds = cleaned
                 }
 
-                let defaultLeft = ["power", "recorder", "mirror", "screenshot", "wallpaper", "settings", "audio", "batt", "network", "clipboard"]
+                let defaultLeft = ["power", "recorder", "screenshot", "wallpaper", "settings", "audio", "batt", "network", "clipboard"]
                 let currentLeft = Array.isArray(root.leftCardOrder) ? root.leftCardOrder.slice() : []
                 defaultLeft.forEach(mod => {
                     if (!currentLeft.includes(mod)) currentLeft.push(mod)

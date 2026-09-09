@@ -151,7 +151,6 @@ Rectangle {
             model: Config.leftCardOrder || [
                 "power",
                 "recorder",
-                "mirror",
                 "network",
                 "clipboard",
                 "wallpaper",
@@ -186,7 +185,6 @@ Rectangle {
                     switch(itemKey) {
                         case "power": return powerComp
                         case "recorder": return recorderComp
-                        case "mirror": return mirrorComp
                         case "network": return networkComp
                         case "clipboard": return clipComp
                         case "wallpaper": return wallpaperComp
@@ -399,75 +397,6 @@ Rectangle {
                 cursorShape: Qt.PointingHandCursor 
                 onHoveredChanged: {
                     if (hovered && rootRef && rootRef.startPeek) rootRef.startPeek(btnRecorder)
-                    else if (!hovered && rootRef && rootRef.stopPeek) rootRef.stopPeek()
-                }
-            }
-        }
-    }
-
-    Component {
-        id: mirrorComp
-        Rectangle {
-            id: btnMirror
-            implicitWidth: 32
-            implicitHeight: 32
-            radius: 10
-            color: Config.showMirror ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
-
-            Behavior on color { ColorAnimation { duration: 150 } }
-
-            Item {
-                anchors.centerIn: parent
-                implicitWidth: mirrorIconText.implicitWidth
-                implicitHeight: mirrorIconText.implicitHeight
-                scale: mirrorHover.hovered ? 1.25 : 1.0
-
-                Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
-
-                Glow {
-                    anchors.fill: mirrorIconText
-                    source: mirrorIconText
-                    radius: mirrorHover.hovered ? 8 : 0
-                    samples: 16
-                    color: Config.accent
-                    spread: 0.2
-                    transparentBorder: true
-                    visible: mirrorHover.hovered
-
-                    Behavior on radius { NumberAnimation { duration: 180 } }
-                }
-
-                Text {
-                    id: mirrorIconText
-                    anchors.centerIn: parent
-                    text: Config.getIcon("mirror")
-                    color: (Config.showMirror || mirrorHover.hovered) ? Config.accent : Config.textMain
-                    font.family: "Material Symbols Outlined"; font.weight: Font.Bold; font.pixelSize: 20
-
-                    Behavior on color { ColorAnimation { duration: 150 } }
-                }
-            }
-
-            Rectangle {
-                anchors.top: parent.top; anchors.right: parent.right
-                anchors.topMargin: 2; anchors.rightMargin: 2
-                width: 5; height: 5; radius: 2.5
-                color: Config.accent
-                visible: !Config.leftCardCollapsed && Config.isPinned("mirror")
-            }
-
-            TapHandler { 
-                onTapped: { 
-                    if (rootRef && rootRef.stopPeek) rootRef.stopPeek()
-                    Config.showMirror = !Config.showMirror 
-                } 
-            }
-            TapHandler { acceptedButtons: Qt.RightButton; onTapped: Config.togglePin("mirror") }
-            HoverHandler { 
-                id: mirrorHover
-                cursorShape: Qt.PointingHandCursor 
-                onHoveredChanged: {
-                    if (hovered && rootRef && rootRef.startPeek) rootRef.startPeek(btnMirror)
                     else if (!hovered && rootRef && rootRef.stopPeek) rootRef.stopPeek()
                 }
             }

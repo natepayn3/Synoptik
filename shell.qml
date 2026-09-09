@@ -425,7 +425,7 @@ ShellRoot {
 
     IpcHandler {
         target: "mirror"
-        function toggle(): void { if (shellRoot.isFocusedBarEnabled) Config.togglePanel("mirror") }
+        function toggle(): void { Config.showMirror = !Config.showMirror }
     }
 
     // Closes whatever drawer panel is open, whatever it is - the IPC twin of
@@ -547,7 +547,6 @@ ShellRoot {
                         case "screenRecorder": return screenRecorderComp;
                         case "controlCenter": return controlCenterComp;
                         case "settings": return settingsComp;
-                        case "mirror": return mirrorComp;
                         default: return null;
                     }
                 }
@@ -566,13 +565,13 @@ ShellRoot {
     Component { id: screenRecorderComp; ScreenRecorder {} }
     Component { id: controlCenterComp; ControlCenter {} }
     Component { id: settingsComp; Settings {} }
-    Component { id: mirrorComp; Mirror {} }
 
     VolumeOSD { id: volumeOsd }
     NotificationOSD { id: notificationOsd }
     Mascot { id: mascotWidget }
     AssistantWidget { id: assistantWidget }
     MediaCardWidget { id: mediaCardWidget }
+    Mirror { id: mirrorWidget }
     OSK { id: oskWidget }
     Screensaver { id: screensaverWidget }
     WallpaperSurface { id: wallpaperSurface }
