@@ -94,7 +94,6 @@ Item {
     Component.onCompleted: {
         detectWifiAdapterProc.running = true
         detectBtAdapterProc.running = true
-        fetchWifiStatusProc.running = true
     }
 
     // MAIN BENTO GRID - cards are DraggableGridContainer/GridCard-positioned so
