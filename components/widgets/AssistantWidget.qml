@@ -85,12 +85,17 @@ PanelWindow {
 
     // The third region only matters while the mouse is down - see
     // ClockWidget.qml's identical mask comment for why (fast flicks
-    // outrunning a small input region on a layer-shell surface).
+    // outrunning a small input region on a layer-shell surface). Also gated
+    // on assistantContainer.anyResizeActive, not just dragArea.pressed: the
+    // resize edges are only a few px thick, so even modest cursor movement
+    // past the edge being dragged would otherwise outrun the mask almost
+    // immediately, making a resize feel like it kept "letting go" unless
+    // dragged extremely slowly.
     mask: Region {
         Region { item: assistantContainer }
         Region { item: (typeof widgetMenu !== "undefined" && widgetMenu.visible) ? widgetMenu : null }
         Region { item: (typeof backendDropdown !== "undefined" && backendDropdown.visible) ? backendDropdown : null }
-        Region { item: dragArea.pressed ? fullScreenDragCatch : null }
+        Region { item: (dragArea.pressed || assistantContainer.anyResizeActive) ? fullScreenDragCatch : null }
     }
 
     Item { id: fullScreenDragCatch; anchors.fill: parent }
