@@ -61,6 +61,7 @@ Item {
         { id: 18, name: "Screensaver",      icon: "tv",              group: "WIDGETS",      keywords: "idle screen saver matrix bounce" },
         { id: 20, name: "Retro Shader",     icon: "videogame_asset", group: "WIDGETS",      keywords: "pixel crt dither palette shader retro effect scanline" },
         { id: 22, name: "Assistant",        icon: "support_agent",   group: "WIDGETS",      keywords: "ai llm ollama claude codex gemini chat model prompt" },
+        { id: 23, name: "App Dock",         icon: "dock_to_bottom",  group: "WIDGETS",      keywords: "dock taskbar launcher pin pinned apps icons floating draggable" },
 
         { id: 11, name: "Shell",            icon: "terminal",        group: "SYSTEM",       keywords: "update git version reload restart about repository profile" }
     ]
@@ -1037,6 +1038,7 @@ Item {
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 20; visible: active; sourceComponent: ShaderSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 21; visible: active; sourceComponent: CavaSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 22; visible: active; sourceComponent: AssistantSettings {} }
+                    Loader { anchors.fill: parent; active: settingsRoot.activeSection === 23; visible: active; sourceComponent: AppDockSettings {} }
 
                     // Shell View (Section 11)
                     Loader {

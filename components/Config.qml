@@ -325,6 +325,22 @@ QtObject {
     function isClockEnabledForScreen(screenName) { return desktopWidgets.isClockEnabledForScreen(screenName) }
     function toggleClockScreen(screenName) { desktopWidgets.toggleClockScreen(screenName) }
 
+    property alias showAppDock: root.desktopWidgets.showAppDock
+    property alias appDockOrientation: root.desktopWidgets.appDockOrientation
+    property alias appDockScale: root.desktopWidgets.appDockScale
+    property alias appDockShowBorder: root.desktopWidgets.appDockShowBorder
+    property alias appDockShowBackground: root.desktopWidgets.appDockShowBackground
+    property alias appDockShowGlow: root.desktopWidgets.appDockShowGlow
+    property alias appDockPositions: root.desktopWidgets.appDockPositions
+    property alias appDockScales: root.desktopWidgets.appDockScales
+    property alias enabledAppDockScreens: root.desktopWidgets.enabledAppDockScreens
+    function getAppDockPosition(screenName, defaultX, defaultY) { return desktopWidgets.getAppDockPosition(screenName, defaultX, defaultY) }
+    function saveAppDockPosition(screenName, x, y) { desktopWidgets.saveAppDockPosition(screenName, x, y) }
+    function getAppDockScale(screenName) { return desktopWidgets.getAppDockScale(screenName) }
+    function saveAppDockScale(screenName, scale) { desktopWidgets.saveAppDockScale(screenName, scale) }
+    function isAppDockEnabledForScreen(screenName) { return desktopWidgets.isAppDockEnabledForScreen(screenName) }
+    function toggleAppDockScreen(screenName) { desktopWidgets.toggleAppDockScreen(screenName) }
+
     property alias showDesktopSysInfo: root.desktopWidgets.showDesktopSysInfo
     property alias sysInfoScale: root.desktopWidgets.sysInfoScale
     property alias sysInfoShowHost: root.desktopWidgets.sysInfoShowHost
@@ -929,7 +945,9 @@ QtObject {
         "workspaceScroll", "workspaceTooltips", "workspaceShowAddBtn", "workspaceShowOverviewBtn",
         "workspaceShowSpecial", "workspaceContainerStyle", "wallhavenUsername", "wallhavenApiKey",
         "showAssistant", "assistantBackend", "assistantModel", "assistantOllamaModel", "assistantBadgePath", "assistantCustomBadges", "assistantTimeoutSeconds", "assistantFontScale", "assistantWidth", "assistantHeight",
-        "assistantPositions", "assistantLastScreen", "assistantMessages"
+        "assistantPositions", "assistantLastScreen", "assistantMessages",
+        "showAppDock", "appDockOrientation", "appDockScale", "appDockShowBorder", "appDockShowBackground",
+        "appDockShowGlow", "appDockPositions", "appDockScales", "enabledAppDockScreens"
     ]
 
     // Settings are stored as JSON via Quickshell's own FileView+JsonAdapter instead of a
@@ -1141,6 +1159,15 @@ QtObject {
             property var assistantPositions
             property var assistantLastScreen
             property var assistantMessages
+            property var showAppDock
+            property var appDockOrientation
+            property var appDockScale
+            property var appDockShowBorder
+            property var appDockShowBackground
+            property var appDockShowGlow
+            property var appDockPositions
+            property var appDockScales
+            property var enabledAppDockScreens
             property var keybinds
             property var customThemes
             property var currentThemeIndex

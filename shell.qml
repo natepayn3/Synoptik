@@ -613,4 +613,14 @@ ShellRoot {
             visible: Config.showDesktopCava && (modelData ? Config.isCavaEnabledForScreen(modelData.name) : true)
         }
     }
+    Variants {
+        model: Quickshell.screens
+
+        delegate: AppDock {
+            id: appDockDelegate
+            required property var modelData
+            screen: modelData
+            visible: appDockDelegate.positionRestored && Config.showAppDock && (modelData ? Config.isAppDockEnabledForScreen(modelData.name) : true)
+        }
+    }
 }

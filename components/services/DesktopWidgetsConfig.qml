@@ -292,4 +292,68 @@ QtObject {
     onCavaFramerateChanged: { if (configRef && configRef.isLoaded) { configRef.saveSettings(); configRef.cavaService.requestRestart() } }
     onCavaSensitivityChanged: { if (configRef && configRef.isLoaded) { configRef.saveSettings(); configRef.cavaService.requestRestart() } }
     onCavaSmoothingChanged: { if (configRef && configRef.isLoaded) { configRef.saveSettings(); configRef.cavaService.requestRestart() } }
+
+    // --- APP DOCK STATE & PERSISTENCE ---
+    property bool showAppDock: false
+    property string appDockOrientation: "horizontal" // "horizontal" | "vertical"
+    property real appDockScale: 1.0
+    property bool appDockShowBorder: true
+    property bool appDockShowBackground: true
+    property bool appDockShowGlow: true
+
+    property var appDockPositions: ({})
+    property var appDockScales: ({})
+    property var enabledAppDockScreens: []
+
+    function getAppDockPosition(screenName, defaultX, defaultY) {
+        if (appDockPositions && appDockPositions[screenName]) {
+            return appDockPositions[screenName]
+        }
+        return { x: defaultX, y: defaultY }
+    }
+
+    function saveAppDockPosition(screenName, x, y) {
+        let current = Object.assign({}, appDockPositions)
+        current[screenName] = { x: x, y: y }
+        appDockPositions = current
+        if (configRef) configRef.saveSettings()
+    }
+
+    function getAppDockScale(screenName) {
+        if (appDockScales && appDockScales[screenName] !== undefined) {
+            return appDockScales[screenName]
+        }
+        return 1.0
+    }
+
+    function saveAppDockScale(screenName, scale) {
+        let current = Object.assign({}, appDockScales)
+        current[screenName] = scale
+        appDockScales = current
+        if (configRef) configRef.saveSettings()
+    }
+
+    function isAppDockEnabledForScreen(screenName) {
+        if (!enabledAppDockScreens || enabledAppDockScreens.length === 0) return true
+        return enabledAppDockScreens.includes(screenName)
+    }
+
+    function toggleAppDockScreen(screenName) {
+        let current = (enabledAppDockScreens || []).slice()
+        let idx = current.indexOf(screenName)
+        if (idx !== -1) {
+            current.splice(idx, 1)
+        } else {
+            current.push(screenName)
+        }
+        enabledAppDockScreens = current
+        if (configRef) configRef.saveSettings()
+    }
+
+    onShowAppDockChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
+    onAppDockOrientationChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
+    onAppDockScaleChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
+    onAppDockShowBorderChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
+    onAppDockShowBackgroundChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
+    onAppDockShowGlowChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
 }

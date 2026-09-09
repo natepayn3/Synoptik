@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Layouts
 import Qt5Compat.GraphicalEffects
 import Quickshell.Widgets
+import "settings"
 
 // Right-click menu shared by every desktop widget (Clock, System Info, Cava,
 // Mascot) letting the user toggle any of them on/off from wherever they are,
@@ -154,15 +155,39 @@ ClippingRectangle {
         }
     }
 
+    // Static - deliberately holds no live Config reads. Each entry used to
+    // embed `enabled: Config.showXxx` directly, which meant toggling *any
+    // one* widget re-evaluated this whole array into a brand-new object
+    // (since the array literal's binding depends on all 8 properties at
+    // once). A plain JS array gives Repeater no way to diff that against
+    // the old one, so it tore down and rebuilt every delegate - and every
+    // freshly-built ToggleSwitch bound to checked: true fired its "just
+    // switched on" bounce once, since it's transitioning off its own
+    // declared default of false. isEnabled() below reads the per-id Config
+    // property directly inside each row's own binding instead, so only the
+    // one row whose property actually changed re-evaluates.
     readonly property var widgetDefs: [
-        { id: "clock",   icon: "schedule",      label: "Clock",            enabled: Config.showDesktopClock },
-        { id: "sysinfo", icon: "monitor_heart", label: "System Info",      enabled: Config.showDesktopSysInfo },
-        { id: "cava",    icon: "graphic_eq",    label: "Audio Visualizer", enabled: Config.showDesktopCava },
-        { id: "mascot",  icon: "pets",          label: "Desktop Mascot",   enabled: Config.showMascot },
-        { id: "media",   icon: "album",         label: "Media Player",    enabled: Config.showDesktopMediaCard },
-        { id: "assistant", icon: "smart_toy",   label: "Assistant",       enabled: Config.showAssistant },
-        { id: "mirror",  icon: "photo_camera",  label: "Mirror",          enabled: Config.showMirror }
+        { id: "clock",   icon: "schedule",      label: "Clock" },
+        { id: "sysinfo", icon: "monitor_heart", label: "System Info" },
+        { id: "cava",    icon: "graphic_eq",    label: "Audio Visualizer" },
+        { id: "mascot",  icon: "pets",          label: "Desktop Mascot" },
+        { id: "media",   icon: "album",         label: "Media Player" },
+        { id: "assistant", icon: "smart_toy",   label: "Assistant" },
+        { id: "mirror",  icon: "photo_camera",  label: "Mirror" },
+        { id: "appdock", icon: "dock_to_bottom", label: "App Dock" }
     ]
+
+    function isEnabled(id) {
+        if (id === "clock") return Config.showDesktopClock
+        else if (id === "sysinfo") return Config.showDesktopSysInfo
+        else if (id === "cava") return Config.showDesktopCava
+        else if (id === "mascot") return Config.showMascot
+        else if (id === "media") return Config.showDesktopMediaCard
+        else if (id === "assistant") return Config.showAssistant
+        else if (id === "mirror") return Config.showMirror
+        else if (id === "appdock") return Config.showAppDock
+        return false
+    }
 
     function toggle(id) {
         if (id === "clock") Config.showDesktopClock = !Config.showDesktopClock
@@ -172,6 +197,7 @@ ClippingRectangle {
         else if (id === "media") Config.showDesktopMediaCard = !Config.showDesktopMediaCard
         else if (id === "assistant") Config.showAssistant = !Config.showAssistant
         else if (id === "mirror") Config.showMirror = !Config.showMirror
+        else if (id === "appdock") Config.showAppDock = !Config.showAppDock
     }
 
     // Opens at (localX, localY) in `container`'s coordinate space, clamped so
@@ -210,7 +236,13 @@ ClippingRectangle {
 
     ColumnLayout {
         id: col
-        x: Config.cardMargin
+        // Anchored dead-center on menu's actual live width instead of a
+        // hand-computed x - a manual (menu.width - col.width) / 2 here
+        // still came out lopsided (targetWidth's 220px floor, the open/close
+        // widthFactor animation, and col's own implicit-width resolution
+        // all have to land in exact agreement for that math to work; anchors
+        // just always match parent's real width, no arithmetic to get wrong).
+        anchors.horizontalCenter: parent.horizontalCenter
         y: Config.cardMargin
         spacing: Config.cardMargin / 2
 
@@ -241,7 +273,7 @@ ClippingRectangle {
         }
 
         RowLayout {
-            Layout.fillWidth: true
+            Layout.alignment: Qt.AlignHCenter
             Layout.bottomMargin: 8
             spacing: 8
 
@@ -305,7 +337,7 @@ ClippingRectangle {
                         text: modelData.icon
                         font.family: "Material Symbols Outlined"
                         font.pixelSize: 19
-                        color: modelData.enabled ? Config.accent : Config.textMuted
+                        color: menu.isEnabled(modelData.id) ? Config.accent : Config.textMuted
                     }
 
                     Text {
@@ -317,27 +349,9 @@ ClippingRectangle {
                         Layout.fillWidth: true
                     }
 
-                    // Compact switch (mirrors BarSettings.qml's ToggleSwitch look)
-                    Rectangle {
-                        implicitWidth: 38
-                        implicitHeight: 21
-                        radius: 6
-                        color: modelData.enabled ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.22) : Qt.rgba(0, 0, 0, 0.4)
-                        border.width: modelData.enabled ? 1.5 : 1
-                        border.color: modelData.enabled ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
-
-                        Behavior on color { ColorAnimation { duration: 120 } }
-
-                        Rectangle {
-                            x: modelData.enabled ? (parent.width - width - 3) : 3
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: 15
-                            height: 15
-                            radius: 4
-                            color: modelData.enabled ? Config.accent : Qt.rgba(255, 255, 255, 0.2)
-
-                            Behavior on x { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
-                        }
+                    // Same shared switch every Settings page uses, bounce and all.
+                    ToggleSwitch {
+                        checked: menu.isEnabled(modelData.id)
                     }
                 }
 
