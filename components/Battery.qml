@@ -328,7 +328,7 @@ Item {
         // Bottom Stats Row
         RowLayout {
             Layout.fillWidth: true
-            spacing: root.cardMargin
+            spacing: root.cardMargin / 2
 
             // Card 2: Device Stats
             // ClippingRectangle (not plain Rectangle) so the watermark actually
