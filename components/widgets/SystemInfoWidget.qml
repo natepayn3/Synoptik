@@ -413,7 +413,7 @@ PanelWindow {
             visible: Config.sysInfoShowBg !== false
             radius: Config.cornerRadius
             color: Qt.rgba(Config.bgBase.r, Config.bgBase.g, Config.bgBase.b, 0.85)
-            border.width: Config.showBorders ? 2 : 1
+            border.width: Config.showBorders ? Config.borderThickness : 1
             border.color: Config.showBorders ? Config.accent : Qt.rgba(255, 255, 255, 0.12)
         }
 

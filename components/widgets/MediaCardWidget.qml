@@ -609,7 +609,7 @@ PanelWindow {
             Behavior on border.color { ColorAnimation { duration: 150 } }
 
             color: cardHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.05)
-            border.width: 1
+            border.width: Config.showBorders ? Config.borderThickness : 1
             border.color: mediaCardWindow.isStopped
                 ? Qt.rgba(255, 255, 255, 0.1)
                 : Qt.rgba(mediaCardWindow.dynamicAccent.r, mediaCardWindow.dynamicAccent.g, mediaCardWindow.dynamicAccent.b, cardHover.hovered ? 0.5 : 0.24)

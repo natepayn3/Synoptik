@@ -370,7 +370,7 @@ PanelWindow {
             visible: Config.cavaShowBackground || Config.cavaShowBorder
             color: Config.cavaShowBackground ? Config.bgPanel : "transparent"
             radius: Config.cornerRadius
-            border.width: Config.cavaShowBorder ? (Config.showBorders ? 2 : 1) : 0
+            border.width: Config.cavaShowBorder ? (Config.showBorders ? Config.borderThickness : 1) : 0
             border.color: Config.showBorders ? Config.accent : Qt.rgba(255, 255, 255, 0.15)
             opacity: Config.cavaShowBackground ? 0.85 : 1.0
         }
