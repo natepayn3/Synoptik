@@ -53,6 +53,7 @@ PanelWindow {
     Item { id: fullScreenDragCatch; anchors.fill: parent }
 
     SnapGridOverlay {
+        id: snapOverlay
         anchors.fill: parent
         gridSize: ghostBody.gridSize
         active: dragArea.drag.active && Config.snapDesktopWidgets
@@ -154,8 +155,8 @@ PanelWindow {
         // is a no-op.
         function commitGridSnap() {
             if (!Config.snapDesktopWidgets) return
-            dragX = Math.round(dragX / ghostBody.gridSize) * ghostBody.gridSize
-            dragY = Math.round(dragY / ghostBody.gridSize) * ghostBody.gridSize
+            dragX = snapOverlay.snappedX(dragX, width)
+            dragY = snapOverlay.snappedY(dragY, height)
             if (petWindow.screen) {
                 Config.saveMascotPosition(petWindow.screen.name, dragX, dragY)
             }
@@ -292,8 +293,8 @@ PanelWindow {
         // invisible hit-region it's grabbed by permanently drift apart. The
         // anchor's real position gets committed to the grid on release
         // instead (see dragArea below).
-        x: (Config.snapDesktopWidgets && dragArea.drag.active) ? Math.round(petContainer.x / gridSize) * gridSize : petContainer.x
-        y: (Config.snapDesktopWidgets && dragArea.drag.active) ? Math.round(petContainer.y / gridSize) * gridSize : petContainer.y
+        x: (Config.snapDesktopWidgets && dragArea.drag.active) ? snapOverlay.snappedX(petContainer.x, width) : petContainer.x
+        y: (Config.snapDesktopWidgets && dragArea.drag.active) ? snapOverlay.snappedY(petContainer.y, height) : petContainer.y
         width: petContainer.width
         height: petContainer.height
 

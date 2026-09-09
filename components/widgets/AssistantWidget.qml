@@ -101,6 +101,7 @@ PanelWindow {
     Item { id: fullScreenDragCatch; anchors.fill: parent }
 
     SnapGridOverlay {
+        id: snapOverlay
         anchors.fill: parent
         gridSize: ghostBody.gridSize
         active: dragArea.drag.active && Config.snapDesktopWidgets
@@ -1181,8 +1182,8 @@ PanelWindow {
         // MediaCardWidget.qml's commitGridSnap(). Idempotent, position-only.
         function commitGridSnap() {
             if (!Config.snapDesktopWidgets) return
-            dragX = Math.round(dragX / ghostBody.gridSize) * ghostBody.gridSize
-            dragY = Math.round(dragY / ghostBody.gridSize) * ghostBody.gridSize
+            dragX = snapOverlay.snappedX(dragX, width)
+            dragY = snapOverlay.snappedY(dragY, height)
             if (assistantWindow.screen) {
                 Config.saveAssistantPosition(assistantWindow.screen.name, dragX, dragY)
             }
@@ -1561,8 +1562,8 @@ PanelWindow {
         id: ghostBody
         readonly property real gridSize: 24
 
-        x: (Config.snapDesktopWidgets && dragArea.drag.active) ? Math.round(assistantContainer.x / gridSize) * gridSize : assistantContainer.x
-        y: (Config.snapDesktopWidgets && dragArea.drag.active) ? Math.round(assistantContainer.y / gridSize) * gridSize : assistantContainer.y
+        x: (Config.snapDesktopWidgets && dragArea.drag.active) ? snapOverlay.snappedX(assistantContainer.x, width) : assistantContainer.x
+        y: (Config.snapDesktopWidgets && dragArea.drag.active) ? snapOverlay.snappedY(assistantContainer.y, height) : assistantContainer.y
         // Size never grid-snaps (only position does) and never lags behind a
         // live resize - direct mirror, no Behavior.
         width: assistantContainer.cardWidth

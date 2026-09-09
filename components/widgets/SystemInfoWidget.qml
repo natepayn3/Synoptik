@@ -45,6 +45,7 @@ PanelWindow {
     Item { id: fullScreenDragCatch; anchors.fill: parent }
 
     SnapGridOverlay {
+        id: snapOverlay
         anchors.fill: parent
         gridSize: ghostBody.gridSize
         active: dragArea.drag.active && Config.snapDesktopWidgets
@@ -252,8 +253,8 @@ PanelWindow {
         // is a no-op.
         function commitGridSnap() {
             if (!Config.snapDesktopWidgets) return
-            dragX = Math.round(dragX / ghostBody.gridSize) * ghostBody.gridSize
-            dragY = Math.round(dragY / ghostBody.gridSize) * ghostBody.gridSize
+            dragX = snapOverlay.snappedX(dragX, width)
+            dragY = snapOverlay.snappedY(dragY, height)
             if (sysInfoWindow.screen && Config.saveSysInfoPosition) {
                 Config.saveSysInfoPosition(sysInfoWindow.screen.name, dragX, dragY)
             }
@@ -376,8 +377,8 @@ PanelWindow {
             // the invisible hit-region it's grabbed by permanently drift
             // apart. The anchor's real position gets committed to the grid
             // on release instead (see dragArea below).
-            x: (Config.snapDesktopWidgets && dragArea.drag.active) ? Math.round(infoContainer.x / gridSize) * gridSize : infoContainer.x
-            y: (Config.snapDesktopWidgets && dragArea.drag.active) ? Math.round(infoContainer.y / gridSize) * gridSize : infoContainer.y
+            x: (Config.snapDesktopWidgets && dragArea.drag.active) ? snapOverlay.snappedX(infoContainer.x, width) : infoContainer.x
+            y: (Config.snapDesktopWidgets && dragArea.drag.active) ? snapOverlay.snappedY(infoContainer.y, height) : infoContainer.y
             // mainLayout.width, not .implicitWidth: mainLayout forces its own
             // width explicitly (320 * currentScale, below), which Qt Quick
             // Layouts tracks as a separate number from the layout's

@@ -75,6 +75,7 @@ PanelWindow {
     Item { id: fullScreenDragCatch; anchors.fill: parent }
 
     SnapGridOverlay {
+        id: snapOverlay
         anchors.fill: parent
         gridSize: ghostBody.gridSize
         active: dragArea.drag.active && Config.snapDesktopWidgets
@@ -219,8 +220,8 @@ PanelWindow {
         // is a no-op.
         function commitGridSnap() {
             if (!Config.snapDesktopWidgets) return
-            dragX = Math.round(dragX / ghostBody.gridSize) * ghostBody.gridSize
-            dragY = Math.round(dragY / ghostBody.gridSize) * ghostBody.gridSize
+            dragX = snapOverlay.snappedX(dragX, width)
+            dragY = snapOverlay.snappedY(dragY, height)
             if (mirrorWindow.screen) {
                 Config.saveMirrorPosition(mirrorWindow.screen.name, dragX, dragY)
             }
@@ -418,8 +419,8 @@ PanelWindow {
         // *while actively dragging* - at rest this must equal
         // mirrorContainer exactly, or the visible skin and the invisible
         // hit-region it's grabbed by permanently drift apart.
-        x: (Config.snapDesktopWidgets && dragArea.drag.active) ? Math.round(mirrorContainer.x / gridSize) * gridSize : mirrorContainer.x
-        y: (Config.snapDesktopWidgets && dragArea.drag.active) ? Math.round(mirrorContainer.y / gridSize) * gridSize : mirrorContainer.y
+        x: (Config.snapDesktopWidgets && dragArea.drag.active) ? snapOverlay.snappedX(mirrorContainer.x, width) : mirrorContainer.x
+        y: (Config.snapDesktopWidgets && dragArea.drag.active) ? snapOverlay.snappedY(mirrorContainer.y, height) : mirrorContainer.y
         // Size never grid-snaps (only position does) and never lags behind
         // a live resize - direct mirror, no Behavior.
         width: mirrorContainer.cardWidth

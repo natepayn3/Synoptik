@@ -47,6 +47,7 @@ PanelWindow {
     Item { id: fullScreenDragCatch; anchors.fill: parent }
 
     SnapGridOverlay {
+        id: snapOverlay
         anchors.fill: parent
         gridSize: ghostBody.gridSize
         active: dragArea.drag.active && Config.snapDesktopWidgets
@@ -167,8 +168,8 @@ PanelWindow {
         // is a no-op.
         function commitGridSnap() {
             if (!Config.snapDesktopWidgets) return
-            dragX = Math.round(dragX / ghostBody.gridSize) * ghostBody.gridSize
-            dragY = Math.round(dragY / ghostBody.gridSize) * ghostBody.gridSize
+            dragX = snapOverlay.snappedX(dragX, width)
+            dragY = snapOverlay.snappedY(dragY, height)
             if (cavaWindow.screen) {
                 Config.saveCavaPosition(cavaWindow.screen.name, dragX, dragY)
             }
@@ -342,8 +343,8 @@ PanelWindow {
         // invisible hit-region it's grabbed by permanently drift apart. The
         // anchor's real position gets committed to the grid on release
         // instead (see dragArea below).
-        x: (Config.snapDesktopWidgets && dragArea.drag.active) ? Math.round(cavaContainer.x / gridSize) * gridSize : cavaContainer.x
-        y: (Config.snapDesktopWidgets && dragArea.drag.active) ? Math.round(cavaContainer.y / gridSize) * gridSize : cavaContainer.y
+        x: (Config.snapDesktopWidgets && dragArea.drag.active) ? snapOverlay.snappedX(cavaContainer.x, width) : cavaContainer.x
+        y: (Config.snapDesktopWidgets && dragArea.drag.active) ? snapOverlay.snappedY(cavaContainer.y, height) : cavaContainer.y
         width: cavaContainer.width
         height: cavaContainer.height
 

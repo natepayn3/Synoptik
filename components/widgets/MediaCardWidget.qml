@@ -95,6 +95,7 @@ PanelWindow {
     Item { id: fullScreenDragCatch; anchors.fill: parent }
 
     SnapGridOverlay {
+        id: snapOverlay
         anchors.fill: parent
         gridSize: ghostBody.gridSize
         active: dragArea.drag.active && Config.snapDesktopWidgets
@@ -330,8 +331,8 @@ PanelWindow {
         // size never grid-snaps, only the drag position does.
         function commitGridSnap() {
             if (!Config.snapDesktopWidgets) return
-            dragX = Math.round(dragX / ghostBody.gridSize) * ghostBody.gridSize
-            dragY = Math.round(dragY / ghostBody.gridSize) * ghostBody.gridSize
+            dragX = snapOverlay.snappedX(dragX, width)
+            dragY = snapOverlay.snappedY(dragY, height)
             if (mediaCardWindow.screen) {
                 Config.saveMediaCardPosition(mediaCardWindow.screen.name, dragX, dragY)
             }
@@ -574,8 +575,8 @@ PanelWindow {
         // grid on release instead (see dragArea/ResizeEdge above), so once
         // you let go the two are back in exact agreement.
         // Snap OFF: the exact position, eased in via Behavior below.
-        x: (Config.snapDesktopWidgets && dragArea.drag.active) ? Math.round(mediaCardContainer.x / gridSize) * gridSize : mediaCardContainer.x
-        y: (Config.snapDesktopWidgets && dragArea.drag.active) ? Math.round(mediaCardContainer.y / gridSize) * gridSize : mediaCardContainer.y
+        x: (Config.snapDesktopWidgets && dragArea.drag.active) ? snapOverlay.snappedX(mediaCardContainer.x, width) : mediaCardContainer.x
+        y: (Config.snapDesktopWidgets && dragArea.drag.active) ? snapOverlay.snappedY(mediaCardContainer.y, height) : mediaCardContainer.y
         // Size never grid-snaps (only position does) and never lags behind
         // a live resize - direct mirror, no Behavior.
         width: mediaCardContainer.cardWidth

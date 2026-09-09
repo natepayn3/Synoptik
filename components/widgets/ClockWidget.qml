@@ -61,6 +61,7 @@ PanelWindow {
     Item { id: fullScreenDragCatch; anchors.fill: parent }
 
     SnapGridOverlay {
+        id: snapOverlay
         anchors.fill: parent
         gridSize: ghostBody.gridSize
         active: dragArea.drag.active && Config.snapDesktopWidgets
@@ -117,8 +118,8 @@ PanelWindow {
         // is a no-op.
         function commitGridSnap() {
             if (!Config.snapDesktopWidgets) return
-            dragX = Math.round(dragX / ghostBody.gridSize) * ghostBody.gridSize
-            dragY = Math.round(dragY / ghostBody.gridSize) * ghostBody.gridSize
+            dragX = snapOverlay.snappedX(dragX, width)
+            dragY = snapOverlay.snappedY(dragY, height)
             if (clockWindow.screen) {
                 Config.saveClockPosition(clockWindow.screen.name, dragX, dragY)
             }
@@ -639,8 +640,8 @@ PanelWindow {
         // on release instead (see dragArea below), so once you let go the
         // two are back in exact agreement.
         // Snap OFF: the exact position, eased in via Behavior below.
-        x: (Config.snapDesktopWidgets && dragArea.drag.active) ? Math.round(clockContainer.x / gridSize) * gridSize : clockContainer.x
-        y: (Config.snapDesktopWidgets && dragArea.drag.active) ? Math.round(clockContainer.y / gridSize) * gridSize : clockContainer.y
+        x: (Config.snapDesktopWidgets && dragArea.drag.active) ? snapOverlay.snappedX(clockContainer.x, width) : clockContainer.x
+        y: (Config.snapDesktopWidgets && dragArea.drag.active) ? snapOverlay.snappedY(clockContainer.y, height) : clockContainer.y
         width: clockLoader.implicitWidth + (clockContainer.basePadding * 2)
         height: clockLoader.implicitHeight + (clockContainer.basePadding * 2)
 
