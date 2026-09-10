@@ -640,131 +640,150 @@ ClippingRectangle {
         // is already running for the master volume, so a "sink-input" event
         // on that same stream just debounces a re-list here instead of
         // starting a second subscribe process.
-        ColumnLayout {
+        // Height/opacity are driven off volumeExpanded (instead of a plain
+        // `visible` toggle) so the card grows/shrinks smoothly instead of
+        // the rest of the layout snapping up/down in a single frame.
+        Item {
+            id: mixerWrapper
             Layout.fillWidth: true
-            spacing: 6
-            visible: root.volumeExpanded
+            clip: true
+            implicitHeight: root.volumeExpanded ? mixerColumn.implicitHeight : 0
 
-            Text {
-                Layout.fillWidth: true
-                visible: appVolumeModel.count === 0
-                text: "No apps are currently playing audio."
-                color: Config.textMuted
-                font.family: Config.sysFont
-                font.pixelSize: Config.size(Config.fontMicro)
-                font.italic: true
-                horizontalAlignment: Text.AlignHCenter
+            Behavior on implicitHeight {
+                NumberAnimation { duration: 240; easing.type: Easing.OutCubic }
             }
 
-            Repeater {
-                model: appVolumeModel
+            ColumnLayout {
+                id: mixerColumn
+                width: parent.width
+                spacing: 6
+                opacity: root.volumeExpanded ? 1.0 : 0.0
 
-                delegate: RowLayout {
+                Behavior on opacity {
+                    NumberAnimation { duration: root.volumeExpanded ? 200 : 120 }
+                }
+
+                Text {
                     Layout.fillWidth: true
-                    spacing: 8
-                    opacity: model.isCorked ? 0.5 : 1.0
+                    visible: appVolumeModel.count === 0
+                    text: "No apps are currently playing audio."
+                    color: Config.textMuted
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontMicro)
+                    font.italic: true
+                    horizontalAlignment: Text.AlignHCenter
+                }
 
-                    Behavior on opacity { NumberAnimation { duration: 150 } }
+                Repeater {
+                    model: appVolumeModel
 
-                    Rectangle {
-                        implicitWidth: 26
-                        implicitHeight: 26
-                        radius: 8
-                        color: Qt.rgba(255, 255, 255, 0.08)
-
-                        Image {
-                            anchors.fill: parent
-                            anchors.margins: 4
-                            source: Config.getAppIcon(model.iconName)
-                            fillMode: Image.PreserveAspectFit
-                            asynchronous: true
-                        }
-                    }
-
-                    Text {
-                        Layout.preferredWidth: 84
-                        text: (model.isBrowser && root.liveMediaTitle !== "" && root.singleBrowserStream())
-                            ? root.liveMediaTitle
-                            : model.appName
-                        color: Config.textMain
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                        elide: Text.ElideRight
-                    }
-
-                    // Compact track - same fill/handle idea as the main sliders,
-                    // without the face animation (would be too busy repeated
-                    // once per app row).
-                    Item {
-                        id: appTrack
+                    delegate: RowLayout {
                         Layout.fillWidth: true
-                        implicitHeight: 22
+                        spacing: 8
+                        opacity: model.isCorked ? 0.5 : 1.0
 
-                        property real displayRatio: (root.pendingAppVolIndex === model.streamIndex)
-                            ? (root.pendingAppVolValue / 100.0)
-                            : (model.volumePct / 100.0)
+                        Behavior on opacity { NumberAnimation { duration: 150 } }
 
                         Rectangle {
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: parent.width
-                            height: 5
-                            radius: 2.5
-                            color: Qt.rgba(0, 0, 0, 0.35)
+                            implicitWidth: 26
+                            implicitHeight: 26
+                            radius: 8
+                            color: Qt.rgba(255, 255, 255, 0.08)
+
+                            Image {
+                                anchors.fill: parent
+                                anchors.margins: 4
+                                source: Config.getAppIcon(model.iconName)
+                                fillMode: Image.PreserveAspectFit
+                                asynchronous: true
+                            }
+                        }
+
+                        Text {
+                            Layout.preferredWidth: 84
+                            text: (model.isBrowser && root.liveMediaTitle !== "" && root.singleBrowserStream())
+                                ? root.liveMediaTitle
+                                : model.appName
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                            elide: Text.ElideRight
+                        }
+
+                        // Compact track - same fill/handle idea as the main sliders,
+                        // without the face animation (would be too busy repeated
+                        // once per app row).
+                        Item {
+                            id: appTrack
+                            Layout.fillWidth: true
+                            implicitHeight: 22
+
+                            property real displayRatio: (root.pendingAppVolIndex === model.streamIndex)
+                                ? (root.pendingAppVolValue / 100.0)
+                                : (model.volumePct / 100.0)
 
                             Rectangle {
-                                width: parent.width * Math.min(1.0, appTrack.displayRatio)
-                                height: parent.height
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: parent.width
+                                height: 5
                                 radius: 2.5
-                                color: model.isMuted ? Config.textMuted : Config.accent
+                                color: Qt.rgba(0, 0, 0, 0.35)
+
+                                Rectangle {
+                                    width: parent.width * Math.min(1.0, appTrack.displayRatio)
+                                    height: parent.height
+                                    radius: 2.5
+                                    color: model.isMuted ? Config.textMuted : Config.accent
+                                }
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                preventStealing: true
+
+                                function applyDrag(mouseXPos) {
+                                    if (appTrack.width <= 0) return
+                                    let ratio = Math.max(0.0, Math.min(1.0, mouseXPos / appTrack.width))
+                                    let pct = Math.round(ratio * 100)
+                                    root.pendingAppVolIndex = model.streamIndex
+                                    root.pendingAppVolValue = pct
+                                    appVolumeWriteTimer.restart()
+                                }
+
+                                onPressed: mouse => {
+                                    root.isDraggingAppVol = true
+                                    applyDrag(mouse.x)
+                                }
+                                onPositionChanged: mouse => { if (pressed) applyDrag(mouse.x) }
+                                onReleased: root.isDraggingAppVol = false
+                                onCanceled: root.isDraggingAppVol = false
                             }
                         }
 
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Qt.PointingHandCursor
-                            preventStealing: true
-
-                            function applyDrag(mouseXPos) {
-                                if (appTrack.width <= 0) return
-                                let ratio = Math.max(0.0, Math.min(1.0, mouseXPos / appTrack.width))
-                                let pct = Math.round(ratio * 100)
-                                root.pendingAppVolIndex = model.streamIndex
-                                root.pendingAppVolValue = pct
-                                appVolumeWriteTimer.restart()
-                            }
-
-                            onPressed: mouse => {
-                                root.isDraggingAppVol = true
-                                applyDrag(mouse.x)
-                            }
-                            onPositionChanged: mouse => { if (pressed) applyDrag(mouse.x) }
-                            onReleased: root.isDraggingAppVol = false
-                            onCanceled: root.isDraggingAppVol = false
+                        Text {
+                            Layout.preferredWidth: 30
+                            horizontalAlignment: Text.AlignRight
+                            text: (root.pendingAppVolIndex === model.streamIndex ? root.pendingAppVolValue : model.volumePct) + "%"
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
                         }
-                    }
 
-                    Text {
-                        Layout.preferredWidth: 30
-                        horizontalAlignment: Text.AlignRight
-                        text: (root.pendingAppVolIndex === model.streamIndex ? root.pendingAppVolValue : model.volumePct) + "%"
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                    }
+                        Text {
+                            text: model.isMuted ? "volume_off" : "volume_up"
+                            font.family: "Material Symbols Outlined"
+                            font.pixelSize: 16
+                            color: model.isMuted ? Config.textMuted : Config.accent
 
-                    Text {
-                        text: model.isMuted ? "volume_off" : "volume_up"
-                        font.family: "Material Symbols Outlined"
-                        font.pixelSize: 16
-                        color: model.isMuted ? Config.textMuted : Config.accent
-
-                        TapHandler {
-                            onTapped: {
-                                appVolumeMuteProc.command = ["pactl", "set-sink-input-mute", String(model.streamIndex), model.isMuted ? "0" : "1"]
-                                appVolumeMuteProc.running = true
+                            TapHandler {
+                                onTapped: {
+                                    appVolumeMuteProc.command = ["pactl", "set-sink-input-mute", String(model.streamIndex), model.isMuted ? "0" : "1"]
+                                    appVolumeMuteProc.running = true
+                                }
                             }
+                            HoverHandler { cursorShape: Qt.PointingHandCursor }
                         }
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
                     }
                 }
             }
