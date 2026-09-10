@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Tag each wallpaper with every color that covers a meaningful share of the
-image, cached by full file path. A single "dominant color" isn't enough to
-answer "does this wallpaper have pink in it" - pink is very often a smaller
-accent (a sunset band, a flower) that a strict top-1 color loses to whatever
-covers slightly more pixels."""
+"""Tag each wallpaper with its single dominant color, cached by full file
+path. Quantization can split one visual color across several palette
+swatches (e.g. two slightly different blues), so swatches are merged by
+color bucket before picking a winner - otherwise a genuinely dominant color
+can lose to an unrelated, more saturated small patch."""
 import colorsys
 import json
 import os
@@ -13,8 +13,6 @@ from PIL import Image
 
 EXTENSIONS = (".png", ".jpg", ".jpeg", ".webp", ".mp4", ".webm")
 PALETTE_SIZE = 8
-MIN_AREA_SHARE = 0.08
-MAX_TAGS = 4
 
 
 def thumb_path_for(thumbs_dir, wallpaper_path):
@@ -58,26 +56,18 @@ def classify(r, g, b):
 def color_tags(path):
     img = Image.open(path).convert("RGB")
     img.thumbnail((100, 100))
-    total = img.width * img.height
 
     paletted = img.quantize(colors=PALETTE_SIZE)
     palette = paletted.getpalette()
-    counts = sorted(paletted.getcolors(), reverse=True)
+    counts = paletted.getcolors()
 
-    tags = []
+    bucket_area = {}
     for count, idx in counts:
-        if count / total < MIN_AREA_SHARE:
-            break
         bucket = classify(*palette[idx * 3:idx * 3 + 3])
-        if bucket not in tags:
-            tags.append(bucket)
-        if len(tags) >= MAX_TAGS:
-            break
+        bucket_area[bucket] = bucket_area.get(bucket, 0) + count
 
-    if not tags:
-        tags.append(classify(*palette[counts[0][1] * 3:counts[0][1] * 3 + 3]))
-
-    return tags
+    dominant = max(bucket_area, key=bucket_area.get)
+    return [dominant]
 
 
 def main():
