@@ -39,19 +39,6 @@ QtObject {
         ]
     }
 
-    property Process slideshowRunner: Process {
-        id: bgSlideshowProc
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let path = this.text ? this.text.trim() : ""
-                if (path.length > 0) {
-                    wallpaperService.applyWallpaperBackend(path, false)
-                }
-            }
-        }
-    }
-
     property Timer bgSlideshowTimer: Timer {
         id: bgTimer
         interval: Math.max(1, (configRef ? configRef.slideshowMinutes : 5)) * 60000
@@ -60,16 +47,37 @@ QtObject {
         onTriggered: wallpaperService.triggerRandomWallpaperBackground()
     }
 
+    function isVideoPath(path) {
+        let ext = String(path).split('.').pop().toLowerCase()
+        return ext === "mp4" || ext === "webm"
+    }
+
+    // Picks from configRef.wallpapers (already scanned - no need to re-glob
+    // the directory) narrowed to configRef.colorFilter/typeFilter when active,
+    // so shuffling a "blue" + "image" filter only ever shuffles among blue
+    // still images.
     function triggerRandomWallpaperBackground() {
-        bgSlideshowProc.command = [
-            "fish", "-c",
-            "set -l files ~/Pictures/Wallpapers/*.{jpg,jpeg,png,webp,mp4,webm}; " +
-            "if test (count $files) -gt 0; " +
-            "    random choice $files; " +
-            "end"
-        ]
-        bgSlideshowProc.running = false
-        bgSlideshowProc.running = true
+        if (!configRef) return
+        let candidates = configRef.wallpapers || []
+        let colorFilter = configRef.colorFilter || ""
+        let typeFilter = configRef.typeFilter || ""
+
+        if (colorFilter !== "" && configRef.wallpaperColorMap) {
+            let filtered = candidates.filter(p => {
+                let tags = configRef.wallpaperColorMap[p]
+                return Array.isArray(tags) && tags.indexOf(colorFilter) !== -1
+            })
+            if (filtered.length > 0) candidates = filtered
+        }
+
+        if (typeFilter === "image" || typeFilter === "video") {
+            let filtered = candidates.filter(p => isVideoPath(p) === (typeFilter === "video"))
+            if (filtered.length > 0) candidates = filtered
+        }
+
+        if (candidates.length === 0) return
+        let pick = candidates[Math.floor(Math.random() * candidates.length)]
+        applyWallpaperBackend(pick, false)
     }
 
     property Process wallpaperApplyRunner: Process {

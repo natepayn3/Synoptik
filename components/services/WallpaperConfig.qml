@@ -70,6 +70,11 @@ QtObject {
     property string wallpaperTransitionType: "wipe"
     property string activeWallpaperPath: ""
     property var activeMonitorWallpapers: ({})
+    // Live UI filters (colorFilter: bucket name; typeFilter: "image"/"video";
+    // "" = none for both) - not persisted, shared with WallpaperService so
+    // random shuffle can respect them too.
+    property string colorFilter: ""
+    property string typeFilter: ""
     property bool enableWallpaperParallax: true
     property bool wallpaperWorkspaceParallax: true
     property bool wallpaperCursorParallax: true
@@ -187,6 +192,30 @@ QtObject {
         onExited: {
             if (configRef && configRef.wallpaperService) {
                 configRef.wallpaperService.thumbEpoch++
+            }
+            colorAnalyzer.running = false
+            colorAnalyzer.running = true
+        }
+    }
+
+    // --- DOMINANT COLOR ANALYSIS (for the color-swatch filter) ---
+    property var wallpaperColorMap: ({})
+
+    property Process colorAnalyzer: Process {
+        id: colorAnalyzer
+        running: false
+        command: [
+            (wallpaperRoot.configRef ? wallpaperRoot.configRef.scriptsDir : "") + "/wallpaper_colors.py",
+            Quickshell.env("HOME") + "/Pictures/Wallpapers",
+            Quickshell.env("HOME") + "/.cache/wallpaper-thumbs",
+            Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/colors.json"
+        ]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    let parsed = JSON.parse(this.text)
+                    if (parsed && typeof parsed === "object") wallpaperRoot.wallpaperColorMap = parsed
+                } catch (e) {}
             }
         }
     }

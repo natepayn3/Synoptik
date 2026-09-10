@@ -23,6 +23,31 @@ Item {
     // Version counter to invalidate QML image cache when thumbnails finish rendering
     property int thumbEpoch: 0
 
+    readonly property var colorSwatches: [
+        { name: "red", hex: "#e53935" },
+        { name: "orange", hex: "#fb8c00" },
+        { name: "yellow", hex: "#fdd835" },
+        { name: "green", hex: "#43a047" },
+        { name: "cyan", hex: "#00acc1" },
+        { name: "blue", hex: "#1e88e5" },
+        { name: "purple", hex: "#8e24aa" },
+        { name: "pink", hex: "#ec407a" },
+        { name: "brown", hex: "#6d4c41" },
+        { name: "white", hex: "#f5f5f5" },
+        { name: "gray", hex: "#9e9e9e" },
+        { name: "black", hex: "#212121" }
+    ]
+
+    // FolderListModel.get(idx, role) and plain ListModel.get(idx) are not the
+    // same API (the latter ignores the role arg and returns the whole row) -
+    // this normalizes access across whichever backs activeModel.
+    function getModelFilePath(model, idx) {
+        if (idx < 0 || idx >= model.count) return ""
+        if (model === folderModel) return model.get(idx, "filePath")
+        let row = model.get(idx)
+        return row ? row.filePath : ""
+    }
+
     // Compute unified thumbnail path stripping file extension
     function getThumbPath(filePath) {
         if (!filePath) return ""
@@ -45,8 +70,8 @@ Item {
             root.thumbEpoch = WallpaperService.thumbEpoch
             ambientBackdrop.source = Qt.binding(() => {
                 if (root.activeHoveredPath !== "") return root.resolveImageSource(root.activeHoveredPath)
-                if (folderModel.count > root.activeIndex && root.activeIndex >= 0) {
-                    return root.resolveImageSource(folderModel.get(root.activeIndex, "filePath"))
+                if (root.activeModel.count > root.activeIndex && root.activeIndex >= 0) {
+                    return root.resolveImageSource(root.getModelFilePath(root.activeModel, root.activeIndex))
                 }
                 return root.resolveImageSource(Config.activeWallpaperPath)
             })
@@ -69,6 +94,64 @@ Item {
         folder: "file://" + Quickshell.env("HOME") + "/Pictures/Wallpapers"
         nameFilters: ["*.png", "*.jpg", "*.jpeg", "*.webp", "*.mp4", "*.webm"]
         showDirs: false
+        onCountChanged: if (root.hasActiveFilter) root.rebuildFilteredModel()
+    }
+
+    // Holds only the wallpapers matching the active color/type filters.
+    // FolderListModel has no external-predicate filtering, and faking it by
+    // collapsing non-matching delegates to width:0 breaks the ListView's
+    // negative spacing (it still applies between hidden items, dragging
+    // surviving tiles far off-layout) - so matches are pulled out of
+    // folderModel into their own model instead.
+    ListModel {
+        id: filteredModel
+    }
+
+    readonly property bool hasActiveFilter: Config.colorFilter !== "" || Config.typeFilter !== ""
+
+    // Which model currently backs the ListView
+    readonly property var activeModel: hasActiveFilter ? filteredModel : folderModel
+
+    function isVideoSuffix(suffix) {
+        let s = (suffix || "").toLowerCase()
+        return s === "mp4" || s === "webm"
+    }
+
+    function rebuildFilteredModel() {
+        filteredModel.clear()
+        if (!hasActiveFilter) return
+        for (let i = 0; i < folderModel.count; i++) {
+            let suffix = folderModel.get(i, "fileSuffix")
+            if (Config.typeFilter === "image" && isVideoSuffix(suffix)) continue
+            if (Config.typeFilter === "video" && !isVideoSuffix(suffix)) continue
+
+            let rawPath = folderModel.get(i, "filePath")
+            if (Config.colorFilter !== "") {
+                let clean = (typeof rawPath === "string" ? rawPath : rawPath.toString()).replace(/^file:\/\//, "")
+                let tags = (Config.wallpaperColorMap && Config.wallpaperColorMap[clean]) || []
+                if (!Array.isArray(tags) || tags.indexOf(Config.colorFilter) === -1) continue
+            }
+
+            filteredModel.append({
+                filePath: rawPath,
+                fileName: folderModel.get(i, "fileName"),
+                fileSuffix: suffix
+            })
+        }
+        activeIndex = 0
+    }
+
+    Connections {
+        target: Config
+        function onWallpaperColorMapChanged() {
+            if (root.hasActiveFilter) root.rebuildFilteredModel()
+        }
+        function onColorFilterChanged() {
+            root.rebuildFilteredModel()
+        }
+        function onTypeFilterChanged() {
+            root.rebuildFilteredModel()
+        }
     }
 
     // Outer Shell Container
@@ -86,8 +169,8 @@ Item {
             anchors.fill: parent
             source: {
                 if (root.activeHoveredPath !== "") return root.resolveImageSource(root.activeHoveredPath)
-                if (folderModel.count > root.activeIndex && root.activeIndex >= 0) {
-                    return root.resolveImageSource(folderModel.get(root.activeIndex, "filePath"))
+                if (root.activeModel.count > root.activeIndex && root.activeIndex >= 0) {
+                    return root.resolveImageSource(root.getModelFilePath(root.activeModel, root.activeIndex))
                 }
                 return root.resolveImageSource(Config.activeWallpaperPath)
             }
@@ -159,11 +242,89 @@ Item {
                     Text {
                         id: countText
                         anchors.centerIn: parent
-                        text: folderModel.count + " items"
+                        text: root.activeModel.count + " items" + (root.hasActiveFilter ? " / " + folderModel.count : "")
                         color: Config.textMuted
                         font.family: Config.sysFont
                         font.pixelSize: 10
                         font.bold: true
+                    }
+                }
+
+                // COLOR FILTER SWATCHES
+                RowLayout {
+                    spacing: 4
+
+                    Repeater {
+                        model: root.colorSwatches
+
+                        Rectangle {
+                            id: swatch
+                            readonly property bool isActive: Config.colorFilter === modelData.name
+
+                            implicitWidth: 14
+                            implicitHeight: 14
+                            radius: 3
+                            color: modelData.hex
+                            border.width: isActive ? 2 : 1
+                            border.color: isActive ? Config.accent : Qt.rgba(0, 0, 0, 0.35)
+                            scale: isActive ? 1.15 : 1.0
+
+                            Behavior on scale { NumberAnimation { duration: 100 } }
+
+                            ToolTip.visible: swatchHover.containsMouse
+                            ToolTip.text: modelData.name
+                            ToolTip.delay: 400
+
+                            MouseArea {
+                                id: swatchHover
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    Config.colorFilter = swatch.isActive ? "" : modelData.name
+                                }
+                            }
+                        }
+                    }
+
+                    Text {
+                        text: "✕"
+                        visible: Config.colorFilter !== ""
+                        color: Config.textMuted
+                        font.family: "monospace"
+                        font.pixelSize: 11
+                        font.bold: true
+                        leftPadding: 4
+
+                        TapHandler {
+                            onTapped: Config.colorFilter = ""
+                        }
+                    }
+                }
+
+                // IMAGE / VIDEO TYPE FILTER
+                RowLayout {
+                    spacing: 6
+
+                    Repeater {
+                        model: [
+                            { key: "", label: "ALL" },
+                            { key: "image", label: "IMG" },
+                            { key: "video", label: "VID" }
+                        ]
+
+                        Text {
+                            readonly property bool isActive: Config.typeFilter === modelData.key
+                            text: "[" + modelData.label + "]"
+                            color: isActive ? Config.accent : Config.textMuted
+                            font.family: "monospace"
+                            font.pixelSize: 10
+                            font.bold: isActive
+
+                            TapHandler {
+                                onTapped: Config.typeFilter = modelData.key
+                            }
+                        }
                     }
                 }
 
@@ -255,13 +416,13 @@ Item {
                         bladeListView.positionViewAtIndex(root.activeIndex, ListView.Contain)
                         event.accepted = true
                     } else if (event.key === Qt.Key_D || event.key === Qt.Key_Right) {
-                        root.activeIndex = Math.min(folderModel.count - 1, root.activeIndex + 1)
+                        root.activeIndex = Math.min(root.activeModel.count - 1, root.activeIndex + 1)
                         bladeListView.positionViewAtIndex(root.activeIndex, ListView.Contain)
                         event.accepted = true
                     } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
-                        if (root.activeIndex >= 0 && folderModel.count > root.activeIndex) {
+                        if (root.activeIndex >= 0 && root.activeModel.count > root.activeIndex) {
                             let activeOnly = (event.modifiers & Qt.ControlModifier) !== 0
-                            let target = folderModel.get(root.activeIndex, "filePath")
+                            let target = root.getModelFilePath(root.activeModel, root.activeIndex)
                             wallpaperBackend.triggerBackendRun(target, activeOnly)
                         }
                         event.accepted = true
@@ -274,7 +435,7 @@ Item {
                     orientation: ListView.Horizontal
                     spacing: -14
                     boundsBehavior: Flickable.StopAtBounds
-                    model: folderModel
+                    model: root.activeModel
                     clip: false
 
                     delegate: Item {
@@ -494,7 +655,7 @@ Item {
                                     if (delta > 0) {
                                         root.activeIndex = Math.max(0, root.activeIndex - 1)
                                     } else if (delta < 0) {
-                                        root.activeIndex = Math.min(folderModel.count - 1, root.activeIndex + 1)
+                                        root.activeIndex = Math.min(root.activeModel.count - 1, root.activeIndex + 1)
                                     }
                                     bladeListView.positionViewAtIndex(root.activeIndex, ListView.Contain)
                                 }

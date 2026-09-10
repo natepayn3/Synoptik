@@ -40,6 +40,9 @@ QtObject {
     property alias slideshowMinutes: root.wallpaper.slideshowMinutes
     property alias wallpapers: root.wallpaper.wallpapers
     property alias tempPaths: root.wallpaper.tempPaths
+    property alias wallpaperColorMap: root.wallpaper.wallpaperColorMap
+    property alias colorFilter: root.wallpaper.colorFilter
+    property alias typeFilter: root.wallpaper.typeFilter
     function getMonitorWallpaper(screenName) { return wallpaper.getMonitorWallpaper(screenName) }
     function refreshActiveWallpapers() { wallpaper.refreshActiveWallpapers() }
     function triggerRandomWallpaperBackground() { wallpaper.triggerRandomWallpaperBackground() }
@@ -407,7 +410,6 @@ QtObject {
     function isCavaEnabledForScreen(screenName) { return desktopWidgets.isCavaEnabledForScreen(screenName) }
     function toggleCavaScreen(screenName) { desktopWidgets.toggleCavaScreen(screenName) }
 
-    property alias slideshowRunner: root.wallpaperService.slideshowRunner
     property alias bgSlideshowTimer: root.wallpaperService.bgSlideshowTimer
     property alias wallpaperApplyRunner: root.wallpaperService.wallpaperApplyRunner
 
