@@ -13,6 +13,10 @@ QtObject {
     property bool enableBlur: true
     property bool enableXray: true
     property bool enableIris: false
+    // How strongly Iris's extracted accent color is pushed toward vivid:
+    // "subtle" mutes it down, "medium" is Iris's raw output unchanged,
+    // "bold" pushes saturation/contrast up. See IrisColorService.qml.
+    property string irisIntensity: "medium"
     property bool showWatermarks: true
     property bool bounceWatermarks: true
 
@@ -31,6 +35,12 @@ QtObject {
 
     function applyIrisColors(filePath) {
         configRef.irisService.applyIrisColors(filePath)
+    }
+
+    onIrisIntensityChanged: {
+        if (!configRef || !configRef.isLoaded) return
+        if (enableIris) applyIrisColors()
+        configRef.saveSettings()
     }
 
     property bool enableHoverPeek: true
@@ -294,6 +304,24 @@ QtObject {
         }
     }
 
+    // Picks a legible text pair for a given background: nearly every stock/
+    // custom theme here is dark-bg-plus-white-text, but a couple (Catppuccin
+    // Latte, Solarized Light) are light-bg, and textMain/textMuted used to be
+    // fixed constants that never accounted for that - white text on a light
+    // panel just washes out. Iris (see IrisColorService.qml) already solves
+    // this itself by returning a contrast-computed "fg"/"dim" pair per
+    // wallpaper; this is the equivalent for the fixed theme table, and also
+    // backs Iris's own fallback when a JSON result is ever missing those keys.
+    // Relative luminance (ITU-R BT.709 coefficients) on the panel color, since
+    // that's what most on-screen text actually renders against.
+    function textColorsForBackground(hexColor) {
+        let c = Qt.color(hexColor)
+        let luminance = 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b
+        return luminance > 0.6
+            ? { main: "#1b1d1d", muted: "#5b5f66" }
+            : { main: "#ffffff", muted: "#94a3b8" }
+    }
+
     function applyTheme(index) {
         if (enableIris) return
 
@@ -304,6 +332,10 @@ QtObject {
         bgBase = Qt.rgba(Qt.color(baseColor).r, Qt.color(baseColor).g, Qt.color(baseColor).b, shellOpacity)
         bgPanel = Qt.rgba(Qt.color(panelColor).r, Qt.color(panelColor).g, Qt.color(panelColor).b, shellOpacity)
         accent = accentColor
+
+        var text = textColorsForBackground(panelColor)
+        textMain = text.main
+        textMuted = text.muted
 
         if (!useCustomColors) {
             var t = themes[index] || themes[0]

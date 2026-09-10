@@ -506,6 +506,67 @@ Flickable {
                     onToggled: Config.enableIris = !Config.enableIris
                 }
 
+                // 6b. Iris Intensity Picker - how vivid the extracted accent
+                // color is pushed, since Iris itself always returns one fixed
+                // reading with no vibrance control of its own.
+                RowLayout {
+                    Layout.fillWidth: true
+                    Layout.leftMargin: 12
+                    spacing: 10
+                    visible: Config.enableIris
+
+                    Repeater {
+                        model: [
+                            { name: "Subtle", desc: "Muted", value: "subtle" },
+                            { name: "Medium", desc: "Iris default", value: "medium" },
+                            { name: "Bold", desc: "Vivid", value: "bold" }
+                        ]
+
+                        delegate: Rectangle {
+                            id: intensityBtn
+                            Layout.fillWidth: true
+                            Layout.preferredWidth: 1
+                            implicitHeight: 40
+                            radius: Config.cornerRadius / 2
+                            readonly property bool isSelected: Config.irisIntensity === modelData.value
+                            color: isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.16) : (intensityBtnHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
+                            border.width: isSelected ? 1.5 : 1
+                            border.color: isSelected ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+
+                            Behavior on color { ColorAnimation { duration: 150 } }
+                            Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                            ColumnLayout {
+                                anchors.centerIn: parent
+                                spacing: 0
+                                Text {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    text: modelData.name
+                                    color: intensityBtn.isSelected ? Config.accent : Config.textMain
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontCaption)
+                                    font.bold: intensityBtn.isSelected
+                                }
+                                Text {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    text: modelData.desc
+                                    color: Config.textMuted
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontMicro)
+                                }
+                            }
+
+                            MouseArea {
+                                id: intensityBtnHover
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: Config.irisIntensity = modelData.value
+                            }
+                        }
+                    }
+                }
+
                 // 7. Desktop Widget Motion Row
                 SettingsToggleRow {
                     title: "Snap Desktop Widgets"

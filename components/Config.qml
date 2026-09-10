@@ -495,6 +495,7 @@ QtObject {
     property alias enableBlur: root.appearance.enableBlur
     property alias enableXray: root.appearance.enableXray
     property alias enableIris: root.appearance.enableIris
+    property alias irisIntensity: root.appearance.irisIntensity
     property alias showWatermarks: root.appearance.showWatermarks
     property alias bounceWatermarks: root.appearance.bounceWatermarks
     function applyIrisColors(filePath) { appearance.applyIrisColors(filePath) }
@@ -919,7 +920,7 @@ QtObject {
         "barPosition", "autoHideBar", "showScreenFrame", "sysFont", "nativeFontRendering",
         "fontScaleIndex", "locationQuery", "enabledBarScreens", "useCustomColors", "customBgBase",
         "customBgPanel", "customAccent", "animateGradient", "shellOpacity", "enableBlur", "enableXray",
-        "enableIris", "showWatermarks", "bounceWatermarks", "windowStyle", "playWindowSounds",
+        "enableIris", "irisIntensity", "showWatermarks", "bounceWatermarks", "windowStyle", "playWindowSounds",
         "playNotificationSounds", "windowSoundPath", "notificationSoundPath", "windowSoundVolume",
         "enableHoverPeek", "snapDesktopWidgets", "nightModeEnabled", "nightModeAuto", "nightModeScheduleStart",
         "nightModeScheduleEnd", "pixelShaderEnabled", "pixelShaderMode", "pixelShaderSize",
@@ -1023,6 +1024,7 @@ QtObject {
             property var enableBlur
             property var enableXray
             property var enableIris
+            property var irisIntensity
             property var showWatermarks
             property var bounceWatermarks
             property var windowStyle
