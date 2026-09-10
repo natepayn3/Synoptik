@@ -310,11 +310,15 @@ Rectangle {
                                 model: overlappingTimeRow.timeString.length
 
                                 Text {
+                                    readonly property bool isColon: text === ":"
+
                                     text: overlappingTimeRow.timeString[index]
                                     color: (Config.showCalendar || clockHorizHover.hovered) ? Config.accent : Config.textMain
                                     font.family: Config.sysFont
-                                    font.weight: Font.Bold
-                                    font.pixelSize: Math.round(Config.size(Config.fontTitle))
+                                    font.weight: Font.ExtraBold
+                                    font.pixelSize: Math.round(Config.size(Config.fontTitle) * 1.15)
+                                    leftPadding: isColon ? 3 : 0
+                                    rightPadding: isColon ? 3 : 0
                                     renderType: Config.textRenderType
                                     z: overlappingTimeRow.timeString.length - index
 
@@ -647,8 +651,8 @@ Rectangle {
                                     text: vertHourRow.hourStr[index]
                                     color: (Config.showCalendar || clockVertHover.hovered) ? Config.accent : Config.textMain
                                     font.family: Config.sysFont
-                                    font.weight: Font.Bold
-                                    font.pixelSize: 15
+                                    font.weight: Font.ExtraBold
+                                    font.pixelSize: 17
                                     renderType: Config.textRenderType
                                     z: vertHourRow.hourStr.length - index
                                     opacity: Math.max(0.85, 1.0 - (index * 0.035))
@@ -681,8 +685,8 @@ Rectangle {
                                     text: vertMinRow.minStr[index]
                                     color: (Config.showCalendar || clockVertHover.hovered) ? Config.accent : Config.textMain
                                     font.family: Config.sysFont
-                                    font.weight: Font.Bold
-                                    font.pixelSize: 15
+                                    font.weight: Font.ExtraBold
+                                    font.pixelSize: 17
                                     renderType: Config.textRenderType
                                     z: vertMinRow.minStr.length - index
                                     opacity: Math.max(0.82, 0.95 - (index * 0.035))
