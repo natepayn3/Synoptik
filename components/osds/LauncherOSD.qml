@@ -30,16 +30,14 @@ Item {
     property string pinFilePath: ""
     property var localPins: []
 
-    Process {
-        id: initPinFile
-        command: ["sh", "-c", "[ -f ~/.cache/quickshell_launcher_pins.json ] || echo '{\"pins\":[]}' > ~/.cache/quickshell_launcher_pins.json"]
-        running: true
-        onExited: osdRoot.pinFilePath = Quickshell.env("HOME") + "/.cache/quickshell_launcher_pins.json"
-    }
-
     FileView {
         id: pinCacheReader
         path: osdRoot.pinFilePath
+        atomicWrites: true
+        printErrors: false
+        watchChanges: true
+        onFileChanged: reload()
+        onLoadFailed: osdRoot.localPins = []
         onTextChanged: {
             let cleanText = text().trim();
             if (!cleanText || cleanText === "[]") return;
@@ -74,11 +72,121 @@ Item {
         osdRoot.localPins = currentPins;
         osdRoot.updateModel();
 
-        let jsonStr = JSON.stringify({ "pins": currentPins });
-        Quickshell.execDetached(["sh", "-c", "echo '" + jsonStr.replace(/'/g, "'\\''") + "' > ~/.cache/quickshell_launcher_pins.json"]);
+        // Was an execDetached `sh -c "echo '<json>' > ~/.cache/..."`: not
+        // atomic, and the payload was hand-escaped into a shell string. The
+        // FileView above writes the same file atomically, and AppDock picks the
+        // change up through its own watchChanges.
+        pinCacheReader.setText(JSON.stringify({ "pins": currentPins }, null, 2));
     }
     property var filteredFiles: []
     property var filteredCommands: []
+
+    // --- EMOJI & GLYPH STATE ---
+    // Fifth launcher mode, on the ":" prefix (the convention everywhere from
+    // Slack to GitHub). The launcher already had mode switching for
+    // apps/files/commands/calc, so this is a mode rather than a new surface.
+    //
+    // "Glyph" is the other half: the dataset carries typographic marks people
+    // can't type directly - arrows, mathematical operators, currency, the Mac
+    // modifier keys, Greek - alongside the emoji.
+    property var emojiData: []
+    property var filteredEmoji: []
+
+    readonly property int emojiGridColumns: 10
+    readonly property int emojiCellSize: 52
+
+    // Qt's QML `font` value type exposes `family`, not `families`, so a
+    // fallback chain can't be declared inline - pick the first emoji face that
+    // is actually installed instead. Naming one unconditionally renders tofu
+    // on any machine without it.
+    //
+    // Falling back to sysFont is not a failure case: the Glyphs half of the
+    // dataset (arrows, mathematical operators, currency, Greek) renders fine in
+    // a normal text face, and fontconfig will still substitute for emoji
+    // codepoints if anything on the system covers them.
+    readonly property string emojiFontFamily: {
+        let avail = Qt.fontFamilies()
+        let prefs = ["Noto Color Emoji", "Apple Color Emoji", "Segoe UI Emoji",
+                     "Twemoji", "JoyPixels", "OpenMoji", "Noto Emoji"]
+        for (let i = 0; i < prefs.length; i++) {
+            if (avail.indexOf(prefs[i]) !== -1) return prefs[i]
+        }
+        return Config.sysFont
+    }
+
+    FileView {
+        id: emojiDataFile
+        path: Config.shellDir + "/assets/emoji.json"
+        printErrors: false
+        onLoaded: {
+            try {
+                osdRoot.emojiData = JSON.parse(emojiDataFile.text())
+            } catch (e) {
+                console.error("Could not parse emoji.json:", e)
+                osdRoot.emojiData = []
+            }
+            if (osdRoot.searchMode === "emoji") osdRoot.updateModel()
+        }
+    }
+
+    // Most-recently-used, persisted through Config so the picker is useful on
+    // the second use rather than making you retype the same search.
+    function recordEmojiUse(ch) {
+        let recents = (Config.emojiRecents || []).slice()
+        let idx = recents.indexOf(ch)
+        if (idx !== -1) recents.splice(idx, 1)
+        recents.unshift(ch)
+        if (recents.length > 40) recents.length = 40
+        Config.emojiRecents = recents
+        Config.saveSettings()
+    }
+
+    function emojiEntryFor(ch) {
+        for (let i = 0; i < osdRoot.emojiData.length; i++) {
+            if (osdRoot.emojiData[i].c === ch) return osdRoot.emojiData[i]
+        }
+        return null
+    }
+
+    // Ranked rather than a flat filter: an exact name match has to beat a
+    // substring hit, or searching "fire" buries the actual fire behind
+    // firecracker and fire extinguisher.
+    function searchEmoji(query) {
+        let q = (query || "").trim().toLowerCase()
+
+        if (q === "") {
+            let out = []
+            let recents = Config.emojiRecents || []
+            for (let i = 0; i < recents.length; i++) {
+                let e = osdRoot.emojiEntryFor(recents[i])
+                if (e) out.push(e)
+            }
+            // Nothing used yet: lead with the smileys rather than an empty grid.
+            if (out.length === 0) {
+                out = osdRoot.emojiData.filter(e => e.g === "Smileys").slice(0, 60)
+            }
+            return out
+        }
+
+        let scored = []
+        for (let i = 0; i < osdRoot.emojiData.length; i++) {
+            let e = osdRoot.emojiData[i]
+            let name = e.n.toLowerCase()
+            let score = -1
+
+            if (name === q) score = 0
+            else if (name.startsWith(q)) score = 1
+            else if ((" " + name).includes(" " + q)) score = 2   // word-start
+            else if (name.includes(q)) score = 3
+            else if (e.k && e.k.includes(q)) score = 4
+
+            if (score >= 0) scored.push({ e: e, s: score, l: name.length })
+        }
+
+        // Shorter names first within a tier - "Fire" over "Fire Engine".
+        scored.sort((a, b) => (a.s - b.s) || (a.l - b.l))
+        return scored.slice(0, 200).map(x => x.e)
+    }
 
     // --- CALCULATOR STATE ---
     property string calcResultText: ""
@@ -87,6 +195,7 @@ Item {
     readonly property var currentResults: {
         if (searchMode === "files") return filteredFiles
         if (searchMode === "ipc") return filteredCommands
+        if (searchMode === "emoji") return filteredEmoji
         if (searchMode === "calc") return []
         return filteredApps
     }
@@ -94,6 +203,7 @@ Item {
     readonly property string modeBadge: {
         if (searchMode === "files") return "FILES"
         if (searchMode === "ipc") return "COMMANDS"
+        if (searchMode === "emoji") return "EMOJI"
         if (searchMode === "calc") return "CALC"
         return ""
     }
@@ -101,6 +211,7 @@ Item {
     readonly property string modeIcon: {
         if (searchMode === "files") return "folder_open"
         if (searchMode === "ipc") return "terminal"
+        if (searchMode === "emoji") return "mood"
         if (searchMode === "calc") return "calculate"
         return "search"
     }
@@ -108,6 +219,7 @@ Item {
     readonly property string modePlaceholder: {
         if (searchMode === "files") return "Search files..."
         if (searchMode === "ipc") return "Search commands..."
+        if (searchMode === "emoji") return "Search emoji & symbols..."
         return "Search apps..."
     }
 
@@ -118,6 +230,14 @@ Item {
     readonly property int maxVisibleRows: 5
     readonly property real resultsAreaHeight: {
         if (searchMode === "calc") return 68
+        if (searchMode === "emoji") {
+            // The emoji grid shows results for an empty query too (recents),
+            // so it sizes off the result count rather than whether anything
+            // has been typed.
+            if (currentResults.length === 0) return 52
+            let rows = Math.ceil(currentResults.length / emojiGridColumns)
+            return Math.min(rows, 4) * emojiCellSize + 44
+        }
         if ((searchInput.text === "" && !browsingAllApps) || currentResults.length === 0) return 52
         return Math.min(currentResults.length, maxVisibleRows) * resultRowHeight + 16
     }
@@ -130,6 +250,7 @@ Item {
         { target: "workspaceoverview", fn: "toggle",     name: "Workspace Overview", icon: "select_window_2" },
         { target: "power",             fn: "toggle",     name: "Power Menu",        icon: "electrical_services" },
         { target: "clipboard",         fn: "toggle",     name: "Clipboard Manager", icon: "content_paste" },
+        { target: "launcherosd",       fn: "emoji",      name: "Emoji & Symbols",   icon: "mood" },
         { target: "recorder",          fn: "toggle",     name: "Screen Recorder",   icon: "videocam" },
         { target: "mirror",            fn: "toggle",     name: "Camera Mirror",     icon: "photo_camera" },
         { target: "satty",             fn: "screenshot", name: "Take Screenshot (Satty)",   icon: "crop" },
@@ -316,6 +437,9 @@ print(json.dumps(results))
             osdRoot.searchMode = "files";
             osdRoot.queryText = raw.slice(1);
             fileSearchDebounce.restart();
+        } else if (raw.startsWith(":")) {
+            osdRoot.searchMode = "emoji";
+            osdRoot.filteredEmoji = osdRoot.searchEmoji(raw.slice(1));
         } else if (raw.startsWith(">")) {
             osdRoot.searchMode = "ipc";
             let q = raw.slice(1).trim().toLowerCase();
@@ -369,6 +493,7 @@ print(json.dumps(results))
         }
 
         resultList.currentIndex = osdRoot.currentResults.length > 0 ? 0 : -1;
+        emojiGrid.currentIndex = osdRoot.currentResults.length > 0 ? 0 : -1;
         resultList.positionViewAtBeginning();
     }
 
@@ -399,6 +524,21 @@ print(json.dumps(results))
         onTriggered: searchInput.forceActiveFocus()
     }
 
+    // A pending prefill (set by the `launcherosd emoji` IPC verb) is applied
+    // once on open and then cleared, so reopening the launcher normally the
+    // next time starts empty.
+    Connections {
+        target: Config
+        function onShowLauncherOsdChanged() {
+            if (!Config.showLauncherOsd) return
+            if (Config.launcherPrefill === "") return
+            searchInput.text = Config.launcherPrefill
+            searchInput.cursorPosition = searchInput.text.length
+            Config.launcherPrefill = ""
+            osdRoot.updateModel()
+        }
+    }
+
     // --- ACTIONS ---
     function launchApp(app) {
         if (!app) return;
@@ -417,6 +557,15 @@ print(json.dumps(results))
         Config.showLauncherOsd = false;
     }
 
+    // Copy to the clipboard rather than trying to type it: there is no
+    // portable synthetic-input path on Wayland, and paste is one keystroke.
+    function pickEmoji(entry) {
+        if (!entry || !entry.c) return;
+        Quickshell.execDetached(["wl-copy", "--", entry.c]);
+        osdRoot.recordEmojiUse(entry.c);
+        Config.showLauncherOsd = false;
+    }
+
     function runIpcCommand(entry) {
         if (!entry) return;
         Quickshell.execDetached(["qs", "-c", "Synoptik", "ipc", "call", entry.target, entry.fn]);
@@ -427,10 +576,18 @@ print(json.dumps(results))
         if (!item) return;
         if (osdRoot.searchMode === "files") osdRoot.launchFile(item);
         else if (osdRoot.searchMode === "ipc") osdRoot.runIpcCommand(item);
+        else if (osdRoot.searchMode === "emoji") osdRoot.pickEmoji(item);
         else osdRoot.launchApp(item);
     }
 
     function activateCurrent() {
+        // The grid keeps its own selection; the list's currentIndex means
+        // nothing in emoji mode.
+        if (osdRoot.searchMode === "emoji") {
+            if (emojiGrid.currentIndex < 0 || emojiGrid.currentIndex >= osdRoot.currentResults.length) return;
+            osdRoot.activateResult(osdRoot.currentResults[emojiGrid.currentIndex]);
+            return;
+        }
         if (resultList.currentIndex < 0 || resultList.currentIndex >= osdRoot.currentResults.length) return;
         osdRoot.activateResult(osdRoot.currentResults[resultList.currentIndex]);
     }
@@ -454,7 +611,13 @@ print(json.dumps(results))
         return dir.replace(Quickshell.env("HOME"), "~");
     }
 
-    Component.onCompleted: osdRoot.updateModel()
+    Component.onCompleted: {
+        // A `sh -c "[ -f ... ] || echo ... > ..."` Process used to create the
+        // pin file just so pinCacheReader had something to open. A missing
+        // file is the same as an empty pin list, so the spawn is gone.
+        osdRoot.pinFilePath = Quickshell.env("HOME") + "/.cache/quickshell_launcher_pins.json"
+        osdRoot.updateModel()
+    }
 
     ColumnLayout {
         id: mainLayout
@@ -521,7 +684,23 @@ print(json.dumps(results))
                         onTextChanged: osdRoot.updateModel()
 
                         Keys.onPressed: (event) => {
-                            if (event.key === Qt.Key_Down) {
+                            // Emoji mode is a grid, so it moves in two axes and
+                            // up/down steps a whole row rather than one item.
+                            if (osdRoot.searchMode === "emoji"
+                                && (event.key === Qt.Key_Down || event.key === Qt.Key_Up
+                                    || event.key === Qt.Key_Left || event.key === Qt.Key_Right)) {
+                                let n = osdRoot.currentResults.length;
+                                if (n > 0) {
+                                    let i = Math.max(0, emojiGrid.currentIndex);
+                                    if (event.key === Qt.Key_Right) i += 1;
+                                    else if (event.key === Qt.Key_Left) i -= 1;
+                                    else if (event.key === Qt.Key_Down) i += osdRoot.emojiGridColumns;
+                                    else i -= osdRoot.emojiGridColumns;
+                                    emojiGrid.currentIndex = Math.max(0, Math.min(n - 1, i));
+                                    emojiGrid.positionViewAtIndex(emojiGrid.currentIndex, GridView.Contain);
+                                }
+                                event.accepted = true;
+                            } else if (event.key === Qt.Key_Down) {
                                 resultList.incrementCurrentIndex();
                                 event.accepted = true;
                             } else if (event.key === Qt.Key_Up) {
@@ -671,13 +850,15 @@ print(json.dumps(results))
                     // Empty-state clues — a single slim row, shown until the user types anything
                     RowLayout {
                         anchors.centerIn: parent
-                        visible: searchInput.text === "" && !osdRoot.browsingAllApps && osdRoot.searchMode !== "calc"
+                        visible: searchInput.text === "" && !osdRoot.browsingAllApps
+                            && osdRoot.searchMode !== "calc" && osdRoot.searchMode !== "emoji"
                         spacing: 22
 
                         Repeater {
                             model: [
                                 { prefix: "#", desc: "files" },
-                                { prefix: ">", desc: "commands" }
+                                { prefix: ">", desc: "commands" },
+                                { prefix: ":", desc: "emoji" }
                             ]
 
                             delegate: RowLayout {
@@ -702,7 +883,9 @@ print(json.dumps(results))
 
                     Text {
                         anchors.centerIn: parent
-                        visible: (searchInput.text !== "" || osdRoot.browsingAllApps) && osdRoot.currentResults.length === 0 && osdRoot.searchMode !== "calc"
+                        visible: (searchInput.text !== "" || osdRoot.browsingAllApps)
+                            && osdRoot.currentResults.length === 0
+                            && osdRoot.searchMode !== "calc" && osdRoot.searchMode !== "emoji"
                         text: osdRoot.searchMode === "files" && osdRoot.queryText.trim() === ""
                             ? "Type to search files..."
                             : (osdRoot.browsingAllApps ? "No apps found" : "No results")
@@ -712,12 +895,117 @@ print(json.dumps(results))
                         font.italic: true
                     }
 
+                    // --- EMOJI & GLYPH GRID ---
+                    // A one-per-row list is the wrong shape for picking a
+                    // character you recognise by sight, so emoji mode gets its
+                    // own grid rather than reusing the result list.
+                    Item {
+                        anchors.fill: parent
+                        anchors.margins: 8
+                        visible: osdRoot.searchMode === "emoji"
+
+                        Text {
+                            anchors.centerIn: parent
+                            visible: osdRoot.currentResults.length === 0
+                            text: osdRoot.emojiData.length === 0
+                                ? "Emoji data unavailable"
+                                : "No matching emoji or symbols"
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            font.italic: true
+                        }
+
+                        ColumnLayout {
+                            anchors.fill: parent
+                            spacing: 4
+                            visible: osdRoot.currentResults.length > 0
+
+                            GridView {
+                                id: emojiGrid
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                clip: true
+                                cellWidth: osdRoot.emojiCellSize
+                                cellHeight: osdRoot.emojiCellSize
+                                boundsBehavior: Flickable.StopAtBounds
+                                model: osdRoot.currentResults
+                                currentIndex: 0
+
+                                // Keep the cells centred instead of leaving a
+                                // ragged gap on the right of a fixed grid.
+                                leftMargin: Math.max(0, (width - (osdRoot.emojiGridColumns * cellWidth)) / 2)
+
+                                delegate: Item {
+                                    required property var modelData
+                                    required property int index
+
+                                    width: osdRoot.emojiCellSize
+                                    height: osdRoot.emojiCellSize
+
+                                    Rectangle {
+                                        anchors.centerIn: parent
+                                        width: parent.width - 6
+                                        height: parent.height - 6
+                                        radius: Config.cornerRadius / 2
+                                        color: emojiGrid.currentIndex === index
+                                            ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.25)
+                                            : (cellHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : "transparent")
+                                        border.width: emojiGrid.currentIndex === index ? 1 : 0
+                                        border.color: Config.accent
+                                        Behavior on color { ColorAnimation { duration: 120 } }
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: modelData.c
+                                            font.family: osdRoot.emojiFontFamily
+                                            font.pixelSize: 24
+                                            horizontalAlignment: Text.AlignHCenter
+                                            verticalAlignment: Text.AlignVCenter
+                                        }
+
+                                        HoverHandler {
+                                            id: cellHover
+                                            cursorShape: Qt.PointingHandCursor
+                                        }
+                                        TapHandler {
+                                            onTapped: {
+                                                emojiGrid.currentIndex = index
+                                                osdRoot.pickEmoji(modelData)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            // Names the highlighted character, so a grid of
+                            // near-identical faces is still navigable and the
+                            // glyph half is legible at all.
+                            Text {
+                                Layout.fillWidth: true
+                                Layout.leftMargin: 6
+                                Layout.rightMargin: 6
+                                text: {
+                                    let i = emojiGrid.currentIndex
+                                    let r = osdRoot.currentResults
+                                    if (i < 0 || i >= r.length) return ""
+                                    return r[i].c + "   " + r[i].n
+                                }
+                                color: Config.textMuted
+                                font.family: osdRoot.emojiFontFamily
+                                font.pixelSize: Config.size(Config.fontMicro)
+                                elide: Text.ElideRight
+                            }
+                        }
+                    }
+
                     ListView {
                         id: resultList
                         anchors.fill: parent
                         anchors.margins: 8
                         clip: true
-                        visible: (searchInput.text !== "" || osdRoot.browsingAllApps) && osdRoot.currentResults.length > 0
+                        visible: osdRoot.searchMode !== "emoji"
+                            && (searchInput.text !== "" || osdRoot.browsingAllApps) && osdRoot.currentResults.length > 0
                         spacing: 2
                         keyNavigationEnabled: false
                         boundsBehavior: Flickable.StopAtBounds

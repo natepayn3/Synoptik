@@ -73,9 +73,7 @@ Item {
         }
         allReminders = updated
 
-        var jsonStr = JSON.stringify(allReminders)
-        saveProcess.command = ["sh", "-c", "printf '%s\\n' '" + jsonStr.replace(/'/g, "'\\''") + "' > " + storagePath]
-        saveProcess.running = true
+        remindersFile.setText(JSON.stringify(allReminders, null, 2))
     }
 
     function loadActiveReminders() {
@@ -88,16 +86,27 @@ Item {
 
     onSelectedKeyChanged: loadActiveReminders()
 
-    Process { id: saveProcess }
-
+    // Reminders were written by a `sh -c "printf '%s\\n' '<json>' > <path>"`
+    // Process and read back by a separate FileView. Two problems with the write
+    // half, both of which Config.qml's settingsFile already documents:
+    //
+    //   * It was not atomic. `>` truncates first, so a crash or a `killall qs`
+    //     mid-write left a truncated file and lost every reminder.
+    //   * storagePath went into the command unquoted, so a checkout under a
+    //     path containing a space silently wrote nothing.
+    //
+    // One FileView now does both directions, atomically.
     FileView {
-        id: remindersFileReader
+        id: remindersFile
         path: root.storagePath
+        atomicWrites: true
+        printErrors: false
+
         onTextChanged: {
             let raw = text()
             if (!raw || raw.trim() === "") return
             try {
-                allReminders = JSON.parse(raw.trim())
+                root.allReminders = JSON.parse(raw.trim())
                 root.loadActiveReminders()
             } catch (e) {
                 console.error("Failed to parse reminders JSON:", e)

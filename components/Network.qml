@@ -43,12 +43,6 @@ Item {
     property real pixelRadius: 2.5
     property color colorDownload: Config.accent
     property color colorUpload: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.65)
-    property real activityPulse: Math.min(1.0, (currentRxSpeed + currentTxSpeed) / (1024 * 1024 * 2))
-
-    Behavior on activityPulse {
-        NumberAnimation { duration: 180; easing.type: Easing.OutQuad }
-    }
-
     // Cubic interpolated peak values for normalized matrix height scaling
     property real smoothPeakRx: 1024 * 512
     property real smoothPeakTx: 1024 * 256
@@ -245,7 +239,7 @@ while True:
             implicitHeight: topCardContent.implicitHeight + (root.cardMargin * 2)
             radius: Config.cornerRadius
             color: Qt.rgba(1, 1, 1, 0.04)
-            border.color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.12 + (root.activityPulse * 0.2))
+            border.color: Qt.rgba(255, 255, 255, 0.1)
             border.width: 1
 
             Watermark {
@@ -483,7 +477,7 @@ while True:
                 implicitHeight: 88
                 radius: Config.cornerRadius
                 color: Qt.rgba(1, 1, 1, 0.04)
-                border.color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.12)
+                border.color: Qt.rgba(255, 255, 255, 0.1)
                 border.width: 1
 
                 Watermark {
@@ -548,7 +542,7 @@ while True:
                 implicitHeight: 88
                 radius: Config.cornerRadius
                 color: Qt.rgba(1, 1, 1, 0.04)
-                border.color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.12)
+                border.color: Qt.rgba(255, 255, 255, 0.1)
                 border.width: 1
 
                 Watermark {

@@ -20,58 +20,27 @@ Item {
     property Item controlCenterPanel: null
     property bool panelExpanded: false
 
-    property bool hasHardware: true
-    property bool isPowered: false
-    property bool isScanning: false
-    property string connectedDeviceName: ""
-    property string connectingMac: ""
+    // All Bluetooth state now comes from Config.bluetooth (BluetoothService),
+    // which talks to BlueZ over D-Bus. This card used to own a full
+    // bluetoothctl implementation - a poll timer, six Process blocks and its
+    // own copy of the icon/battery helpers that had drifted out of sync with
+    // the copy in BluetoothSettings.qml.
+    readonly property var bt: Config.bluetooth
+
+    readonly property bool hasHardware: bt.available
+    readonly property bool isPowered: bt.powered
+    readonly property bool isScanning: bt.scanning
+    readonly property string connectedDeviceName: bt.connectedNames
+    readonly property string connectingMac: bt.connectingMac
     property string expandedMac: ""
-    property var btDevices: []
+
+    readonly property var btModel: bt.devices
 
     property bool shouldExpand: panelExpanded
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
-    signal togglePower(bool power)
-    signal triggerScan()
-
-    ListModel {
-        id: btModel
-    }
-
-    // Material Symbols has a discrete glyph per battery level rather than one
-    // fillable icon, so map the percentage onto the nearest bar. Mirrors the
-    // levels the desktop battery module already uses.
-    function batteryGlyph(pct) {
-        if (pct < 0) return ""
-        if (pct >= 95) return "battery_full"
-        if (pct >= 85) return "battery_6_bar"
-        if (pct >= 70) return "battery_5_bar"
-        if (pct >= 55) return "battery_4_bar"
-        if (pct >= 40) return "battery_3_bar"
-        if (pct >= 25) return "battery_2_bar"
-        if (pct >= 10) return "battery_1_bar"
-        return "battery_alert"
-    }
-
-    function batteryColor(pct) {
-        if (pct < 0) return Config.textMuted
-        if (pct <= 10) return "#e0564f"
-        if (pct <= 25) return "#e0a24f"
-        return Config.textMuted
-    }
-
-    function getDeviceIcon(name) {
-        let n = (name || "").toLowerCase()
-        if (n.includes("headset") || n.includes("buds") || n.includes("airpods") || n.includes("wh-") || n.includes("wf-") || n.includes("quietcomfort") || n.includes("bose") || n.includes("sony") || n.includes("audio") || n.includes("ear") || n.includes("freebuds") || n.includes("headphone")) return "headphones"
-        if (n.includes("speaker") || n.includes("soundbar") || n.includes("echo") || n.includes("jbl") || n.includes("marshall")) return "speaker"
-        if (n.includes("mouse") || n.includes("mx master") || n.includes("trackball") || n.includes("touchpad")) return "mouse"
-        if (n.includes("keyboard") || n.includes("keychron") || n.includes("magic keyboard")) return "keyboard"
-        if (n.includes("watch") || n.includes("band") || n.includes("garmin") || n.includes("fitbit") || n.includes("galaxy watch")) return "watch"
-        if (n.includes("phone") || n.includes("iphone") || n.includes("pixel") || n.includes("galaxy")) return "smartphone"
-        if (n.includes("tv") || n.includes("chromecast") || n.includes("appletv")) return "tv"
-        if (n.includes("gamepad") || n.includes("controller") || n.includes("dualsense") || n.includes("xbox")) return "sports_esports"
-        return "bluetooth"
-    }
+    function batteryGlyph(pct) { return bt.batteryGlyph(pct) }
+    function batteryColor(pct) { return bt.batteryColor(pct) }
 
     onVisibleChanged: {
         if (!visible) panelExpanded = false
@@ -491,6 +460,7 @@ Item {
 
                         delegate: Rectangle {
                             id: devDelegate
+                            readonly property string deviceMac: model.mac
                             property bool isExpanded: cardRoot.expandedMac === model.mac
                             property bool isConnecting: cardRoot.connectingMac === model.mac
 
@@ -541,7 +511,7 @@ Item {
                                             Text {
                                                 id: rowDeviceIcon
                                                 anchors.centerIn: parent
-                                                text: isConnecting ? "progress_activity" : cardRoot.getDeviceIcon(model.name)
+                                                text: isConnecting ? "progress_activity" : model.icon
                                                 font.family: "Material Symbols Outlined"
                                                 font.pixelSize: 17
                                                 verticalAlignment: Text.AlignVCenter
@@ -637,18 +607,22 @@ Item {
                                     Behavior on implicitHeight { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
                                     Behavior on opacity { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
 
-                                    RowLayout {
+                                    ColumnLayout {
                                         id: actionLayout
                                         anchors.left: parent.left
                                         anchors.right: parent.right
                                         anchors.top: parent.top
                                         spacing: 8
 
+                                      RowLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 8
+
                                         Rectangle {
                                             Layout.fillWidth: true
                                             implicitHeight: 32
                                             radius: 8
-                                            color: connBtnMouse.containsMouse 
+                                            color: connBtnMouse.containsMouse
                                                 ? (model.connected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.85)) 
                                                 : (model.connected ? Qt.rgba(255, 255, 255, 0.08) : Config.accent)
                                             border.width: 2
@@ -739,6 +713,95 @@ Item {
                                                 onClicked: {
                                                     if (!cardRoot.hasHardware) return
                                                     cardRoot.reqRemoveDevice(model.mac)
+                                                }
+                                            }
+                                        }
+                                      }
+
+                                        // --- AUDIO PROFILE SWITCHER ---
+                                        // Only meaningful for a connected audio
+                                        // device that actually offers more than
+                                        // one profile. Joining a call flips a
+                                        // headset to headset-head-unit (16kHz
+                                        // mono) and nothing switches it back,
+                                        // which previously meant reaching for
+                                        // pavucontrol.
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 5
+                                            visible: model.connected && model.isAudio
+                                                && cardRoot.hasProfilesFor(model.mac)
+
+                                            Text {
+                                                text: "AUDIO MODE"
+                                                font.family: Config.sysFont
+                                                font.pixelSize: Config.size(Config.fontMicro) - 1
+                                                font.bold: true
+                                                font.letterSpacing: 1.2
+                                                color: Config.textMuted
+                                                verticalAlignment: Text.AlignVCenter
+                                            }
+
+                                            Flow {
+                                                Layout.fillWidth: true
+                                                spacing: 6
+
+                                                Repeater {
+                                                    model: cardRoot.profilesFor(
+                                                        devDelegate.deviceMac)
+
+                                                    delegate: Rectangle {
+                                                        required property var modelData
+                                                        readonly property bool isActive:
+                                                            modelData.name === cardRoot.activeProfileFor(
+                                                                devDelegate.deviceMac)
+
+                                                        implicitWidth: profRow.implicitWidth + 16
+                                                        implicitHeight: 26
+                                                        radius: 6
+                                                        color: isActive
+                                                            ? Config.accent
+                                                            : (profMouse.containsMouse
+                                                                ? Qt.rgba(255, 255, 255, 0.12)
+                                                                : Qt.rgba(255, 255, 255, 0.05))
+                                                        border.width: 1
+                                                        border.color: isActive
+                                                            ? Config.accent
+                                                            : Qt.rgba(255, 255, 255, 0.1)
+                                                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                                                        RowLayout {
+                                                            id: profRow
+                                                            anchors.centerIn: parent
+                                                            spacing: 4
+
+                                                            Text {
+                                                                text: Config.bluetooth.profileIcon(modelData.name)
+                                                                font.family: "Material Symbols Outlined"
+                                                                font.pixelSize: 13
+                                                                verticalAlignment: Text.AlignVCenter
+                                                                color: isActive ? Config.bgBase : Config.textMuted
+                                                            }
+                                                            Text {
+                                                                text: Config.bluetooth.profileLabel(modelData.name)
+                                                                font.family: Config.sysFont
+                                                                font.pixelSize: Config.size(Config.fontMicro)
+                                                                font.bold: isActive
+                                                                verticalAlignment: Text.AlignVCenter
+                                                                color: isActive ? Config.bgBase : Config.textMain
+                                                            }
+                                                        }
+
+                                                        MouseArea {
+                                                            id: profMouse
+                                                            anchors.fill: parent
+                                                            cursorShape: Qt.PointingHandCursor
+                                                            hoverEnabled: true
+                                                            onClicked: cardRoot.setAudioProfile(
+                                                                devDelegate.deviceMac,
+                                                                modelData.name)
+                                                        }
+                                                    }
                                                 }
                                             }
                                         }
@@ -901,206 +964,23 @@ Item {
         }
     }
 
-    function execTogglePower(turnOn) {
-        if (!cardRoot.hasHardware) return
-        cardRoot.isPowered = turnOn
-        toggleBtProc.command = ["sh", "-c", `bluetoothctl power ${turnOn ? "on" : "off"}`]
-        toggleBtProc.running = true
-    }
+    // Every action below was a `sh -c "bluetoothctl <verb> '<mac>'"` spawn.
+    // They are one-line delegations now; the service holds the state machine
+    // and BlueZ pushes the result back as a property change, so none of these
+    // need an onExited refetch the way the Process versions did.
+    function execTogglePower(turnOn) { cardRoot.bt.setPowered(turnOn) }
+    function execTriggerScan() { cardRoot.bt.startScan() }
 
-    function execTriggerScan() {
-        if (cardRoot.hasHardware && cardRoot.isPowered && !cardRoot.isScanning) {
-            scanBtProc.startScan()
-        }
-    }
+    function reqConnectDevice(mac) { cardRoot.bt.connectDevice(mac) }
+    function reqDisconnectDevice(mac) { cardRoot.bt.disconnectDevice(mac) }
+    function reqPairDevice(mac) { cardRoot.bt.pairDevice(mac) }
+    function reqRemoveDevice(mac) { cardRoot.bt.forgetDevice(mac) }
 
-    function reqConnectDevice(mac) { if (cardRoot.hasHardware) connectBtProc.connectDevice(mac) }
-    function reqDisconnectDevice(mac) { if (cardRoot.hasHardware) disconnectBtProc.disconnect(mac) }
-    function reqPairDevice(mac) { if (cardRoot.hasHardware) pairBtProc.pairDevice(mac) }
-    function reqRemoveDevice(mac) { if (cardRoot.hasHardware) removeBtProc.removeDevice(mac) }
-
-    Timer {
-        interval: 2000
-        running: cardRoot.visible && cardRoot.hasHardware && cardRoot.isPowered && (cardHover.hovered || cardRoot.connectedDeviceName !== "" || cardRoot.panelExpanded)
-        repeat: true
-        triggeredOnStart: true
-        onTriggered: {
-            if (!fetchBtDevicesProc.running && !toggleBtProc.running) {
-                fetchBtDevicesProc.running = true
-            }
-        }
-    }
-
-    Process { id: toggleBtProc; running: false; onExited: fetchBtStatusProc.running = true }
-    Process {
-        id: scanBtProc; running: false
-        function startScan() {
-            cardRoot.isScanning = true
-            command = ["sh", "-c", "bluetoothctl --timeout 6 scan on"]
-            running = true
-        }
-        onExited: {
-            cardRoot.isScanning = false
-            fetchBtStatusProc.running = true
-        }
-    }
-    Process {
-        id: connectBtProc; running: false
-        function connectDevice(mac) {
-            cardRoot.connectingMac = mac
-            command = ["sh", "-c", `bluetoothctl connect '${mac}'`]
-            running = true
-        }
-        onExited: {
-            cardRoot.connectingMac = ""
-            fetchBtStatusProc.running = true
-        }
-    }
-    Process {
-        id: disconnectBtProc; running: false
-        function disconnect(mac) {
-            command = ["sh", "-c", `bluetoothctl disconnect '${mac}'`]
-            running = true
-        }
-        onExited: fetchBtStatusProc.running = true
-    }
-    Process {
-        id: pairBtProc; running: false
-        function pairDevice(mac) {
-            cardRoot.connectingMac = mac
-            command = ["sh", "-c", `bluetoothctl pair '${mac}'; bluetoothctl trust '${mac}'; bluetoothctl connect '${mac}'`]
-            running = true
-        }
-        onExited: {
-            cardRoot.connectingMac = ""
-            fetchBtStatusProc.running = true
-        }
-    }
-
-    Process {
-        id: removeBtProc; running: false
-        function removeDevice(mac) {
-            command = ["sh", "-c", `bluetoothctl disconnect '${mac}'; bluetoothctl untrust '${mac}'; bluetoothctl remove '${mac}'`]
-            running = true
-        }
-        onExited: fetchBtStatusProc.running = true
-    }
-
-    Process {
-        id: fetchBtDevicesProc
-        command: ["fish", "-c", "for dev in (bluetoothctl devices); set mac (string match -r '([0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2})' $dev)[1]; if test -n '$mac'; bluetoothctl info $mac; echo '---DEV_END---'; end; end"]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let chunks = this.text.trim().split("---DEV_END---")
-                let newResults = []
-                let seenMacs = {}
-                let connectedNames = []
-
-                for (let i = 0; i < chunks.length; i++) {
-                    let text = chunks[i].trim()
-                    if (!text) continue
-
-                    let macMatch = text.match(/Device ([0-9A-FA-f:]+)/)
-                    if (!macMatch) continue
-                    let mac = macMatch[1]
-
-                    if (seenMacs[mac]) continue
-                    seenMacs[mac] = true
-
-                    let nameMatch = text.match(/Name: (.*)/) || text.match(/Alias: (.*)/)
-                    let name = nameMatch ? nameMatch[1].trim() : mac
-                    let isConn = text.includes("Connected: yes")
-
-                    if (isConn) {
-                        connectedNames.push(name)
-                    }
-
-                    // BlueZ reports battery as `Battery Percentage: 0x50 (80)` on
-                    // the same `bluetoothctl info` output already being parsed here,
-                    // so this costs no extra process. The line is only present while
-                    // the device is connected AND exposes a battery service - most
-                    // headsets and mice do, plain speakers don't - so -1 means
-                    // "unknown" and the UI omits the readout entirely rather than
-                    // showing a misleading 0%.
-                    let battMatch = text.match(/Battery Percentage:\s*0x[0-9a-fA-F]+\s*\((\d+)\)/)
-                        || text.match(/Battery Percentage:\s*(\d+)/)
-                    let battery = battMatch ? parseInt(battMatch[1]) : -1
-                    if (isNaN(battery) || battery < 0 || battery > 100) battery = -1
-
-                    newResults.push({
-                        mac: mac,
-                        name: name,
-                        connected: isConn,
-                        paired: text.includes("Paired: yes"),
-                        battery: battery
-                    })
-                }
-
-                cardRoot.connectedDeviceName = connectedNames.length > 0 ? connectedNames.join(", ") : ""
-
-                let existingMap = {}
-                for (let idx = 0; idx < btModel.count; idx++) {
-                    existingMap[btModel.get(idx).mac] = idx
-                }
-
-                let freshMap = {}
-                let toAppend = []
-
-                for (let k = 0; k < newResults.length; k++) {
-                    let item = newResults[k]
-                    freshMap[item.mac] = true
-
-                    if (item.mac in existingMap) {
-                        let tIndex = existingMap[item.mac]
-                        let cur = btModel.get(tIndex)
-                        if (cur.name !== item.name) btModel.setProperty(tIndex, "name", item.name)
-                        if (cur.connected !== item.connected) btModel.setProperty(tIndex, "connected", item.connected)
-                        if (cur.paired !== item.paired) btModel.setProperty(tIndex, "paired", item.paired)
-                        if (cur.battery !== item.battery) btModel.setProperty(tIndex, "battery", item.battery)
-                    } else {
-                        toAppend.push(item)
-                    }
-                }
-
-                for (let a = 0; a < toAppend.length; a++) {
-                    btModel.append(toAppend[a])
-                }
-
-                for (let r = btModel.count - 1; r >= 0; r--) {
-                    if (!freshMap[btModel.get(r).mac]) btModel.remove(r)
-                }
-            }
-        }
-    }
-
-    Process {
-        id: fetchBtStatusProc
-        command: ["sh", "-c", "bluetoothctl show"]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                if (toggleBtProc.running) return
-
-                let text = this.text
-                if (!cardRoot.hasHardware || !text || text.includes("No default controller available")) {
-                    cardRoot.isPowered = false
-                    cardRoot.connectedDeviceName = ""
-                    btModel.clear()
-                    return
-                }
-
-                if (text.includes("Powered: yes")) {
-                    cardRoot.isPowered = true
-                    fetchBtDevicesProc.running = true
-                } else if (text.includes("Powered: no")) {
-                    cardRoot.isPowered = false
-                    cardRoot.connectedDeviceName = ""
-                    btModel.clear()
-                }
-            }
-        }
-    }
-
-    Component.onCompleted: fetchBtStatusProc.running = true
+    // Audio profile switching, surfaced on the expanded row of a connected
+    // audio device. See BluetoothService's audio section for why this is the
+    // one part of Bluetooth that still goes through pactl.
+    function profilesFor(mac) { return cardRoot.bt.profilesFor(mac) }
+    function activeProfileFor(mac) { return cardRoot.bt.activeProfileFor(mac) }
+    function hasProfilesFor(mac) { return cardRoot.bt.hasProfilesFor(mac) }
+    function setAudioProfile(mac, p) { cardRoot.bt.setAudioProfile(mac, p) }
 }

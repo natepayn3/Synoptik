@@ -1472,5 +1472,224 @@ Flickable {
                 }
             }
         }
+
+        // ==========================================
+        // AUTOMATIC ARRANGEMENT ON DOCK / UNDOCK
+        // ==========================================
+        // Everything above describes one arrangement. This binds the arrangement
+        // to the physical set of displays it was made for, so plugging the same
+        // monitor back in restores it without a trip through Settings. It reuses
+        // the configuration profiles rather than storing a second copy of any
+        // display state - see services/DisplayProfileService.qml.
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: autoSwitchColumn.implicitHeight + 28
+            radius: Config.cornerRadius
+            color: Qt.rgba(255, 255, 255, 0.05)
+            border.width: 1
+            border.color: Qt.rgba(255, 255, 255, 0.1)
+
+            ColumnLayout {
+                id: autoSwitchColumn
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: 14
+                spacing: 10
+
+                SettingsToggleRow {
+                    title: "Automatic Arrangement"
+                    subtitle: "Reapply a saved profile whenever this exact set of displays is connected."
+                    checked: Config.displayAutoSwitch
+                    onToggled: {
+                        Config.displayAutoSwitch = !Config.displayAutoSwitch
+                        Config.saveSettings()
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: 1
+                    color: Qt.rgba(255, 255, 255, 0.08)
+                }
+
+                // --- CURRENT TOPOLOGY ---
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+
+                    Text {
+                        text: "monitor"
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 20
+                        color: Config.displayProfiles.currentTopologyRemembered
+                            ? Config.accent : Config.textMuted
+                        verticalAlignment: Text.AlignVCenter
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+
+                        Text {
+                            text: "CURRENTLY CONNECTED"
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                            font.bold: true
+                            font.letterSpacing: 0.8
+                        }
+
+                        Text {
+                            text: Config.displayProfiles.topologyLabel
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            font.bold: true
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                        }
+
+                        Text {
+                            // Naming the profile matters: it is what actually
+                            // gets loaded, and it is easy to remember a layout
+                            // against the wrong one.
+                            text: Config.displayProfiles.currentTopologyRemembered
+                                ? ("Loads profile \"" + Config.displayProfiles.profileForCurrentTopology + "\"")
+                                : (Config.activeProfile === ""
+                                    ? "Save a configuration profile first, then link it here"
+                                    : "Not linked to a profile yet")
+                            color: Config.displayProfiles.currentTopologyRemembered
+                                ? Config.accent : Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                            Layout.fillWidth: true
+                            elide: Text.ElideRight
+                        }
+                    }
+
+                    // Linking needs a profile to link *to*, so this is disabled
+                    // until one is active rather than silently doing nothing.
+                    Rectangle {
+                        implicitWidth: linkLabel.implicitWidth + 22
+                        implicitHeight: 30
+                        radius: Config.cornerRadius / 2
+                        opacity: Config.activeProfile === "" ? 0.4 : 1.0
+                        color: Config.displayProfiles.currentTopologyRemembered
+                            ? Qt.rgba(255, 255, 255, 0.06)
+                            : (linkHover.hovered ? Config.accent : Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2))
+                        border.width: 1
+                        border.color: Config.displayProfiles.currentTopologyRemembered
+                            ? Qt.rgba(255, 255, 255, 0.12) : Config.accent
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Text {
+                            id: linkLabel
+                            anchors.centerIn: parent
+                            text: Config.displayProfiles.currentTopologyRemembered ? "Unlink" : "Link profile"
+                            color: Config.displayProfiles.currentTopologyRemembered
+                                ? Config.textMuted
+                                : (linkHover.hovered ? Config.bgBase : Config.accent)
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                            font.bold: true
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        TapHandler {
+                            enabled: Config.activeProfile !== ""
+                            onTapped: {
+                                if (Config.displayProfiles.currentTopologyRemembered)
+                                    Config.displayProfiles.forgetCurrent()
+                                else
+                                    Config.displayProfiles.rememberCurrent(Config.activeProfile)
+                            }
+                        }
+                        HoverHandler {
+                            id: linkHover
+                            enabled: Config.activeProfile !== ""
+                            cursorShape: Qt.PointingHandCursor
+                        }
+                    }
+                }
+
+                // --- EVERYTHING ALREADY LINKED ---
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 5
+                    visible: Config.displayProfiles.rememberedKeys.length > 0
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: 1
+                        color: Qt.rgba(255, 255, 255, 0.08)
+                    }
+
+                    Text {
+                        text: "SAVED LINKS"
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        font.bold: true
+                        font.letterSpacing: 0.8
+                    }
+
+                    Repeater {
+                        model: Config.displayProfiles.rememberedKeys
+
+                        delegate: RowLayout {
+                            required property var modelData
+                            readonly property bool isCurrent:
+                                modelData === Config.displayProfiles.topologyKey
+
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Text {
+                                text: isCurrent ? "radio_button_checked" : "radio_button_unchecked"
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 13
+                                color: isCurrent ? Config.accent : Config.textMuted
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            Text {
+                                // The raw key is make|model|serial per display -
+                                // ugly, but it is the only thing that tells two
+                                // identical-looking setups apart, so show it
+                                // elided rather than inventing a prettier label
+                                // that might collide.
+                                text: modelData
+                                color: isCurrent ? Config.textMain : Config.textMuted
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontMicro)
+                                Layout.fillWidth: true
+                                elide: Text.ElideMiddle
+                            }
+
+                            Text {
+                                text: Config.displayProfileMap[modelData] || ""
+                                color: Config.accent
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontMicro)
+                                font.bold: true
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            Text {
+                                text: "close"
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 14
+                                color: dropHover.hovered ? Config.accent : Config.textMuted
+                                verticalAlignment: Text.AlignVCenter
+
+                                TapHandler { onTapped: Config.displayProfiles.forgetKey(modelData) }
+                                HoverHandler { id: dropHover; cursorShape: Qt.PointingHandCursor }
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }

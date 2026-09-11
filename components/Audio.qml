@@ -306,7 +306,7 @@ Item {
                             Layout.fillWidth: true
                             implicitHeight: model.isDefault ? 38 : 34
                             radius: Config.cornerRadius / 2
-                            color: model.isDefault ? Qt.rgba(255, 255, 255, 0.12) : (itemHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent")
+                            color: model.isDefault ? Qt.rgba(255, 255, 255, 0.12) : (sinkItemHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent")
                             border.color: model.isDefault ? Config.accent : "transparent"
                             border.width: model.isDefault ? 2 : 0
 
@@ -343,7 +343,7 @@ Item {
                                     sinkSetProc.running = true
                                 }
                             }
-                            HoverHandler { id: itemHover; cursorShape: Qt.PointingHandCursor }
+                            HoverHandler { id: sinkItemHover; cursorShape: Qt.PointingHandCursor }
                         }
                     }
                 }
@@ -590,7 +590,7 @@ Item {
                             Layout.fillWidth: true
                             implicitHeight: model.isDefault ? 38 : 34
                             radius: Config.cornerRadius / 2
-                            color: model.isDefault ? Qt.rgba(255, 255, 255, 0.12) : (itemHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent")
+                            color: model.isDefault ? Qt.rgba(255, 255, 255, 0.12) : (sourceItemHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent")
                             border.color: model.isDefault ? Config.accent : "transparent"
                             border.width: model.isDefault ? 2 : 0
 
@@ -627,7 +627,7 @@ Item {
                                     sinkSetProc.running = true
                                 }
                             }
-                            HoverHandler { id: itemHover; cursorShape: Qt.PointingHandCursor }
+                            HoverHandler { id: sourceItemHover; cursorShape: Qt.PointingHandCursor }
                         }
                     }
                 }

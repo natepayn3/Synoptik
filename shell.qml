@@ -360,7 +360,19 @@ ShellRoot {
         id: notifServer
         property bool dnd: false
         bodySupported: true
+
+        // actionsSupported changes client behaviour over D-Bus - Thunderbird,
+        // Element and KDE Connect attach Reply / Mark read / Snooze buttons
+        // when they see it, and some clients suppress their own fallback UI.
+        // It was declared here while nothing in the shell ever read
+        // notif.actions, so those buttons were promised and dropped.
+        // NotificationOSD renders and invokes them now.
         actionsSupported: true
+
+        // Lets clients send album art, avatars and app icons with the
+        // notification; without this they don't bother, and the OSD had
+        // nothing but a guessed-from-app-name glyph to show.
+        imageSupported: true
 
         onNotification: notif => {
             if (notif) {
@@ -389,6 +401,17 @@ ShellRoot {
             Config.showLauncherOsd = true
         }
         function hide(): void { Config.showLauncherOsd = false }
+
+        // Opens the launcher already in emoji/glyph mode, so a dedicated
+        // keybind (SUPER+period, by convention) lands on the picker instead of
+        // the app list. The ":" prefix is what LauncherOSD.updateModel()
+        // switches on, so this is the same code path as typing it.
+        function emoji(): void {
+            if (!shellRoot.isFocusedBarEnabled) return
+            Config.closePanels("launcherOsd")
+            Config.launcherPrefill = ":"
+            Config.showLauncherOsd = true
+        }
     }
 
     IpcHandler {
@@ -482,20 +505,56 @@ ShellRoot {
     property string vertMonth: Qt.formatDate(new Date(), "MMM")
     property string vertDay: Qt.formatDate(new Date(), "d")
 
-    Timer {
-        interval: 1000
-        running: true
-        repeat: true
-        onTriggered: {
-            var d = new Date()
-            var h = d.getHours() % 12
-            vertHour = (h === 0 ? 12 : h).toString()
-            vertMinute = Qt.formatTime(d, "mm")
-            vertAmPm = Qt.formatTime(d, "ap").toLowerCase()
-            vertMonth = Qt.formatDate(d, "MMM")
-            vertDay = Qt.formatDate(d, "d")
-        }
+    // These five strings feed the bar's clock module (RightModules.qml) and
+    // nothing else, and not one of them displays seconds - so a 1Hz timer
+    // rebuilt all five sixty times for every visible change. Worse, it ran
+    // unconditionally: with no clock module on the bar it was a guaranteed
+    // wakeup every second doing nothing at all, which on a laptop is exactly
+    // what the rest of this file's event-driven telemetry exists to avoid.
+    //
+    // Now: one wakeup per minute, aligned to the minute boundary so the
+    // display flips when the wall clock does rather than up to a second late,
+    // and only while something is actually reading it. Recomputing the delay
+    // on every fire also re-aligns it for free after a suspend/resume or a
+    // timezone change.
+    readonly property bool clockModuleActive: {
+        let left = Config.leftCardOrder || []
+        let right = Config.rightCardOrder || []
+        return left.indexOf("clock") >= 0 || right.indexOf("clock") >= 0
     }
+
+    function updateClockStrings() {
+        var d = new Date()
+        var h = d.getHours() % 12
+        vertHour = (h === 0 ? 12 : h).toString()
+        vertMinute = Qt.formatTime(d, "mm")
+        vertAmPm = Qt.formatTime(d, "ap").toLowerCase()
+        vertMonth = Qt.formatDate(d, "MMM")
+        vertDay = Qt.formatDate(d, "d")
+    }
+
+    function msToNextMinute() {
+        // +50ms so the timer lands just after the boundary, never a hair
+        // before it (which would show the previous minute for one more tick).
+        return 60000 - (Date.now() % 60000) + 50
+    }
+
+    Timer {
+        id: clockTick
+        repeat: false
+        running: shellRoot.clockModuleActive
+        onRunningChanged: if (running) interval = shellRoot.msToNextMinute()
+        onTriggered: {
+            shellRoot.updateClockStrings()
+            interval = shellRoot.msToNextMinute()
+            restart()
+        }
+        Component.onCompleted: interval = shellRoot.msToNextMinute()
+    }
+
+    // The bar can gain a clock module long after start-up (it is reorderable at
+    // runtime), by which point the strings above are stale.
+    onClockModuleActiveChanged: if (clockModuleActive) updateClockStrings()
 
     // --- MULTI-MONITOR UNIFIED SURFACE GENERATOR ---
     Variants {
@@ -573,6 +632,7 @@ ShellRoot {
     MediaCardWidget { id: mediaCardWidget }
     Mirror { id: mirrorWidget }
     OSK { id: oskWidget }
+    PolkitDialog { id: polkitDialog }
     Screensaver { id: screensaverWidget }
     WallpaperSurface { id: wallpaperSurface }
     Lockscreen { id: lockscreenWidget; sessionLocked: Config.sessionLocked; shellRef: shellRoot }

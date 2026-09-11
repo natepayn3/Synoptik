@@ -650,6 +650,11 @@ Scope {
                                         anchors.margins: 5
                                         source: lockscreenScope.userAvatarPath ? "file://" + lockscreenScope.userAvatarPath : ""
                                         fillMode: Image.PreserveAspectCrop
+                                        asynchronous: true
+                                        // A user avatar file is often far larger
+                                        // than the ~64px circle it lands in.
+                                        sourceSize.width: Math.max(64, Math.ceil(Math.max(width, height)))
+                                        sourceSize.height: Math.max(64, Math.ceil(Math.max(width, height)))
                                         layer.enabled: true
                                         layer.effect: OpacityMask {
                                             maskSource: Rectangle {

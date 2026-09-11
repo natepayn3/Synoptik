@@ -30,11 +30,26 @@ Item {
     property var knownNetworks: ({})
     property var wifiModel
 
+    // Local, pre-flight validation ("Password Required") kept separate from the
+    // parent-bound errorSsid/connectionError. Writing those directly - which is
+    // what this used to do - destroys the binding from the Control Center for
+    // the life of the card, so every later connection result stopped arriving.
+    property string validationSsid: ""
+    property string validationError: ""
+
+    readonly property string shownErrorSsid: validationSsid !== "" ? validationSsid : errorSsid
+    readonly property string shownError: validationSsid !== "" ? validationError : connectionError
+
+    function clearValidation() {
+        validationSsid = ""
+        validationError = ""
+    }
+
     property bool shouldExpand: panelExpanded
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
     readonly property string displaySsid: {
-        if (connectionError !== "" && errorSsid !== "") return connectionError
+        if (shownError !== "" && shownErrorSsid !== "") return shownError
         if (connectingSsid !== "") return connectingSsid
         if (disconnectingSsid !== "") return "Disconnecting..."
         return activeSsid
@@ -46,12 +61,11 @@ Item {
     signal disconnectSsid(string ssid)
     signal forgetSsid(string ssid)
 
-    Timer {
-        id: cardScanTimeoutTimer
-        interval: 1500
-        repeat: false
-        onTriggered: cardRoot.wifiScanning = false
-    }
+    // A local scan-timeout timer used to live here and assign
+    // cardRoot.wifiScanning = false. Assigning to a property that the parent
+    // binds (wifiScanning: root.wifiScanning) destroys that binding for the
+    // life of the card, so after the first scan this card stopped tracking
+    // scan state entirely. NetworkService bounds the scan itself now.
 
     property bool isTogglingPower: false
 
@@ -74,35 +88,13 @@ Item {
         cardRoot.togglePower(turnOn)
     }
 
+    // Same binding hazard as the scan timer above: this used to hand-edit
+    // cardRoot.knownNetworks and cardRoot.connectingSsid to fake an immediate
+    // response, permanently detaching both from the parent. The service
+    // updates them for real, so just forward the request.
     function reqForget(ssid) {
         if (!cardRoot.hasAdapter) return
-        
-        if (cardRoot.knownNetworks && cardRoot.knownNetworks[ssid] !== undefined) {
-            let updated = Object.assign({}, cardRoot.knownNetworks)
-            delete updated[ssid]
-            cardRoot.knownNetworks = updated
-        }
-        
-        cardRoot.connectingSsid = "" 
         cardRoot.forgetSsid(ssid)
-    }
-
-    onActiveSsidChanged: {
-        if (activeSsid !== "") {
-            connectingSsid = ""
-        }
-    }
-
-    onErrorSsidChanged: {
-        if (errorSsid !== "") {
-            connectingSsid = ""
-        }
-    }
-
-    onConnectionErrorChanged: {
-        if (connectionError !== "") {
-            connectingSsid = ""
-        }
     }
 
     onVisibleChanged: {
@@ -269,13 +261,13 @@ Item {
                                     ? "..." 
                                     : (!cardRoot.wifiPowered 
                                         ? "Off" 
-                                        : (cardRoot.connectionError !== "" 
-                                            ? cardRoot.connectionError 
+                                        : (cardRoot.shownError !== "" 
+                                            ? cardRoot.shownError 
                                             : (cardRoot.displaySsid !== "" ? cardRoot.displaySsid : "Disconnected"))))
                             font.family: Config.sysFont
                             font.pixelSize: Config.size(Config.fontMicro)
-                            font.bold: cardRoot.hasAdapter && (cardRoot.isTogglingPower || cardRoot.connectionError !== "" || (cardRoot.wifiPowered && cardRoot.displaySsid !== ""))
-                            color: cardRoot.hasAdapter && (cardRoot.isTogglingPower || (cardRoot.wifiPowered && (cardRoot.displaySsid !== "" || cardRoot.connectionError !== ""))) ? Config.accent : Config.textMuted
+                            font.bold: cardRoot.hasAdapter && (cardRoot.isTogglingPower || cardRoot.shownError !== "" || (cardRoot.wifiPowered && cardRoot.displaySsid !== ""))
+                            color: cardRoot.hasAdapter && (cardRoot.isTogglingPower || (cardRoot.wifiPowered && (cardRoot.displaySsid !== "" || cardRoot.shownError !== ""))) ? Config.accent : Config.textMuted
                             verticalAlignment: Text.AlignVCenter
                             elide: Text.ElideRight
                             Layout.fillWidth: true
@@ -390,12 +382,12 @@ Item {
                                 ? "..." 
                                 : (!cardRoot.wifiPowered 
                                     ? "Wi-Fi Disabled" 
-                                    : (cardRoot.connectionError !== "" 
-                                        ? cardRoot.connectionError 
+                                    : (cardRoot.shownError !== "" 
+                                        ? cardRoot.shownError 
                                         : (cardRoot.displaySsid !== "" ? cardRoot.displaySsid : "Disconnected"))))
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontMicro)
-                        color: cardRoot.hasAdapter && (cardRoot.isTogglingPower || (cardRoot.wifiPowered && (cardRoot.displaySsid !== "" || cardRoot.connectionError !== ""))) ? Config.accent : Config.textMuted
+                        color: cardRoot.hasAdapter && (cardRoot.isTogglingPower || (cardRoot.wifiPowered && (cardRoot.displaySsid !== "" || cardRoot.shownError !== ""))) ? Config.accent : Config.textMuted
                         elide: Text.ElideRight
                         Layout.fillWidth: true
                     }
@@ -435,11 +427,7 @@ Item {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
                         onClicked: {
-                            if (!cardRoot.wifiScanning) {
-                                cardRoot.wifiScanning = true
-                                cardScanTimeoutTimer.restart()
-                                cardRoot.triggerScan()
-                            }
+                            if (!cardRoot.wifiScanning) cardRoot.triggerScan()
                         }
                     }
                     HoverHandler { id: scanHover }
@@ -501,7 +489,12 @@ Item {
                 ColumnLayout {
                     anchors.fill: parent
                     spacing: 12
-                    visible: cardRoot.hasAdapter && cardRoot.wifiPowered && cardRoot.wifiModel && cardRoot.wifiModel.count > 0
+                    // Coerced with !!: the chain short-circuits to `undefined`
+                    // (not false) on the frames before wifiModel resolves, and
+                    // `visible` is a bool property - "Unable to assign
+                    // [undefined] to bool".
+                    visible: !!(cardRoot.hasAdapter && cardRoot.wifiPowered
+                        && cardRoot.wifiModel && cardRoot.wifiModel.count > 0)
 
                     RowLayout {
                         Layout.fillWidth: true
@@ -539,15 +532,14 @@ Item {
                             property bool isConnecting: cardRoot.connectingSsid === model.ssid
                             property bool isDisconnecting: cardRoot.disconnectingSsid === model.ssid
                             property bool isKnown: (model.isSaved === true) || (cardRoot.knownNetworks && cardRoot.knownNetworks[model.ssid] === true)
-                            property bool hasError: cardRoot.errorSsid === model.ssid && cardRoot.connectingSsid !== model.ssid && cardRoot.activeSsid !== model.ssid
+                            property bool hasError: cardRoot.shownErrorSsid === model.ssid && cardRoot.connectingSsid !== model.ssid && cardRoot.activeSsid !== model.ssid
 
                             onIsCurrentActiveChanged: {
-                                if (isCurrentActive) {
-                                    passInput.text = ""
-                                    let updated = Object.assign({}, cardRoot.knownNetworks)
-                                    updated[model.ssid] = true
-                                    cardRoot.knownNetworks = updated
-                                }
+                                // knownNetworks used to be hand-edited here to
+                                // mark the network saved; that detached it from
+                                // the parent binding. NetworkManager reports
+                                // `known` for real and the service picks it up.
+                                if (isCurrentActive) passInput.text = ""
                             }
 
                             width: fullWifiListView.width
@@ -633,7 +625,7 @@ Item {
 
                                             Text {
                                                 text: hasError
-                                                    ? cardRoot.connectionError
+                                                    ? cardRoot.shownError
                                                     : (isConnecting 
                                                         ? "Connecting..." 
                                                         : (isDisconnecting 
@@ -680,8 +672,8 @@ Item {
                                     spacing: 8
 
                                     Text {
-                                        visible: hasError && cardRoot.connectionError !== ""
-                                        text: cardRoot.connectionError
+                                        visible: hasError && cardRoot.shownError !== ""
+                                        text: cardRoot.shownError
                                         color: Config.accent
                                         font.family: Config.sysFont
                                         font.pixelSize: Config.size(Config.fontMicro)
@@ -734,19 +726,18 @@ Item {
                                                     onAccepted: {
                                                         if (!isConnecting && !isDisconnecting && cardRoot.hasAdapter) {
                                                             if (model.isSecure && passInput.text.trim() === "") {
-                                                                cardRoot.errorSsid = model.ssid
-                                                                cardRoot.connectionError = "Password Required"
+                                                                cardRoot.validationSsid = model.ssid
+                                                                cardRoot.validationError = "Password Required"
                                                                 return
                                                             }
-                                                            
-                                                            cardRoot.connectingSsid = model.ssid
+
+                                                            cardRoot.clearValidation()
                                                             cardRoot.connectTo(model.ssid, passInput.text, false)
                                                         }
                                                     }
                                                     onTextChanged: {
                                                         if (hasError && passInput.activeFocus) {
-                                                            cardRoot.errorSsid = ""
-                                                            cardRoot.connectionError = ""
+                                                            cardRoot.clearValidation()
                                                         }
                                                     }
                                                 }
@@ -818,12 +809,12 @@ Item {
                                                 enabled: !isConnecting && !isDisconnecting && cardRoot.hasAdapter
                                                 onTapped: {
                                                     if (model.isSecure && passInput.text.trim() === "") {
-                                                        cardRoot.errorSsid = model.ssid
-                                                        cardRoot.connectionError = "Password Required"
+                                                        cardRoot.validationSsid = model.ssid
+                                                        cardRoot.validationError = "Password Required"
                                                         return
                                                     }
-                                                    
-                                                    cardRoot.connectingSsid = model.ssid
+
+                                                    cardRoot.clearValidation()
                                                     cardRoot.connectTo(model.ssid, passInput.text, false)
                                                 }
                                             }
@@ -917,7 +908,7 @@ Item {
                                             TapHandler {
                                                 enabled: !isConnecting && !isDisconnecting && cardRoot.hasAdapter
                                                 onTapped: {
-                                                    cardRoot.connectingSsid = model.ssid
+                                                    cardRoot.clearValidation()
                                                     cardRoot.connectTo(model.ssid, "", true)
                                                 }
                                             }
@@ -1039,11 +1030,7 @@ Item {
                             anchors.fill: parent
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                if (!cardRoot.wifiScanning) {
-                                    cardRoot.wifiScanning = true
-                                    cardScanTimeoutTimer.restart()
-                                    cardRoot.triggerScan()
-                                }
+                                if (!cardRoot.wifiScanning) cardRoot.triggerScan()
                             }
                         }
                         HoverHandler { id: scanEmptyHover }

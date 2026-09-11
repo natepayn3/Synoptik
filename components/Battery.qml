@@ -14,38 +14,20 @@ Item {
     implicitWidth: mainLayout.implicitWidth + (cardMargin * 2)
     implicitHeight: mainLayout.implicitHeight + (cardMargin * 2)
 
+    readonly property var batt: Config.battery
+
     property string battName: (typeof shellRoot !== "undefined" && shellRoot.hasBattery) ? shellRoot.battName : "BAT0"
     property int battCapacity: (typeof shellRoot !== "undefined" && shellRoot.hasBattery) ? shellRoot.battCapacity : 0
     property string battStatus: (typeof shellRoot !== "undefined" && shellRoot.hasBattery) ? shellRoot.battStatus : "Discharging"
-    property string powerDraw: "2.4"
 
-    // Periodic poller for power consumption details
-    Timer {
-        interval: 3000
-        running: true
-        repeat: true
-        triggeredOnStart: true
-        onTriggered: {
-            if (!battDetailProc.running) {
-                battDetailProc.running = true
-            }
-        }
-    }
+    // Wattage used to come from a 3s `cat /sys/.../power_now` poll. UPower
+    // already publishes the same figure, smoothed, and pushes it - so the poll
+    // is gone along with the process spawn behind it.
+    readonly property string powerDraw: batt.powerDraw > 0 ? batt.powerDraw.toFixed(1) : "0.0"
 
-    // Detailed Stats Poller
-    Process {
-        id: battDetailProc
-        command: ["sh", "-c", "cat /sys/class/power_supply/" + root.battName + "/power_now 2>/dev/null || echo 0"]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let val = parseInt(this.text.trim()) || 0
-                if (val > 0) {
-                    root.powerDraw = (val / 1000000.0).toFixed(1)
-                }
-            }
-        }
-    }
+    // Thresholds and cycle count are cheap but not free, and neither changes
+    // while the panel is shut.
+    onVisibleChanged: if (visible) batt.refreshAll()
 
     ColumnLayout {
         id: mainLayout
@@ -416,6 +398,188 @@ Item {
                         font.pixelSize: Config.size(Config.fontCaption)
                         font.bold: true
                         Layout.alignment: Qt.AlignHCenter
+                    }
+                }
+            }
+
+            // Card 4: Time remaining.
+            // The single most-asked question about a laptop battery, and the
+            // shell had no answer for it. UPower smooths the discharge rate
+            // over time rather than dividing by an instantaneous reading,
+            // which on a laptop swings ~10W between keystrokes.
+            ClippingRectangle {
+                Layout.fillWidth: true
+                implicitHeight: 64
+                radius: Config.cornerRadius
+                color: Qt.rgba(1, 1, 1, 0.05)
+                border.width: 1
+                border.color: Qt.rgba(255, 255, 255, 0.1)
+
+                Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                Watermark {
+                    icon: "schedule"
+                    iconSize: 80
+                    seed: 25
+                }
+
+                ColumnLayout {
+                    anchors.centerIn: parent
+                    spacing: 2
+
+                    Text {
+                        text: root.batt.timeRemainingLabel
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        font.bold: true
+                        Layout.alignment: Qt.AlignHCenter
+                    }
+
+                    Text {
+                        text: root.batt.timeRemainingText
+                        // "Estimating" is a state, not a value - it shouldn't
+                        // read with the same weight as a real figure.
+                        color: root.batt.hasEstimate || root.batt.fullyCharged
+                            ? Config.textMain : Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontCaption)
+                        font.bold: true
+                        Layout.alignment: Qt.AlignHCenter
+                    }
+                }
+            }
+
+            // Card 5: Cell health. Hidden entirely rather than showing a
+            // fabricated 100% when the firmware doesn't report design capacity.
+            ClippingRectangle {
+                Layout.fillWidth: true
+                implicitHeight: 64
+                radius: Config.cornerRadius
+                color: Qt.rgba(1, 1, 1, 0.05)
+                border.width: 1
+                border.color: Qt.rgba(255, 255, 255, 0.1)
+                visible: root.batt.healthSupported && root.batt.healthPercentage > 0
+
+                Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                Watermark {
+                    icon: "cardiology"
+                    iconSize: 80
+                    seed: 26
+                }
+
+                ColumnLayout {
+                    anchors.centerIn: parent
+                    spacing: 2
+
+                    Text {
+                        text: root.batt.cycleCount > 0
+                            ? ("HEALTH • " + root.batt.cycleCount + " CYC")
+                            : "HEALTH"
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        font.bold: true
+                        Layout.alignment: Qt.AlignHCenter
+                    }
+
+                    Text {
+                        text: Math.round(root.batt.healthPercentage) + "%"
+                        // Below ~80% of design capacity is the usual "consider
+                        // replacing" line, so it gets the same red the low
+                        // charge indicator uses.
+                        color: root.batt.healthPercentage < 80 ? "#e0a24f" : Config.textMain
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontCaption)
+                        font.bold: true
+                        Layout.alignment: Qt.AlignHCenter
+                    }
+                }
+            }
+        }
+
+        // --- CHARGE LIMIT ---
+        // ThinkPad/ASUS/Framework/Dell firmware exposes a charge ceiling;
+        // holding it at 60-80% is the biggest single thing a user can do for
+        // cell longevity. Previously this meant editing sysfs by hand or
+        // installing TLP. Hidden on hardware that has no such control.
+        ClippingRectangle {
+            Layout.fillWidth: true
+            implicitHeight: chargeLimitRow.implicitHeight + (root.cardMargin * 2)
+            radius: Config.cornerRadius
+            color: Qt.rgba(1, 1, 1, 0.05)
+            border.width: 1
+            border.color: Qt.rgba(255, 255, 255, 0.1)
+            visible: root.batt.chargeLimitSupported
+
+            Behavior on border.color { ColorAnimation { duration: 150 } }
+
+            Watermark {
+                icon: "battery_saver"
+                iconSize: 90
+                seed: 27
+            }
+
+            RowLayout {
+                id: chargeLimitRow
+                anchors.fill: parent
+                anchors.margins: root.cardMargin
+                spacing: 8
+
+                ColumnLayout {
+                    spacing: 2
+                    Layout.fillWidth: true
+
+                    Text {
+                        text: "CHARGE LIMIT"
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        font.bold: true
+                    }
+
+                    Text {
+                        text: root.batt.chargeLimitActive
+                            ? ("Stops charging at " + root.batt.chargeLimitEnd + "%")
+                            : "Charging to full"
+                        color: Config.textMain
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontCaption)
+                        font.bold: true
+                    }
+                }
+
+                Repeater {
+                    model: root.batt.chargeLimitPresets
+
+                    delegate: Rectangle {
+                        required property var modelData
+                        readonly property bool isActive: root.batt.chargeLimitEnd === modelData
+
+                        implicitWidth: limitLabel.implicitWidth + 20
+                        implicitHeight: 28
+                        radius: 8
+                        color: isActive
+                            ? Config.accent
+                            : (limitHover.hovered ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(255, 255, 255, 0.05))
+                        border.width: 1
+                        border.color: isActive ? Config.accent : Qt.rgba(255, 255, 255, 0.12)
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Text {
+                            id: limitLabel
+                            anchors.centerIn: parent
+                            text: root.batt.chargeLimitLabel(modelData)
+                            color: isActive ? Config.bgBase : Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontMicro)
+                            font.bold: true
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        TapHandler { onTapped: root.batt.setChargeLimit(modelData) }
+                        HoverHandler { id: limitHover; cursorShape: Qt.PointingHandCursor }
                     }
                 }
             }

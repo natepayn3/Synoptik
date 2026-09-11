@@ -70,9 +70,35 @@ QtObject {
     property MotionService motionService: MotionService {}
     property CavaService cavaService: CavaService { configRef: root }
     property IconIndexService iconIndexService: IconIndexService {}
+
+    // Wi-Fi and Bluetooth state, owned once and shared by the Control Center
+    // cards and the Settings pages. Before these existed each of those four
+    // views carried its own complete nmcli/bluetoothctl implementation - see
+    // the header comments in both services for what that cost.
+    property NetworkService network: NetworkService { configRef: root }
+    property BluetoothService bluetooth: BluetoothService { configRef: root }
+
+    // Time-to-empty/full, health and charge thresholds - see BatteryService.qml.
+    property BatteryService battery: BatteryService { configRef: root }
+
+    // Auto-applies a saved profile when the set of connected displays changes
+    // (dock/undock). Built on the profile system below rather than duplicating
+    // any display state - see DisplayProfileService.qml.
+    property DisplayProfileService displayProfiles: DisplayProfileService { configRef: root }
+    property alias displayProfileMap: root.displayProfiles.displayProfileMap
+    property alias displayAutoSwitch: root.displayProfiles.autoSwitchEnabled
     function getAppIcon(iconName) { return iconIndexService.getAppIcon(iconName) }
 
     property bool showTaskOverflow: false
+
+    // Most-recently-picked characters from the launcher's emoji/glyph mode,
+    // so the picker opens on what you actually use.
+    property var emojiRecents: []
+
+    // Text the launcher should open with, used by the `launcherosd emoji` IPC
+    // verb to land directly in a mode. Transient - deliberately not a
+    // persistedKey, since a prefill is a one-shot, not a preference.
+    property string launcherPrefill: ""
 
     // --- SCREENSHOT (extracted to services/ScreenshotService.qml) ---
     property ScreenshotService screenshotService: ScreenshotService {}
@@ -807,7 +833,7 @@ QtObject {
             : ""
 
         let bindLines = []
-        let bindKeys = ["wallpaper", "launcherosd", "settings", "workspaceoverview", "clipboard", "lockscreen", "shader"]
+        let bindKeys = ["wallpaper", "launcherosd", "settings", "workspaceoverview", "clipboard", "lockscreen", "emoji", "shader"]
         bindKeys.forEach(bk => {
             let b = (root.keybinds && root.keybinds[bk]) ? root.keybinds[bk] : root.defaultKeybinds[bk]
             if (b) {
@@ -844,14 +870,20 @@ QtObject {
             "    }\n" +
             "})\n\n" +
             // Autostart hooks for session daemons Synoptik depends on
-            // (polkit agent, idle handling, wallpaper daemon, clipboard
-            // history). Regenerated here for the same reason as the Media
+            // (idle handling, wallpaper daemon, clipboard history).
+            // Regenerated here for the same reason as the Media
             // Card window_rule above - this function rewrites hypr_style.lua
             // from scratch on every sync, so anything not written here gets
             // wiped on the next appearance/keybind/theme change.
+            //
+            // hyprpolkitagent used to be started here. The shell registers as
+            // the session's polkit agent itself now (components/widgets/
+            // PolkitDialog.qml), so starting a second one just means whichever
+            // registers last wins - and every privilege prompt in the session
+            // arriving in a window Synoptik doesn't style was the one visual
+            // seam left in it.
             "hl.on(\"hyprland.start\", function ()\n" +
             "    hl.exec_cmd(\"qs -c Synoptik\")\n" +
-            "    hl.exec_cmd(\"systemctl --user start hyprpolkitagent\")\n" +
             "    hl.exec_cmd(\"hypridle\")\n" +
             "    hl.exec_cmd(\"awww-daemon\")\n" +
             "    hl.exec_cmd(\"wl-paste --watch cliphist store\")\n" +
@@ -950,7 +982,8 @@ QtObject {
         "showAssistant", "assistantBackend", "assistantModel", "assistantOllamaModel", "assistantBadgePath", "assistantCustomBadges", "assistantTimeoutSeconds", "assistantFontScale", "assistantWidth", "assistantHeight",
         "assistantPositions", "assistantLastScreen", "assistantMessages",
         "showAppDock", "appDockOrientation", "appDockScale", "appDockShowBorder", "appDockShowBackground",
-        "appDockShowGlow", "appDockPositions", "appDockScales", "enabledAppDockScreens"
+        "appDockShowGlow", "appDockPositions", "appDockScales", "enabledAppDockScreens",
+        "displayProfileMap", "displayAutoSwitch", "emojiRecents"
     ]
 
     // Settings are stored as JSON via Quickshell's own FileView+JsonAdapter instead of a
@@ -1172,6 +1205,9 @@ QtObject {
             property var appDockPositions
             property var appDockScales
             property var enabledAppDockScreens
+            property var displayProfileMap
+            property var displayAutoSwitch
+            property var emojiRecents
             property var keybinds
             property var customThemes
             property var currentThemeIndex

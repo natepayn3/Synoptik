@@ -629,6 +629,15 @@ PanelWindow {
                     fillMode: Image.PreserveAspectCrop
                     asynchronous: true
                     cache: true
+
+                    // Decode at the size actually drawn. MPRIS artUrl commonly
+                    // points at 1000-3000px cover art; without this Qt decodes
+                    // the full bitmap (a 3000x3000 RGBA image is ~34MB resident)
+                    // to fill a box a fraction of that, and re-pays it on every
+                    // track change. Square-capped so the decode still covers the
+                    // box under PreserveAspectCrop for any source aspect ratio.
+                    sourceSize.width: Math.max(64, Math.ceil(Math.max(width, height)))
+                    sourceSize.height: Math.max(64, Math.ceil(Math.max(width, height)))
                     opacity: 0.5
 
                     Behavior on source {
@@ -844,6 +853,10 @@ PanelWindow {
                             fillMode: Image.PreserveAspectCrop
                             asynchronous: true
                             visible: false
+
+                            // See backdropImage above.
+                            sourceSize.width: Math.max(64, Math.ceil(Math.max(width, height)))
+                            sourceSize.height: Math.max(64, Math.ceil(Math.max(width, height)))
                         }
 
                         Rectangle {

@@ -121,7 +121,12 @@ Item {
         id: cacheProc
         running: false
         command: [
-            "fish", "-c", 
+            // Was invoked with `fish -c` while being written in POSIX sh -
+            // `while read -r id line; do ... case ... esac; done` is a hard
+            // parse error in fish ("Missing end to balance this while loop"),
+            // so this script never ran at all and clipboard image thumbnails
+            // were always empty. It is valid sh, so run it with sh.
+            "sh", "-c",
             "mkdir -p /tmp/cliphist; " +
             "cliphist list | head -n 40 | while read -r id line; do " +
                 "img_path=\"/tmp/cliphist/$id.png\"; " +

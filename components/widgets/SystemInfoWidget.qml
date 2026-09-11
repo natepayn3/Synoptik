@@ -88,26 +88,33 @@ PanelWindow {
         id: staticSysInfoProc
         running: false
         command: [
-            "fish", "-c",
-            "set -l u (whoami); " +
-            "set -l h (uname -n); " +
-            "set -l os (grep -m1 '^PRETTY_NAME=' /etc/os-release 2>/dev/null | cut -d= -f2 | string trim -c '\"'); " +
-            "test -z \"$os\"; and set os 'Arch Linux'; " +
-            "set -l k (uname -r); " +
-            "set -l pkgs (pacman -Qq 2>/dev/null | count); " +
-            "test \"$pkgs\" = \"0\"; and set pkgs '---'; " +
-            "set -l wm (echo 'Hyprland '(hyprctl version 2>/dev/null | grep -m1 'Tag:' | awk '{print $2}')); " +
-            "test \"$wm\" = 'Hyprland '; and set wm 'Hyprland'; " +
-            "set -l board (cat /sys/devices/virtual/dmi/id/product_name 2>/dev/null); " +
-            "test -z \"$board\" -o \"$board\" = 'None' -o \"$board\" = 'Default string'; and set board (cat /sys/devices/virtual/dmi/id/board_name 2>/dev/null); " +
-            "test -z \"$board\"; and set board 'Generic Board'; " +
-            "set -l cpu (grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d: -f2 | string trim | string replace -r '[(][^)]*[)]' '' | string replace -r ' @.*' ''); " +
-            "set -l cores (nproc 2>/dev/null); " +
-            "set -l raw_gpu (lspci 2>/dev/null | grep -iE 'vga|3d|display' | grep -i 'nvidia' | head -n1); " +
-            "test -z \"$raw_gpu\"; and set raw_gpu (lspci 2>/dev/null | grep -iE 'vga|3d|display' | head -n1); " +
-            "set -l gpu (echo $raw_gpu | string match -r '\\[([^\\]]+)\\]' | tail -n1); " +
-            "test -z \"$gpu\"; and set gpu (echo $raw_gpu | cut -d: -f3 | string trim | string replace -r '[(][^)]*[)]' '' | string replace -r 'Corporation ' '' | string replace -r 'NVIDIA ' ''); " +
-            "test -z \"$gpu\"; and set gpu 'Integrated'; " +
+            // Was `fish -c`. Nothing here needed fish - `set -l x (cmd)` is
+            // just x=$(cmd), and the three `string` builtins map onto tr/sed -
+            // so this now runs in sh, which starts several times faster and
+            // means the Wi-Fi/Bluetooth quoting hazard fish's differing
+            // single-quote rules created can't reappear here.
+            //
+            // One behaviour change, and it is a fix: the (TM)/(R) strip on the
+            // CPU model actually works now. `string replace -r '[(][^)]*[)]'`
+            // was leaving "Intel Core(TM) i7" untouched.
+            "sh", "-c",
+            "u=$(whoami); h=$(uname -n); " +
+            "os=$(grep -m1 '^PRETTY_NAME=' /etc/os-release 2>/dev/null | cut -d= -f2 | tr -d '\"'); " +
+            "[ -z \"$os\" ] && os='Arch Linux'; " +
+            "k=$(uname -r); " +
+            "pkgs=$(pacman -Qq 2>/dev/null | wc -l); [ \"$pkgs\" = \"0\" ] && pkgs='---'; " +
+            "wmtag=$(hyprctl version 2>/dev/null | grep -m1 'Tag:' | awk '{print $2}' | tr -d ','); " +
+            "wm='Hyprland'; [ -n \"$wmtag\" ] && wm=\"Hyprland $wmtag\"; " +
+            "board=$(cat /sys/devices/virtual/dmi/id/product_name 2>/dev/null); " +
+            "case \"$board\" in ''|'None'|'Default string') board=$(cat /sys/devices/virtual/dmi/id/board_name 2>/dev/null);; esac; " +
+            "[ -z \"$board\" ] && board='Generic Board'; " +
+            "cpu=$(grep -m1 'model name' /proc/cpuinfo 2>/dev/null | cut -d: -f2 | sed -e 's/([^)]*)//g' -e 's/ @.*//' -e 's/^ *//' -e 's/ *$//'); " +
+            "cores=$(nproc 2>/dev/null); " +
+            "raw_gpu=$(lspci 2>/dev/null | grep -iE 'vga|3d|display' | grep -i 'nvidia' | head -n1); " +
+            "[ -z \"$raw_gpu\" ] && raw_gpu=$(lspci 2>/dev/null | grep -iE 'vga|3d|display' | head -n1); " +
+            "gpu=$(printf '%s' \"$raw_gpu\" | sed -n 's/.*\\[\\([^]]*\\)\\].*/\\1/p' | tail -n1); " +
+            "[ -z \"$gpu\" ] && gpu=$(printf '%s' \"$raw_gpu\" | cut -d: -f3 | sed -e 's/([^)]*)//g' -e 's/Corporation //' -e 's/NVIDIA //' -e 's/^ *//' -e 's/ *$//'); " +
+            "[ -z \"$gpu\" ] && gpu='Integrated'; " +
             "printf '{\"user\":\"%s\",\"host\":\"%s\",\"os\":\"%s\",\"kernel\":\"%s\",\"pkgs\":\"%s\",\"wm\":\"%s\",\"board\":\"%s\",\"cpu\":\"%s\",\"cores\":\"%s\",\"gpu\":\"%s\"}\\n' \"$u\" \"$h\" \"$os\" \"$k\" \"$pkgs\" \"$wm\" \"$board\" \"$cpu\" \"$cores\" \"$gpu\""
         ]
 
@@ -136,20 +143,21 @@ PanelWindow {
         id: dynamicSysInfoProc
         running: false
         command: [
-            "fish", "-c",
-            "set -l upt (uptime -p 2>/dev/null | string replace 'up ' ''); " +
-            "set -l load (awk '{print $1\", \"$2\", \"$3}' /proc/loadavg 2>/dev/null); " +
-            "set -l ip (ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}'); " +
-            "test -z \"$ip\"; and set ip (hostname -I 2>/dev/null | awk '{print $1}'); " +
-            "test -z \"$ip\"; and set ip '127.0.0.1'; " +
-            "set -l gw (ip -4 route show default 2>/dev/null | awk '{print $3; exit}'); " +
-            "test -z \"$gw\"; and set gw '---'; " +
-            "set -l dns (awk '/nameserver/ {print $2; exit}' /etc/resolv.conf 2>/dev/null); " +
-            "test -z \"$dns\"; and set dns '---'; " +
-            "set -l mem (free -b | awk '/Mem:/ {printf \"{\\\"used\\\":%.1f,\\\"total\\\":%.1f,\\\"pct\\\":%.1f}\", $3/1073741824, $2/1073741824, ($3/$2)*100}'); " +
-            "set -l swap (free -b | awk '/Swap:/ {if ($2>0) printf \"{\\\"used\\\":%.1f,\\\"total\\\":%.1f,\\\"pct\\\":%.1f}\", $3/1073741824, $2/1073741824, ($3/$2)*100; else print \"null\"}'); " +
-            "set -l diskRoot (df -h / 2>/dev/null | awk 'NR==2 {gsub(/%/,\"\",$5); printf \"{\\\"used\\\":\\\"%s\\\",\\\"total\\\":\\\"%s\\\",\\\"pct\\\":%s}\", $3, $2, $5}'); " +
-            "set -l diskHome (df -h /home 2>/dev/null | awk 'NR==2 {gsub(/%/,\"\",$5); printf \"{\\\"used\\\":\\\"%s\\\",\\\"total\\\":\\\"%s\\\",\\\"pct\\\":%s}\", $3, $2, $5}'); " +
+            // Same conversion as the static probe above, and this one runs on
+            // the user-configurable sysInfoRefreshInterval rather than once,
+            // so it was the hotter of the two.
+            "sh", "-c",
+            "upt=$(uptime -p 2>/dev/null | sed 's/^up //'); " +
+            "load=$(awk '{print $1\", \"$2\", \"$3}' /proc/loadavg 2>/dev/null); " +
+            "ip=$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7; exit}'); " +
+            "[ -z \"$ip\" ] && ip=$(hostname -I 2>/dev/null | awk '{print $1}'); " +
+            "[ -z \"$ip\" ] && ip='127.0.0.1'; " +
+            "gw=$(ip -4 route show default 2>/dev/null | awk '{print $3; exit}'); [ -z \"$gw\" ] && gw='---'; " +
+            "dns=$(awk '/nameserver/ {print $2; exit}' /etc/resolv.conf 2>/dev/null); [ -z \"$dns\" ] && dns='---'; " +
+            "mem=$(free -b | awk '/Mem:/ {printf \"{\\\"used\\\":%.1f,\\\"total\\\":%.1f,\\\"pct\\\":%.1f}\", $3/1073741824, $2/1073741824, ($3/$2)*100}'); " +
+            "swap=$(free -b | awk '/Swap:/ {if ($2>0) printf \"{\\\"used\\\":%.1f,\\\"total\\\":%.1f,\\\"pct\\\":%.1f}\", $3/1073741824, $2/1073741824, ($3/$2)*100; else print \"null\"}'); " +
+            "diskRoot=$(df -h / 2>/dev/null | awk 'NR==2 {gsub(/%/,\"\",$5); printf \"{\\\"used\\\":\\\"%s\\\",\\\"total\\\":\\\"%s\\\",\\\"pct\\\":%s}\", $3, $2, $5}'); " +
+            "diskHome=$(df -h /home 2>/dev/null | awk 'NR==2 {gsub(/%/,\"\",$5); printf \"{\\\"used\\\":\\\"%s\\\",\\\"total\\\":\\\"%s\\\",\\\"pct\\\":%s}\", $3, $2, $5}'); " +
             "printf '{\"uptime\":\"%s\",\"load\":\"%s\",\"ip\":\"%s\",\"gw\":\"%s\",\"dns\":\"%s\",\"mem\":%s,\"swap\":%s,\"diskRoot\":%s,\"diskHome\":%s}\\n' \"$upt\" \"$load\" \"$ip\" \"$gw\" \"$dns\" \"$mem\" \"$swap\" \"$diskRoot\" \"$diskHome\""
         ]
 

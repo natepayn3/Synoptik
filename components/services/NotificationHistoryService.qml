@@ -20,7 +20,12 @@ QtObject {
     property var entries: [] // newest first
     property bool isLoaded: false
 
-    readonly property string historyPath: Quickshell.shellDir.toString().replace(/^file:\/\//, "") + "/notification_history.json"
+    // Deliberately NOT Config.shellDir: this service is constructed *by* the
+    // Config singleton, so a binding that reads Config evaluates before the
+    // singleton finishes constructing and throws "Config is not defined".
+    // Quickshell.shellDir is the same value without the cycle.
+    readonly property string historyPath:
+        Quickshell.shellDir.toString().replace(/^file:\/\//, "") + "/notification_history.json"
 
     function record(notif) {
         if (!notif) return
@@ -29,7 +34,13 @@ QtObject {
             appName: notif.appName || "System",
             summary: notif.summary || "",
             body: notif.body || "",
-            timestamp: Date.now()
+            timestamp: Date.now(),
+            // Urgency was read to drive the OSD's critical treatment and then
+            // dropped on the floor here, so in the history list a
+            // battery-critical warning was typographically identical to a
+            // track change. Recorded as a plain int; Notifs.NotificationUrgency
+            // is Low=0, Normal=1, Critical=2.
+            urgency: (notif.urgency !== undefined) ? notif.urgency : 1
         }
 
         let list = entries.slice()
@@ -50,39 +61,48 @@ QtObject {
         saveTimer.restart()
     }
 
-    property Process saveProcess: Process { id: saver }
+    // Written through FileView rather than the `sh -c "printf '%s' '<json>' >
+    // <path>"` Process this used to use - the same migration Config.qml's
+    // settingsFile already went through, and for the same three reasons:
+    //
+    //   * atomicWrites. `>` truncates before it writes, so a crash or a
+    //     `killall qs` mid-write left a half-written file and lost the lot.
+    //     Settings' Reload button SIGKILLs the shell moments after a save can
+    //     have been queued, which makes that window reachable in normal use.
+    //
+    //   * The path was interpolated into the command unquoted, so a checkout
+    //     under a directory containing a space wrote nothing and scattered
+    //     stray files - defeating the whole point of Config.shellDir, which
+    //     exists so a renamed or XDG_CONFIG_HOME'd checkout keeps working.
+    //
+    //   * The entire JSON payload - up to 100 entries of arbitrary notification
+    //     text - went through argv, hand-escaped.
+    property FileView historyFile: FileView {
+        id: historyFile
+        path: root.historyPath
+        atomicWrites: true
+        printErrors: false
+
+        onLoaded: {
+            let text = historyFile.text()
+            if (text && text.trim() !== "") {
+                try {
+                    let parsed = JSON.parse(text.trim())
+                    if (Array.isArray(parsed)) root.entries = parsed
+                } catch (e) {
+                    console.error("Failed to parse notification history JSON:", e)
+                }
+            }
+            root.isLoaded = true
+        }
+
+        // No history file yet is the normal first-run case, not an error.
+        onLoadFailed: root.isLoaded = true
+    }
 
     property Timer saveTimer: Timer {
         interval: 400
         repeat: false
-        onTriggered: {
-            if (saver.running) {
-                saveTimer.restart()
-                return
-            }
-            let jsonStr = JSON.stringify(root.entries, null, 2)
-            saver.command = ["sh", "-c", "printf '%s' '" + jsonStr.replace(/'/g, "'\\''") + "' > " + root.historyPath]
-            saver.running = true
-        }
-    }
-
-    property Process loaderProcess: Process {
-        id: loader
-        command: ["sh", "-c", "cat " + root.historyPath + " 2>/dev/null"]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let text = this.text ? this.text.trim() : ""
-                if (text !== "") {
-                    try {
-                        let parsed = JSON.parse(text)
-                        if (Array.isArray(parsed)) root.entries = parsed
-                    } catch (e) {
-                        console.error("Failed to parse notification history JSON:", e)
-                    }
-                }
-                root.isLoaded = true
-            }
-        }
-        Component.onCompleted: running = true
+        onTriggered: historyFile.setText(JSON.stringify(root.entries, null, 2))
     }
 }

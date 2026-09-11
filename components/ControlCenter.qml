@@ -26,26 +26,24 @@ Item {
     readonly property var defaultCcLanes: ({ controls: 0, sliders: 0, sysMonitor: 1, notifications: 1 })
 
     // --- State Properties ---
-    property bool hasWifiAdapter: false
-    property alias hasAdapter: root.hasWifiAdapter
+    // Wi-Fi and Bluetooth state is owned by Config.network / Config.bluetooth
+    // (see NetworkService.qml and BluetoothService.qml). This panel used to
+    // carry a complete nmcli implementation of its own, duplicated again in
+    // Settings' WifiSettings page; both now read the same live model.
+    readonly property var net: Config.network
 
-    onHasWifiAdapterChanged: {
-        if (hasWifiAdapter) {
-            fetchWifiStatusProc.running = false
-            fetchWifiStatusProc.running = true
-        }
-    }
-
-    property bool hasBtAdapter: false
-    property bool wifiPowered: false
-    property bool wifiScanning: false
-    property string activeSsid: ""
+    readonly property bool hasWifiAdapter: net.hasAdapter
+    readonly property bool hasAdapter: net.hasAdapter
+    readonly property bool hasBtAdapter: Config.bluetooth.available
+    readonly property bool wifiPowered: net.powered
+    readonly property bool wifiScanning: net.scanning
+    readonly property string activeSsid: net.activeSsid
     property string expandedSsid: ""
-    property string connectingSsid: ""
-    property string disconnectingSsid: ""
-    property string errorSsid: ""
-    property string connectionError: ""
-    property var knownNetworks: ({})
+    readonly property string connectingSsid: net.connectingSsid
+    readonly property string disconnectingSsid: net.disconnectingSsid
+    readonly property string errorSsid: net.errorSsid
+    readonly property string connectionError: net.connectionError
+    readonly property var knownNetworks: net.knownNetworks
 
     property int currentVolume: shellRoot.audioVolume
     property bool isAudioMuted: shellRoot.audioMuted
@@ -76,7 +74,7 @@ Item {
                                                (caffeineCard && caffeineCard.panelExpanded) ||
                                                (sysMonitorCard && sysMonitorCard.panelExpanded)
 
-    ListModel { id: wifiModel }
+    readonly property var wifiModel: net.networks
 
     function clearAllNotifications() {
         if (typeof notifServer === "undefined" || !notifServer.trackedNotifications) return;
@@ -91,10 +89,6 @@ Item {
         }
     }
 
-    Component.onCompleted: {
-        detectWifiAdapterProc.running = true
-        detectBtAdapterProc.running = true
-    }
 
     // MAIN BENTO GRID - cards are DraggableGridContainer/GridCard-positioned so
     // they can always be dragged (grab anywhere on a card) to reorder; see
@@ -184,22 +178,33 @@ Item {
                                 errorSsid: root.errorSsid
                                 connectionError: root.connectionError
                                 knownNetworks: root.knownNetworks
-                                wifiModel: wifiModel
-                                onTogglePower: power => root.toggleWifiPower(power)
-                                onTriggerScan: root.triggerWifiScan()
-                                onConnectTo: (ssid, pass, isKnown) => connectWifiProc.connectTo(ssid, pass, isKnown)
-                                onDisconnectSsid: ssid => disconnectWifiProc.disconnect(ssid)
-                                onForgetSsid: ssid => forgetWifiProc.forget(ssid)
+                                // MUST stay qualified. WifiCard declares its
+                                // own `property var wifiModel`, and inside this
+                                // block that shadows the outer one - so a bare
+                                // `wifiModel: wifiModel` is a self-reference
+                                // that silently evaluates to undefined. It only
+                                // worked before because the model was an
+                                // `id` here, and ids outrank properties in QML
+                                // scope resolution.
+                                wifiModel: root.wifiModel
+                                onTogglePower: power => root.net.setPowered(power)
+                                onTriggerScan: root.net.scan()
+                                onConnectTo: (ssid, pass, isKnown) => root.net.connectTo(ssid, pass, isKnown)
+                                onDisconnectSsid: ssid => root.net.disconnect(ssid)
+                                onForgetSsid: ssid => root.net.forget(ssid)
                             }
 
                             BluetoothCard {
                                 id: btCard
                                 Layout.fillWidth: true
                                 Layout.preferredWidth: 1
-                                hasHardware: root.hasBtAdapter
+                                // BluetoothCard used to expose togglePower/
+                                // triggerScan signals that this panel handled
+                                // by calling straight back into the card. Now
+                                // that the card talks to Config.bluetooth
+                                // directly, its own controls call those
+                                // functions and the round trip is gone.
                                 controlCenterPanel: root
-                                onTogglePower: power => btCard.execTogglePower(power)
-                                onTriggerScan: btCard.execTriggerScan()
                             }
                         }
 
@@ -419,11 +424,32 @@ Item {
                                     : [])
 
                             delegate: Rectangle {
+                                id: notifRow
                                 width: notifListView.width
                                 implicitHeight: itemLayout.implicitHeight + 16
                                 radius: Config.cornerRadius * 0.5
                                 color: cardMouse.hovered ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.25)
                                 Behavior on color { ColorAnimation { duration: 150 } }
+
+                                // Urgency was previously read only by the OSD
+                                // and thrown away when the entry was recorded,
+                                // so in this list a battery-critical warning
+                                // looked exactly like a track change. It is
+                                // persisted now (see NotificationHistoryService)
+                                // and drives the same red the OSD uses.
+                                readonly property bool isCritical:
+                                    modelData && modelData.urgency === 2
+
+                                Rectangle {
+                                    anchors.left: parent.left
+                                    anchors.top: parent.top
+                                    anchors.bottom: parent.bottom
+                                    anchors.margins: 4
+                                    width: 3
+                                    radius: 1.5
+                                    color: "#ef4444"
+                                    visible: notifRow.isCritical
+                                }
 
                                 ColumnLayout {
                                     id: itemLayout
@@ -439,7 +465,7 @@ Item {
 
                                         Text {
                                             text: (modelData && modelData.appName) ? modelData.appName.toUpperCase() : "SYSTEM"
-                                            color: Config.accent
+                                            color: notifRow.isCritical ? "#ef4444" : Config.accent
                                             font.family: Config.sysFont
                                             font.pixelSize: Config.size(Config.fontMicro)
                                             font.bold: true
@@ -601,28 +627,9 @@ Item {
         }
     }
 
-    Process {
-        id: detectWifiAdapterProc
-        command: ["sh", "-c", "nmcli -t -f TYPE device | grep -q '^wifi$' && echo 'YES' || echo 'NO'"]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                root.hasWifiAdapter = this.text.trim() === "YES"
-            }
-        }
-    }
-
-    Process {
-        id: detectBtAdapterProc
-        command: ["sh", "-c", "bluetoothctl list | grep -q 'Controller' && echo 'YES' || echo 'NO'"]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let res = this.text.trim() === "YES"
-                if (root.hasBtAdapter !== res) root.hasBtAdapter = res
-            }
-        }
-    }
+    // detectWifiAdapterProc and detectBtAdapterProc used to live here, shelling
+    // out to `nmcli -t -f TYPE device` and `bluetoothctl list` to find out
+    // whether the hardware existed. Both services report that directly now.
 
     Process {
         id: detectBacklightProc
@@ -683,251 +690,31 @@ Item {
         setVolumeProc.setVal(pct)
     }
 
-    function triggerWifiScan() {
-        if (root.hasWifiAdapter && root.wifiPowered && !root.wifiScanning) scanWifiProc.startScan()
-    }
+    // The Wi-Fi backend that used to occupy this space - scan, toggle,
+    // connect, disconnect, forget, cleanup and a status poller, seven Process
+    // blocks in all - now lives once in NetworkService.qml. Along with the
+    // duplication that removed the SSID-into-shell-string quoting and the
+    // `awk -v target=...` matching that silently failed on any SSID
+    // containing a backslash.
 
-    function toggleWifiPower(turnOn) {
-        if (!root.hasWifiAdapter) return
-        toggleWifiProc.command = ["sh", "-c", turnOn ? "rfkill unblock wifi; nmcli radio wifi on" : "nmcli radio wifi off"]
-        toggleWifiProc.running = true
-    }
-
-    Process {
-        id: toggleWifiProc
-        running: false
-        onExited: fetchWifiStatusProc.running = true
-    }
-
-    Process {
-        id: scanWifiProc
-        command: ["nmcli", "dev", "wifi", "rescan"]
-        running: false
-        function startScan() {
-            root.wifiScanning = true
-            running = true
-        }
-        onExited: {
-            root.wifiScanning = false
-            fetchWifiStatusProc.running = true
-        }
-    }
-
-    Process {
-        id: disconnectWifiProc
-        running: false
-        function disconnect(ssid) {
-            root.disconnectingSsid = ssid
-            command = ["nmcli", "connection", "down", "id", ssid]
-            running = true
-        }
-        onExited: {
-            root.disconnectingSsid = ""
-            fetchWifiStatusProc.running = true
-        }
-    }
-
-    Process {
-        id: forgetWifiProc
-        running: false
-        function forget(ssid) {
-            root.errorSsid = ""
-            root.connectionError = ""
-            let safeSsid = ssid.replace(/'/g, "'\"'\"'")
-            command = ["fish", "-c", `
-                set uuids (nmcli -t -f UUID,TYPE,NAME connection show | awk -F: -v target='${safeSsid}' '$2 ~ /802-11-wireless|wifi/ && $3 == target {print $1}')
-                for u in $uuids
-                    nmcli connection delete uuid "$u"
-                end
-            `]
-            running = true
-        }
-        onExited: {
-            root.errorSsid = ""
-            root.connectionError = ""
-            fetchWifiStatusProc.running = false
-            fetchWifiStatusProc.running = true
-        }
-    }
-
-    Process {
-        id: cleanupWifiProc
-        running: false
-        onExited: {
-            fetchWifiStatusProc.running = false
-            fetchWifiStatusProc.running = true
-        }
-    }
-
-    Process {
-        id: connectWifiProc
-        running: false
-        property string activeTargetSsid: ""
-
-        stdout: StdioCollector { id: connectStdout }
-        stderr: StdioCollector { id: connectStderr }
-
-        function connectTo(ssidTarget, password, isKnown) {
-            activeTargetSsid = ssidTarget
-            root.connectingSsid = ssidTarget
-            root.errorSsid = ""
-            root.connectionError = ""
-
-            // Same PSK handling as WifiSettings.connectWifi(): the key goes over
-            // the environment and is dereferenced inside the shell, so it never
-            // appears in /proc/<pid>/cmdline where any local `ps aux` could read
-            // it. The SSID isn't secret and stays interpolated (still escaped).
-            let safeSsid = ssidTarget.replace(/'/g, "'\"'\"'")
-            let cmd = ""
-            if (password && password.trim() !== "") {
-                cmd = `nmcli dev wifi connect '${safeSsid}' password "$SYN_WIFI_PSK"`
-                environment = ({ "SYN_WIFI_PSK": password })
-            } else if (isKnown) {
-                cmd = `nmcli connection up id '${safeSsid}'`
-                environment = ({})
-            } else {
-                cmd = `nmcli dev wifi connect '${safeSsid}'`
-                environment = ({})
-            }
-            command = ["sh", "-c", cmd]
-            running = false
-            running = true
-        }
-
-        onExited: (exitCode) => {
-            let failedSsid = activeTargetSsid
-            root.connectingSsid = ""
-
-            if (exitCode !== 0 && failedSsid !== "") {
-                root.errorSsid = failedSsid
-                root.expandedSsid = failedSsid
-                let fullErr = (connectStdout.text + "\n" + connectStderr.text).trim().toLowerCase()
-                if (fullErr.includes("not found") || fullErr.includes("no network")) {
-                    root.connectionError = "Network Not Found"
-                } else {
-                    root.connectionError = "Invalid Password"
-                }
-
-                let safeSsid = failedSsid.replace(/'/g, "'\"'\"'")
-                cleanupWifiProc.command = ["fish", "-c", `
-                    set uuids (nmcli -t -f UUID,TYPE,NAME connection show | awk -F: -v target='${safeSsid}' '$2 ~ /802-11-wireless|wifi/ && $3 == target {print $1}')
-                    for u in $uuids
-                        nmcli connection delete uuid "$u" 2>/dev/null
-                    end
-                `]
-                cleanupWifiProc.running = false
-                cleanupWifiProc.running = true
-            } else {
-                root.errorSsid = ""
-                root.connectionError = ""
-                fetchWifiStatusProc.running = false
-                fetchWifiStatusProc.running = true
-            }
-        }
-    }
-
-    Process {
-        id: fetchWifiStatusProc
-        command: ["sh", "-c", "nmcli radio wifi; echo '---'; nmcli -t -f ACTIVE,SIGNAL,SECURITY,SSID dev wifi; echo '---'; nmcli -t -f NAME connection show"]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let parts = this.text.trim().split("---")
-                if (parts.length < 2) return
-                root.wifiPowered = parts[0].trim() === "enabled"
-                if (!root.wifiPowered || !root.hasWifiAdapter) {
-                    wifiModel.clear()
-                    return
-                }
-
-                let knownMap = {}
-                if (parts.length >= 3) {
-                    let knownLines = parts[2].trim().split("\n")
-                    for (let j = 0; j < knownLines.length; j++) {
-                        let name = knownLines[j].trim()
-                        if (name) knownMap[name] = true
-                    }
-                }
-                root.knownNetworks = knownMap
-
-                let lines = parts[1].trim().split("\n")
-                let uniqueMap = {}
-                let activeSsidFound = ""
-
-                for (let i = 0; i < lines.length; i++) {
-                    let line = lines[i].trim()
-                    if (!line) continue
-                    let tokens = line.split(":")
-                    if (tokens.length < 4) continue
-
-                    let isActive = tokens[0].trim() === "yes"
-                    let signal = parseInt(tokens[1].trim()) || 0
-                    let sec = tokens[2].trim()
-                    let ssid = tokens.slice(3).join(":").trim()
-                    if (!ssid) continue
-
-                    if (isActive) activeSsidFound = ssid
-                    let isSecure = sec !== "--" && sec !== ""
-
-                    if (!uniqueMap[ssid]) {
-                        uniqueMap[ssid] = { ssid: ssid, signalStrength: signal, connected: isActive, isSecure: isSecure }
-                    } else {
-                        if (isActive) uniqueMap[ssid].connected = true
-                        if (signal > uniqueMap[ssid].signalStrength) uniqueMap[ssid].signalStrength = signal
-                    }
-                }
-
-                root.activeSsid = activeSsidFound
-                let newResults = Object.values(uniqueMap).sort((a, b) => b.signalStrength - a.signalStrength)
-
-                let existingMap = {}
-                for (let idx = 0; idx < wifiModel.count; idx++) existingMap[wifiModel.get(idx).ssid] = idx
-                let freshMap = {}
-
-                for (let k = 0; k < newResults.length; k++) {
-                    let item = newResults[k]
-                    freshMap[item.ssid] = true
-                    if (item.ssid in existingMap) {
-                        let tIndex = existingMap[item.ssid]
-                        wifiModel.setProperty(tIndex, "connected", item.connected)
-                        wifiModel.setProperty(tIndex, "signalStrength", item.signalStrength)
-                    } else {
-                        wifiModel.append(item)
-                    }
-                }
-                for (let r = wifiModel.count - 1; r >= 0; r--) {
-                    if (!freshMap[wifiModel.get(r).ssid]) wifiModel.remove(r)
-                }
-            }
-        }
-    }
-
+    // Opening the panel used to kick off five refetches and start a 3.5s Wi-Fi
+    // poll. Wi-Fi and Bluetooth are event-driven now, so only brightness - which
+    // has no change notification of its own - still needs asking.
     Connections {
         target: Config
         function onShowControlCenterChanged() {
-            if (Config.showControlCenter) {
-                detectWifiAdapterProc.running = false
-                detectWifiAdapterProc.running = true
-                detectBtAdapterProc.running = false
-                detectBtAdapterProc.running = true
-                fetchWifiStatusProc.running = false
-                fetchWifiStatusProc.running = true
-                if (root.hasBacklight) {
-                    fetchBrightnessProc.running = false
-                    fetchBrightnessProc.running = true
-                }
+            if (Config.showControlCenter && root.hasBacklight) {
+                fetchBrightnessProc.running = false
+                fetchBrightnessProc.running = true
             }
         }
     }
 
     Timer {
         interval: 3500
-        running: Config.showControlCenter
+        running: Config.showControlCenter && root.hasBacklight
         repeat: true
         triggeredOnStart: true
-        onTriggered: {
-            fetchWifiStatusProc.running = true
-            if (root.hasBacklight) fetchBrightnessProc.running = true
-        }
+        onTriggered: fetchBrightnessProc.running = true
     }
 }

@@ -9,56 +9,27 @@ import ".."
 Item {
     id: root
 
-    property bool hasPolledOnce: false
-    property bool hasAdapter: true
-    property bool isPowered: true
-    property bool isScanning: false
-    property string activeDeviceName: ""
-    property string connectingMac: ""
+    // Shared with the Control Center's BluetoothCard via Config.bluetooth -
+    // see BluetoothService.qml. This page used to run its own parallel
+    // bluetoothctl implementation on a 3s poll, including a second copy of the
+    // device-icon table that had drifted out of sync with the card's.
+    readonly property var bt: Config.bluetooth
+
+    readonly property bool hasPolledOnce: true
+    readonly property bool hasAdapter: bt.available
+    readonly property bool isPowered: bt.powered
+    readonly property bool isScanning: bt.scanning
+    readonly property string activeDeviceName: bt.connectedNames
+    readonly property string connectingMac: bt.connectingMac
 
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
-    ListModel { id: btModel }
+    readonly property var btModel: bt.devices
 
-    Component.onCompleted: {
-        fetchBtStatusProc.running = false
-        fetchBtStatusProc.running = true
-    }
-
-    // Material Symbols has a discrete glyph per battery level rather than one
-    // fillable icon, so map the percentage onto the nearest bar. Mirrors the
-    // levels the desktop battery module already uses.
-    function batteryGlyph(pct) {
-        if (pct < 0) return ""
-        if (pct >= 95) return "battery_full"
-        if (pct >= 85) return "battery_6_bar"
-        if (pct >= 70) return "battery_5_bar"
-        if (pct >= 55) return "battery_4_bar"
-        if (pct >= 40) return "battery_3_bar"
-        if (pct >= 25) return "battery_2_bar"
-        if (pct >= 10) return "battery_1_bar"
-        return "battery_alert"
-    }
-
-    function batteryColor(pct) {
-        if (pct < 0) return Config.textMuted
-        if (pct <= 10) return "#e0564f"
-        if (pct <= 25) return "#e0a24f"
-        return Config.textMuted
-    }
-
-    function getDeviceIcon(name) {
-        let n = (name || "").toLowerCase()
-        if (n.includes("headphone") || n.includes("headset") || n.includes("airpod") || n.includes("wh-") || n.includes("wf-") || n.includes("buds") || n.includes("audio") || n.includes("earphone") || n.includes("pods")) return "headphones"
-        if (n.includes("speaker") || n.includes("soundbar") || n.includes("echo") || n.includes("jbl") || n.includes("bose") || n.includes("marshall")) return "speaker"
-        if (n.includes("mouse") || n.includes("trackpad") || n.includes("touchpad") || n.includes("mx master") || n.includes("mx anywhere")) return "mouse"
-        if (n.includes("keyboard") || n.includes("keychron") || n.includes("nuphy") || n.includes("logi k")) return "keyboard"
-        if (n.includes("controller") || n.includes("gamepad") || n.includes("xbox") || n.includes("dualshock") || n.includes("dualsense") || n.includes("joy-con") || n.includes("switch")) return "sports_esports"
-        if (n.includes("phone") || n.includes("iphone") || n.includes("pixel") || n.includes("galaxy") || n.includes("android")) return "smartphone"
-        if (n.includes("watch") || n.includes("band") || n.includes("garmin") || n.includes("fitbit")) return "watch"
-        if (n.includes("macbook") || n.includes("laptop") || n.includes("desktop") || n.includes("thinkpad") || n.includes("pc")) return "computer"
-        return "bluetooth"
-    }
+    // Single implementations now live in BluetoothService; these stay as
+    // thin forwarders so the delegates below read unchanged.
+    function batteryGlyph(pct) { return bt.batteryGlyph(pct) }
+    function batteryColor(pct) { return bt.batteryColor(pct) }
 
     ScrollView {
         anchors.fill: parent
@@ -277,8 +248,7 @@ Item {
                             TapHandler {
                                 enabled: root.hasAdapter
                                 onTapped: {
-                                    powerBtProc.command = ["sh", "-c", "bluetoothctl power " + (root.isPowered ? "off" : "on")]
-                                    powerBtProc.running = true
+                                    root.bt.togglePower()
                                 }
                             }
                             HoverHandler { id: pwrBtHover; cursorShape: Qt.PointingHandCursor }
@@ -341,10 +311,18 @@ Item {
                             required property bool connected
                             required property bool paired
                             required property int battery
+                            required property string icon
+                            required property bool isAudio
                             readonly property bool isConnecting: root.connectingMac === mac
+
+                            // Audio-profile pills only appear for a connected
+                            // audio device that offers more than one profile.
+                            readonly property bool showProfiles:
+                                connected && isAudio && root.bt.hasProfilesFor(mac)
 
                             Layout.fillWidth: true
                             implicitHeight: devRow.implicitHeight + 20
+                                + (showProfiles ? profileRow.implicitHeight + 10 : 0)
                             radius: Config.cornerRadius * 0.75
                             color: connected
                                 ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.12)
@@ -360,7 +338,12 @@ Item {
 
                             RowLayout {
                                 id: devRow
-                                anchors.fill: parent
+                                // Top-anchored rather than filling: the audio
+                                // profile pills sit below this row when shown,
+                                // and anchors.fill would overlap them.
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.top: parent.top
                                 anchors.margins: 10
                                 spacing: 12
 
@@ -375,7 +358,7 @@ Item {
 
                                     Text {
                                         anchors.centerIn: parent
-                                        text: root.getDeviceIcon(name)
+                                        text: icon
                                         font.family: "Material Symbols Outlined"
                                         font.pixelSize: 18
                                         color: connected ? Config.accent : Config.textMain
@@ -531,11 +514,11 @@ Item {
                                             onTapped: {
                                                 if (isConnecting || !root.hasAdapter) return
                                                 if (connected) {
-                                                    root.execBtCmd(`bluetoothctl disconnect ${mac}`)
+                                                    root.bt.disconnectDevice(mac)
                                                 } else if (paired) {
-                                                    root.execBtCmd(`bluetoothctl connect ${mac}`, mac)
+                                                    root.bt.connectDevice(mac)
                                                 } else {
-                                                    root.execBtCmd(`bluetoothctl pair ${mac}; bluetoothctl trust ${mac}; bluetoothctl connect ${mac}`, mac)
+                                                    root.bt.pairDevice(mac)
                                                 }
                                             }
                                         }
@@ -563,10 +546,74 @@ Item {
                                         TapHandler {
                                             onTapped: {
                                                 if (!root.hasAdapter) return
-                                                root.execBtCmd(`bluetoothctl disconnect ${mac}; bluetoothctl untrust ${mac}; bluetoothctl remove ${mac}`)
+                                                root.bt.forgetDevice(mac)
                                             }
                                         }
                                         HoverHandler { id: forgetHover; cursorShape: Qt.PointingHandCursor }
+                                    }
+                                }
+                            }
+
+                            // --- AUDIO PROFILE SWITCHER ---
+                            // A2DP <-> HSP/HFP. A call flips a headset to
+                            // headset-head-unit (16kHz mono) and nothing
+                            // switches it back; this is what previously
+                            // required pavucontrol.
+                            Flow {
+                                id: profileRow
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.bottom: parent.bottom
+                                anchors.margins: 10
+                                spacing: 6
+                                visible: devCard.showProfiles
+
+                                Repeater {
+                                    model: devCard.showProfiles
+                                        ? root.bt.profilesFor(devCard.mac) : []
+
+                                    delegate: Rectangle {
+                                        required property var modelData
+                                        readonly property bool isActive:
+                                            modelData.name === root.bt.activeProfileFor(devCard.mac)
+
+                                        implicitWidth: profPillRow.implicitWidth + 16
+                                        implicitHeight: 24
+                                        radius: 6
+                                        color: isActive
+                                            ? Config.accent
+                                            : (profPillHover.hovered
+                                                ? Qt.rgba(255, 255, 255, 0.12)
+                                                : Qt.rgba(255, 255, 255, 0.05))
+                                        border.width: 1
+                                        border.color: isActive ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
+                                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                                        RowLayout {
+                                            id: profPillRow
+                                            anchors.centerIn: parent
+                                            spacing: 4
+                                            Text {
+                                                text: root.bt.profileIcon(modelData.name)
+                                                font.family: "Material Symbols Outlined"
+                                                font.pixelSize: 12
+                                                verticalAlignment: Text.AlignVCenter
+                                                color: isActive ? Config.bgBase : Config.textMuted
+                                            }
+                                            Text {
+                                                text: root.bt.profileLabel(modelData.name)
+                                                font.family: Config.sysFont
+                                                font.pixelSize: Config.size(Config.fontMicro)
+                                                font.bold: isActive
+                                                verticalAlignment: Text.AlignVCenter
+                                                color: isActive ? Config.bgBase : Config.textMain
+                                            }
+                                        }
+
+                                        TapHandler {
+                                            onTapped: root.bt.setAudioProfile(devCard.mac, modelData.name)
+                                        }
+                                        HoverHandler { id: profPillHover; cursorShape: Qt.PointingHandCursor }
                                     }
                                 }
                             }
@@ -626,169 +673,9 @@ Item {
         }
     }
 
-    // ==========================================
-    // BACKEND IPC PROCESSES & TIMERS
-    // ==========================================
-    Timer { 
-        interval: 3000; running: root.visible && root.hasAdapter; repeat: true; triggeredOnStart: true; 
-        onTriggered: {
-            fetchBtStatusProc.running = false
-            fetchBtStatusProc.running = true
-        }
-    }
-
-    Process { 
-        id: powerBtProc; running: false; 
-        onExited: {
-            fetchBtStatusProc.running = false
-            fetchBtStatusProc.running = true
-        }
-    }
-    
-    Process { 
-        id: execBtProc
-        running: false
-        onExited: {
-            root.connectingMac = ""
-            fetchBtStatusProc.running = false
-            fetchBtStatusProc.running = true 
-        }
-    }
-
-    Process {
-        id: fetchBtStatusProc
-        command: ["sh", "-c", "bluetoothctl show"]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let textStr = this.text
-                root.hasPolledOnce = true
-                if (!textStr || textStr.includes("No default controller available")) {
-                    root.hasAdapter = false
-                    root.isPowered = false
-                    root.activeDeviceName = ""
-                    btModel.clear()
-                } else {
-                    root.hasAdapter = true
-                    root.isPowered = textStr.includes("Powered: yes")
-                    if (root.isPowered) {
-                        fetchBtDevicesProc.running = true
-                    } else {
-                        root.activeDeviceName = ""
-                        btModel.clear()
-                    }
-                }
-            }
-        }
-    }
-
-    Process {
-        id: fetchBtDevicesProc
-        command: ["fish", "-c", "for dev in (bluetoothctl devices); set mac (string match -r '([0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2}:[0-9A-Fa-f]{2})' $dev)[1]; if test -n '$mac'; bluetoothctl info $mac; echo '---DEV_END---'; end; end"]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let chunks = this.text.trim().split("---DEV_END---")
-                let newResults = []
-                let seenMacs = {}
-                let connectedNames = []
-
-                for (let i = 0; i < chunks.length; i++) {
-                    let text = chunks[i].trim()
-                    if (!text) continue
-
-                    let macMatch = text.match(/Device ([0-9A-FA-f:]+)/)
-                    if (!macMatch) continue
-                    let mac = macMatch[1]
-
-                    if (seenMacs[mac]) continue
-                    seenMacs[mac] = true
-
-                    let nameMatch = text.match(/Name: (.*)/) || text.match(/Alias: (.*)/)
-                    let name = nameMatch ? nameMatch[1].trim() : mac
-                    let isConn = text.includes("Connected: yes")
-
-                    if (isConn) {
-                        connectedNames.push(name)
-                    }
-
-                    // BlueZ reports battery as `Battery Percentage: 0x50 (80)` on
-                    // the same `bluetoothctl info` output already being parsed here,
-                    // so this costs no extra process. The line is only present while
-                    // the device is connected AND exposes a battery service - most
-                    // headsets and mice do, plain speakers don't - so -1 means
-                    // "unknown" and the UI omits the readout entirely rather than
-                    // showing a misleading 0%.
-                    let battMatch = text.match(/Battery Percentage:\s*0x[0-9a-fA-F]+\s*\((\d+)\)/)
-                        || text.match(/Battery Percentage:\s*(\d+)/)
-                    let battery = battMatch ? parseInt(battMatch[1]) : -1
-                    if (isNaN(battery) || battery < 0 || battery > 100) battery = -1
-
-                    newResults.push({
-                        mac: mac,
-                        name: name,
-                        connected: isConn,
-                        paired: text.includes("Paired: yes"),
-                        battery: battery
-                    })
-                }
-
-                root.activeDeviceName = connectedNames.length > 0 ? connectedNames.join(", ") : ""
-
-                // Map current indices by MAC
-                let existingMap = {}
-                for (let idx = 0; idx < btModel.count; idx++) {
-                    existingMap[btModel.get(idx).mac] = idx
-                }
-
-                let freshMap = {}
-                let toAppend = []
-
-                // In-place property updates to prevent layout jumping
-                for (let k = 0; k < newResults.length; k++) {
-                    let item = newResults[k]
-                    freshMap[item.mac] = true
-
-                    if (item.mac in existingMap) {
-                        let tIndex = existingMap[item.mac]
-                        let cur = btModel.get(tIndex)
-                        if (cur.name !== item.name) btModel.setProperty(tIndex, "name", item.name)
-                        if (cur.connected !== item.connected) btModel.setProperty(tIndex, "connected", item.connected)
-                        if (cur.paired !== item.paired) btModel.setProperty(tIndex, "paired", item.paired)
-                        if (cur.battery !== item.battery) btModel.setProperty(tIndex, "battery", item.battery)
-                    } else {
-                        toAppend.push(item)
-                    }
-                }
-
-                // Append new devices to the end so row positions remain static
-                for (let a = 0; a < toAppend.length; a++) {
-                    btModel.append(toAppend[a])
-                }
-
-                // Remove vanished items from model
-                for (let r = btModel.count - 1; r >= 0; r--) {
-                    if (!freshMap[btModel.get(r).mac]) {
-                        btModel.remove(r)
-                    }
-                }
-            }
-        }
-    }
-
-    function triggerScan() {
-        if (!root.hasAdapter) return
-        root.isScanning = true
-        scanBtProc.command = ["sh", "-c", "bluetoothctl --timeout 5 scan on"]
-        scanBtProc.running = true
-    }
-
-    Process { id: scanBtProc; running: false; onExited: { root.isScanning = false; fetchBtStatusProc.running = true } }
-    
-    function execBtCmd(cmd, mac = "") { 
-        if (!root.hasAdapter) return
-        root.connectingMac = mac
-        execBtProc.command = ["sh", "-c", cmd]
-        execBtProc.running = true 
-    }
+    // The BACKEND IPC PROCESSES & TIMERS block that used to live here - a 3s
+    // poll timer plus five Process blocks shelling out to bluetoothctl - is
+    // gone. BluetoothService owns all of it now and pushes changes in as
+    // property notifications, so this page has no backend of its own.
+    function triggerScan() { root.bt.startScan() }
 }

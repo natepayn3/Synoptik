@@ -65,18 +65,19 @@ PanelWindow {
         return result;
     }
 
-    Process {
-        id: initPinFile
-        command: ["sh", "-c", "[ -f ~/.cache/quickshell_launcher_pins.json ] || echo '{\"pins\":[]}' > ~/.cache/quickshell_launcher_pins.json"]
-        running: true
-        onExited: dockWindow.pinFilePath = Quickshell.env("HOME") + "/.cache/quickshell_launcher_pins.json"
-    }
+    // The pin file used to be bootstrapped by a `sh -c "[ -f ... ] || echo
+    // ... > ..."` Process purely so the FileView below had something to open.
+    // A missing file and an empty pin list are the same state, so just treat a
+    // failed load as "no pins" and skip the spawn entirely.
+    Component.onCompleted: dockWindow.pinFilePath = Quickshell.env("HOME") + "/.cache/quickshell_launcher_pins.json"
 
     FileView {
         id: pinCacheReader
         path: dockWindow.pinFilePath
         watchChanges: true
+        printErrors: false
         onFileChanged: reload()
+        onLoadFailed: dockWindow.localPins = []
         onTextChanged: {
             let cleanText = text().trim();
             if (!cleanText) { dockWindow.localPins = []; return; }

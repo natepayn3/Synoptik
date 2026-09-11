@@ -21,6 +21,26 @@ Item {
     property string notifApp: ""
     property int notifUrgency: Notifs.NotificationUrgency.Normal
 
+    // The live Notification object behind the OSD, kept so its actions can
+    // actually be invoked. The server advertises actionsSupported over D-Bus,
+    // which changes how clients behave - Thunderbird, Element and KDE Connect
+    // all attach Reply / Mark read / Snooze buttons when they see it - and
+    // nothing here ever read notif.actions, so those buttons were promised and
+    // then silently dropped.
+    property var currentNotif: null
+
+    readonly property var notifActions: {
+        if (!currentNotif) return []
+        let a = currentNotif.actions
+        return a ? a : []
+    }
+
+    // Notification images (album art from a music player, an avatar from a
+    // chat client) were dropped too - imageSupported was never declared, so
+    // clients didn't send them.
+    readonly property string notifImage: currentNotif ? (currentNotif.image || "") : ""
+    readonly property string notifAppIcon: currentNotif ? (currentNotif.appIcon || "") : ""
+
     SoundEffect {
         id: notifSoundPlayer
         // Inline Comment: Dynamically target notification sound WAV asset from Quickshell directory
@@ -56,13 +76,22 @@ Item {
             // Block OSD if DND is active
             if (typeof notifServer !== "undefined" && notifServer && notifServer.dnd) return;
 
+            osdRoot.currentNotif = notif;
             osdRoot.notifApp = notif.appName ? notif.appName : "System";
             osdRoot.notifTitle = notif.summary ? notif.summary : "Notification";
             osdRoot.notifBody = notif.body ? notif.body : "";
             osdRoot.notifUrgency = notif.urgency;
-            
+
             osdRoot.trigger();
         }
+    }
+
+    function invokeAction(action) {
+        if (!action) return
+        action.invoke()
+        // Invoking an action resolves the notification, so take the OSD down
+        // with it rather than leaving a card whose buttons now do nothing.
+        osdRoot.dismiss()
     }
 
     function trigger() {
@@ -73,6 +102,9 @@ Item {
         osdRoot.playNotificationSound()
         rippleAnim.restart()
 
+        // A card with buttons has to stay up long enough to actually click
+        // one; 4s is fine for a receipt, not for a decision.
+        osdHideTimer.interval = osdRoot.notifActions.length > 0 ? 9000 : 4000
         if (osdRoot.notifUrgency !== Notifs.NotificationUrgency.Critical) {
             osdHideTimer.restart()
         }
@@ -81,6 +113,7 @@ Item {
     function dismiss() {
         Config.showNotificationOsd = false
         osdHideTimer.stop()
+        osdRoot.currentNotif = null
     }
 
     Timer {
@@ -90,8 +123,11 @@ Item {
         onTriggered: osdRoot.dismiss()
     }
 
+    // Click-to-dismiss sits behind the content (z: -1) so it can't swallow
+    // taps aimed at the action buttons layered above it.
     MouseArea {
         anchors.fill: parent
+        z: -1
         cursorShape: Qt.PointingHandCursor
         onClicked: osdRoot.dismiss()
     }
@@ -113,9 +149,36 @@ Item {
             Text {
                 anchors.centerIn: parent
                 text: osdRoot.appIcon
+                visible: !notifImageView.visible
                 color: osdRoot.notifUrgency === Notifs.NotificationUrgency.Critical ? "#ef4444" : Config.accent
                 font.family: "Material Symbols Outlined"
                 font.pixelSize: 24
+            }
+
+            // Album art, an avatar, whatever the client attached. Falls back to
+            // the app-name glyph above when there is no image or it won't load.
+            Image {
+                id: notifImageView
+                anchors.fill: parent
+                anchors.margins: 1
+                source: osdRoot.notifImage !== "" ? osdRoot.notifImage : osdRoot.notifAppIcon
+                visible: source != "" && status === Image.Ready
+                fillMode: Image.PreserveAspectCrop
+                asynchronous: true
+                cache: false
+                // Decode at the size actually drawn - an avatar or cover from a
+                // client can be 1000px+, and this tile is 48.
+                sourceSize.width: 96
+                sourceSize.height: 96
+
+                layer.enabled: true
+                layer.effect: OpacityMask {
+                    maskSource: Rectangle {
+                        width: notifImageView.width
+                        height: notifImageView.height
+                        radius: Config.cornerRadius / 2
+                    }
+                }
             }
 
             // Ripple pulse on arrival - a ring of accent color expanding out of
@@ -261,6 +324,62 @@ Item {
                     elide: Text.ElideRight
                     maximumLineCount: 2
                     wrapMode: Text.WordWrap
+                }
+
+                // --- ACTION BUTTONS ---
+                // The payoff for shell.qml's actionsSupported flag. Most
+                // clients send a "default" action meaning "clicking the body
+                // opens me"; that isn't a button anywhere else on the desktop,
+                // so it's filtered out rather than drawn as one.
+                Flow {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 4
+                    spacing: 6
+                    visible: osdRoot.notifActions.length > 0
+
+                    Repeater {
+                        model: osdRoot.notifActions
+
+                        delegate: Rectangle {
+                            required property var modelData
+
+                            visible: modelData && modelData.identifier !== "default"
+                                && (modelData.text || "") !== ""
+                            width: visible ? actionLabel.implicitWidth + 22 : 0
+                            height: visible ? 26 : 0
+                            radius: 6
+                            color: actionMouse.containsMouse
+                                ? Config.accent
+                                : Qt.rgba(255, 255, 255, 0.08)
+                            border.width: 1
+                            border.color: actionMouse.containsMouse
+                                ? Config.accent
+                                : Qt.rgba(255, 255, 255, 0.15)
+                            Behavior on color { ColorAnimation { duration: 130 } }
+
+                            Text {
+                                id: actionLabel
+                                anchors.centerIn: parent
+                                text: modelData ? modelData.text : ""
+                                color: actionMouse.containsMouse ? Config.bgBase : Config.textMain
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontMicro)
+                                font.bold: true
+                                verticalAlignment: Text.AlignVCenter
+                            }
+
+                            MouseArea {
+                                id: actionMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: (mouse) => {
+                                    mouse.accepted = true
+                                    osdRoot.invokeAction(modelData)
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

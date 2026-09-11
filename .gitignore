@@ -1,6 +1,11 @@
 *.json
 settings.json
 
+# ...but assets/emoji.json is shipped data, not user state - it backs the
+# launcher's emoji/glyph mode and the picker is empty without it. The blanket
+# *.json above would otherwise silently leave it out of the repo.
+!assets/emoji.json
+
 # settings.json sidecars written by the corruption-recovery path in Config.qml
 *.bak
 *.corrupt

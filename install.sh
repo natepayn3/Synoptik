@@ -44,6 +44,7 @@ PACMAN_PKGS=(
     grim slurp satty showmethekey wf-recorder hypridle libnotify ffmpeg
     procps-ng psmisc xdg-utils gawk sed coreutils util-linux
     power-profiles-daemon libcanberra qt6-webview qt6-imageformats
+    noto-fonts-emoji polkit
 )
 AUR_PKGS=(
     quickshell-git awww mpvpaper cliphist

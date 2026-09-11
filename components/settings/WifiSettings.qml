@@ -9,26 +9,35 @@ import ".."
 Item {
     id: root
 
-    property bool hasPolledOnce: false
-    property bool hasAdapter: true
-    property bool wifiPowered: true
-    property bool wifiScanning: false
-    property string activeSsid: ""
+    // Shared with the Control Center's WifiCard via Config.network - see
+    // NetworkService.qml. This page used to run a second, independent nmcli
+    // implementation on a 4s poll; with both panels open that meant two
+    // competing rescans and two divergent views of the same radio.
+    readonly property var net: Config.network
+
+    readonly property bool hasPolledOnce: net.hasPolledOnce
+    readonly property bool hasAdapter: net.hasAdapter
+    readonly property bool wifiPowered: net.powered
+    readonly property bool wifiScanning: net.scanning
+    readonly property string activeSsid: net.activeSsid
     property string expandedSsid: ""
-    property string connectingSsid: ""
-    property string disconnectingSsid: ""
-    property string errorSsid: ""
-    property string connectionError: ""
-    property var savedSsids: ([])
+    readonly property string connectingSsid: net.connectingSsid
+    readonly property string disconnectingSsid: net.disconnectingSsid
+    readonly property string errorSsid: net.errorSsid
+    readonly property string connectionError: net.connectionError
+    readonly property var savedSsids: net.savedSsids
+
+    // Pre-flight validation ("Password Required") kept local so it never has
+    // to write to the service-bound properties above.
+    property string validationSsid: ""
+    property string validationError: ""
+    readonly property string shownErrorSsid: validationSsid !== "" ? validationSsid : errorSsid
+    readonly property string shownError: validationSsid !== "" ? validationError : connectionError
+    function clearValidation() { validationSsid = ""; validationError = "" }
 
     readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
-    ListModel { id: wifiModel }
-
-    Component.onCompleted: {
-        fetchWifiStatusProc.running = false
-        fetchWifiStatusProc.running = true
-    }
+    readonly property var wifiModel: net.networks
 
     ScrollView {
         anchors.fill: parent
@@ -264,11 +273,7 @@ Item {
 
                             TapHandler {
                                 enabled: root.hasAdapter
-                                onTapped: {
-                                    let nextState = root.wifiPowered ? "off" : "on"
-                                    toggleWifiProc.command = ["sh", "-c", "nmcli radio wifi " + nextState]
-                                    toggleWifiProc.running = true
-                                }
+                                onTapped: root.net.togglePower()
                             }
                             HoverHandler { id: pwrHover; cursorShape: Qt.PointingHandCursor }
                         }
@@ -332,7 +337,7 @@ Item {
                             readonly property bool isExpanded: root.expandedSsid === ssid
                             readonly property bool isConnecting: root.connectingSsid === ssid
                             readonly property bool isDisconnecting: root.disconnectingSsid === ssid
-                            readonly property bool hasError: root.errorSsid === ssid
+                            readonly property bool hasError: root.shownErrorSsid === ssid
 
                             Layout.fillWidth: true
                             implicitHeight: netCol.implicitHeight + 20
@@ -606,16 +611,16 @@ Item {
 
                                                     onAccepted: {
                                                         if (isSecure && passInput.text.trim() === "" && (!isSaved || hasError)) {
-                                                             root.errorSsid = ssid
-                                                             root.connectionError = "Password Required"
+                                                             root.validationSsid = ssid
+                                                             root.validationError = "Password Required"
                                                              return
                                                         }
+                                                        root.clearValidation()
                                                         root.connectWifi(ssid, passInput.text)
                                                     }
                                                     onTextChanged: {
                                                         if (hasError && passInput.activeFocus) {
-                                                            root.errorSsid = ""
-                                                            root.connectionError = ""
+                                                            root.clearValidation()
                                                         }
                                                     }
                                                 }
@@ -667,8 +672,8 @@ Item {
                                                 enabled: !isConnecting && !isDisconnecting
                                                 onTapped: {
                                                     if (isSecure && passInput.text.trim() === "" && (!isSaved || hasError)) {
-                                                        root.errorSsid = ssid
-                                                        root.connectionError = "Password Required"
+                                                        root.validationSsid = ssid
+                                                        root.validationError = "Password Required"
                                                         return
                                                     }
                                                     root.connectWifi(ssid, passInput.text)
@@ -810,258 +815,24 @@ Item {
         }
     }
 
-    // ==========================================
-    // BACKEND IPC PROCESSES & TIMERS
-    // ==========================================
-    Timer {
-        interval: 4000; running: root.visible && root.hasAdapter; repeat: true; triggeredOnStart: true
-        onTriggered: {
-            if (!root.hasActiveInputFocus()) {
-                fetchWifiStatusProc.running = false
-                fetchWifiStatusProc.running = true
-            }
-        }
-    }
-
-    Timer {
-        id: scanTimeoutTimer
-        interval: 3500
-        repeat: false
-        onTriggered: {
-            root.wifiScanning = false
-            fetchWifiStatusProc.running = false
-            fetchWifiStatusProc.running = true
-        }
-    }
-
-    function hasActiveInputFocus() {
-        return root.Window.window && root.Window.window.activeFocusItem && root.Window.window.activeFocusItem instanceof TextInput
-    }
-
-    Process {
-        id: toggleWifiProc
-        running: false
-        onExited: {
-            fetchWifiStatusProc.running = false
-            fetchWifiStatusProc.running = true
-        }
-    }
-
-    Process {
-        id: fetchWifiStatusProc
-        command: ["sh", "-c", "nmcli -t -f TYPE device | grep -q '^wifi$' && echo 'YES' || echo 'NO'; echo '---'; nmcli -t -f WIFI g; echo '---'; nmcli -t -f TYPE,NAME connection show --active | awk -F: '$1 ~ /802-11-wireless|wifi/ {print $2; exit}'; echo '---'; nmcli -t -f TYPE,NAME connection show | awk -F: '$1 ~ /802-11-wireless|wifi/ {print $2}'; echo '---'; nmcli -t -f ACTIVE,SSID,SECURITY device wifi"]
-        running: false
-        stdout: StdioCollector {
-            onStreamFinished: {
-                let parts = this.text.split("---")
-                if (parts.length < 5) return
-                root.hasAdapter = parts[0].trim() === "YES"
-                root.wifiPowered = parts[1].trim().includes("enabled")
-                root.hasPolledOnce = true
-                
-                let activeConnSsid = parts[2].trim()
-                let savedList = parts[3].trim().split("\n").map(s => s.trim()).filter(s => s.length > 0)
-                root.savedSsids = savedList
-
-                if (root.hasActiveInputFocus()) return
-
-                wifiModel.clear()
-                if (!root.wifiPowered || !root.hasAdapter) return
-
-                let lines = parts[4].trim().split("\n")
-                let seen = {}, active = activeConnSsid
-                
-                if (activeConnSsid.length > 0) {
-                    wifiModel.append({ ssid: activeConnSsid, connected: true, isSecure: true, isSaved: true })
-                    seen[activeConnSsid] = true
-                }
-
-                for (let i = 0; i < lines.length; i++) {
-                    let fields = lines[i].split(":")
-                    if (fields.length < 2) continue
-                    let isConn = fields[0].toLowerCase() === "yes" || fields[0].toLowerCase() === "true"
-                    let ssidName = fields[1].trim()
-                    let sec = fields[2] || ""
-                    
-                    if (!ssidName) continue
-                    if (isConn && !active) active = ssidName
-
-                    let isSavedProfile = savedList.indexOf(ssidName) !== -1
-
-                    if (seen[ssidName]) {
-                        if (isConn) {
-                            for (let m = 0; m < wifiModel.count; m++) {
-                                if (wifiModel.get(m).ssid === ssidName) {
-                                    wifiModel.setProperty(m, "connected", true)
-                                    wifiModel.setProperty(m, "isSaved", true)
-                                    break
-                                }
-                            }
-                        }
-                        continue
-                    }
-                    
-                    seen[ssidName] = true
-                    wifiModel.append({ 
-                        ssid: ssidName, 
-                        connected: isConn || (ssidName === activeConnSsid), 
-                        isSecure: sec !== "",
-                        isSaved: isSavedProfile
-                    })
-                }
-                root.activeSsid = active
-            }
-        }
-    }
-
-    function triggerScan() {
-        if (root.wifiScanning || !root.hasAdapter) return
-        root.wifiScanning = true
-        scanProc.command = ["sh", "-c", "nmcli device wifi rescan"]
-        scanProc.running = true
-        scanTimeoutTimer.restart()
-    }
-
-    Process { 
-        id: scanProc
-        running: false 
-    }
-    
-    function connectWifi(ssid, password) {
-        if (!root.hasAdapter || connProc.running || discProc.running) return
-        connProc.activeTargetSsid = ssid
-        root.connectingSsid = ssid
-        root.errorSsid = ""
-        root.connectionError = ""
-        
-        // The PSK is handed over as an environment variable and dereferenced
-        // inside the shell rather than interpolated into the command string.
-        // As an argv word (`nmcli ... password <plaintext>`) the key sat in
-        // /proc/<pid>/cmdline for the life of the connect, readable by any
-        // local process - a plain `ps aux` was enough. Same approach
-        // AssistantWidget.qml already uses for OLLAMA_RUN_PROMPT.
-        //
-        // The SSID stays interpolated - it isn't a secret - but keeps its
-        // single-quote escaping so odd network names still parse.
-        let escapedSsid = ssid.replace(/'/g, "'\"'\"'")
-        let cmd = ""
-        if (password.length > 0) {
-            cmd = `nmcli device wifi connect '${escapedSsid}' password "$SYN_WIFI_PSK"`
-            connProc.environment = ({ "SYN_WIFI_PSK": password })
-        } else {
-            cmd = `nmcli connection up id '${escapedSsid}' 2>/dev/null || nmcli device wifi connect '${escapedSsid}'`
-            connProc.environment = ({})
-        }
-
-        connProc.command = ["sh", "-c", cmd]
-        connProc.running = true
-    }
-    
-    function disconnectWifi(ssid) {
-        if (!root.hasAdapter || discProc.running || connProc.running) return
-        root.disconnectingSsid = ssid
-        root.errorSsid = ""
-        root.connectionError = ""
-        
-        let escapedSsid = ssid.replace(/'/g, "'\"'\"'")
-        
-        discProc.command = ["fish", "-c", `
-            set active_uuid (nmcli -t -f UUID,TYPE,NAME connection show --active | awk -F: -v target='${escapedSsid}' '($2 ~ /802-11-wireless|wifi/) && $3 == target {print $1; exit}')
-            
-            if test -n "$active_uuid"
-                nmcli connection down "$active_uuid"
-            else
-                set dev (nmcli -t -f DEVICE,TYPE device | awk -F: '$2 ~ /802-11-wireless|wifi/ {print $1; exit}')
-                if test -n "$dev"
-                    nmcli device disconnect "$dev"
-                end
-            end
-        `]
-        discProc.running = true
-    }
-
-    function forgetWifi(ssid) {
-        if (!root.hasAdapter || forgetProc.running) return
-        root.errorSsid = ""
-        root.connectionError = ""
-        
-        let escapedSsid = ssid.replace(/'/g, "'\"'\"'")
-        
-        forgetProc.command = ["fish", "-c", `
-            set uuids (nmcli -t -f UUID,TYPE,NAME connection show | awk -F: -v target='${escapedSsid}' '$2 ~ /802-11-wireless/ && $3 == target {print $1}')
-            for u in $uuids
-                nmcli connection delete uuid "$u"
-            end
-        `]
-        forgetProc.running = true
-    }
-
-    Process { 
-        id: discProc
-        running: false
-        onExited: {
-            root.disconnectingSsid = ""
-            fetchWifiStatusProc.running = false
-            fetchWifiStatusProc.running = true
-        }
-    }
-
-    Process { 
-        id: forgetProc
-        running: false
-        onExited: {
-            root.errorSsid = ""
-            root.connectionError = ""
-            fetchWifiStatusProc.running = false
-            fetchWifiStatusProc.running = true
-        }
-    }
-
-    Process {
-        id: connCleanupProc
-        running: false
-        onExited: {
-            fetchWifiStatusProc.running = false
-            fetchWifiStatusProc.running = true
-        }
-    }
-
-    Process {
-        id: connProc
-        running: false
-        property string activeTargetSsid: ""
-
-        stdout: StdioCollector { id: connStdout }
-        stderr: StdioCollector { id: connStderr }
-
-        onExited: (exitCode) => {
-            let failedSsid = activeTargetSsid
-            root.connectingSsid = ""
-
-            if (exitCode !== 0 && failedSsid !== "") {
-                root.errorSsid = failedSsid
-                root.expandedSsid = failedSsid
-                let fullErr = (connStdout.text + "\n" + connStderr.text).trim().toLowerCase()
-                if (fullErr.includes("not found") || fullErr.includes("no network")) {
-                    root.connectionError = "Network Not Found"
-                } else {
-                    root.connectionError = "Invalid Password"
-                }
-
-                let safeSsid = failedSsid.replace(/'/g, "'\"'\"'")
-                connCleanupProc.command = ["fish", "-c", `
-                    set uuids (nmcli -t -f UUID,TYPE,NAME connection show | awk -F: -v target='${safeSsid}' '$2 ~ /802-11-wireless|wifi/ && $3 == target {print $1}')
-                    for u in $uuids
-                        nmcli connection delete uuid "$u" 2>/dev/null
-                    end
-                `]
-                connCleanupProc.running = true
-            } else {
-                root.errorSsid = ""
-                root.connectionError = ""
-                fetchWifiStatusProc.running = false
-                fetchWifiStatusProc.running = true
-            }
-        }
-    }
+    // The BACKEND IPC PROCESSES & TIMERS block that used to live here - a 4s
+    // poll, a scan-timeout timer and eight Process blocks running nmcli - is
+    // gone. NetworkService owns all of it, so this page is presentation only.
+    //
+    // Two bugs went with it. Connect failures were classified by grepping
+    // nmcli's stderr ("not found" -> Network Not Found, everything else ->
+    // Invalid Password); NetworkManager reports the actual reason over
+    // connectionFailed() now. And disconnect/forget matched the SSID through
+    // `awk -v target=...`, which processes backslash escapes in the value
+    // before awk sees it, so those two silently did nothing for any SSID
+    // containing a backslash while still reporting success.
+    //
+    // The poll also used to clear() the model on every tick, which is why it
+    // needed a hasActiveInputFocus() guard to avoid yanking the password field
+    // out from under whoever was typing. The service reconciles in place, so
+    // that guard is no longer needed either.
+    function triggerScan() { root.net.scan() }
+    function connectWifi(ssid, password) { root.net.connectTo(ssid, password, false) }
+    function disconnectWifi(ssid) { root.net.disconnect(ssid) }
+    function forgetWifi(ssid) { root.net.forget(ssid) }
 }
