@@ -833,7 +833,7 @@ QtObject {
             : ""
 
         let bindLines = []
-        let bindKeys = ["wallpaper", "launcherosd", "settings", "workspaceoverview", "clipboard", "lockscreen", "emoji", "shader"]
+        let bindKeys = ["wallpaper", "launcherosd", "settings", "workspaceoverview", "clipboard", "lockscreen", "shader"]
         bindKeys.forEach(bk => {
             let b = (root.keybinds && root.keybinds[bk]) ? root.keybinds[bk] : root.defaultKeybinds[bk]
             if (b) {

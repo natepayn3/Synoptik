@@ -2,6 +2,11 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Bluetooth
+// batteryColor() reads Config.textMuted; without this the singleton simply
+// isn't in scope in components/services/ and every call throws
+// "ReferenceError: Config is not defined". IrisColorService, QuoteService and
+// WallpaperService already import the parent directory for the same reason.
+import ".."
 
 // Single source of truth for Bluetooth state, shared by the Control Center's
 // BluetoothCard and Settings' BluetoothSettings.

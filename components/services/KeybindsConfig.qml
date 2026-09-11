@@ -11,7 +11,6 @@ QtObject {
         "workspaceoverview": { mod: "SUPER",         key: "TAB",   cmd: "qs -c Synoptik ipc call workspaceoverview toggle" },
         "clipboard":         { mod: "SUPER + SHIFT", key: "V",     cmd: "qs -c Synoptik ipc call clipboard toggle" },
         "lockscreen":        { mod: "SUPER",         key: "L",     cmd: "qs -c Synoptik ipc call lockscreen lock" },
-        "emoji":             { mod: "SUPER",         key: "Period", cmd: "qs -c Synoptik ipc call launcherosd emoji" },
         "shader":            { mod: "CTRL + ALT",    key: "P",     cmd: "qs -c Synoptik ipc call shader toggle" }
     })
 

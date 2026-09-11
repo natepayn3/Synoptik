@@ -402,10 +402,14 @@ ShellRoot {
         }
         function hide(): void { Config.showLauncherOsd = false }
 
-        // Opens the launcher already in emoji/glyph mode, so a dedicated
-        // keybind (SUPER+period, by convention) lands on the picker instead of
-        // the app list. The ":" prefix is what LauncherOSD.updateModel()
-        // switches on, so this is the same code path as typing it.
+        // Opens the launcher already in emoji/glyph mode. Deliberately not
+        // given a keybind of its own: the launcher bind already opens this
+        // same surface, and ":" is one keystroke away once it's up (the empty
+        // state advertises the prefix alongside "#" and ">"). This exists for
+        // the "Emoji & Symbols" entry in the launcher's own command list, and
+        // for anyone who wants to bind it themselves. The ":" prefill is what
+        // LauncherOSD.updateModel() switches on, so it's the same code path as
+        // typing it.
         function emoji(): void {
             if (!shellRoot.isFocusedBarEnabled) return
             Config.closePanels("launcherOsd")

@@ -218,7 +218,6 @@ Flickable {
                         { id: "workspaceoverview", name: "Workspace Overview", icon: "select_window_2" },
                         { id: "clipboard",         name: "Clipboard Manager",   icon: "content_paste" },
                         { id: "lockscreen",        name: "Lock Screen",         icon: "lock" },
-                        { id: "emoji",             name: "Emoji & Symbols",     icon: "mood" },
                         { id: "shader",            name: "Retro Screen Shader", icon: "videogame_asset" }
                     ]
 
