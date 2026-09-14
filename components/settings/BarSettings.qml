@@ -725,6 +725,103 @@ Flickable {
                             onClicked: Config.autoHideBar = !Config.autoHideBar
                         }
                     }
+
+                    // ==========================================
+                    // CLOCK STYLE SELECTOR
+                    // ==========================================
+                    Text {
+                        text: "CLOCK STYLE:"
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        font.bold: true
+                        Layout.topMargin: 4
+                    }
+
+                    GridLayout {
+                        Layout.fillWidth: true
+                        columns: 2
+                        rowSpacing: 8
+                        columnSpacing: 8
+
+                        Repeater {
+                            model: [
+                                { id: "cascading", name: "Cascading Depth", icon: "layers", desc: "Time and date side by side, falling digits" },
+                                { id: "stacked",    name: "Stacked Overlap", icon: "vertical_align_bottom", desc: "Small date above a bigger time, overlapping it" }
+                            ]
+
+                            delegate: Rectangle {
+                                required property var modelData
+                                Layout.fillWidth: true
+                                implicitHeight: 48
+                                radius: Config.cornerRadius / 2
+
+                                readonly property bool isSelected: Config.barClockStyle === modelData.id
+
+                                color: isSelected
+                                    ? Qt.rgba(255, 255, 255, 0.14)
+                                    : (clockStyleHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.03))
+                                border.width: isSelected ? 1.5 : 1
+                                border.color: isSelected ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+
+                                Behavior on color { ColorAnimation { duration: 150 } }
+                                Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 10
+                                    anchors.rightMargin: 10
+                                    spacing: 8
+
+                                    Text {
+                                        text: modelData.icon
+                                        font.family: "Material Symbols Outlined"
+                                        font.pixelSize: 18
+                                        color: isSelected ? Config.accent : Config.textMuted
+                                    }
+
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 1
+
+                                        Text {
+                                            text: modelData.name
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontCaption)
+                                            font.bold: true
+                                            color: isSelected ? Config.accent : Config.textMain
+                                            elide: Text.ElideRight
+                                        }
+
+                                        Text {
+                                            text: modelData.desc
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontMicro)
+                                            color: Config.textMuted
+                                            elide: Text.ElideRight
+                                            Layout.fillWidth: true
+                                        }
+                                    }
+
+                                    Text {
+                                        text: "check_circle"
+                                        font.family: "Material Symbols Outlined"
+                                        font.pixelSize: 15
+                                        color: Config.accent
+                                        visible: isSelected
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: clockStyleHover
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: Config.barClockStyle = modelData.id
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

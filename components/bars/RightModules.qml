@@ -229,7 +229,7 @@ Rectangle {
 
             Rectangle {
                 id: btnClockHoriz
-                implicitWidth: dateRow.implicitWidth + 20
+                implicitWidth: (horizClockLoader.item ? horizClockLoader.item.implicitWidth : 0) + 20
                 implicitHeight: 32
                 radius: 10
                 color: Config.showCalendar ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
@@ -286,16 +286,24 @@ Rectangle {
 
                 Item {
                     anchors.centerIn: parent
-                    implicitWidth: dateRow.implicitWidth
-                    implicitHeight: dateRow.implicitHeight
+                    implicitWidth: horizClockLoader.item ? horizClockLoader.item.implicitWidth : 0
+                    implicitHeight: horizClockLoader.item ? horizClockLoader.item.implicitHeight : 0
                     scale: clockHorizHover.hovered ? 1.05 : 1.0
                     z: 1
 
                     Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
 
+                    Loader {
+                        id: horizClockLoader
+                        anchors.centerIn: parent
+                        sourceComponent: Config.barClockStyle === "stacked" ? horizStackedClockComp : horizCascadingClockComp
+                    }
+                }
+
+                Component {
+                    id: horizCascadingClockComp
                     RowLayout {
                         id: dateRow
-                        anchors.centerIn: parent
                         spacing: 8
 
                         // Cascading Depth Time
@@ -408,12 +416,76 @@ Rectangle {
                     }
                 }
 
-                TapHandler { 
-                    onTapped: { 
+                // --- STACKED: small date above, bigger time below, time
+                // overlapping up into the date via a negative top margin so
+                // the two rows read as one connected face rather than two
+                // separately spaced lines.
+                Component {
+                    id: horizStackedClockComp
+                    ColumnLayout {
+                        id: stackedHoriz
+                        spacing: 0
+
+                        readonly property string dateString: (shellRoot.vertMonth || Qt.formatDate(new Date(), "MMM")) + " " + (shellRoot.vertDay || Qt.formatDate(new Date(), "d"))
+                        readonly property string timeString: (shellRoot.vertHour || (new Date().getHours() % 12 || 12).toString()) + ":" + (shellRoot.vertMinute || Qt.formatTime(new Date(), "mm"))
+
+                        Text {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: stackedHoriz.dateString.toUpperCase()
+                            color: (Config.showCalendar || clockHorizHover.hovered) ? Config.accent : Config.textMuted
+                            font.family: Config.sysFont
+                            font.weight: Font.Bold
+                            font.pixelSize: Config.size(Config.fontMicro)
+                            font.letterSpacing: 0.5
+                            renderType: Config.textRenderType
+                            z: 0
+                        }
+
+                        RowLayout {
+                            id: stackedHorizTimeRow
+                            Layout.alignment: Qt.AlignHCenter
+                            Layout.topMargin: -7
+                            spacing: 3
+                            z: 1
+
+                            Text {
+                                text: stackedHoriz.timeString
+                                color: (Config.showCalendar || clockHorizHover.hovered) ? Config.accent : Config.textMain
+                                font.family: Config.sysFont
+                                font.weight: Font.ExtraBold
+                                font.pixelSize: Math.round(Config.size(Config.fontSubhead) * 1.2)
+                                renderType: Config.textRenderType
+
+                                layer.enabled: true
+                                layer.effect: DropShadow {
+                                    horizontalOffset: 0
+                                    verticalOffset: 1
+                                    radius: 3
+                                    samples: 8
+                                    color: Qt.rgba(0, 0, 0, 0.4)
+                                }
+                            }
+
+                            Text {
+                                Layout.alignment: Qt.AlignBottom
+                                Layout.bottomMargin: 2
+                                text: (shellRoot.vertAmPm || Qt.formatTime(new Date(), "ap")).toUpperCase()
+                                color: Config.accent
+                                font.family: Config.sysFont
+                                font.weight: Font.Bold
+                                font.pixelSize: Config.size(Config.fontMicro)
+                                renderType: Config.textRenderType
+                            }
+                        }
+                    }
+                }
+
+                TapHandler {
+                    onTapped: {
                         if (rootRef && rootRef.stopPeek) rootRef.stopPeek()
                         rightCard.popoutRequested(btnClockHoriz)
-                        Config.showCalendar = !Config.showCalendar 
-                    } 
+                        Config.showCalendar = !Config.showCalendar
+                    }
                 }
                 HoverHandler { 
                     id: clockHorizHover
@@ -568,7 +640,7 @@ Rectangle {
             Rectangle {
                 id: btnClockVert
                 implicitWidth: 32
-                implicitHeight: dateColumn.implicitHeight + 10
+                implicitHeight: (vertClockLoader.item ? vertClockLoader.item.implicitHeight : 0) + 10
                 radius: 10
                 color: Config.showCalendar ? Qt.rgba(255, 255, 255, 0.15) : "transparent"
                 Layout.alignment: Qt.AlignHCenter
@@ -624,16 +696,24 @@ Rectangle {
 
                 Item {
                     anchors.centerIn: parent
-                    implicitWidth: dateColumn.implicitWidth
-                    implicitHeight: dateColumn.implicitHeight
+                    implicitWidth: vertClockLoader.item ? vertClockLoader.item.implicitWidth : 0
+                    implicitHeight: vertClockLoader.item ? vertClockLoader.item.implicitHeight : 0
                     scale: clockVertHover.hovered ? 1.05 : 1.0
                     z: 1
 
                     Behavior on scale { NumberAnimation { duration: 180; easing.type: Easing.OutBack; easing.overshoot: 1.2 } }
 
+                    Loader {
+                        id: vertClockLoader
+                        anchors.centerIn: parent
+                        sourceComponent: Config.barClockStyle === "stacked" ? vertStackedClockComp : vertCascadingClockComp
+                    }
+                }
+
+                Component {
+                    id: vertCascadingClockComp
                     ColumnLayout {
                         id: dateColumn
-                        anchors.centerIn: parent
                         spacing: 2
 
                         // 1. Cascading Hour Row
@@ -789,12 +869,126 @@ Rectangle {
                     }
                 }
 
-                TapHandler { 
-                    onTapped: { 
+                // --- STACKED: small date above, bigger time below, time
+                // overlapping up into the date - see the horizontal button's
+                // own copy of this style for the reasoning; the only real
+                // difference here is Layout.alignment (this column centres
+                // horizontally, not vertically).
+                Component {
+                    id: vertStackedClockComp
+                    ColumnLayout {
+                        id: stackedVert
+                        spacing: 0
+
+                        // Same per-character cascade + drop-shadow treatment as
+                        // the rows above, and the same hour/minute split onto
+                        // their own rows rather than one "H:MM" string - a
+                        // single combined row read too small and cramped at a
+                        // width that still has to fit the fixed 32px column.
+                        // Only the date row is genuinely new; hour and minute
+                        // below it are the cascading style's own rows, just
+                        // following a date row instead of an AM/PM badge.
+
+                        Row {
+                            id: stackedVertDateRow
+                            Layout.alignment: Qt.AlignHCenter
+                            spacing: -2
+                            z: 4
+
+                            readonly property string dateStr: ((shellRoot.vertMonth || Qt.formatDate(new Date(), "MMM")) + " " + (shellRoot.vertDay || Qt.formatDate(new Date(), "d"))).toUpperCase()
+
+                            Repeater {
+                                model: stackedVertDateRow.dateStr.length
+                                Text {
+                                    text: stackedVertDateRow.dateStr[index]
+                                    color: (Config.showCalendar || clockVertHover.hovered) ? Config.accent : Config.textMuted
+                                    font.family: Config.sysFont
+                                    font.weight: Font.Bold
+                                    font.pixelSize: 9
+                                    renderType: Config.textRenderType
+                                    z: stackedVertDateRow.dateStr.length - index
+                                    opacity: Math.max(0.85, 1.0 - (index * 0.03))
+                                }
+                            }
+                        }
+
+                        // Hour row, overlapping up into the date row above.
+                        Row {
+                            id: stackedVertHourRow
+                            Layout.alignment: Qt.AlignHCenter
+                            Layout.topMargin: -6
+                            spacing: -2
+                            z: 3
+
+                            readonly property string hourStr: shellRoot.vertHour || (new Date().getHours() % 12 || 12).toString()
+
+                            Repeater {
+                                model: stackedVertHourRow.hourStr.length
+                                Text {
+                                    text: stackedVertHourRow.hourStr[index]
+                                    color: (Config.showCalendar || clockVertHover.hovered) ? Config.accent : Config.textMain
+                                    font.family: Config.sysFont
+                                    font.weight: Font.ExtraBold
+                                    font.pixelSize: 17
+                                    renderType: Config.textRenderType
+                                    z: stackedVertHourRow.hourStr.length - index
+                                    opacity: Math.max(0.85, 1.0 - (index * 0.035))
+
+                                    layer.enabled: true
+                                    layer.effect: DropShadow {
+                                        horizontalOffset: 1
+                                        verticalOffset: 1
+                                        radius: 2
+                                        samples: 8
+                                        color: Qt.rgba(0, 0, 0, 0.35)
+                                    }
+                                }
+                            }
+                        }
+
+                        // Minute row, same slight overlap the cascading style
+                        // already uses between its own hour and minute rows.
+                        Row {
+                            id: stackedVertMinRow
+                            Layout.alignment: Qt.AlignHCenter
+                            Layout.topMargin: -3
+                            spacing: -2
+                            z: 2
+
+                            readonly property string minStr: shellRoot.vertMinute || Qt.formatTime(new Date(), "mm")
+
+                            Repeater {
+                                model: stackedVertMinRow.minStr.length
+                                Text {
+                                    text: stackedVertMinRow.minStr[index]
+                                    color: (Config.showCalendar || clockVertHover.hovered) ? Config.accent : Config.textMain
+                                    font.family: Config.sysFont
+                                    font.weight: Font.ExtraBold
+                                    font.pixelSize: 17
+                                    renderType: Config.textRenderType
+                                    z: stackedVertMinRow.minStr.length - index
+                                    opacity: Math.max(0.82, 0.95 - (index * 0.035))
+
+                                    layer.enabled: true
+                                    layer.effect: DropShadow {
+                                        horizontalOffset: 1
+                                        verticalOffset: 1
+                                        radius: 2
+                                        samples: 8
+                                        color: Qt.rgba(0, 0, 0, 0.35)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                TapHandler {
+                    onTapped: {
                         if (rootRef && rootRef.stopPeek) rootRef.stopPeek()
                         rightCard.popoutRequested(btnClockVert)
-                        Config.showCalendar = !Config.showCalendar 
-                    } 
+                        Config.showCalendar = !Config.showCalendar
+                    }
                 }
 
                 HoverHandler { 

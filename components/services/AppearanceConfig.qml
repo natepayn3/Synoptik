@@ -7,6 +7,11 @@ QtObject {
 
     // --- BAR / FRAME / RENDERING TOGGLES ---
     property string barFrameStyle: "floating"
+    // Bar clock face - "cascading" (default: falling-depth digits, date and
+    // time side by side) or "stacked" (date above, bigger time below,
+    // overlapping up into it). See RightModules.qml.
+    property string barClockStyle: "cascading"
+    onBarClockStyleChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
     property bool animateGradient: true
     property bool showScreenFrame: false
     property real shellOpacity: 1.0

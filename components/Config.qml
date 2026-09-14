@@ -520,6 +520,7 @@ QtObject {
     // --- BAR / FRAME / RENDERING TOGGLES + TYPOGRAPHY + THEMES (extracted to services/AppearanceConfig.qml) ---
     property AppearanceConfig appearance: AppearanceConfig { configRef: root }
     property alias barFrameStyle: root.appearance.barFrameStyle
+    property alias barClockStyle: root.appearance.barClockStyle
     property alias animateGradient: root.appearance.animateGradient
     property alias showScreenFrame: root.appearance.showScreenFrame
     property alias shellOpacity: root.appearance.shellOpacity
@@ -954,7 +955,7 @@ QtObject {
         "screensaverSpeed", "screensaverCornerCounter", "showOsk", "oskLayout", "showMascot",
         "mascotPath", "mascotPhrases", "mascotPositions", "mascotLastScreen", "mascotAudioThrob", "fetchOnlineQuotes", "quoteSource",
         "showDesktopMediaCard", "mediaCardWidth", "mediaCardHeight", "mediaCardPositions", "mediaCardLastScreen", "barFrameStyle",
-        "barPosition", "autoHideBar", "showScreenFrame", "sysFont", "nativeFontRendering",
+        "barClockStyle", "barPosition", "autoHideBar", "showScreenFrame", "sysFont", "nativeFontRendering",
         "fontScaleIndex", "locationQuery", "enabledBarScreens", "useCustomColors", "customBgBase",
         "customBgPanel", "customAccent", "animateGradient", "shellOpacity", "enableBlur", "enableXray",
         "enableIris", "irisIntensity", "showWatermarks", "bounceWatermarks", "windowStyle", "playWindowSounds",
@@ -1045,6 +1046,7 @@ QtObject {
             property var fetchOnlineQuotes
             property var quoteSource
             property var barFrameStyle
+            property var barClockStyle
             property var barPosition
             property var autoHideBar
             property var showScreenFrame

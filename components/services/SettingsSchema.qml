@@ -38,6 +38,8 @@ QtObject {
             desc: "Which screen edge the bar occupies" },
         "barFrameStyle": { hints: "shape island floating frame pill", type: "enum", values: ["floating", "island", "edge", "screen"], group: "bar",
             desc: "Bar shape - floating = detached capsule with a gap around it; island = short pill centred on one edge; edge = full-width panel sitting flush against the edge; screen = thin frame running around the whole screen" },
+        "barClockStyle": { hints: "clock face date time stacked cascading overlap", type: "enum", values: ["cascading", "stacked"], group: "bar",
+            desc: "Bar clock layout - cascading = falling-depth digits with date beside it; stacked = small date above a bigger time, overlapping up into it" },
         "autoHideBar": { hints: "hide hidden away out of the way", type: "bool", group: "bar",
             desc: "Hide the bar until the pointer reaches its edge" },
         "showScreenFrame": { type: "bool", group: "bar",
