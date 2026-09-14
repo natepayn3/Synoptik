@@ -267,6 +267,19 @@ Flickable {
             readonly property real syncProgress: Config.wallhavenSyncProgress
             readonly property string statusMessage: Config.wallhavenSyncStatus
 
+            // Same arrangement for the tag indexer, which runs as its own pass
+            // (see scripts/wallhaven_tags.sh for why it can't ride along with
+            // the sync) and is chained onto a successful sync automatically.
+            readonly property bool isTagging: Config.wallhavenTagging
+            readonly property real tagProgress: Config.wallhavenTagProgress
+
+            // Only wallhaven-<id>.<ext> files have an ID to look up, so a
+            // hand-added wallpaper or a screenshot is not a gap in the index -
+            // counting it as one would leave this permanently short of 100%.
+            readonly property int taggableCount: (Config.wallpapers || []).filter(
+                path => path.split("/").pop().indexOf("wallhaven-") === 0).length
+            readonly property int taggedCount: Object.keys(Config.wallpaperTagMap || {}).length
+
             ColumnLayout {
                 id: syncCol
                 anchors.fill: parent
@@ -452,6 +465,108 @@ Flickable {
 
                     Text {
                         text: syncCard.statusMessage
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                    }
+                }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    implicitHeight: 1
+                    color: Qt.rgba(255, 255, 255, 0.08)
+                }
+
+                ColumnLayout {
+                    Layout.fillWidth: true
+                    spacing: 2
+
+                    Text {
+                        text: "SUBJECT TAGS"
+                        color: Config.textMain
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontBody)
+                        font.bold: true
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        text: "Ask Wallhaven what each image is actually of, so wallpapers can be "
+                              + "picked by subject - \"something with mountains\" - instead of only by "
+                              + "dominant colour. Runs automatically after a sync; already-tagged "
+                              + "wallpapers are skipped."
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+
+                    Rectangle {
+                        implicitWidth: 100
+                        implicitHeight: 30
+                        radius: Config.cornerRadius / 2
+                        color: syncCard.isTagging ? Qt.rgba(255, 255, 255, 0.1) : Config.accent
+
+                        RowLayout {
+                            anchors.centerIn: parent
+                            spacing: 4
+
+                            Text {
+                                text: syncCard.isTagging ? "sync" : "sell"
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 14
+                                color: syncCard.isTagging ? Config.textMuted : Config.bgBase
+                            }
+
+                            Text {
+                                text: syncCard.isTagging ? "Indexing" : "Index"
+                                font.family: Config.sysFont
+                                font.pixelSize: 11
+                                font.bold: true
+                                color: syncCard.isTagging ? Config.textMuted : Config.bgBase
+                            }
+                        }
+
+                        TapHandler {
+                            enabled: !syncCard.isTagging
+                            onTapped: Config.startWallhavenTagSync()
+                        }
+                        HoverHandler { cursorShape: syncCard.isTagging ? Qt.ArrowCursor : Qt.PointingHandCursor }
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        implicitHeight: 6
+                        radius: 3
+                        color: Qt.rgba(0, 0, 0, 0.4)
+                        clip: true
+
+                        Rectangle {
+                            width: parent.width * syncCard.tagProgress
+                            height: parent.height
+                            radius: 3
+                            color: Config.accent
+
+                            Behavior on width {
+                                NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+                            }
+                        }
+                    }
+
+                    Text {
+                        // Mid-run the script's own STATUS/PROGRESS lines are more
+                        // informative than a count that only updates every tenth
+                        // wallpaper (the cache is flushed in batches).
+                        text: syncCard.isTagging
+                            ? Config.wallhavenTagStatus
+                            : (syncCard.taggableCount > 0
+                                ? syncCard.taggedCount + " of " + syncCard.taggableCount + " tagged"
+                                : "No Wallhaven wallpapers found")
                         color: Config.textMuted
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontMicro)

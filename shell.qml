@@ -421,6 +421,18 @@ ShellRoot {
     IpcHandler {
         target: "wallpaper"
         function toggle(): void { if (shellRoot.isFocusedBarEnabled) Config.togglePanel("wallpaper") }
+
+        // Rebuilds the Wallhaven tag index the assistant picks wallpapers by.
+        // Incremental - already-tagged files are skipped - so this is cheap to
+        // re-run, and it happens automatically after a collection sync anyway.
+        function index(): string {
+            Config.startWallhavenTagSync()
+            return "indexing started - watch `ipc call wallpaper status`"
+        }
+        function status(): string {
+            return Config.wallhavenTagStatus + (Config.wallhavenTagging
+                ? " (" + Math.round(Config.wallhavenTagProgress * 100) + "%)" : "")
+        }
     }
 
     IpcHandler {
@@ -428,9 +440,54 @@ ShellRoot {
         function toggle(): void { if (shellRoot.isFocusedBarEnabled) Config.togglePanel("workspacePreview") }
     }
 
+    // The Settings panel, plus the shell's settings control API. Everything
+    // below routes through Config.settingsSchema, so only curated keys are
+    // reachable and only with values the Settings UI could have produced -
+    // see components/services/SettingsSchema.qml.
+    //
+    //   qs -c Synoptik ipc call settings set barPosition left
+    //   qs -c Synoptik ipc call settings set autoHideBar toggle
+    //   qs -c Synoptik ipc call settings get shellOpacity
+    //   qs -c Synoptik ipc call settings describe   # JSON: types, ranges, values
+    //   qs -c Synoptik ipc call settings keys       # key = value, one per line
+    //
+    // Unlike the panel verbs above, these are deliberately NOT gated on
+    // isFocusedBarEnabled: they change configuration rather than showing
+    // something on the focused monitor, and a script or keybind must not
+    // silently do nothing because the pointer happens to be on a screen with
+    // the bar switched off.
     IpcHandler {
         target: "settings"
         function toggle(): void { if (shellRoot.isFocusedBarEnabled) Config.togglePanel("settings") }
+        function set(key: string, value: string): string { return Config.setSetting(key, value) }
+        function get(key: string): string { return Config.getSetting(key) }
+        function describe(): string { return Config.describeSettings() }
+        // The compact form the assistant is given verbatim on every turn -
+        // exposed so it can be read and sized without running a model.
+        function prompt(): string { return Config.settingsPrompt() }
+        // The exact instruction block the assistant is sent, for the current
+        // backend - the vocabulary above plus the output format and rules.
+        // Debug-only, but the thing you need when a reply comes back wrong:
+        // it is the difference between reasoning about the prompt and reading it.
+        function directive(): string { return assistantWidget.settingsDirective([]) }
+
+        // What a given message narrows the vocabulary down to, and the exact
+        // instruction block that would be sent for it. Both are pure functions
+        // of the message, so this is the whole assistant pipeline up to the
+        // model, inspectable without spending a single token on one.
+        function relevant(message: string): string { return Config.relevantTargets(message, 12).join("\n") }
+        // The exact reply grammar Ollama is given for a message - the other half
+        // of what the model sees, and the half that decides what it *can* say.
+        function replySchema(message: string): string {
+            return JSON.stringify(assistantWidget.ollamaReplySchema(Config.relevantTargets(message, 12)))
+        }
+        function directiveFor(message: string): string {
+            return assistantWidget.settingsDirective(Config.relevantTargets(message, 12))
+        }
+        // Actions run something rather than setting a value:
+        //   qs -c Synoptik ipc call settings run wallpaper orange
+        function run(action: string, value: string): string { return Config.doAction(action, value) }
+        function keys(): string { return Config.listSettings() }
     }
 
     IpcHandler {

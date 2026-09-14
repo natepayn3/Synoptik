@@ -59,6 +59,10 @@ QtObject {
                 wallpaperRoot.wallhavenSyncProgress = 1.0
                 wallpaperRoot.wallhavenSyncStatus = "Sync complete"
                 wallpaperRoot.refreshWallpapers()
+                // Anything just downloaded has no tags yet, and the indexer
+                // skips everything already cached - so this is cheap after the
+                // first run and keeps the two indexes from drifting apart.
+                wallpaperRoot.startWallhavenTagSync()
             } else {
                 wallpaperRoot.wallhavenSyncStatus = "Sync failed"
             }
@@ -217,6 +221,94 @@ QtObject {
                     if (parsed && typeof parsed === "object") wallpaperRoot.wallpaperColorMap = parsed
                 } catch (e) {}
             }
+        }
+    }
+
+    // --- WALLHAVEN TAG INDEX (subject matter, not colour) ---
+    // Dominant colour is a proxy for mood and a bad one for subject: a yellow
+    // wallpaper is as likely to be a lemon as a sunny day. Wallhaven knows what
+    // its own images are of, so scripts/wallhaven_tags.sh caches that per file
+    // and this is the read side - same { path: [...] } shape as the colour map.
+    property var wallpaperTagMap: ({})
+
+    property bool wallhavenTagging: false
+    property real wallhavenTagProgress: 0.0
+    property string wallhavenTagStatus: "Idle"
+
+    property FileView tagCacheReader: FileView {
+        path: Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/tags.json"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoadFailed: wallpaperRoot.wallpaperTagMap = ({})
+        onTextChanged: {
+            let raw = text().trim()
+            if (raw.length === 0) return
+            try {
+                let parsed = JSON.parse(raw)
+                if (parsed && typeof parsed === "object") wallpaperRoot.wallpaperTagMap = parsed
+            } catch (e) {}
+        }
+    }
+
+    function startWallhavenTagSync() {
+        if (wallhavenTagProcess.running) return
+        wallpaperRoot.wallhavenTagging = true
+        wallpaperRoot.wallhavenTagProgress = 0.0
+        wallpaperRoot.wallhavenTagStatus = "Scanning..."
+        wallhavenTagProcess.running = true
+    }
+
+    property Process wallhavenTagProcess: Process {
+        id: wallhavenTagProcess
+        command: [
+            (wallpaperRoot.configRef ? wallpaperRoot.configRef.scriptsDir : "") + "/wallhaven_tags.sh",
+            wallpaperRoot.wallhavenApiKey || "",
+            Quickshell.env("HOME") + "/Pictures/Wallpapers",
+            Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/tags.json"
+        ]
+
+        stdout: SplitParser {
+            onRead: data => {
+                let line = data.trim()
+                if (line.startsWith("PROGRESS:")) {
+                    let parts = line.split(":")
+                    let current = parseInt(parts[1])
+                    let total = parseInt(parts[2])
+                    if (total > 0) wallpaperRoot.wallhavenTagProgress = current / total
+                    wallpaperRoot.wallhavenTagStatus = `Tagging ${current}/${total}...`
+                } else if (line.startsWith("STATUS:")) {
+                    wallpaperRoot.wallhavenTagStatus = line.replace("STATUS:", "")
+                }
+            }
+        }
+
+        onExited: (exitCode) => {
+            wallpaperRoot.wallhavenTagging = false
+            if (exitCode === 0) wallpaperRoot.wallhavenTagProgress = 1.0
+            // The cache file is watched above, so the new tags land without
+            // anything here having to re-read them.
+        }
+    }
+
+    // The analyzer above only runs when the wallpaper picker asks it to, so
+    // wallpaperColorMap was empty for every other caller - including the
+    // assistant's wallpaper action, which has nothing else to choose by given
+    // a library of wallhaven-2e9dzg.jpg filenames. Its own cache file is
+    // already sitting there from the last run, so read that at startup instead
+    // of spawning python on every boot. The analyzer still overwrites this
+    // with fresh results whenever the picker runs it.
+    property FileView colorCacheReader: FileView {
+        path: Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/colors.json"
+        printErrors: false
+        onLoadFailed: wallpaperRoot.wallpaperColorMap = ({})
+        onTextChanged: {
+            let raw = text().trim()
+            if (raw.length === 0) return
+            try {
+                let parsed = JSON.parse(raw)
+                if (parsed && typeof parsed === "object") wallpaperRoot.wallpaperColorMap = parsed
+            } catch (e) {}
         }
     }
 

@@ -41,6 +41,11 @@ QtObject {
     property alias wallpapers: root.wallpaper.wallpapers
     property alias tempPaths: root.wallpaper.tempPaths
     property alias wallpaperColorMap: root.wallpaper.wallpaperColorMap
+    property alias wallpaperTagMap: root.wallpaper.wallpaperTagMap
+    property alias wallhavenTagging: root.wallpaper.wallhavenTagging
+    property alias wallhavenTagProgress: root.wallpaper.wallhavenTagProgress
+    property alias wallhavenTagStatus: root.wallpaper.wallhavenTagStatus
+    function startWallhavenTagSync() { wallpaper.startWallhavenTagSync() }
     property alias colorFilter: root.wallpaper.colorFilter
     property alias typeFilter: root.wallpaper.typeFilter
     function getMonitorWallpaper(screenName) { return wallpaper.getMonitorWallpaper(screenName) }
@@ -1648,6 +1653,383 @@ QtObject {
     // isn't supported at all it reports every key as missing, which is meaningless -
     // so that case is treated as "can't check" and stays quiet rather than crying
     // wolf on startup.
+    // --- SETTINGS CONTROL API ---
+    // One guarded way in for every caller that is not the Settings UI: the
+    // settings IPC verbs, a Hyprland keybind, a script, and (next) the
+    // assistant. Everything goes through SettingsSchema, so a caller can only
+    // reach keys that were deliberately published, and only with values the
+    // Settings UI could itself have produced.
+    //
+    // The assignment below is `root[key] = value`, which is exactly what
+    // applyLoadedSettings() does for every key it restores - aliases forward to
+    // their service, each service's onChanged saves, so a set here is
+    // indistinguishable from the same change made by a click.
+    property SettingsSchema settingsSchema: SettingsSchema {}
+
+    // A QML color property reads back as a color object rather than a string;
+    // everything else in the schema is already a plain JS value.
+    function settingValue(key) {
+        let v = root[key]
+        if (v === undefined || v === null) return null
+        return (typeof v === "object") ? String(v) : v
+    }
+
+    function getSetting(key) {
+        if (!settingsSchema.has(key)) return "error: unknown setting \"" + key + "\""
+        return String(settingValue(key))
+    }
+
+    // Returns { ok, detail } so callers can branch on success without parsing
+    // a message. setSetting() below is the string form the IPC verb needs.
+    function applySetting(key, value) {
+        if (!settingsSchema.has(key)) {
+            return { ok: false, detail: "unknown setting \"" + key + "\" - see `ipc call settings keys`" }
+        }
+        // A key outside persistedKeys would apply and then disappear on the next
+        // restart, which is worse than refusing: the caller sees it work.
+        if (root.persistedKeys.indexOf(key) < 0) {
+            return { ok: false, detail: "\"" + key + "\" is not persisted, refusing to set it" }
+        }
+
+        let result = settingsSchema.coerce(key, value, root[key])
+        if (!result.ok) return { ok: false, detail: result.error }
+
+        let before = settingValue(key)
+        root[key] = result.value
+        saveSettings()
+        let after = settingValue(key)
+
+        // A gated key (schema `requires`) writes and persists fine but shows
+        // nothing until its gate is on. Silence here is what "it didn't do
+        // anything" actually looks like from the outside, so say it.
+        let gated = (settingGate(key) !== "" && !settingValue(settingGate(key)))
+            ? settingGate(key) : ""
+
+        if (String(before) === String(after)) {
+            return { ok: true, changed: false, key: key, gated: gated,
+                     detail: key + " already " + String(after) }
+        }
+        return { ok: true, changed: true, key: key, gated: gated,
+                 detail: key + " " + String(before) + " -> " + String(after) }
+    }
+
+    function settingGate(key) {
+        let e = settingsSchema.entry(key)
+        return (e && e.requires) ? e.requires : ""
+    }
+
+    function setSetting(key, value) {
+        let r = applySetting(key, value)
+        if (!r.ok) return "error: " + r.detail
+        return "ok: " + r.detail + (r.gated ? " (no visible effect until " + r.gated + " is true)" : "")
+    }
+
+    // The same vocabulary as describeSettings(), compact enough to sit in a
+    // prompt that gets replayed on every turn (the assistant backends are
+    // stateless - see AssistantWidget.buildPrompt). One line per key:
+    //
+    //   barPosition (top|bottom|left|right) = left - which screen edge...
+    //
+    // Grouped, because keeping related keys adjacent measurably helps smaller
+    // local models pick the right one, and the headers cost almost nothing.
+    function settingsPrompt() {
+        return settingsPromptForTargets(settingsSchema.keys.concat(settingsSchema.actionNames), true)
+    }
+
+    // Renders a set of names into the vocabulary the model reads.
+    //
+    // `grouped` splits by group and follows schema order - right for the full
+    // reference listing a person reads. A shortlist passes false instead and
+    // renders in the order given, which is best-match first: the model reads
+    // top-down, and burying the one obvious answer under ten near-misses is how
+    // "Red wallpaper" ended up changing the bar shape.
+    function renderSettingLine(k) {
+        let e = settingsSchema.entries[k]
+        let domain
+        if (e.type === "bool") domain = "true|false"
+        else if (e.type === "enum") domain = e.values.join("|")
+        else if (e.type === "color") domain = "#rrggbb"
+        else if (e.type === "string") domain = "text"
+        else domain = e.min + "-" + e.max
+
+        let current = settingValue(k)
+        if (typeof current === "string") current = "\"" + current + "\""
+
+        let gate = e.requires ? " [needs " + e.requires + "=true]" : ""
+        return k + " (" + domain + ") = " + String(current) + gate + " - " + e.desc
+    }
+
+    function renderActionLines(name) {
+        let a = settingsSchema.actions[name]
+        let colours = wallpaperColours()
+        // "random" is accepted but deliberately not advertised: with it in the
+        // list, llama3.2 picked it over the colour actually asked for in 2 of 3
+        // runs of "Red wallpaper". An option that always technically satisfies
+        // the request is the one a small model reaches for.
+        let subjects = wallpaperTags(12)
+        let domain = (name === "wallpaper")
+            ? ("a colour: " + colours.join(", ")
+               + (subjects.length > 0 ? "; or a subject: " + subjects.join(", ") : ""))
+            : a.arg
+
+        return [name + " (" + domain + ") - " + a.desc]
+    }
+
+    function settingsPromptForTargets(names, grouped) {
+        let wanted = names || []
+        let lines = []
+
+        if (!grouped) {
+            wanted.forEach(n => {
+                if (settingsSchema.hasAction(n)) lines = lines.concat(renderActionLines(n))
+                else if (settingsSchema.has(n)) lines.push(renderSettingLine(n))
+            })
+            return lines.join("\n").trim()
+        }
+
+        let lastGroup = ""
+        settingsSchema.keys.forEach(k => {
+            if (wanted.indexOf(k) < 0) return
+            let e = settingsSchema.entries[k]
+            if (e.group !== lastGroup) {
+                lines.push("")
+                lines.push("# " + e.group)
+                lastGroup = e.group
+            }
+            lines.push(renderSettingLine(k))
+        })
+
+        let wantedActions = settingsSchema.actionNames.filter(n => wanted.indexOf(n) >= 0)
+        if (wantedActions.length > 0) {
+            lines.push("")
+            lines.push("# actions - these run something instead of setting a value")
+            wantedActions.forEach(n => { lines = lines.concat(renderActionLines(n)) })
+        }
+
+        return lines.join("\n").trim()
+    }
+
+    // The whole vocabulary with live values, as JSON. This is both the
+    // scripting reference and, verbatim, what the assistant backend will be
+    // told it may change - which is why current values are included: "make it
+    // darker" is unanswerable without knowing what it is now.
+    function describeSettings() {
+        let out = {}
+        settingsSchema.keys.forEach(k => {
+            let e = settingsSchema.entries[k]
+            let row = { type: e.type, group: e.group, desc: e.desc, current: settingValue(k) }
+            if (e.values !== undefined) row.values = e.values
+            if (e.min !== undefined) { row.min = e.min; row.max = e.max }
+            out[k] = row
+        })
+        return JSON.stringify(out, null, 2)
+    }
+
+    // --- ACTIONS ---
+    // Colours present in the indexed wallpaper library, most common first.
+    // This is the only handle the assistant has on a library of opaque
+    // wallhaven-xxxxxx.jpg filenames, and it costs one prompt line rather than
+    // the 112 lines listing them would.
+    function wallpaperColours() {
+        let counts = {}
+        let map = root.wallpaperColorMap || {}
+        Object.keys(map).forEach(path => {
+            let colours = map[path] || []
+            colours.forEach(c => counts[c] = (counts[c] || 0) + 1)
+        })
+        return Object.keys(counts).sort((a, b) => counts[b] - counts[a])
+    }
+
+    // Most common wallpaper subjects, most frequent first. Sampled into the
+    // prompt rather than listed in full - a 112-image library has several
+    // hundred distinct tags, and the model only needs to learn the shape of
+    // the collection, not its index.
+    function wallpaperTags(limit) {
+        let counts = {}
+        let map = root.wallpaperTagMap || {}
+        Object.keys(map).forEach(path => {
+            (map[path] || []).forEach(t => counts[t] = (counts[t] || 0) + 1)
+        })
+        // "general" is Wallhaven's catch-all category rather than a subject, so
+        // it sits on most of the library and would lead this list while telling
+        // the model nothing. Its siblings "anime" and "people" are real answers
+        // to a real request and stay.
+        let sorted = Object.keys(counts)
+            .filter(t => t !== "general")
+            .sort((a, b) => counts[b] - counts[a])
+        return (limit && limit > 0) ? sorted.slice(0, limit) : sorted
+    }
+
+    // Wallpapers whose tags match a subject word. Matched as substrings in both
+    // directions so "mountains" finds the tag "mountain" and vice versa; the
+    // reverse direction needs a tag of four characters or more, or short tags
+    // like "art" and "sky" would match almost any request containing them.
+    function wallpapersTagged(term) {
+        let map = root.wallpaperTagMap || {}
+        return Object.keys(map).filter(path => {
+            return (map[path] || []).some(tag => {
+                if (tag === term) return true
+                if (tag.indexOf(term) >= 0) return true
+                return tag.length >= 4 && term.indexOf(tag) >= 0
+            })
+        })
+    }
+
+    function runWallpaperAction(colour) {
+        let map = root.wallpaperColorMap || {}
+        let pool = []
+
+        if (colour === "" || colour === "random" || colour === "any") {
+            pool = (root.wallpapers || []).slice()
+        } else if (wallpaperColours().indexOf(colour) < 0 && wallpapersTagged(colour).length > 0) {
+            pool = wallpapersTagged(colour)
+        } else if (wallpaperColours().indexOf(colour) < 0) {
+            // Not a colour in the index: treat it as a filename. The assistant
+            // has no way to know these names (the library is a wall of
+            // wallhaven-2e9dzg.jpg), but a keybind or a script does, and it is
+            // the only way to ask for one specific image.
+            let named = (root.wallpapers || []).filter(path => path.toLowerCase().endsWith("/" + colour)
+                                                             || path.toLowerCase() === colour)
+            if (named.length === 0) {
+                let available = wallpaperColours()
+                let subjects = wallpaperTags(24)
+                return { ok: false, detail: available.length > 0
+                    ? "nothing matching \"" + colour + "\" - colours: " + available.join(", ")
+                      + (subjects.length > 0 ? "; subjects include: " + subjects.join(", ") : "")
+                    : "the wallpaper index is empty - open the wallpaper picker once to build it" }
+            }
+            applyWallpaperBackend(named[0], false)
+            return { ok: true, changed: true, detail: "wallpaper -> " + named[0].split("/").pop() }
+        } else {
+            pool = Object.keys(map).filter(path => (map[path] || []).indexOf(colour) >= 0)
+            if (pool.length === 0) {
+                let available = wallpaperColours()
+                return { ok: false, detail: available.length > 0
+                    ? "no wallpaper with dominant colour \"" + colour + "\" - the library has: " + available.join(", ")
+                    : "the wallpaper colour index is empty - open the wallpaper picker once to build it" }
+            }
+        }
+
+        // Re-picking the wallpaper already on screen reads as "it did nothing".
+        pool = pool.filter(path => path !== root.activeWallpaperPath)
+        if (pool.length === 0) return { ok: false, detail: "the only match is already the current wallpaper" }
+
+        let pick = pool[Math.floor(Math.random() * pool.length)]
+        applyWallpaperBackend(pick, false)
+        return { ok: true, changed: true,
+                 detail: "wallpaper -> " + pick.split("/").pop()
+                         + ((colour && colour !== "random" && colour !== "any") ? " (" + colour + ")" : "") }
+    }
+
+    function runAction(name, value) {
+        if (!settingsSchema.hasAction(name)) {
+            return { ok: false, detail: "unknown action \"" + name + "\"" }
+        }
+        if (name === "wallpaper") return runWallpaperAction(String(value || "random").trim().toLowerCase())
+        return { ok: false, detail: "action \"" + name + "\" has no handler" }
+    }
+
+    function doAction(name, value) {
+        let r = runAction(name, value)
+        return (r.ok ? "ok: " : "error: ") + r.detail
+    }
+
+    // --- RELEVANCE SHORTLIST ---
+    // The whole vocabulary is 60 settings and ~7.5KB of prompt. A large model
+    // copes; the 3B one Synoptik installs by default does not - measured, it
+    // picks a plausible-looking wrong setting most of the time, because it is
+    // choosing from sixty options it cannot all hold at once.
+    //
+    // So the shell reads the message first and offers only what could plausibly
+    // be meant, by plain word matching against each setting's name, description,
+    // allowed values and hint words. No model involved, nothing to get wrong:
+    // worst case the shortlist is unhelpful and the reply is a miss, which is
+    // already the behaviour being fixed.
+    readonly property var messageStopWords: [
+        "the", "and", "for", "with", "that", "this", "its", "are", "you", "your", "can", "could",
+        "please", "make", "set", "change", "turn", "give", "want", "like", "get", "put", "how",
+        "what", "why", "when", "all", "any", "but", "not", "now", "something", "some", "thing",
+        "little", "bit", "more", "less", "too", "very", "really", "just", "about", "into", "from"
+    ]
+
+    function messageTokens(text) {
+        return (text || "").toLowerCase()
+            .split(/[^a-z0-9]+/)
+            .filter(t => t.length > 2 && root.messageStopWords.indexOf(t) < 0)
+    }
+
+    // Matches a token as a whole word, tolerating the plural the user typed and
+    // the singular the description uses (and the reverse).
+    //
+    // Whole-word matters more than it looks: a plain substring test put
+    // barFrameStyle at the top of the list for "Red wallpaper", because its
+    // description says "centred island" and "cent-red" contains "red". The
+    // model duly moved the bar. Tokens are [a-z0-9] by construction, so
+    // nothing here needs escaping.
+    function tokenHits(token, text) {
+        if (!text || text.length === 0) return false
+        let stem = (token.length > 3 && token.slice(-1) === "s") ? token.slice(0, -1) : token
+        return new RegExp("\\b" + stem + "s?\\b", "i").test(text)
+    }
+
+    function targetScore(name, tokens) {
+        let entry = settingsSchema.entry(name)
+        let action = settingsSchema.hasAction(name) ? settingsSchema.actions[name] : null
+        let label = name.replace(/([a-z])([A-Z])/g, "$1 $2")   // showAppDock -> show App Dock
+        let desc = entry ? entry.desc : (action ? action.desc : "")
+        let hints = (entry && entry.hints) ? entry.hints : ""
+        let group = entry ? entry.group : "actions"
+        let values = entry && entry.values ? entry.values.join(" ") : ""
+
+        // The wallpaper action is searchable by everything its library contains,
+        // which is the only way "mountains" can find it.
+        if (name === "wallpaper") values = wallpaperColours().concat(wallpaperTags(0)).join(" ")
+
+        let score = 0
+        tokens.forEach(token => {
+            if (tokenHits(token, label)) score += 6
+            if (tokenHits(token, hints)) score += 5
+            if (tokenHits(token, values)) score += 4
+            if (tokenHits(token, desc)) score += 3
+            if (token === group) score += 3
+        })
+        return score
+    }
+
+    function relevantTargets(message, limit) {
+        let cap = (limit && limit > 0) ? limit : 12
+        let tokens = messageTokens(message)
+        let names = settingsSchema.keys.concat(settingsSchema.actionNames)
+
+        let scored = names.map(n => ({ name: n, score: targetScore(n, tokens) }))
+                          .filter(row => row.score > 0)
+                          .sort((a, b) => b.score - a.score)
+
+        // Nothing matched by wording: a vague request, so fall back to the
+        // settings most likely to have been meant rather than to all of them.
+        if (scored.length === 0) return settingsSchema.defaultTargets.slice(0, cap)
+
+        let picked = scored.slice(0, cap).map(row => row.name)
+
+        // A gated setting is useless without its gate, and the model is told to
+        // send both - so never offer one without the other.
+        settingsSchema.keys.forEach(k => {
+            let gate = settingGate(k)
+            if (gate !== "" && picked.indexOf(k) >= 0 && picked.indexOf(gate) < 0) picked.push(gate)
+        })
+        return picked
+    }
+
+    // The vocabulary, narrowed to one message. Same format as settingsPrompt().
+    function settingsPromptFor(message) {
+        return settingsPromptForTargets(relevantTargets(message, 12), false)
+    }
+
+    // Compact "key = value" listing, for a human at a terminal.
+    function listSettings() {
+        return settingsSchema.keys.map(k => k + " = " + String(settingValue(k))).join("\n")
+    }
+
     function validatePersistedKeys() {
         let missing = []
         for (let i = 0; i < root.persistedKeys.length; i++) {
@@ -1659,9 +2041,21 @@ QtObject {
             + "`property var` on settingsAdapter and will NOT be saved: " + missing.join(", "))
     }
 
+    // The settings schema publishes a curated subset of persistedKeys. A key
+    // that drifts out of persistedKeys (renamed, retired) would still be
+    // offered over IPC and to the assistant, apply once, and be forgotten on
+    // restart - so it is checked here rather than discovered in a bug report.
+    function validateSettingsSchema() {
+        let unpersisted = settingsSchema.keys.filter(k => root.persistedKeys.indexOf(k) < 0)
+        if (unpersisted.length === 0) return
+        console.warn("Synoptik/Config: " + unpersisted.length + " settings-schema key(s) are not in "
+            + "persistedKeys and cannot be set: " + unpersisted.join(", "))
+    }
+
     Component.onCompleted: {
         if (!enableIris) applyTheme(currentThemeIndex)
         validatePersistedKeys()
+        validateSettingsSchema()
         refreshProfiles()
     }
 }
