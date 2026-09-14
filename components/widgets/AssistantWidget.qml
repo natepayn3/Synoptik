@@ -409,6 +409,10 @@ PanelWindow {
                 "  shape change and a position change, not one or the other.",
                 "- Never send a value that is already the current one. Work out the value the user",
                 "  asked for - \"hide the bar\" means autoHideBar true, whatever it is set to now.",
+                "- An action like wallpaper carries no \"= current value\" - you cannot see what is",
+                "  applied right now. If the same colour or subject is asked for again, send that",
+                "  exact value again as a change; the shell already avoids repeating the same file,",
+                "  so it is never wasted.",
                 "- If nothing in the list can do what was asked, say so and send an empty array."
             ]
         }
@@ -805,8 +809,10 @@ PanelWindow {
         let discarded = stack.slice(targetIndex)
         assistantWindow.undoStack = stack.slice(0, targetIndex)
 
-        Config.loadAssistantUndoSnapshot(target)
-        discarded.forEach(name => Config.deleteAssistantUndoSnapshot(name))
+        // Cleanup of `discarded` (target included) happens only after the load
+        // actually succeeds - see Config.loadAssistantUndoSnapshot - so it never
+        // races the cp reading the very file being deleted.
+        Config.loadAssistantUndoSnapshot(target, discarded)
 
         let note = steps === 1 ? "Reverted the last change." : "Reverted the last " + steps + " changes."
         if (requested > available) {
@@ -867,6 +873,11 @@ PanelWindow {
     // ("no, the *other* one" among four bar positions, not two) is a
     // genuinely ambiguous instruction, not a repeat of the old failures.
     //
+    // What the window holds is narrower still, though - see buildPrompt: only
+    // the user's own turns, never the assistant's. An action's own past reply
+    // ("Picked a red wallpaper.") reads as proof of current state with nothing
+    // to check it against, and got trusted over the request in front of it.
+    //
     // Hosted models keep the full transcript; none of this applies to them.
 
     readonly property int maxPromptHistoryMessages: 30
@@ -896,6 +907,19 @@ PanelWindow {
         // failure (or a "downloading the model" notice) never gets fed back
         // in as if the assistant had said it.
         let realHistory = history.filter((m) => m.role !== "error" && m.role !== "info")
+        if (assistantWindow.usesStructuredOutput) {
+            // The model's own past reply about an action (wallpaper, with no
+            // visible "= current value" to check against) reads to it as proof
+            // of current state - measured: shown its own "Picked a red
+            // wallpaper.", a repeated "Red wallpaper" came back "It's already
+            // red" with an empty change, silently doing nothing, in most runs.
+            // Dropping assistant lines and keeping only the user's own words
+            // removed that in every retest, and cost nothing measured - the one
+            // case a past assistant reply might have helped ("no, the other
+            // one" after a bar move) never resolved correctly either way, full
+            // history or none.
+            realHistory = realHistory.filter((m) => m.role === "user")
+        }
         if (realHistory.length === 0) return directive + "\n\n" + newMessage
         let cap = assistantWindow.usesStructuredOutput
             ? assistantWindow.maxLocalPromptHistoryMessages

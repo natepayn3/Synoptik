@@ -1547,9 +1547,18 @@ QtObject {
 
     property Process undoSnapshotWriteProc: Process { id: undoSnapshotWriteProc; running: false }
 
-    function loadAssistantUndoSnapshot(name) {
+    // `namesToDelete` (the snapshot being loaded, plus whatever came after it -
+    // all moot once this one lands) are cleaned up only once this load has
+    // actually succeeded, not fired alongside it: deleting the very file this
+    // is reading from at the same time, as two independent processes with no
+    // ordering between them, let a same-tick `rm` beat the `cp` reading it -
+    // the copy's own `[ -s "$src" ]` guard then tripped, settingsPath was
+    // never touched, and the chat had already told the user it was done.
+    property var pendingUndoSnapshotCleanup: []
+    function loadAssistantUndoSnapshot(name, namesToDelete) {
         let clean = root.sanitizeProfileName(name)
         if (clean === "") return
+        root.pendingUndoSnapshotCleanup = (namesToDelete || []).slice()
         undoSnapshotLoadProc.command = ["sh", "-c",
             "src='" + root.assistantUndoDir + "/" + clean + ".json'; "
             + "[ -s \"$src\" ] || exit 1; cp -f \"$src\" '" + root.settingsPath + "'"]
@@ -1564,9 +1573,12 @@ QtObject {
         id: undoSnapshotLoadProc
         running: false
         onExited: (exitCode) => {
-            if (exitCode !== 0) return
+            if (exitCode !== 0) { root.pendingUndoSnapshotCleanup = []; return }
             root.settingsRecoveryAttempted = false
             settingsFileImpl.reload()
+            let toDelete = root.pendingUndoSnapshotCleanup
+            root.pendingUndoSnapshotCleanup = []
+            toDelete.forEach(n => root.deleteAssistantUndoSnapshot(n))
         }
     }
 
