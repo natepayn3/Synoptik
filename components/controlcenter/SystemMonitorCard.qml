@@ -573,6 +573,13 @@ Item {
                 id: vTrack
                 width: meterRoot.channelWidth
                 height: meterRoot.channelHeight
+                // vFill's height (and vCapWave/its Glow, which mirror it) run
+                // waveAmplitude taller than the "real" value*height level to
+                // give the wave crest room - at a high value that pushes past
+                // vTrack's own height, and without a clip here the wave (plus
+                // the glow's own blur radius) bled out past the tile's top
+                // edge instead of stopping at it.
+                clip: true
 
                 Rectangle {
                     anchors.fill: parent
