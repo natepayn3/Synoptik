@@ -594,8 +594,75 @@ Item {
                     anchors.horizontalCenter: parent.horizontalCenter
                     width: parent.width
                     radius: 8
-                    height: Math.max(4, vTrack.height * meterRoot.value)
+                    // Bottom stays rounded to match vTrack's own corners; top
+                    // is left square because the wave mask below already
+                    // defines that edge - rounding it too chamfered the
+                    // rectangle's own corners a little further in than the
+                    // mask's wave line reaches at x=0/width, leaving a faint
+                    // notch where the two disagreed right at the edges.
+                    topLeftRadius: 0
+                    topRightRadius: 0
+                    // waveAmplitude of extra headroom above the "real" fill
+                    // level, so the wave has room to crest without the mask
+                    // below ever clipping it - the rectangle's own straight
+                    // edge is never seen, only the wavy silhouette cut into it.
+                    height: Math.max(4, vTrack.height * meterRoot.value) + waveAmplitude
                     Behavior on height { NumberAnimation { duration: 500; easing.type: Easing.OutCubic } }
+
+                    // Two sine components summed rather than one, at
+                    // wavelengths/speeds with no common multiple (0.9x/4200ms
+                    // vs 0.55x/3100ms - not a clean 2:1 or 3:2 ratio) so the
+                    // combined shape drifts through a very long effective
+                    // period instead of visibly repeating every cycle like a
+                    // single scrolling sine does. randomSeed offsets both
+                    // phases once per meter instance (not per redraw), so
+                    // CPU/GPU/RAM/DISK ripple independently of each other
+                    // instead of in lockstep. Amplitude is split small/smaller
+                    // between the two and totals less than the single-wave
+                    // version had, for a subtler surface overall.
+                    readonly property real randomSeed: Math.random() * 4000
+                    readonly property real waveAmplitude: amp1 + amp2
+                    readonly property real amp1: 1.0
+                    readonly property real amp2: 0.5
+                    readonly property real waveLength1: Math.max(12, vFill.width * 0.9)
+                    readonly property real waveLength2: Math.max(10, vFill.width * 0.55)
+                    property real wavePhase1: 0
+                    property real wavePhase2: 0
+                    NumberAnimation on wavePhase1 {
+                        running: cardRoot.visible
+                        from: vFill.randomSeed
+                        to: vFill.randomSeed + vFill.waveLength1
+                        duration: 4200
+                        loops: Animation.Infinite
+                    }
+                    NumberAnimation on wavePhase2 {
+                        running: cardRoot.visible
+                        from: -vFill.randomSeed
+                        to: -vFill.randomSeed - vFill.waveLength2
+                        duration: 3100
+                        loops: Animation.Infinite
+                    }
+
+                    // Sampled points tracing the wave's crest across the fill's
+                    // own width, scrolling as the two phases advance - shared
+                    // by the mask below (closed down into a fillable area) and
+                    // vCapWave's stroke (the open line traced through the same
+                    // points), so the glowing top edge always matches exactly
+                    // what the mask actually reveals.
+                    function waveY(x) {
+                        let a1 = vFill.amp1, a2 = vFill.amp2
+                        let s1 = Math.sin(((x + vFill.wavePhase1) / vFill.waveLength1) * 2 * Math.PI) * a1
+                        let s2 = Math.sin(((x + vFill.wavePhase2) / vFill.waveLength2) * 2 * Math.PI) * a2
+                        return vFill.waveAmplitude + s1 + s2
+                    }
+
+                    function waveTopPoints(w, h) {
+                        let step = Math.max(2, w / 18)
+                        let pts = []
+                        for (let x = 0; x <= w; x += step) pts.push(Qt.point(x, vFill.waveY(x)))
+                        if (pts[pts.length - 1].x < w - 0.01) pts.push(Qt.point(w, vFill.waveY(w)))
+                        return pts
+                    }
 
                     gradient: Gradient {
                         orientation: Gradient.Vertical
@@ -603,23 +670,66 @@ Item {
                         GradientStop { position: 1.0; color: Qt.rgba(meterRoot.liveColor.r, meterRoot.liveColor.g, meterRoot.liveColor.b, 0.35) }
                     }
 
-                    Rectangle {
-                        id: vCap
-                        anchors.top: parent.top
-                        width: parent.width
-                        height: 3
-                        radius: 2
-                        color: meterRoot.liveColor
+                    // Cuts vFill's flat rectangle down to the wave silhouette
+                    // above - same masking technique RightModules.qml already
+                    // uses for its own fill bars (vertFillMaskSource et al).
+                    layer.enabled: true
+                    layer.effect: OpacityMask {
+                        maskSource: Shape {
+                            width: vFill.width
+                            height: vFill.height
+                            antialiasing: true
+                            preferredRendererType: Shape.CurveRenderer
+                            ShapePath {
+                                fillColor: "white"
+                                strokeWidth: 0
+                                PathSvg {
+                                    path: {
+                                        let pts = vFill.waveTopPoints(vFill.width, vFill.height)
+                                        let d = "M 0 " + vFill.height.toFixed(2) + " "
+                                        for (let i = 0; i < pts.length; i++) d += "L " + pts[i].x.toFixed(2) + " " + pts[i].y.toFixed(2) + " "
+                                        d += "L " + vFill.width.toFixed(2) + " " + vFill.height.toFixed(2) + " Z"
+                                        return d
+                                    }
+                                }
+                            }
+                        }
                     }
-                    Glow {
-                        anchors.fill: vCap
-                        source: vCap
-                        radius: 6
-                        samples: 12
-                        color: meterRoot.liveColor
-                        spread: 0.4
-                        transparentBorder: true
+                }
+
+                // The wave's own crest, stroked and glowed - what the flat
+                // "cap" line used to be, just following the curve now. Kept
+                // as vFill's siblings (not its children) so vFill's own
+                // layer/mask above never clips this line or its glow in half.
+                Shape {
+                    id: vCapWave
+                    anchors.fill: vFill
+                    antialiasing: true
+                    preferredRendererType: Shape.CurveRenderer
+                    ShapePath {
+                        strokeColor: meterRoot.liveColor
+                        strokeWidth: 2
+                        fillColor: "transparent"
+                        capStyle: ShapePath.RoundCap
+                        joinStyle: ShapePath.RoundJoin
+                        PathSvg {
+                            path: {
+                                let pts = vFill.waveTopPoints(vFill.width, vFill.height)
+                                let d = "M " + pts[0].x.toFixed(2) + " " + pts[0].y.toFixed(2) + " "
+                                for (let i = 1; i < pts.length; i++) d += "L " + pts[i].x.toFixed(2) + " " + pts[i].y.toFixed(2) + " "
+                                return d
+                            }
+                        }
                     }
+                }
+                Glow {
+                    anchors.fill: vCapWave
+                    source: vCapWave
+                    radius: 6
+                    samples: 12
+                    color: meterRoot.liveColor
+                    spread: 0.4
+                    transparentBorder: true
                 }
 
                 HoverHandler {
