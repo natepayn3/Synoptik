@@ -88,6 +88,20 @@ PanelWindow {
         }
     }
 
+    // Which pinned tile, if any, sits under a point in dockContainer
+    // coordinates. Used instead of a per-tile TapHandler so that a press
+    // anywhere on the dock - icons included - belongs to the drag MouseArea
+    // (see its comment), with the launch decided at release time from where
+    // the press landed rather than from who grabbed it.
+    function appAt(px, py) {
+        let face = dockLoader.item
+        if (!face) return null
+
+        let p = dockContainer.mapToItem(face, px, py)
+        let child = face.childAt(p.x, p.y)
+        return (child && child.app) ? child.app : null
+    }
+
     function launchApp(app) {
         if (!app) return;
         if (typeof app.execute === "function") {
@@ -122,28 +136,80 @@ PanelWindow {
         x: dragX
         y: dragY
 
-        function restorePosition() {
-            if (!dockWindow.screen) return
+        // Whether this screen has a spot the user actually chose. Until it does,
+        // the dock keeps re-deriving its default placement as its own size
+        // settles (the first pinned icon loading changes the width, and a
+        // default centred on a zero-width dock is half a dock off).
+        readonly property bool hasSavedPosition: {
+            let all = Config.appDockPositions
+            let saved = (dockWindow.screen && all) ? all[dockWindow.screen.name] : null
+            return !!saved && typeof saved.x === "number" && typeof saved.y === "number"
+        }
 
-            let defaultX = Math.max(0, Math.round((dockWindow.width - width) / 2))
-            let defaultY = Math.max(0, dockWindow.height - height - 120)
+        // Bottom-centre of the *free* desktop area - the bar claims a whole
+        // screen edge without an exclusive zone, so a dock placed against the
+        // raw screen edge is just hidden behind it.
+        //
+        // Measured off screen.width/height rather than dockWindow.width/height
+        // on purpose: this window is deliberately left unmapped until
+        // restorePosition() has run (visible: positionRestored above), and an
+        // unmapped layer surface has no size yet. Reading the window here is
+        // what parked the dock at 0,0 under the bar on first run - both terms
+        // of the old default were max(0, 0 - size - offset).
+        function defaultPosition() {
+            let sw = dockWindow.screen ? dockWindow.screen.width : 0
+            let sh = dockWindow.screen ? dockWindow.screen.height : 0
+            let l = Config.desktopInset("left")
+            let t = Config.desktopInset("top")
+            let freeW = sw - l - Config.desktopInset("right")
+            let freeH = sh - t - Config.desktopInset("bottom")
 
-            let savedPos = Config.getAppDockPosition(dockWindow.screen.name, defaultX, defaultY)
-
-            if (savedPos && typeof savedPos.x === "number" && typeof savedPos.y === "number") {
-                dragX = savedPos.x
-                dragY = savedPos.y
-                initialized = true
+            return {
+                x: l + Math.max(0, Math.round((freeW - width) / 2)),
+                y: t + Math.max(0, freeH - height - 120)
             }
         }
 
-        function commitGridSnap() {
-            if (!Config.snapDesktopWidgets) return
-            dragX = snapOverlay.snappedX(dragX, width)
-            dragY = snapOverlay.snappedY(dragY, height)
-            if (dockWindow.screen) {
-                Config.saveAppDockPosition(dockWindow.screen.name, dragX, dragY)
+        function restorePosition() {
+            if (!dockWindow.screen) return
+
+            let def = defaultPosition()
+            let pos = Config.getAppDockPosition(dockWindow.screen.name, def.x, def.y)
+            if (!pos || typeof pos.x !== "number" || typeof pos.y !== "number") pos = def
+
+            // Even a saved position goes through the clamp: it can fall under
+            // the bar later on, when the bar moves to another edge or the
+            // monitor changes resolution.
+            let clamped = Config.clampToDesktopArea(pos.x, pos.y, width, height,
+                                                    dockWindow.screen.width, dockWindow.screen.height)
+            dragX = clamped.x
+            dragY = clamped.y
+            initialized = true
+        }
+
+        onWidthChanged: if (initialized && !hasSavedPosition) restorePosition()
+        onHeightChanged: if (initialized && !hasSavedPosition) restorePosition()
+
+        // Called from both drag.onActiveChanged and dragArea.onReleased - belt
+        // and suspenders against a missed release leaving drag.active stuck true.
+        // Idempotent: re-running it on an already-snapped, already-in-bounds
+        // position is a no-op.
+        //
+        // Grid snapping is optional, staying clear of the bar is not: a dock
+        // dropped behind the bar's edge is invisible and unclickable, and the
+        // only way back would be hand-editing settings.json.
+        function commitPosition() {
+            if (Config.snapDesktopWidgets) {
+                dragX = snapOverlay.snappedX(dragX, width)
+                dragY = snapOverlay.snappedY(dragY, height)
             }
+            if (!dockWindow.screen) return
+
+            let clamped = Config.clampToDesktopArea(dragX, dragY, width, height,
+                                                    dockWindow.screen.width, dockWindow.screen.height)
+            dragX = clamped.x
+            dragY = clamped.y
+            Config.saveAppDockPosition(dockWindow.screen.name, dragX, dragY)
         }
 
         Connections {
@@ -215,12 +281,17 @@ PanelWindow {
             }
         }
 
-        // DRAG & SCROLL-RESIZE MOUSE AREA (declared before the WidgetContextMenu
-        // below is irrelevant to click priority since that menu is invisible
-        // until opened; what matters is that this whole item - dockContainer -
-        // is declared, and therefore painted, *before* ghostBody below, so the
-        // DockIcon tiles rendered inside ghostBody keep hit-test priority over
-        // this full-area MouseArea without needing an explicit z trick.)
+        // DRAG & SCROLL-RESIZE MOUSE AREA. This is the dock's only press
+        // handler, deliberately: the tiles carry no TapHandler of their own, so
+        // every press - over an icon or over the padding - lands here and can
+        // start a drag. On a dock holding one or two icons the padding is about
+        // 10px of grabbable edge, which is not a realistic drag handle.
+        //
+        // Launching is therefore decided on release: no drag past the threshold
+        // means it was a click, and dockWindow.appAt() says which tile it was
+        // on. drag.active only turns true once Qt's own startDragDistance is
+        // exceeded, so a normal click still launches and a deliberate pull
+        // still moves the dock.
         MouseArea {
             id: dragArea
             anchors.fill: parent
@@ -236,11 +307,11 @@ PanelWindow {
                 axis: Drag.XAndYAxis
 
                 onActiveChanged: {
-                    if (!drag.active) dockContainer.commitGridSnap()
+                    if (!drag.active) dockContainer.commitPosition()
                 }
             }
 
-            onReleased: if (dragMoved) dockContainer.commitGridSnap()
+            onReleased: if (dragMoved) dockContainer.commitPosition()
 
             onPositionChanged: {
                 if (drag.active) {
@@ -257,9 +328,14 @@ PanelWindow {
                 }
                 if (mouse.button === Qt.RightButton) {
                     widgetMenu.openAt(mouse.x, mouse.y, dockContainer, dockWindow.width, dockWindow.height)
-                } else {
-                    Config.closeWidgetMenus()
+                    return
                 }
+
+                Config.closeWidgetMenus()
+                if (dragMoved) return
+
+                let app = dockWindow.appAt(mouse.x, mouse.y)
+                if (app) dockWindow.launchApp(app)
             }
 
             onWheel: (wheel) => {
@@ -378,12 +454,11 @@ PanelWindow {
             }
         }
 
-        // Declared before the drag/menu MouseArea inside dockContainer, and
-        // painted inside ghostBody (which is declared after dockContainer),
-        // so this keeps click priority over the full-area drag MouseArea.
-        TapHandler {
-            onTapped: dockWindow.launchApp(tile.app)
-        }
+        // No TapHandler here on purpose - it would take the press grab over
+        // the icon and leave only the dock's thin padding draggable. The tile
+        // stays input-transparent (a plain Item accepts no mouse buttons), so
+        // presses fall through to dragArea, which launches on a click that
+        // didn't turn into a drag. HoverHandler is grab-free and unaffected.
         HoverHandler { id: iconHover; cursorShape: Qt.PointingHandCursor }
     }
 }

@@ -237,6 +237,39 @@ QtObject {
     readonly property int barHeight: 54
     readonly property int barMargin: 12
 
+    // --- DESKTOP FREE AREA ---
+    // The bar is a layer-shell surface with exclusiveZone -1, so the compositor
+    // reserves nothing for it: a desktop widget that places itself against the
+    // raw screen edge ends up *behind* the bar, which for the user is simply
+    // not there. These are the same numbers UnifiedSurface derives for its own
+    // padL/padR/padT/padB, re-exposed so widget windows can stay clear of the
+    // bar without duplicating the arithmetic (and without drifting from it).
+    //
+    // Auto-hide is deliberately ignored: the bar is one hover away from coming
+    // back, so its edge stays reserved whether or not it is on screen right now.
+    readonly property real frameEdgeInset: barFrameStyle === "screen" ? 8 : 0
+    readonly property real barEdgeInset: barFrameStyle === "screen"
+        ? barHeight  // frameEdgeInset + the screen-frame bar's own (barHeight - 8)
+        : (barHeight + ((barFrameStyle === "floating" || barFrameStyle === "island") ? barMargin : 0))
+
+    function desktopInset(edge) {
+        return barPosition === edge ? barEdgeInset : frameEdgeInset
+    }
+
+    // Pushes a widget rect fully inside the free area. Idempotent, so it is safe
+    // to run on every drop as well as on restore. A widget larger than the free
+    // area pins to the top-left inset rather than being pushed off the far edge.
+    function clampToDesktopArea(x, y, w, h, screenW, screenH) {
+        let l = desktopInset("left")
+        let t = desktopInset("top")
+        let r = screenW - desktopInset("right")
+        let b = screenH - desktopInset("bottom")
+        return {
+            x: Math.max(l, Math.min(x, r - w)),
+            y: Math.max(t, Math.min(y, b - h))
+        }
+    }
+
     readonly property var stockThemes: [
         { name: "Monochrome",       bgBase: "#121212", bgPanel: "#1e1e1e", accent: "#e0e0e0" },
         { name: "Classic Red",      bgBase: "#13141c", bgPanel: "#1a1b26", accent: "#ef4444" },

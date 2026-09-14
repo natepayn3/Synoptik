@@ -1624,6 +1624,12 @@ QtObject {
     property alias textMuted: root.appearance.textMuted
     readonly property alias barHeight: root.appearance.barHeight
     readonly property alias barMargin: root.appearance.barMargin
+    readonly property alias frameEdgeInset: root.appearance.frameEdgeInset
+    readonly property alias barEdgeInset: root.appearance.barEdgeInset
+    function desktopInset(edge) { return appearance.desktopInset(edge) }
+    function clampToDesktopArea(x, y, w, h, screenW, screenH) {
+        return appearance.clampToDesktopArea(x, y, w, h, screenW, screenH)
+    }
     readonly property alias stockThemes: root.appearance.stockThemes
     property alias themes: root.appearance.themes
     function addCustomTheme(themeObj) { appearance.addCustomTheme(themeObj) }
