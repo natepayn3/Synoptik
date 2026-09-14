@@ -426,21 +426,50 @@ Rectangle {
                         id: stackedHoriz
                         spacing: 0
 
-                        readonly property string dateString: (shellRoot.vertMonth || Qt.formatDate(new Date(), "MMM")) + " " + (shellRoot.vertDay || Qt.formatDate(new Date(), "d"))
+                        readonly property string dateString: ((shellRoot.vertMonth || Qt.formatDate(new Date(), "MMM")) + " " + (shellRoot.vertDay || Qt.formatDate(new Date(), "d"))).toUpperCase()
                         readonly property string timeString: (shellRoot.vertHour || (new Date().getHours() % 12 || 12).toString()) + ":" + (shellRoot.vertMinute || Qt.formatTime(new Date(), "mm"))
 
-                        Text {
+                        // Small date row - same per-character overlap/depth
+                        // cascade as the cascading style's own date row
+                        // (overlappingDateRow above): negative spacing pulls
+                        // letters together, each one a little more faded,
+                        // scaled down and shadowed than the last.
+                        Row {
+                            id: stackedHorizDateRow
                             Layout.alignment: Qt.AlignHCenter
-                            text: stackedHoriz.dateString.toUpperCase()
-                            color: (Config.showCalendar || clockHorizHover.hovered) ? Config.accent : Config.textMuted
-                            font.family: Config.sysFont
-                            font.weight: Font.Bold
-                            font.pixelSize: Config.size(Config.fontMicro)
-                            font.letterSpacing: 0.5
-                            renderType: Config.textRenderType
+                            spacing: -1.5
                             z: 0
+
+                            Repeater {
+                                model: stackedHoriz.dateString.length
+                                Text {
+                                    text: stackedHoriz.dateString[index]
+                                    color: (Config.showCalendar || clockHorizHover.hovered) ? Config.accent : Config.textMuted
+                                    font.family: Config.sysFont
+                                    font.weight: Font.Bold
+                                    font.pixelSize: Config.size(Config.fontMicro)
+                                    renderType: Config.textRenderType
+                                    z: stackedHoriz.dateString.length - index
+                                    opacity: Math.max(0.85, 1.0 - (index * 0.03))
+                                    scale: 1.0 - (index * 0.008)
+                                    transformOrigin: Item.BottomLeft
+
+                                    layer.enabled: true
+                                    layer.effect: DropShadow {
+                                        horizontalOffset: 1
+                                        verticalOffset: 0
+                                        radius: 2
+                                        samples: 8
+                                        color: Qt.rgba(0, 0, 0, 0.3)
+                                    }
+                                }
+                            }
                         }
 
+                        // Bigger time row, overlapping up into the date row
+                        // above - same cascade, at the cascading style's own
+                        // time-row spacing/opacity/scale, just bigger and with
+                        // an AM/PM suffix instead of a separate badge.
                         RowLayout {
                             id: stackedHorizTimeRow
                             Layout.alignment: Qt.AlignHCenter
@@ -448,21 +477,39 @@ Rectangle {
                             spacing: 3
                             z: 1
 
-                            Text {
-                                text: stackedHoriz.timeString
-                                color: (Config.showCalendar || clockHorizHover.hovered) ? Config.accent : Config.textMain
-                                font.family: Config.sysFont
-                                font.weight: Font.ExtraBold
-                                font.pixelSize: Math.round(Config.size(Config.fontSubhead) * 1.2)
-                                renderType: Config.textRenderType
+                            readonly property int timeFontSize: Math.round(Config.size(Config.fontSubhead) * 1.2)
 
-                                layer.enabled: true
-                                layer.effect: DropShadow {
-                                    horizontalOffset: 0
-                                    verticalOffset: 1
-                                    radius: 3
-                                    samples: 8
-                                    color: Qt.rgba(0, 0, 0, 0.4)
+                            Row {
+                                id: stackedHorizTimeDigits
+                                Layout.alignment: Qt.AlignVCenter
+                                spacing: -2
+
+                                Repeater {
+                                    model: stackedHoriz.timeString.length
+                                    Text {
+                                        readonly property bool isColon: text === ":"
+                                        text: stackedHoriz.timeString[index]
+                                        color: (Config.showCalendar || clockHorizHover.hovered) ? Config.accent : Config.textMain
+                                        font.family: Config.sysFont
+                                        font.weight: Font.ExtraBold
+                                        font.pixelSize: stackedHorizTimeRow.timeFontSize
+                                        leftPadding: isColon ? 2 : 0
+                                        rightPadding: isColon ? 2 : 0
+                                        renderType: Config.textRenderType
+                                        z: stackedHoriz.timeString.length - index
+                                        opacity: Math.max(0.85, 1.0 - (index * 0.035))
+                                        scale: 1.0 - (index * 0.008)
+                                        transformOrigin: Item.BottomLeft
+
+                                        layer.enabled: true
+                                        layer.effect: DropShadow {
+                                            horizontalOffset: 1
+                                            verticalOffset: 0
+                                            radius: 2
+                                            samples: 8
+                                            color: Qt.rgba(0, 0, 0, 0.35)
+                                        }
+                                    }
                                 }
                             }
 
@@ -908,6 +955,8 @@ Rectangle {
                                     renderType: Config.textRenderType
                                     z: stackedVertDateRow.dateStr.length - index
                                     opacity: Math.max(0.85, 1.0 - (index * 0.03))
+                                    scale: 1.0 - (index * 0.008)
+                                    transformOrigin: Item.BottomLeft
                                 }
                             }
                         }
@@ -933,6 +982,8 @@ Rectangle {
                                     renderType: Config.textRenderType
                                     z: stackedVertHourRow.hourStr.length - index
                                     opacity: Math.max(0.85, 1.0 - (index * 0.035))
+                                    scale: 1.0 - (index * 0.008)
+                                    transformOrigin: Item.BottomLeft
 
                                     layer.enabled: true
                                     layer.effect: DropShadow {
@@ -968,6 +1019,8 @@ Rectangle {
                                     renderType: Config.textRenderType
                                     z: stackedVertMinRow.minStr.length - index
                                     opacity: Math.max(0.82, 0.95 - (index * 0.035))
+                                    scale: 1.0 - (index * 0.008)
+                                    transformOrigin: Item.BottomLeft
 
                                     layer.enabled: true
                                     layer.effect: DropShadow {
