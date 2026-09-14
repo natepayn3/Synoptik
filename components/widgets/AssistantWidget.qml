@@ -341,6 +341,330 @@ PanelWindow {
             .join("\n\n")
     }
 
+    // --- SETTINGS CONTROL ---
+    // The shell publishes a curated, validated vocabulary of its own settings
+    // (components/services/SettingsSchema.qml). This is the whole feature: the
+    // vocabulary goes out with every prompt, the model answers with a fenced
+    // block of changes, and every change is re-validated here before it lands -
+    // the model's output is a request, never a write.
+    readonly property string undoProfileName: "Before assistant"
+
+    // Ollama gets a schema-constrained JSON reply instead of a markdown fence
+    // (see launchOllamaTextProcess): a 3B local model can be relied on to fill
+    // in a grammar the sampler enforces, but not to remember a ```synoptik tag
+    // 1,500 tokens after being told about it. Everything except the output
+    // format is identical, so the rules live in one place.
+    readonly property bool usesStructuredOutput: Config.assistantBackend === "ollama"
+
+    // Two rule sets, because the two output formats need different amounts of
+    // guarding - and because rules are not free. Measured, with llama3.2 on
+    // "Red wallpaper": the long set below got it wrong 3 times out of 3 (it
+    // moved the bar, twice) while a short one got it right. A 3B model spends
+    // its attention on whatever is in front of it, so a rule that buys nothing
+    // costs accuracy on the rules that do.
+    //
+    // Structured mode can drop most of them because the grammar already
+    // enforces what they were asking for: "never invent a key" is unsamplable,
+    // "no block unless asked" is an empty array, and the fence rules have no
+    // fence to apply to.
+    function settingsRules() {
+        if (assistantWindow.usesStructuredOutput) {
+            return [
+                "- Pick the target that matches what was asked. \"wallpaper\" changes the wallpaper;",
+                "  it takes a colour or a subject word like mountains or space.",
+                "- Values must fit the allowed values or range shown in brackets.",
+                "- \"More\"/\"less\" means moving a number well away from its current value.",
+                "- If a target is marked [needs somethingElse=true], change that one too.",
+                "- A request with two parts needs two entries: \"the flush bar, on the right\" is a",
+                "  shape change and a position change, not one or the other.",
+                "- Never send a value that is already the current one. Work out the value the user",
+                "  asked for - \"hide the bar\" means autoHideBar true, whatever it is set to now.",
+                "- If nothing in the list can do what was asked, say so and send an empty array."
+            ]
+        }
+
+        return [
+            "- Only use keys from the list above, spelled exactly as shown. Never invent a key.",
+            "- Values must match the allowed values or numeric range shown in brackets.",
+            "- \"More\"/\"less\" of a numeric setting means moving it well away from the current",
+            "  value shown, not restating it - a quarter of its range is a good step.",
+            "- If a key is marked [needs somethingElse=true], set that key too, or your change",
+            "  will persist and do nothing.",
+            "- The wallpaper action takes either a subject word or a colour. Prefer the subject",
+            "  when the request is about what is in the image (\"something with mountains\",",
+            "  \"space\", \"a forest\") and fall back to a colour when it is about mood or tone",
+            "  (\"something darker\", \"brighter\"). A sunny day is better served by a subject like",
+            "  beach or sky than by the colour yellow, which matches lemons just as happily.",
+            "- If the user asks for something this list cannot do - moving a widget, installing",
+            "  anything, opening an app - say so plainly in one sentence. Do not substitute a",
+            "  different change and describe it as the thing they asked for.",
+            "- A vague request (\"make it cosier\", \"too busy\", \"more readable\") should become several",
+            "  coordinated changes, not one - that is the point of asking you rather than clicking.",
+            "- Changes are applied the moment you answer. Don't tell the user to apply them, don't",
+            "  ask for confirmation, and don't list settings you are not changing."
+        ]
+    }
+
+    // Rules come *after* the vocabulary, not before it. The first version of
+    // this put the format up top and the model dropped the ```synoptik tag on
+    // its very first real answer - 5KB of settings list sat between the
+    // instruction and the point of generation. Last-read wins with instructions
+    // this specific.
+    function settingsDirective(targets) {
+        let head = [
+            "You are the assistant built into Synoptik, a desktop shell, and you can change its settings.",
+            "",
+            "Settings you can change - name (allowed values) = current value - what it does:",
+            "",
+            (targets && targets.length > 0) ? Config.settingsPromptForTargets(targets)
+                                            : Config.settingsPrompt(),
+            ""
+        ]
+
+        let format = assistantWindow.usesStructuredOutput
+            ? [
+                "Answer with a JSON object of exactly two fields:",
+                "",
+                "  changes - what to change, decided BEFORE you write the reply. Each entry is",
+                "            {\"target\": \"<name from the list above>\", \"value\": \"<new value>\"}.",
+                "            An empty array when the user is not asking for a change.",
+                "  reply   - one or two sentences for the user, in plain language.",
+                "",
+                "Values are always strings - \"true\", \"0.6\", \"left\", \"red\".",
+                "",
+                "Examples:",
+                "{\"changes\": [{\"target\": \"barPosition\", \"value\": \"left\"}], \"reply\": \"Moved the bar to the left.\"}",
+                "{\"changes\": [{\"target\": \"wallpaper\", \"value\": \"red\"}], \"reply\": \"Picked a red wallpaper.\"}",
+                "{\"changes\": [], \"reply\": \"The bar is on the left edge at the moment.\"}",
+                "",
+                "Rules:",
+                "- If your reply says you changed, set, picked or switched anything, that change MUST",
+                "  appear in changes. An empty changes array means nothing happened at all.",
+                "- Answer a question about the current state with an empty changes array."
+            ]
+            : [
+                "If the user asks you to change how the desktop looks or behaves, reply with one short",
+                "sentence saying what you changed, then a fenced block of changes tagged exactly",
+                "`synoptik`:",
+                "",
+                "```synoptik",
+                "[{\"target\": \"barPosition\", \"value\": \"left\"}]",
+                "```",
+                "",
+                "A target is either a setting name or an action name from the list above; actions and",
+                "settings can be mixed in one block.",
+                "",
+                "Rules:",
+                "- The opening fence must read ```synoptik, not ```json and not bare ```.",
+                "- No block at all unless the user actually asked for a change; ordinary questions get",
+                "  an ordinary answer."
+            ]
+
+        return head.concat(format).concat(assistantWindow.settingsRules()).join("\n")
+    }
+
+    // Pulls the fenced block out of a reply. Deliberately strict about the
+    // ```synoptik tag: a model quoting JSON in a normal answer must not be able
+    // to reconfigure the desktop by accident.
+    //
+    // Forgiving about what's *inside* it, because that part is model output and
+    // varies: an array of {key, value}, a single such object, or a plain
+    // {key: value} map all mean the same thing.
+    // An array of {key, value}, a single such object, and a flat {key: value}
+    // map all mean the same thing; models produce all three.
+    // "target" is the one field the model fills in; which kind of thing it names
+    // is a lookup the shell can do and the model shouldn't have to. "key" and
+    // "action" stay accepted - hosted models emit them readily, and older
+    // transcripts used them.
+    function normalizeEntry(entry) {
+        if (!entry || typeof entry !== "object") return entry
+        if (typeof entry.target !== "string") return entry
+        return Config.settingsSchema.hasAction(entry.target)
+            ? { action: entry.target, value: entry.value }
+            : { key: entry.target, value: entry.value }
+    }
+
+    function actionsFromJson(parsed) {
+        if (Array.isArray(parsed)) return parsed.map(e => assistantWindow.normalizeEntry(e))
+        if (parsed && typeof parsed === "object") {
+            if (typeof parsed.key === "string" || typeof parsed.action === "string"
+                || typeof parsed.target === "string") return [assistantWindow.normalizeEntry(parsed)]
+            return Object.keys(parsed).map(k => ({ key: k, value: parsed[k] }))
+        }
+        return []
+    }
+
+    function looksLikeSettings(actions) {
+        if (!actions || actions.length === 0) return false
+        return actions.every(a => a && (
+            (typeof a.key === "string" && Config.settingsSchema.has(a.key))
+            || (typeof a.action === "string" && Config.settingsSchema.hasAction(a.action))
+        ))
+    }
+
+    // Pulls the block of changes out of a reply.
+    //
+    // The ```synoptik tag is the contract, but it is a contract with a language
+    // model: the tag gets dropped, or comes back as ```json, often enough that
+    // refusing those means the feature silently does nothing and the user is
+    // told their desktop changed when it didn't. So an untagged fence is also
+    // accepted - but only when it parses AND every key in it is a real setting,
+    // which is a far harder thing to hit by accident than a tag is to omit.
+    //
+    // Only the last fenced block is considered: a model explaining the format
+    // mid-answer puts its example first and keeps talking, while the block it
+    // actually means to run is what it ends on.
+    function extractSettingsActions(text) {
+        // Structured mode: the whole reply is the object. Tried first and not
+        // gated on the backend - a model told to answer in JSON sometimes does
+        // so even when it was asked for a fence, and that should work too.
+        let trimmed = text.trim()
+        if (trimmed.indexOf("{") === 0) {
+            let obj = null
+            try { obj = JSON.parse(trimmed) } catch (e) { obj = null }
+            if (obj && typeof obj === "object" && !Array.isArray(obj)
+                && (typeof obj.reply === "string" || Array.isArray(obj.changes))) {
+                return {
+                    actions: actionsFromJson(obj.changes || []),
+                    display: (typeof obj.reply === "string") ? obj.reply.trim() : "",
+                    malformed: false
+                }
+            }
+        }
+
+        let tagged = /```[ \t]*synoptik[^\n]*\r?\n([\s\S]*?)```/i.exec(text)
+        if (tagged) {
+            let parsed = null
+            try { parsed = JSON.parse(tagged[1].trim()) } catch (e) { parsed = null }
+            if (parsed === null) {
+                return { actions: [], display: text.replace(tagged[0], "").trim(), malformed: true }
+            }
+            return { actions: actionsFromJson(parsed), display: text.replace(tagged[0], "").trim(), malformed: false }
+        }
+
+        let fence = /```[ \t]*[A-Za-z0-9_-]*[^\n]*\r?\n([\s\S]*?)```/g
+        let match = null
+        let candidate = null
+        while ((match = fence.exec(text)) !== null) {
+            let parsed = null
+            try { parsed = JSON.parse(match[1].trim()) } catch (e) { continue }
+            let actions = actionsFromJson(parsed)
+            if (looksLikeSettings(actions)) candidate = { actions: actions, block: match[0] }
+        }
+        if (candidate) {
+            return { actions: candidate.actions, display: text.replace(candidate.block, "").trim(), malformed: false }
+        }
+
+        return { actions: [], display: text, malformed: false }
+    }
+
+    // Every entry goes back through Config.applySetting, so an unknown key, a
+    // value out of range or a misspelled enum is rejected here exactly as it
+    // would be from the IPC verb - the model gets no privileged path in.
+    function applySettingsActions(actions) {
+        let applied = []
+        let failed = []
+        let gated = []
+        let unchanged = []
+        if (!actions || actions.length === 0) {
+            return { applied: applied, failed: failed, gated: gated, unchanged: unchanged }
+        }
+
+        // A snapshot of the whole settings file before the first change, so any
+        // reply is undoable from the existing profile picker without new UI.
+        // Config.saveProfile() forces the write immediately and copies on
+        // FileView's saved() (with a 250ms fallback), both of which land well
+        // inside saveSettings()' own 400ms debounce - so the copy is of the
+        // pre-change file even though the changes start applying right below.
+        Config.saveProfile(assistantWindow.undoProfileName)
+
+        // A small model asked to change barFrameStyle can answer with two entries
+        // for it, in opposite directions - seen in practice as
+        // "island -> screen; screen -> island", a net change of nothing and a
+        // confident sentence about it. The first entry is the one it generated
+        // while answering the actual question; later duplicates are drift, so
+        // they are dropped rather than applied on top.
+        let seen = []
+        let conflicts = []
+        let deduped = []
+        actions.forEach(a => {
+            let name = a ? (a.key || a.action) : ""
+            if (typeof name !== "string" || name.length === 0) { deduped.push(a); return }
+            if (seen.indexOf(name) >= 0) { conflicts.push(name); return }
+            seen.push(name)
+            deduped.push(a)
+        })
+        actions = deduped
+
+        for (let i = 0; i < actions.length; i++) {
+            let action = actions[i]
+            let isAction = action && typeof action.action === "string"
+            if (!action || (!isAction && typeof action.key !== "string")) {
+                failed.push("malformed change entry")
+                continue
+            }
+
+            let result = isAction
+                ? Config.runAction(action.action, action.value)
+                : Config.applySetting(action.key, action.value)
+            if (result.ok) {
+                // A change that resolved to the value already in place is not a
+                // change: reporting it under "Applied" would back up a model
+                // that claimed to do something it didn't.
+                if (result.changed === false) unchanged.push(result.detail)
+                else applied.push(result.detail)
+                // Collected after the whole batch would be wrong: the gate may
+                // be turned on by a later entry in the same block, which is
+                // exactly what the directive asks the model to do.
+                if (!isAction && result.gated) gated.push(action.key + " needs " + result.gated + " turned on")
+            } else {
+                failed.push(result.detail)
+            }
+        }
+        // Re-check: anything whose gate got switched on later in this same batch
+        // is fine after all.
+        gated = gated.filter(note => {
+            let key = note.split(" needs ")[0]
+            let gate = Config.settingGate(key)
+            return gate !== "" && !Config.settingValue(gate)
+        })
+        return { applied: applied, failed: failed, gated: gated, unchanged: unchanged,
+                 conflicts: conflicts }
+    }
+
+    // The single path every backend's successful reply takes: strip reasoning
+    // tags, lift out any settings block, apply it, and report what happened as
+    // an "info" entry - which buildPrompt() filters out of history, so the
+    // model is never fed its own change log back as conversation.
+    function deliverReply(rawText) {
+        let cleaned = assistantWindow.stripReasoningTags(rawText)
+        let parsed = assistantWindow.extractSettingsActions(cleaned)
+
+        if (parsed.actions.length === 0) {
+            Config.appendAssistantMessage("assistant", parsed.display.length > 0 ? parsed.display : cleaned)
+            if (parsed.malformed) {
+                Config.appendAssistantMessage("info", "That reply carried a settings block I couldn't read, so nothing was changed.")
+            }
+            return
+        }
+
+        if (parsed.display.length > 0) Config.appendAssistantMessage("assistant", parsed.display)
+
+        let result = assistantWindow.applySettingsActions(parsed.actions)
+        let notes = []
+        if (result.applied.length > 0) notes.push("Applied: " + result.applied.join("; "))
+        if (result.unchanged.length > 0) notes.push("Already set: " + result.unchanged.join("; "))
+        if (result.conflicts.length > 0) {
+            notes.push("Ignored a second, conflicting change to " + result.conflicts.join(", ") + ".")
+        }
+        if (result.failed.length > 0) notes.push("Skipped: " + result.failed.join("; "))
+        if (result.gated.length > 0) notes.push("No visible effect yet - " + result.gated.join("; "))
+        if (result.applied.length > 0) {
+            notes.push("Undo: Settings > Profiles > \"" + assistantWindow.undoProfileName + "\".")
+        }
+        if (notes.length > 0) Config.appendAssistantMessage("info", notes.join("\n"))
+    }
+
     // Each send is its own fresh, memory-less process - none of the three
     // backends share conversation state across separate invocations here -
     // so continuity has to come from the prompt text itself: prior turns are
@@ -357,24 +681,62 @@ PanelWindow {
     // backend, and eventually big enough to risk silently overflowing the
     // model's own context window. Recent history is what actually matters
     // for continuity anyway.
+    // Local models get no transcript at all. Three rounds of measuring, each
+    // making it worse than the last:
+    //
+    //   full prose        - it copied its own previous reply verbatim and
+    //                       invented a change to match it
+    //   applied records   - it echoed the *values* out of the records, and one
+    //                       run looped between two of them
+    //   user messages only- it answered an older message instead of the current
+    //                       one. "Pink wallpaper", with seven earlier messages
+    //                       in front of it, came back "Disabled night mode" and
+    //                       switched off enableXray - the nearest true/false in
+    //                       a vocabulary that (being a wallpaper request) had no
+    //                       night mode in it at all. 2 runs out of 2.
+    //
+    // With no history: 2 out of 2 correct on the same request. A 3B model does
+    // not hold a conversation - it continues the text in front of it, so the
+    // only safe text to put in front of it is the request being answered.
+    //
+    // What this costs is follow-ups: "no, the other one" has nothing to refer
+    // back to and the user has to restate. Measured, that costs less than it
+    // buys - with one previous message kept, the correction case improved
+    // slightly and simple requests started coming back empty.
+    //
+    // Hosted models keep the full transcript; none of this applies to them.
+
     readonly property int maxPromptHistoryMessages: 30
-    function buildPrompt(history, newMessage) {
-        if (!history || history.length === 0) return newMessage
+    function buildPrompt(history, newMessage, targets) {
+        // The vocabulary rides along on every turn rather than being fetched on
+        // demand: these backends are one-shot processes, so there is no second
+        // round trip to ask for it without doubling the latency of every
+        // config request - and current values are part of it, which is what
+        // makes "make it darker" answerable at all.
+        let directive = assistantWindow.settingsDirective(targets)
+        if (!history || history.length === 0) return directive + "\n\n" + newMessage
         // Error/timeout/cancelled/info entries are diagnostics for the
         // person reading the chat, not real turns - dropped here so a past
         // failure (or a "downloading the model" notice) never gets fed back
         // in as if the assistant had said it.
+        if (assistantWindow.usesStructuredOutput) return directive + "\n\n" + newMessage
+
         let realHistory = history.filter((m) => m.role !== "error" && m.role !== "info")
-        if (realHistory.length === 0) return newMessage
+        if (realHistory.length === 0) return directive + "\n\n" + newMessage
         if (realHistory.length > assistantWindow.maxPromptHistoryMessages) {
             realHistory = realHistory.slice(realHistory.length - assistantWindow.maxPromptHistoryMessages)
         }
         let lines = ["Here is our conversation so far. Respond naturally to my latest message at the end - don't repeat earlier context back to me, just continue the conversation."]
         for (let i = 0; i < realHistory.length; i++) {
-            lines.push((realHistory[i].role === "user" ? "User" : "Assistant") + ": " + realHistory[i].text)
+            let entry = realHistory[i]
+            if (entry.role === "user") {
+                lines.push("User: " + entry.text)
+                continue
+            }
+            lines.push("Assistant: " + entry.text)
         }
         lines.push("User: " + newMessage)
-        return lines.join("\n\n")
+        return directive + "\n\n" + lines.join("\n\n")
     }
 
     // Maps the selected backend to its own CLI's one-shot headless
@@ -406,24 +768,117 @@ PanelWindow {
     // stdin from /dev/null does - model and prompt travel as env vars rather
     // than being interpolated into the command string, so this stays just
     // as injection-safe as passing them as plain argv would be.
-    function launchAssistantProcess(prompt) {
-        if (Config.assistantBackend === "ollama") {
-            assistantProcess.environment = { "OLLAMA_RUN_MODEL": assistantWindow.ollamaModelName(), "OLLAMA_RUN_PROMPT": prompt }
-            // --hidethinking suppresses `ollama run`'s own "Thinking...
-            // .../...done thinking." terminal framing for models with native
-            // thinking support (confirmed empirically - without it, that
-            // framing and the reasoning text inside it print as plain text
-            // indistinguishable from a real reply, since it's Ollama's CLI
-            // presentation of a separate structured field, not literal
-            // <think> tags in the model's own output the way
-            // stripReasoningTags below was written to catch). Harmless
-            // no-op for a model with no thinking capability, so this is
-            // safe to pass unconditionally rather than needing to detect
-            // which kind of model is loaded first.
-            assistantProcess.command = ["sh", "-c", "ollama run --hidethinking \"$OLLAMA_RUN_MODEL\" \"$OLLAMA_RUN_PROMPT\" < /dev/null"]
-        } else {
-            assistantProcess.command = assistantWindow.backendCommand(prompt)
+    // The reply grammar handed to Ollama. `format` takes a JSON schema, which
+    // llama.cpp compiles into a sampling grammar - so the model *cannot* emit
+    // anything but this shape. Values are typed as strings across the board
+    // because SettingsSchema.coerce() parses "true"/"0.6"/"left" from text
+    // anyway, and a union type is the part of schema support most likely to
+    // vary between llama.cpp builds.
+    // The reply grammar handed to Ollama. `format` takes a JSON schema, which
+    // llama.cpp compiles into a sampling grammar, so the model *cannot* emit
+    // anything outside it. Three things here were each worth a measurable jump
+    // in how well a 3B local model does, tested against llama3.2:
+    //
+    //   - `changes` is declared before `reply`. Generation is left-to-right, so
+    //     with reply first the model narrates "Set the wallpaper to red" and
+    //     then, having already said it, takes the cheap continuation of an
+    //     empty change list. Deciding the machine-readable part first fixes it.
+    //   - one `target` field rather than key-or-action. Asking the model to
+    //     pick which of two field names to use was one more thing to get wrong;
+    //     the shell already knows which names are settings and which are
+    //     actions, so it can sort them out itself.
+    //   - `target` carries an enum of every real name. The grammar makes an
+    //     invented key literally unsamplable - and since the schema is compiled
+    //     rather than read, those 60 names cost nothing in context.
+    // One alternative per offered target, each pinning that target to the values
+    // it actually accepts. The first version constrained only which setting
+    // could be named, so the model was free to answer barFrameStyle with
+    // "flush" - a word straight out of the description, rejected on arrival,
+    // and from the user's side just another confident sentence about a change
+    // that didn't happen. Now an illegal value cannot be sampled either.
+    function targetAlternative(name) {
+        let entry = Config.settingsSchema.entry(name)
+        let valueSchema = { type: "string" }
+
+        if (Config.settingsSchema.hasAction(name)) {
+            // The wallpaper library is the value set: every colour in the index
+            // plus every tag on it, so the model can only ask for a wallpaper
+            // that exists.
+            if (name === "wallpaper") {
+                let choices = Config.wallpaperColours().concat(Config.wallpaperTags(0))
+                if (choices.length > 0) valueSchema = { enum: choices }
+            }
+        } else if (entry) {
+            if (entry.type === "enum") valueSchema = { enum: entry.values }
+            else if (entry.type === "bool") valueSchema = { enum: ["true", "false"] }
         }
+
+        return {
+            type: "object",
+            properties: { target: { const: name }, value: valueSchema },
+            required: ["target", "value"]
+        }
+    }
+
+    function ollamaReplySchema(targets) {
+        let names = (targets && targets.length > 0)
+            ? targets
+            : Config.settingsSchema.keys.concat(Config.settingsSchema.actionNames)
+        return {
+            type: "object",
+            properties: {
+                changes: {
+                    type: "array",
+                    // Bounded deliberately: an unbounded array let llama3.2 loop
+                    // ("screen", "edge", "screen", "edge", ...) once a
+                    // transcript had given it two values to alternate between.
+                    // Six is past anything a real request needs.
+                    maxItems: 6,
+                    items: { anyOf: names.map(n => assistantWindow.targetAlternative(n)) }
+                },
+                reply: { type: "string" }
+            },
+            required: ["changes", "reply"]
+        }
+    }
+
+    // Ollama chat used to shell out to `ollama run`, which needed a wrapper
+    // shell to redirect stdin from /dev/null (the CLI blocks forever waiting
+    // on a pipe that never gets EOF) and --hidethinking to suppress its
+    // terminal framing for reasoning models. Both problems belong to the CLI:
+    // the HTTP API has no stdin, and returns reasoning in its own field rather
+    // than mixed into the text. What it also has, and the CLI does not, is
+    // `format` - which is the whole reason for this move.
+    property string pendingPayloadBody: ""
+
+    function launchOllamaTextProcess(prompt) {
+        assistantWindow.pendingPayloadBody = JSON.stringify({
+            model: assistantWindow.ollamaModelName(),
+            messages: [{ role: "user", content: prompt }],
+            format: assistantWindow.ollamaReplySchema(assistantWindow.pendingTargets),
+            stream: false
+        })
+        // ~/.cache/synoptik is created by the paste and serve flows, neither of
+        // which need have run on a fresh install - and a plain text chat now
+        // writes a payload too. mkdir -p costs a millisecond next to the model
+        // call it precedes, so it runs every time rather than being tracked.
+        payloadDirProcess.running = false
+        payloadDirProcess.running = true
+    }
+
+    Process {
+        id: payloadDirProcess
+        command: ["mkdir", "-p", Quickshell.env("HOME") + "/.cache/synoptik"]
+        onExited: (exitCode) => {
+            if (!assistantWindow.assistantBusy) return
+            ollamaChatPayloadFile.path = Quickshell.env("HOME") + "/.cache/synoptik/assistant-chat-payload-" + Date.now() + ".json"
+            ollamaChatPayloadFile.setText(assistantWindow.pendingPayloadBody)
+        }
+    }
+
+    // The hosted CLIs only. Ollama has its own path (launchOllamaTextProcess).
+    function launchAssistantProcess(prompt) {
+        assistantProcess.command = assistantWindow.backendCommand(prompt)
         assistantProcess.running = true
     }
 
@@ -527,7 +982,7 @@ PanelWindow {
         if (assistantWindow.sendingImagePath.length > 0) {
             assistantWindow.launchOllamaImageProcess(prompt, assistantWindow.sendingImagePath)
         } else {
-            assistantWindow.launchAssistantProcess(prompt)
+            assistantWindow.launchOllamaTextProcess(prompt)
         }
     }
 
@@ -570,7 +1025,7 @@ PanelWindow {
             assistantWatchdog.stop()
             assistantWindow.assistantBusy = false
             assistantWindow.sendingImagePath = ""
-            Config.appendAssistantMessage("error", "Couldn't prepare the image for Ollama.")
+            Config.appendAssistantMessage("error", "Couldn't write the request payload for Ollama - is ~/.cache writable?")
         }
     }
 
@@ -593,9 +1048,6 @@ PanelWindow {
                 messages: [{ role: "user", content: imageBase64Process.promptText, images: [encoded] }],
                 stream: false
             })
-            // The paste flow (clipboardImageGrab) already created this
-            // directory before pendingImagePath could ever be set, so it's
-            // guaranteed to exist here.
             ollamaChatPayloadFile.path = Quickshell.env("HOME") + "/.cache/synoptik/assistant-chat-payload-" + Date.now() + ".json"
             ollamaChatPayloadFile.setText(body)
         }
@@ -609,17 +1061,28 @@ PanelWindow {
             if (!assistantWindow.assistantBusy) return
             assistantWatchdog.stop()
             assistantWindow.assistantBusy = false
+            let wasImage = assistantWindow.sendingImagePath.length > 0
             assistantWindow.sendingImagePath = ""
+
+            // Every Ollama turn writes a payload now, not just the occasional
+            // pasted image, so they are cleaned up as they are consumed rather
+            // than piling up in ~/.cache/synoptik forever.
+            if (ollamaChatPayloadFile.path.length > 0) {
+                Quickshell.execDetached(["rm", "-f", ollamaChatPayloadFile.path])
+            }
+
             let raw = ollamaChatStdout.text ? ollamaChatStdout.text.trim() : ""
             let obj = null
             try { obj = raw.length > 0 ? JSON.parse(raw) : null } catch (e) { obj = null }
             if (exitCode === 0 && obj && obj.message && typeof obj.message.content === "string" && obj.message.content.length > 0) {
-                Config.appendAssistantMessage("assistant", assistantWindow.stripReasoningTags(obj.message.content))
+                assistantWindow.deliverReply(obj.message.content)
             } else if (obj && obj.error) {
                 Config.appendAssistantMessage("error", obj.error)
             } else {
                 let errText = ollamaChatStderr.text ? ollamaChatStderr.text.trim() : ""
-                Config.appendAssistantMessage("error", errText.length > 0 ? errText : "Ollama returned nothing usable for that image.")
+                Config.appendAssistantMessage("error", errText.length > 0 ? errText
+                    : (wasImage ? "Ollama returned nothing usable for that image."
+                                : "Ollama returned nothing usable."))
             }
         }
     }
@@ -643,6 +1106,7 @@ PanelWindow {
     // (pullModelStandalone) rather than from an actual chat message - that's
     // how the pull-finished handler tells the two apart.
     property string pendingPrompt: ""
+    property var pendingTargets: []
     // Ollama-only, vision-capable models: an image staged for the next send
     // (attached via paste, shown as a thumbnail above the input) versus the
     // copy actually in flight for the current request - split the same way
@@ -730,7 +1194,21 @@ PanelWindow {
         // want "what is this" would make the common case more annoying than
         // it needs to be.
         let messageText = trimmed.length > 0 ? trimmed : "What's in this image?"
-        let fullPrompt = assistantWindow.buildPrompt(Config.assistantMessages, messageText)
+
+        // Which settings this message could plausibly be about - computed once
+        // and kept, because the prompt and the Ollama reply grammar have to
+        // agree on it, and the launch may happen much later (after a model
+        // pull, or after starting the Ollama server).
+        //
+        // Local models only. Narrowing is a trade: it makes a 3B model reliable
+        // (measured: "Red wallpaper" went from 0/3 to 3/3) at the cost of recall
+        // when the word matching guesses wrong. A hosted model handles all sixty
+        // settings comfortably, so it has nothing to gain and something to lose.
+        assistantWindow.pendingTargets = assistantWindow.usesStructuredOutput
+            ? Config.relevantTargets(messageText, 12)
+            : []
+        let fullPrompt = assistantWindow.buildPrompt(Config.assistantMessages, messageText,
+                                                     assistantWindow.pendingTargets)
         Config.appendAssistantMessage("user", messageText, imagePath)
         assistantWindow.pendingImagePath = ""
         assistantWindow.sendingImagePath = imagePath
@@ -818,7 +1296,10 @@ PanelWindow {
         if (assistantWindow.pullActive) {
             assistantWindow.pullActive = false
             ollamaPullProcess.running = false
-        } else if (assistantWindow.sendingImagePath.length > 0) {
+        } else if (Config.assistantBackend === "ollama") {
+            // Every Ollama request is a curl to /api/chat now, image or not -
+            // the image case additionally has an encode step that may still be
+            // the thing running.
             assistantWindow.sendingImagePath = ""
             imageBase64Process.running = false
             ollamaChatProcess.running = false
@@ -857,11 +1338,15 @@ PanelWindow {
                 assistantWindow.pullActive = false
                 ollamaPullProcess.running = false
                 Config.appendAssistantMessage("error", "Timed out downloading " + assistantWindow.ollamaModelName() + " - check your network connection and that " + assistantWindow.pullStatus + " isn't just stuck.")
-            } else if (assistantWindow.sendingImagePath.length > 0) {
+            } else if (Config.assistantBackend === "ollama") {
+                let wasImage = assistantWindow.sendingImagePath.length > 0
                 assistantWindow.sendingImagePath = ""
                 imageBase64Process.running = false
                 ollamaChatProcess.running = false
-                Config.appendAssistantMessage("error", "Timed out waiting on Ollama for that image.")
+                Config.appendAssistantMessage("error", wasImage
+                    ? "Timed out waiting on Ollama for that image."
+                    : "Timed out waiting on Ollama - " + assistantWindow.ollamaModelName()
+                      + " may be too large for this machine, or still loading into memory.")
             } else {
                 assistantProcess.running = false
                 Config.appendAssistantMessage("error", "Timed out waiting on " + assistantWindow.backendLabel() + " - check that it's installed, signed in, and on your PATH.")
@@ -1047,7 +1532,7 @@ PanelWindow {
             let errText = assistantStderr.text ? assistantStderr.text.trim() : ""
             if (Config.assistantBackend === "ollama") outText = assistantWindow.stripOllamaLineWrapCodes(outText)
             if (exitCode === 0 && outText.length > 0) {
-                Config.appendAssistantMessage("assistant", assistantWindow.stripReasoningTags(outText))
+                assistantWindow.deliverReply(outText)
             } else if (outText.length > 0) {
                 Config.appendAssistantMessage("error", outText)
             } else if (errText.length > 0) {
