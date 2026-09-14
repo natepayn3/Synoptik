@@ -347,7 +347,37 @@ PanelWindow {
     // vocabulary goes out with every prompt, the model answers with a fenced
     // block of changes, and every change is re-validated here before it lands -
     // the model's output is a request, never a write.
-    readonly property string undoProfileName: "Before assistant"
+    // A bounded history of pre-change snapshots, oldest first, so "undo" (and
+    // "undo the last N changes") can actually mean something rather than
+    // being limited to a single checkpoint that the next change overwrites.
+    // Each entry is a name understood by Config.*AssistantUndoSnapshot - a
+    // private directory of its own, not the user-visible Settings > Profiles
+    // list (see Config.qml's assistantUndoDir comment for why). In-memory
+    // only, not persisted: a snapshot left over from a previous session
+    // isn't a change *this* session made, so "undo" correctly has nothing to
+    // do right after a shell restart even though the file is still on disk.
+    property var undoStack: []
+    property int undoSnapshotCounter: 0
+    readonly property int maxUndoSteps: 10
+
+    function nextUndoSnapshotName() {
+        assistantWindow.undoSnapshotCounter++
+        return "chat-undo-" + assistantWindow.undoSnapshotCounter
+    }
+
+    // Called once a batch is confirmed to have actually changed something
+    // (see applySettingsActions) - a no-op batch has nothing worth undoing
+    // and would just waste a stack slot. Bounded so a long session doesn't
+    // pile up snapshot files forever: the oldest is dropped, and its file
+    // deleted, once the cap is hit.
+    function pushUndoSnapshot(name) {
+        let stack = assistantWindow.undoStack.slice()
+        stack.push(name)
+        while (stack.length > assistantWindow.maxUndoSteps) {
+            Config.deleteAssistantUndoSnapshot(stack.shift())
+        }
+        assistantWindow.undoStack = stack
+    }
 
     // Ollama gets a schema-constrained JSON reply instead of a markdown fence
     // (see launchOllamaTextProcess): a 3B local model can be relied on to fill
@@ -570,13 +600,16 @@ PanelWindow {
             return { applied: applied, failed: failed, gated: gated, unchanged: unchanged }
         }
 
-        // A snapshot of the whole settings file before the first change, so any
-        // reply is undoable from the existing profile picker without new UI.
-        // Config.saveProfile() forces the write immediately and copies on
-        // FileView's saved() (with a 250ms fallback), both of which land well
-        // inside saveSettings()' own 400ms debounce - so the copy is of the
-        // pre-change file even though the changes start applying right below.
-        Config.saveProfile(assistantWindow.undoProfileName)
+        // A snapshot of the whole settings file before this batch, so it's
+        // undoable from chat afterward (see performUndo). Config.saveAssistant-
+        // UndoSnapshot() forces the write immediately and copies on FileView's
+        // saved() (with a 250ms fallback), both of which land well inside
+        // saveSettings()' own 400ms debounce - so the copy is of the pre-change
+        // file even though the changes start applying right below. Not yet
+        // pushed onto undoStack: that only happens once it's confirmed below
+        // that something in this batch actually changed.
+        let undoSnapshotName = assistantWindow.nextUndoSnapshotName()
+        Config.saveAssistantUndoSnapshot(undoSnapshotName)
 
         // A small model asked to change barFrameStyle can answer with two entries
         // for it, in opposite directions - seen in practice as
@@ -628,6 +661,10 @@ PanelWindow {
             let gate = Config.settingGate(key)
             return gate !== "" && !Config.settingValue(gate)
         })
+
+        if (applied.length > 0) assistantWindow.pushUndoSnapshot(undoSnapshotName)
+        else Config.deleteAssistantUndoSnapshot(undoSnapshotName)
+
         return { applied: applied, failed: failed, gated: gated, unchanged: unchanged,
                  conflicts: conflicts }
     }
@@ -659,10 +696,125 @@ PanelWindow {
         }
         if (result.failed.length > 0) notes.push("Skipped: " + result.failed.join("; "))
         if (result.gated.length > 0) notes.push("No visible effect yet - " + result.gated.join("; "))
-        if (result.applied.length > 0) {
-            notes.push("Undo: Settings > Profiles > \"" + assistantWindow.undoProfileName + "\".")
-        }
+        if (result.applied.length > 0) notes.push("Say \"undo\" to revert this.")
         if (notes.length > 0) Config.appendAssistantMessage("info", notes.join("\n"))
+    }
+
+    // Deterministic, no model involved - same "nothing to get wrong" pattern
+    // relevantTargets() uses below. Neither a hosted model (which sees its
+    // own past reply describing *what* it changed, via buildPrompt's
+    // transcript, but never the value it changed something *from*) nor a
+    // local one (which gets no history at all - see buildPrompt) can
+    // reconstruct a prior value reliably enough to act as "undo" on its own,
+    // so this is the one case where the shell has to act instead of asking a
+    // model to.
+    //
+    // A fixed phrase list ("undo that", "undo it", ...) was the first cut of
+    // this and missed "undo all that" outright - it fell through to the
+    // model, which then cheerfully claimed to have reverted things it never
+    // touched. A vocabulary check instead: every token in the message has to
+    // be undo-ish filler/pronoun/verb/count, so any combination of them
+    // ("undo all that", "please revert those changes", "undo the last two
+    // changes") matches without having to enumerate every phrasing by hand.
+    // The moment a message contains a real word outside that vocabulary -
+    // "wallpaper", "blue", "border" - it's a specific, real request and has
+    // to go to the model instead of being silently swallowed here.
+    //
+    // Numbers get their own check rather than a vocabulary entry (undo-
+    // NumberWords below, plus a bare digit) since there's no fixed set of
+    // them to enumerate.
+    readonly property var undoVocabulary: [
+        "undo", "undoes", "undoing", "revert", "reverts", "reverting",
+        "reverse", "reversed", "redo", "put", "back",
+        "that", "it", "this", "those", "these", "all", "everything",
+        "change", "changes", "last", "previous", "please", "just", "again",
+        "can", "could", "would", "will", "you", "the", "my", "to", "before",
+        "of"
+    ]
+
+    readonly property var undoNumberWords: ({
+        "one": 1, "two": 2, "three": 3, "four": 4, "five": 5,
+        "six": 6, "seven": 7, "eight": 8, "nine": 9, "ten": 10,
+        "couple": 2, "few": 3
+    })
+
+    // Kept as its own step (rather than inlined at both call sites) so
+    // isUndoRequest()'s vocabulary check and performUndo()'s step-count
+    // parsing tokenize identically - the digit tokens especially: a plain
+    // [^a-z] strip (the very first version of this) silently deletes a bare
+    // "2" instead of rejecting it, which would have made isUndoRequest technically
+    // "work" by accident while giving performUndo nothing to parse.
+    function undoTokens(text) {
+        let stripped = (text || "").toLowerCase().trim().replace(/[.!?]+$/, "")
+        return stripped.split(/\s+/).map(t => t.replace(/[^a-z0-9]/g, "")).filter(t => t.length > 0)
+    }
+
+    function isUndoRequest(text) {
+        let tokens = assistantWindow.undoTokens(text)
+        if (tokens.length === 0) return false
+        let hasVerb = tokens.indexOf("undo") !== -1 || tokens.indexOf("revert") !== -1
+            || tokens.indexOf("reverse") !== -1
+            || (tokens.indexOf("put") !== -1 && tokens.indexOf("back") !== -1)
+        if (!hasVerb) return false
+        return tokens.every(t => assistantWindow.undoVocabulary.indexOf(t) !== -1
+            || /^[0-9]+$/.test(t) || assistantWindow.undoNumberWords[t] !== undefined)
+    }
+
+    // "all"/"everything" means as far back as the tracked stack goes, a
+    // digit or number word means that many steps, and anything else (plain
+    // "undo") defaults to one.
+    function undoStepCount(tokens) {
+        if (tokens.indexOf("all") !== -1 || tokens.indexOf("everything") !== -1) {
+            return assistantWindow.undoStack.length
+        }
+        for (let i = 0; i < tokens.length; i++) {
+            let t = tokens[i]
+            if (/^[0-9]+$/.test(t)) {
+                let n = parseInt(t, 10)
+                if (n > 0) return n
+            }
+            if (assistantWindow.undoNumberWords[t] !== undefined) return assistantWindow.undoNumberWords[t]
+        }
+        return 1
+    }
+
+    // Restores the snapshot from `steps` batches back. Only that one snapshot
+    // needs loading - it already captures state from before every change more
+    // recent than it, so there's no need to replay the stack one entry at a
+    // time. Everything from that point on in the stack (the target snapshot
+    // included) is now moot once we've jumped behind it, so those entries -
+    // and their cache files - are dropped together.
+    //
+    // Reported optimistically once the restore is kicked off rather than
+    // waiting on Config's own async exit: undoStack having `steps` entries is
+    // what already guarantees the target snapshot file is there.
+    function performUndo(rawText) {
+        Config.appendAssistantMessage("user", rawText)
+        let available = assistantWindow.undoStack.length
+        if (available === 0) {
+            Config.appendAssistantMessage("info", "Nothing to undo yet - I haven't changed any settings this session.")
+            return
+        }
+
+        let tokens = assistantWindow.undoTokens(rawText)
+        let requested = assistantWindow.undoStepCount(tokens)
+        let steps = Math.max(1, Math.min(requested, available))
+
+        let stack = assistantWindow.undoStack.slice()
+        let targetIndex = stack.length - steps
+        let target = stack[targetIndex]
+        let discarded = stack.slice(targetIndex)
+        assistantWindow.undoStack = stack.slice(0, targetIndex)
+
+        Config.loadAssistantUndoSnapshot(target)
+        discarded.forEach(name => Config.deleteAssistantUndoSnapshot(name))
+
+        let note = steps === 1 ? "Reverted the last change." : "Reverted the last " + steps + " changes."
+        if (requested > available) {
+            note += " Only " + available + " " + (available === 1 ? "was" : "were")
+                + " tracked this session, so that's as far back as I can go."
+        }
+        Config.appendAssistantMessage("info", note)
     }
 
     // Each send is its own fresh, memory-less process - none of the three
@@ -1159,7 +1311,7 @@ PanelWindow {
     // and every single chat message re-triggers a "not downloaded yet" pull
     // even though the model is already there.
     function ollamaModelName() {
-        let raw = (Config.assistantOllamaModel && Config.assistantOllamaModel.length > 0) ? Config.assistantOllamaModel : "llama3.2"
+        let raw = (Config.assistantOllamaModel && Config.assistantOllamaModel.length > 0) ? Config.assistantOllamaModel : "gemma2:9b"
         return raw.replace(/^https?:\/\//i, "")
     }
 
@@ -1189,6 +1341,15 @@ PanelWindow {
         let trimmed = (text || "").trim()
         let imagePath = assistantWindow.pendingImagePath
         if ((!trimmed && !imagePath) || assistantBusy) return
+        // Handled locally, with no backend call at all - see isUndoRequest()
+        // for why no model (hosted or local) can be trusted to do this
+        // itself. Only when there's no attached image: "undo" alongside a
+        // pasted screenshot is presumably meant as real text for a vision
+        // request, not a revert.
+        if (!imagePath && assistantWindow.isUndoRequest(trimmed)) {
+            assistantWindow.performUndo(trimmed)
+            return
+        }
         // A vision request still needs some instruction text to answer - but
         // requiring the user to type something every single time they just
         // want "what is this" would make the common case more annoying than

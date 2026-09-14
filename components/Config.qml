@@ -504,7 +504,7 @@ QtObject {
     function getAssistantPosition(screenName, defaultX, defaultY) { return desktopExtras.getAssistantPosition(screenName, defaultX, defaultY) }
     function saveAssistantPosition(screenName, x, y) { desktopExtras.saveAssistantPosition(screenName, x, y) }
     property alias assistantMessages: root.desktopExtras.assistantMessages
-    function appendAssistantMessage(role, text) { desktopExtras.appendAssistantMessage(role, text) }
+    function appendAssistantMessage(role, text, imagePath) { desktopExtras.appendAssistantMessage(role, text, imagePath) }
     function clearAssistantMessages() { desktopExtras.clearAssistantMessages() }
     property alias showDesktopMediaCard: root.desktopExtras.showDesktopMediaCard
     property alias mediaCardWidth: root.desktopExtras.mediaCardWidth
@@ -1345,8 +1345,8 @@ QtObject {
         // what keeps saveProfile() from racing the write it just requested.
         // Fast path: the settings write landed, so the file on disk is current
         // and the profile snapshot can be copied from it immediately.
-        onSaved: root.commitProfileSave()
-        onSaveFailed: root.pendingProfileSave = ""
+        onSaved: { root.commitProfileSave(); root.commitUndoSnapshotSave() }
+        onSaveFailed: { root.pendingProfileSave = ""; root.pendingUndoSnapshotSave = "" }
 
         onLoaded: {
             applyLoadedSettings()
@@ -1504,6 +1504,81 @@ QtObject {
             }
         }
     }
+
+    // --- ASSISTANT UNDO SNAPSHOTS (chat "undo", AssistantWidget.qml) ---
+    // Same copy-the-settings-file mechanics as a named profile above, but
+    // kept in their own directory under names the widget itself generates,
+    // and deliberately not touching profileNames/activeProfile - a run of
+    // assistant-applied changes would otherwise fill the user's own
+    // Settings > Profiles list with a pile of numbered entries that aren't
+    // real profiles, just this feature's own scratch state, and would leave
+    // the "Active: ..." label there naming one of those instead of whatever
+    // profile the user actually has loaded.
+    readonly property string assistantUndoDir: root.shellDir + "/.assistant-undo"
+    property string pendingUndoSnapshotSave: ""
+
+    function saveAssistantUndoSnapshot(name) {
+        let clean = root.sanitizeProfileName(name)
+        if (clean === "") return
+        root.pendingUndoSnapshotSave = clean
+        saveTimer.stop()
+        root.writeSettingsNow()
+        undoSnapshotSaveFallback.restart()
+    }
+
+    property Timer undoSnapshotSaveFallback: Timer {
+        id: undoSnapshotSaveFallback
+        interval: 250
+        repeat: false
+        onTriggered: root.commitUndoSnapshotSave()
+    }
+
+    function commitUndoSnapshotSave() {
+        if (root.pendingUndoSnapshotSave === "") return
+        let name = root.pendingUndoSnapshotSave
+        root.pendingUndoSnapshotSave = ""
+        undoSnapshotSaveFallback.stop()
+        undoSnapshotWriteProc.command = ["sh", "-c",
+            "mkdir -p '" + root.assistantUndoDir + "' && cp -f '" + root.settingsPath
+            + "' '" + root.assistantUndoDir + "/" + name + ".json'"]
+        undoSnapshotWriteProc.running = false
+        undoSnapshotWriteProc.running = true
+    }
+
+    property Process undoSnapshotWriteProc: Process { id: undoSnapshotWriteProc; running: false }
+
+    function loadAssistantUndoSnapshot(name) {
+        let clean = root.sanitizeProfileName(name)
+        if (clean === "") return
+        undoSnapshotLoadProc.command = ["sh", "-c",
+            "src='" + root.assistantUndoDir + "/" + clean + ".json'; "
+            + "[ -s \"$src\" ] || exit 1; cp -f \"$src\" '" + root.settingsPath + "'"]
+        undoSnapshotLoadProc.running = true
+    }
+
+    // Reapplies the restored file the same way loading a named profile does
+    // (reload -> applyLoadedSettings), so an undo lands exactly like any
+    // other settings.json swap rather than needing its own separate apply
+    // path.
+    property Process undoSnapshotLoadProc: Process {
+        id: undoSnapshotLoadProc
+        running: false
+        onExited: (exitCode) => {
+            if (exitCode !== 0) return
+            root.settingsRecoveryAttempted = false
+            settingsFileImpl.reload()
+        }
+    }
+
+    function deleteAssistantUndoSnapshot(name) {
+        let clean = root.sanitizeProfileName(name)
+        if (clean === "") return
+        undoSnapshotDeleteProc.command = ["sh", "-c",
+            "rm -f '" + root.assistantUndoDir + "/" + clean + ".json'"]
+        undoSnapshotDeleteProc.running = true
+    }
+
+    property Process undoSnapshotDeleteProc: Process { id: undoSnapshotDeleteProc; running: false }
 
     property Process profileWriteProc: Process {
         id: profileWriteProc

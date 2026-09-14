@@ -264,7 +264,7 @@ Item {
 
                     Text {
                         anchors.fill: parent
-                        text: Config.assistantBackend === "ollama" ? "e.g. llama3.2, mistral, qwen2.5 (defaults to llama3.2)" : "Leave blank to use the CLI's default model"
+                        text: Config.assistantBackend === "ollama" ? "e.g. gemma2:9b, mistral, qwen2.5 (defaults to gemma2:9b)" : "Leave blank to use the CLI's default model"
                         color: Config.textMuted
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontCaption)
