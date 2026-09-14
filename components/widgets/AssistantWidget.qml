@@ -701,13 +701,12 @@ PanelWindow {
     }
 
     // Deterministic, no model involved - same "nothing to get wrong" pattern
-    // relevantTargets() uses below. Neither a hosted model (which sees its
-    // own past reply describing *what* it changed, via buildPrompt's
-    // transcript, but never the value it changed something *from*) nor a
-    // local one (which gets no history at all - see buildPrompt) can
-    // reconstruct a prior value reliably enough to act as "undo" on its own,
-    // so this is the one case where the shell has to act instead of asking a
-    // model to.
+    // relevantTargets() uses below. Even with the short transcript a local
+    // model now gets (see buildPrompt), neither it nor a hosted model ever
+    // sees the value a setting changed *from* - only its own past reply
+    // describing what it changed - so neither can reconstruct a prior value
+    // reliably enough to act as "undo" on its own. This is the one case
+    // where the shell has to act instead of asking a model to.
     //
     // A fixed phrase list ("undo that", "undo it", ...) was the first cut of
     // this and missed "undo all that" outright - it fell through to the
@@ -847,18 +846,43 @@ PanelWindow {
     //                       a vocabulary that (being a wallpaper request) had no
     //                       night mode in it at all. 2 runs out of 2.
     //
-    // With no history: 2 out of 2 correct on the same request. A 3B model does
-    // not hold a conversation - it continues the text in front of it, so the
-    // only safe text to put in front of it is the request being answered.
+    // With no history: 2 out of 2 correct on the same request. That 3B model
+    // did not hold a conversation - it continued the text in front of it, so
+    // the only safe text to put in front of it was the request being
+    // answered.
     //
-    // What this costs is follow-ups: "no, the other one" has nothing to refer
-    // back to and the user has to restate. Measured, that costs less than it
-    // buys - with one previous message kept, the correction case improved
-    // slightly and simple requests started coming back empty.
+    // What this cost was follow-ups: "no, the other one" had nothing to refer
+    // back to and the user had to restate.
+    //
+    // Re-measured after the default local model moved to gemma2:9b (9B, not
+    // 3B): a short window of recent turns did not reproduce any of the three
+    // failure modes above - no copying, no echoing/looping, no drifting to an
+    // older turn (checked with four unrelated prior turns still in the
+    // window) - across several runs of the request that broke worst before,
+    // "change it to every 1" with the setting it referred to never named
+    // again. A capped, short window is kept anyway rather than the full
+    // maxPromptHistoryMessages a hosted model gets: the win was measured at
+    // a handful of turns, not at 30, and a 9B model's attention is still
+    // worth spending carefully. The one case that still came back wrong
+    // ("no, the *other* one" among four bar positions, not two) is a
+    // genuinely ambiguous instruction, not a repeat of the old failures.
     //
     // Hosted models keep the full transcript; none of this applies to them.
 
     readonly property int maxPromptHistoryMessages: 30
+    readonly property int maxLocalPromptHistoryMessages: 6
+
+    // Recent turns as plain words, for Config.relevantTargets' fallback scoring
+    // - not the transcript itself (buildPrompt renders that separately, with
+    // roles and its own cap). Same error/info filter as buildPrompt so a
+    // diagnostic notice never contributes a word toward picking a setting.
+    function recentContextText(history) {
+        if (!history || history.length === 0) return ""
+        let real = history.filter((m) => m.role !== "error" && m.role !== "info")
+        if (real.length === 0) return ""
+        return real.slice(-assistantWindow.maxLocalPromptHistoryMessages).map(m => m.text).join(" ")
+    }
+
     function buildPrompt(history, newMessage, targets) {
         // The vocabulary rides along on every turn rather than being fetched on
         // demand: these backends are one-shot processes, so there is no second
@@ -871,12 +895,13 @@ PanelWindow {
         // person reading the chat, not real turns - dropped here so a past
         // failure (or a "downloading the model" notice) never gets fed back
         // in as if the assistant had said it.
-        if (assistantWindow.usesStructuredOutput) return directive + "\n\n" + newMessage
-
         let realHistory = history.filter((m) => m.role !== "error" && m.role !== "info")
         if (realHistory.length === 0) return directive + "\n\n" + newMessage
-        if (realHistory.length > assistantWindow.maxPromptHistoryMessages) {
-            realHistory = realHistory.slice(realHistory.length - assistantWindow.maxPromptHistoryMessages)
+        let cap = assistantWindow.usesStructuredOutput
+            ? assistantWindow.maxLocalPromptHistoryMessages
+            : assistantWindow.maxPromptHistoryMessages
+        if (realHistory.length > cap) {
+            realHistory = realHistory.slice(realHistory.length - cap)
         }
         let lines = ["Here is our conversation so far. Respond naturally to my latest message at the end - don't repeat earlier context back to me, just continue the conversation."]
         for (let i = 0; i < realHistory.length; i++) {
@@ -1365,8 +1390,15 @@ PanelWindow {
         // (measured: "Red wallpaper" went from 0/3 to 3/3) at the cost of recall
         // when the word matching guesses wrong. A hosted model handles all sixty
         // settings comfortably, so it has nothing to gain and something to lose.
+        //
+        // recentContextText backstops the case that broke worst in practice:
+        // a follow-up ("change it to every 1") that never repeats the setting
+        // by name because it was only named a turn or two ago. Scored only
+        // when the message alone matches nothing (see Config.relevantTargets)
+        // - a request that names its own setting should never be widened by
+        // whatever was said before it.
         assistantWindow.pendingTargets = assistantWindow.usesStructuredOutput
-            ? Config.relevantTargets(messageText, 12)
+            ? Config.relevantTargets(messageText, 12, assistantWindow.recentContextText(Config.assistantMessages))
             : []
         let fullPrompt = assistantWindow.buildPrompt(Config.assistantMessages, messageText,
                                                      assistantWindow.pendingTargets)

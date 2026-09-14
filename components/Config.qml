@@ -2071,17 +2071,31 @@ QtObject {
         return score
     }
 
-    function relevantTargets(message, limit) {
+    // `recentText` is what a follow-up like "change it to every 1" gets scored
+    // against when the message alone matches nothing: without it, a follow-up
+    // that never repeats the setting by name (because the setting was just
+    // established a turn ago) fell straight through to defaultTargets, which
+    // does not even contain every setting - so a real target like
+    // slideshowMinutes could be un-offerable and the model would be left
+    // choosing among settings that have nothing to do with the request.
+    function relevantTargets(message, limit, recentText) {
         let cap = (limit && limit > 0) ? limit : 12
-        let tokens = messageTokens(message)
         let names = settingsSchema.keys.concat(settingsSchema.actionNames)
 
-        let scored = names.map(n => ({ name: n, score: targetScore(n, tokens) }))
-                          .filter(row => row.score > 0)
-                          .sort((a, b) => b.score - a.score)
+        function scoreAgainst(text) {
+            let tokens = messageTokens(text)
+            return names.map(n => ({ name: n, score: targetScore(n, tokens) }))
+                        .filter(row => row.score > 0)
+                        .sort((a, b) => b.score - a.score)
+        }
 
-        // Nothing matched by wording: a vague request, so fall back to the
-        // settings most likely to have been meant rather than to all of them.
+        let scored = scoreAgainst(message)
+
+        if (scored.length === 0 && recentText) scored = scoreAgainst(recentText)
+
+        // Nothing matched by wording, even counting recent context: a vague
+        // request, so fall back to the settings most likely to have been
+        // meant rather than to all of them.
         if (scored.length === 0) return settingsSchema.defaultTargets.slice(0, cap)
 
         let picked = scored.slice(0, cap).map(row => row.name)
