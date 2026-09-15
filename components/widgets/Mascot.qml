@@ -4,10 +4,14 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import ".."
+import "../services"
 
 PanelWindow {
     id: petWindow
-    visible: Config.showMascot && Config.mascotPath !== ""
+    // Gated on the RESOLVED clip rather than mascotPath directly: a set that
+    // registers clips but leaves the legacy single-file path empty is still
+    // a perfectly valid mascot, and would otherwise never show.
+    visible: Config.showMascot && mascotState.currentClipPath !== ""
 
     Component.onCompleted: {
         let activeName = Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""
@@ -72,6 +76,18 @@ PanelWindow {
 
     property string currentPhrase: ""
     property bool isTalking: false
+
+    // Which animation should be playing, and which file that resolves to.
+    // shellRoot is reached through the scope chain (Mascot.qml is only ever
+    // instantiated inside ShellRoot) but passed explicitly rather than read
+    // that way inside the service, so the state ladder has one named input
+    // instead of an invisible dependency on where it happens to be declared.
+    property MascotState mascotState: MascotState {
+        shellRef: (typeof shellRoot !== "undefined") ? shellRoot : null
+        configRef: Config
+        dragging: dragArea.drag.active
+        hovered: dragArea.containsMouse
+    }
 
     Item {
         id: petContainer
@@ -207,7 +223,12 @@ PanelWindow {
         Connections {
             target: Config
             function onNotificationArrived() {
-                if (Config.showMascot) notifyBounce.restart()
+                if (!Config.showMascot) return
+                // The scale bounce stays unconditionally: it is the only
+                // reaction that works with a single-GIF mascot, and it still
+                // reads well layered under a dedicated clip once one exists.
+                notifyBounce.restart()
+                petWindow.mascotState.fire("notify")
             }
         }
 
@@ -216,7 +237,11 @@ PanelWindow {
             anchors.fill: parent
             acceptedButtons: Qt.LeftButton | Qt.RightButton
             cursorShape: Qt.PointingHandCursor
-            hoverEnabled: false
+            // On so the "petted" state can see the pointer. The window's
+            // input mask is already just petContainer (plus the open context
+            // menu), so this tracks hover over the mascot itself and nothing
+            // else on the desktop.
+            hoverEnabled: true
 
             // Tracked independently of drag.active itself (set from the raw
             // onPositionChanged move signal, not the drag state signal) so
@@ -262,6 +287,10 @@ PanelWindow {
                     widgetMenu.openAt(mouse.x, mouse.y, petContainer, petWindow.width, petWindow.height)
                 } else {
                     Config.closeWidgetMenus()
+                    // A left click that wasn't a drag is a poke. Guarded on
+                    // dragMoved so letting go at the end of a drag doesn't
+                    // read as one.
+                    if (!dragMoved) petWindow.mascotState.fire("poke")
                 }
             }
 
@@ -329,10 +358,28 @@ PanelWindow {
 
         AnimatedImage {
             id: character
-            source: petWindow.formatFileUrl(Config.mascotPath)
+            source: petWindow.formatFileUrl(petWindow.mascotState.currentClipPath)
             anchors.fill: parent
             fillMode: Image.PreserveAspectFit
             playing: true
+
+            // One-shot reactions. AnimatedImage loops forever, so a reaction
+            // has to be ended by hand when it reaches its last frame -
+            // otherwise "startled by a notification" plays on a loop until
+            // the service's safety timer fires seconds later.
+            //
+            // Only attempted when the reaction resolved to a clip of its
+            // own: if it fell back to the looping idle clip, there is no
+            // meaningful last frame to wait for, and the reaction is ended
+            // immediately instead so state doesn't stick on a name that
+            // isn't visibly doing anything.
+            // A reaction that fell back to the looping idle clip has no end of
+            // its own to wait for, so it is released at once rather than
+            // sitting on a state that isn't visibly doing anything.
+            onCurrentFrameChanged: {
+                let st = petWindow.mascotState
+                if (st.reaction !== "" && !st.currentClipIsOwn) st.endReaction()
+            }
 
             // Bounce on notification (see notifyBounce below) and droop when
             // the battery's low - both layered on top of the single GIF
@@ -350,6 +397,12 @@ PanelWindow {
             onStatusChanged: {
                 if (status === AnimatedImage.Ready) {
                     playing = true
+                    // The clip's length is only knowable now. Hand it to the
+                    // service so a one-shot is held for exactly as long as it
+                    // actually runs, rather than a fixed guess.
+                    let st = petWindow.mascotState
+                    if (st.reaction !== "" && st.currentClipIsOwn)
+                        st.holdReactionFor(frameCount)
                 }
             }
         }

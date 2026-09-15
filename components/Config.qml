@@ -476,6 +476,10 @@ QtObject {
     property alias showMascot: root.desktopExtras.showMascot
     property alias mascotPath: root.desktopExtras.mascotPath
     property alias mascotAudioThrob: root.desktopExtras.mascotAudioThrob
+    property alias mascotClips: root.desktopExtras.mascotClips
+    function setMascotClip(stateName, path) { root.desktopExtras.setMascotClip(stateName, path) }
+    function clearMascotClips() { root.desktopExtras.clearMascotClips() }
+    function setMascotClipSet(dir, stateNames, ext) { root.desktopExtras.setMascotClipSet(dir, stateNames, ext) }
     property alias mascotPhrases: root.desktopExtras.mascotPhrases
     property alias mascotPositions: root.desktopExtras.mascotPositions
     property alias mascotLastScreen: root.desktopExtras.mascotLastScreen
@@ -953,7 +957,7 @@ QtObject {
         "wallpaperCursorParallax", "wallpaperParallaxIntensity", "slideshowActive", "slideshowMinutes",
         "showScreensaver", "screensaverText", "screensaverMode", "screensaverFontSize",
         "screensaverSpeed", "screensaverCornerCounter", "showOsk", "oskLayout", "showMascot",
-        "mascotPath", "mascotPhrases", "mascotPositions", "mascotLastScreen", "mascotAudioThrob", "fetchOnlineQuotes", "quoteSource",
+        "mascotPath", "mascotPhrases", "mascotPositions", "mascotLastScreen", "mascotAudioThrob", "mascotClips", "fetchOnlineQuotes", "quoteSource",
         "showDesktopMediaCard", "mediaCardWidth", "mediaCardHeight", "mediaCardPositions", "mediaCardLastScreen", "barFrameStyle",
         "barClockStyle", "barPosition", "autoHideBar", "showScreenFrame", "sysFont", "nativeFontRendering",
         "fontScaleIndex", "locationQuery", "enabledBarScreens", "useCustomColors", "customBgBase",
@@ -1035,6 +1039,7 @@ QtObject {
             property var showMascot
             property var mascotPath
             property var mascotAudioThrob
+            property var mascotClips
             property var mascotPhrases
             property var mascotPositions
             property var mascotLastScreen

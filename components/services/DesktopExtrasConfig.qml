@@ -19,6 +19,49 @@ QtObject {
     property bool showMascot: false
     property string mascotPath: ""
     property bool mascotAudioThrob: true
+
+    // Per-state animation clips: { stateName: "/abs/path/clip.webp" }.
+    // State names come from MascotState.allStateNames. Left empty until the
+    // user actually registers a clip - MascotState.clipPathFor() falls back
+    // through the set's "idle" entry to mascotPath above, so an empty map
+    // means the mascot behaves exactly as it did before this existed.
+    //
+    // Stored as paths rather than a set directory + naming convention so a
+    // single clip can be swapped or borrowed from elsewhere without moving
+    // files around; setMascotClipSet() below writes the conventional layout
+    // into this same map for the common case.
+    property var mascotClips: ({})
+
+    function setMascotClip(stateName, path) {
+        if (!stateName) return
+        let next = Object.assign({}, mascotClips)
+        if (!path || path === "") delete next[stateName]
+        else next[stateName] = path
+        mascotClips = next
+        if (configRef) configRef.saveSettings()
+    }
+
+    function clearMascotClips() {
+        mascotClips = ({})
+        if (configRef) configRef.saveSettings()
+    }
+
+    // Bulk-register a conventionally laid out set: <dir>/<state>.<ext> for
+    // every state named. Only states whose file the caller actually found
+    // should be passed in - this does no existence checking of its own,
+    // since QML has no synchronous stat and a wrong entry here would defeat
+    // the fallback chain by pointing at a file that cannot load.
+    function setMascotClipSet(dir, stateNames, ext) {
+        if (!dir || !stateNames) return
+        let suffix = ext || "webp"
+        let base = dir.endsWith("/") ? dir : (dir + "/")
+        let next = Object.assign({}, mascotClips)
+        for (let i = 0; i < stateNames.length; i++) {
+            next[stateNames[i]] = base + stateNames[i] + "." + suffix
+        }
+        mascotClips = next
+        if (configRef) configRef.saveSettings()
+    }
     property var mascotPhrases: [
         "I use Arch btw",
         "Hyprland is so comfy",
