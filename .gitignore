@@ -12,3 +12,9 @@ settings.json
 # Saved configuration profiles + the active-profile marker: per-machine
 # user state, same as settings.json.
 profiles/
+
+# Python bytecode cache from running scripts/*.py directly.
+__pycache__/
+
+# CMake build output for the blobs plugin - generated, not source.
+plugin/build/

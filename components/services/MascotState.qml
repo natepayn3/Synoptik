@@ -214,22 +214,37 @@ QtObject {
     }
 
     // What the widget should be showing right now.
-    readonly property string current: reaction !== "" ? reaction : condition
+    //
+    // Deliberately NOT a live binding ("readonly property string current:
+    // reaction !== '' ? reaction : condition"), even though that reads more
+    // naturally - currentClipPath and currentClipIsOwn below both derive
+    // from current, and Qt's engine re-entering current's own expression
+    // once for each of them in the same evaluation pass reliably printed
+    // "Binding loop detected for property current" on every reload. Nothing
+    // was actually wrong (current was never truly circular - condition and
+    // reaction are always written imperatively, never from current itself),
+    // but a plain property updated explicitly by the two things that can
+    // change it sidesteps the false positive entirely, since it's no longer
+    // a declarative expression another binding can re-enter.
+    property string current: "idle"
+    function updateCurrent() { current = reaction !== "" ? reaction : condition }
+    onConditionChanged: updateCurrent()
+    onReactionChanged: updateCurrent()
 
     // ------------------------------------------------------------------
     // CLIP MANIFEST
     // ------------------------------------------------------------------
     // Resolution order: the clip registered for this exact state, then the
-    // set's own idle clip, then the single legacy mascotPath. That last step
-    // is what lets the whole state machine run today against one GIF - every
-    // state resolves to the same file until clips are actually authored, so
-    // nothing about the current mascot changes until a file exists.
+    // set's own idle clip, then the built-in bundled idle clip directly.
+    // That last step only matters for the instant before Config.qml's
+    // first-load seeding has populated mascotClips (or a settings.json that
+    // predates it) - the mascot is always this one character, never a blank.
     function clipPathFor(name) {
         if (!configRef) return ""
         let clips = configRef.mascotClips || {}
         if (name && clips[name]) return clips[name]
         if (clips["idle"]) return clips["idle"]
-        return configRef.mascotPath || ""
+        return configRef.builtinMascotDir ? (configRef.builtinMascotDir + "/idle.webp") : ""
     }
 
     readonly property string currentClipPath: clipPathFor(current)

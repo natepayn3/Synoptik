@@ -69,7 +69,6 @@ QtObject {
 
     // --- EXTRACTED BACKGROUND SERVICES ---
     property WallpaperService wallpaperService: WallpaperService { configRef: root }
-    property QuoteService quoteService: QuoteService { configRef: root }
     property IrisColorService irisService: IrisColorService { configRef: root }
     property ShaderService shaderService: ShaderService { configRef: root }
     property MotionService motionService: MotionService {}
@@ -474,20 +473,13 @@ QtObject {
     property alias screensaverSpeed: root.desktopExtras.screensaverSpeed
     property alias screensaverCornerCounter: root.desktopExtras.screensaverCornerCounter
     property alias showMascot: root.desktopExtras.showMascot
-    property alias mascotPath: root.desktopExtras.mascotPath
     property alias mascotAudioThrob: root.desktopExtras.mascotAudioThrob
     property alias mascotClips: root.desktopExtras.mascotClips
     function setMascotClip(stateName, path) { root.desktopExtras.setMascotClip(stateName, path) }
     function clearMascotClips() { root.desktopExtras.clearMascotClips() }
     function setMascotClipSet(dir, stateNames, ext) { root.desktopExtras.setMascotClipSet(dir, stateNames, ext) }
-    property alias mascotPhrases: root.desktopExtras.mascotPhrases
     property alias mascotPositions: root.desktopExtras.mascotPositions
     property alias mascotLastScreen: root.desktopExtras.mascotLastScreen
-    property alias fetchOnlineQuotes: root.desktopExtras.fetchOnlineQuotes
-    property alias quoteSource: root.desktopExtras.quoteSource
-    property alias rssFeedUrl: root.desktopExtras.rssFeedUrl
-    function addMascotPhrase(phrase) { desktopExtras.addMascotPhrase(phrase) }
-    function removeMascotPhrase(index) { desktopExtras.removeMascotPhrase(index) }
     function getMascotPosition(screenName, defaultX, defaultY) { return desktopExtras.getMascotPosition(screenName, defaultX, defaultY) }
     function saveMascotPosition(screenName, x, y) { desktopExtras.saveMascotPosition(screenName, x, y) }
     property alias showAssistant: root.desktopExtras.showAssistant
@@ -518,8 +510,6 @@ QtObject {
     function saveMediaCardSize(width, height) { desktopExtras.saveMediaCardSize(width, height) }
     function getMediaCardPosition(screenName, defaultX, defaultY) { return desktopExtras.getMediaCardPosition(screenName, defaultX, defaultY) }
     function saveMediaCardPosition(screenName, x, y) { desktopExtras.saveMediaCardPosition(screenName, x, y) }
-    function processQuoteQueue() { desktopExtras.processQuoteQueue() }
-    function triggerQuoteFetch() { desktopExtras.triggerQuoteFetch() }
 
     // --- BAR / FRAME / RENDERING TOGGLES + TYPOGRAPHY + THEMES (extracted to services/AppearanceConfig.qml) ---
     property AppearanceConfig appearance: AppearanceConfig { configRef: root }
@@ -557,10 +547,6 @@ QtObject {
     property alias nightModeScheduleStart: root.appearance.nightModeScheduleStart
     property alias nightModeScheduleEnd: root.appearance.nightModeScheduleEnd
     readonly property alias isFloatingBar: root.appearance.isFloatingBar
-
-    property alias quoteFetchQueue: root.quoteService.quoteFetchQueue
-    property alias quoteFetcher: root.quoteService.quoteFetcher
-    property alias quoteFetchTimer: root.quoteService.quoteFetchTimer
 
     property alias barPosition: root.appearance.barPosition
     property alias autoHideBar: root.appearance.autoHideBar
@@ -946,6 +932,13 @@ QtObject {
     readonly property string shellDir: Quickshell.shellDir.toString().replace(/^file:\/\//, "")
     readonly property string scriptsDir: root.shellDir + "/scripts"
 
+    // The mascot is a fixed, bundled character - there is no user-upload path
+    // for it any more (see mascotClips below). These are the only clips that
+    // exist, built by scripts/mascot_sheet.py from the sheets in
+    // assets/mascot_sheets/ - see that folder's sheets for the source art.
+    readonly property string builtinMascotDir: root.shellDir + "/assets/mascot"
+    readonly property var builtinMascotStates: ["idle", "dancing", "charging", "notify", "poke"]
+
     readonly property string settingsPath: root.shellDir + "/settings.json"
 
     // Every plain key persisted to settings.json - shared by both the save and load
@@ -964,7 +957,7 @@ QtObject {
         "wallpaperCursorParallax", "wallpaperParallaxIntensity", "slideshowActive", "slideshowMinutes",
         "showScreensaver", "screensaverText", "screensaverMode", "screensaverFontSize",
         "screensaverSpeed", "screensaverCornerCounter", "showOsk", "oskLayout", "showMascot",
-        "mascotPath", "mascotPhrases", "mascotPositions", "mascotLastScreen", "mascotAudioThrob", "mascotClips", "fetchOnlineQuotes", "quoteSource",
+        "mascotPositions", "mascotLastScreen", "mascotAudioThrob", "mascotClips",
         "showDesktopMediaCard", "mediaCardWidth", "mediaCardHeight", "mediaCardPositions", "mediaCardLastScreen", "barFrameStyle",
         "barClockStyle", "barPosition", "autoHideBar", "showScreenFrame", "sysFont", "nativeFontRendering",
         "fontScaleIndex", "locationQuery", "enabledBarScreens", "useCustomColors", "customBgBase",
@@ -1044,10 +1037,8 @@ QtObject {
             property var showOsk
             property var oskLayout
             property var showMascot
-            property var mascotPath
             property var mascotAudioThrob
             property var mascotClips
-            property var mascotPhrases
             property var mascotPositions
             property var mascotLastScreen
             property var showDesktopMediaCard
@@ -1055,8 +1046,6 @@ QtObject {
             property var mediaCardHeight
             property var mediaCardPositions
             property var mediaCardLastScreen
-            property var fetchOnlineQuotes
-            property var quoteSource
             property var barFrameStyle
             property var barClockStyle
             property var barPosition
@@ -1331,6 +1320,29 @@ QtObject {
 
             root.normalizeMonitorPositions()
             root.isLoaded = true
+
+            // The mascot has no upload path any more - it is always this
+            // bundled character. Seed mascotClips with the built-in set the
+            // first time (a fresh install, or one from before this existed);
+            // once registered, clipPathFor() in MascotState.qml resolves
+            // through this map like any other clip and there is nothing left
+            // to migrate on later runs.
+            if (!root.mascotClips || Object.keys(root.mascotClips).length === 0) {
+                root.setMascotClipSet(root.builtinMascotDir, root.builtinMascotStates, "webp")
+            }
+
+            // "petted" (hovering the mascot) deliberately outranks the ambient
+            // conditions below it in MascotState's ladder, so it needs a clip
+            // of its own or hovering during e.g. dancing falls all the way
+            // back to the plain idle pose - visibly interrupting whatever she
+            // was doing to just stand there. She should wave at you instead,
+            // reusing the same clip as the "notify" reaction (a borrowed path,
+            // not a duplicated file - see mascotClips' own comment on why
+            // paths rather than a fixed set-directory convention).
+            if (!root.mascotClips || !root.mascotClips["petted"]) {
+                root.setMascotClip("petted", root.builtinMascotDir + "/notify.webp")
+            }
+
             root.resetDraftMonitorConfigs()
             root.syncHyprlandBorders()
             root.syncScreenFrame()

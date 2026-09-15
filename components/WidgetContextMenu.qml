@@ -170,7 +170,7 @@ ClippingRectangle {
         { id: "clock",   icon: "schedule",      label: "Clock" },
         { id: "sysinfo", icon: "monitor_heart", label: "System Info" },
         { id: "cava",    icon: "graphic_eq",    label: "Audio Visualizer" },
-        { id: "mascot",  icon: "pets",          label: "Desktop Mascot" },
+        { id: "mascot",  icon: "face",          label: "Desktop Mascot" },
         { id: "media",   icon: "album",         label: "Media Player" },
         { id: "assistant", icon: "smart_toy",   label: "Assistant" },
         { id: "mirror",  icon: "photo_camera",  label: "Mirror" },

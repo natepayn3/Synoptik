@@ -8,9 +8,10 @@ import "../services"
 
 PanelWindow {
     id: petWindow
-    // Gated on the RESOLVED clip rather than mascotPath directly: a set that
-    // registers clips but leaves the legacy single-file path empty is still
-    // a perfectly valid mascot, and would otherwise never show.
+    // Gated on the RESOLVED clip rather than assuming mascotClips is
+    // populated: MascotState.clipPathFor() falls back to the bundled
+    // built-in idle clip, so this is only ever empty before Config has
+    // loaded at all.
     visible: Config.showMascot && mascotState.currentClipPath !== ""
 
     Component.onCompleted: {
@@ -74,9 +75,6 @@ PanelWindow {
         return "file://" + Quickshell.env("HOME") + "/" + path
     }
 
-    property string currentPhrase: ""
-    property bool isTalking: false
-
     // Which animation should be playing, and which file that resolves to.
     // shellRoot is reached through the scope chain (Mascot.qml is only ever
     // instantiated inside ShellRoot) but passed explicitly rather than read
@@ -91,9 +89,24 @@ PanelWindow {
 
     Item {
         id: petContainer
-        
+
+        // Every registered clip shares one canvas (mascot_validate.py's own
+        // canvas-consistency check enforces this), so this ratio is a fixed
+        // property of the character, not of whichever clip happens to be
+        // loaded. Used as the height fallback below for exactly that reason:
+        // falling back to a square (width == height) instead was the cause
+        // of a real, reproducible bug - AnimatedImage.implicitWidth reads 0
+        // for the instant before a freshly (re)loaded clip finishes
+        // decoding, so the container was briefly square, which could shift
+        // dragArea's hit region enough to flip containsMouse, which flips
+        // "hovered", which re-enters the state ladder and can fire a
+        // genuine "Binding loop detected for property current" warning on
+        // reload. Matching the real ratio from the first frame removes the
+        // jump this depended on.
+        readonly property real clipAspect: 830 / 441
+
         width: 128
-        height: character.implicitWidth ? (width * (character.implicitHeight / character.implicitWidth)) : width
+        height: character.implicitWidth ? (width * (character.implicitHeight / character.implicitWidth)) : width * clipAspect
 
         // Backend storage for x/y position
         property real dragX: 0
@@ -412,69 +425,5 @@ PanelWindow {
             NumberAnimation { target: character; property: "scale"; to: 1.22; duration: 90; easing.type: Easing.OutQuad }
             NumberAnimation { target: character; property: "scale"; to: 1.0; duration: 260; easing.type: Easing.OutBack; easing.overshoot: 4 }
         }
-
-        // --- BARE TEXT OVERLAY (WITH WRAPPING & OUTLINE) ---
-        Item {
-            id: chatBubble
-            visible: isTalking
-
-            width: chatText.width
-            height: chatText.height
-
-            anchors {
-                bottom: character.top
-                bottomMargin: 6
-                horizontalCenter: character.horizontalCenter
-            }
-
-            Text {
-                id: chatText
-                text: currentPhrase
-                anchors.centerIn: parent
-                font.bold: true
-
-                color: Config.textMain
-                font.family: Config.sysFont
-                font.pixelSize: Config.size(Config.fontBody)
-
-                style: Text.Outline
-                styleColor: Qt.rgba(0, 0, 0, 0.8)
-
-                wrapMode: Text.WordWrap
-                width: Math.min(implicitWidth, 240)
-                horizontalAlignment: Text.AlignHCenter
-
-                Component.onCompleted: {
-                    Config.fontStyle(font)
-                }
-            }
-        }
-    }
-
-    Timer {
-        interval: 5000 
-        running: Config.showMascot
-        repeat: true
-        onTriggered: {
-            let phrases = Config.mascotPhrases || []
-            if (!isTalking && phrases.length > 0 && Math.random() > 0.7) {
-                currentPhrase = phrases[Math.floor(Math.random() * phrases.length)]
-                isTalking = true
-                hideChatTimer.start()
-            }
-        }
-    }
-
-    Timer {
-        id: hideChatTimer
-        interval: 3500 
-        onTriggered: isTalking = false
-    }
-
-    Timer {
-        interval: 600000 
-        running: Config.showMascot && Config.fetchOnlineQuotes
-        repeat: true
-        onTriggered: Config.triggerQuoteFetch()
     }
 }

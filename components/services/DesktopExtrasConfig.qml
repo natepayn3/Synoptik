@@ -17,14 +17,14 @@ QtObject {
 
     // --- DESKTOP MASCOT STATE & PERSISTENCE ---
     property bool showMascot: false
-    property string mascotPath: ""
     property bool mascotAudioThrob: true
 
-    // Per-state animation clips: { stateName: "/abs/path/clip.webp" }.
-    // State names come from MascotState.allStateNames. Left empty until the
-    // user actually registers a clip - MascotState.clipPathFor() falls back
-    // through the set's "idle" entry to mascotPath above, so an empty map
-    // means the mascot behaves exactly as it did before this existed.
+    // Per-state animation clips: { stateName: "/abs/path/clip.webp" }. State
+    // names come from MascotState.allStateNames. The mascot is a single
+    // fixed bundled character - there is no per-user custom image - so this
+    // is always seeded with Config.builtinMascotDir's clip set on first load
+    // (see Config.qml's applyLoadedSettings) and MascotState.clipPathFor()
+    // falls back to that same built-in set if a name is ever missing here.
     //
     // Stored as paths rather than a set directory + naming convention so a
     // single clip can be swapped or borrowed from elsewhere without moving
@@ -62,18 +62,6 @@ QtObject {
         mascotClips = next
         if (configRef) configRef.saveSettings()
     }
-    property var mascotPhrases: [
-        "I use Arch btw",
-        "Hyprland is so comfy",
-        "Need some coffee?",
-        "Compiling...",
-        "Look at me go!"
-    ]
-
-    property bool fetchOnlineQuotes: false
-    property string quoteSource: "zenquotes"
-    property string rssFeedUrl: ""
-
     // Per-screen saved drag position, same shape/pattern as Clock's
     // clockPositions in DesktopWidgetsConfig.qml. Unlike Clock/Cava (one
     // instance per enabled screen), the mascot is a single roaming instance
@@ -129,7 +117,7 @@ QtObject {
     property real assistantFontScale: 1.0
 
     // Badge image shown in the header and inline next to assistant replies,
-    // same "" -> fall back to a default glyph pattern as mascotPath.
+    // "" -> fall back to a default glyph pattern.
     property string assistantBadgePath: ""
 
     // Paths the user has browsed to and picked as a badge - NOT copies of
@@ -255,30 +243,6 @@ QtObject {
 
     onShowDesktopMediaCardChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
 
-    function addMascotPhrase(phrase) {
-        if (!phrase) return
-        var list = mascotPhrases ? mascotPhrases.slice() : []
-        list.push(phrase)
-        mascotPhrases = list
-        if (configRef) configRef.saveSettings()
-    }
-
-    function removeMascotPhrase(index) {
-        if (!mascotPhrases || index < 0 || index >= mascotPhrases.length) return
-        var list = mascotPhrases.slice()
-        list.splice(index, 1)
-        mascotPhrases = list
-        if (configRef) configRef.saveSettings()
-    }
-
-    function processQuoteQueue() {
-        if (configRef) configRef.quoteService.processQuoteQueue()
-    }
-
-    function triggerQuoteFetch() {
-        if (configRef) configRef.quoteService.triggerQuoteFetch()
-    }
-
     onShowScreensaverChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
     onScreensaverTextChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
     onScreensaverModeChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
@@ -288,17 +252,7 @@ QtObject {
     onShowOskChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
     onOskLayoutChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
     onShowMascotChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
-    onMascotPathChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
     onMascotAudioThrobChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
-    onMascotPhrasesChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
-
-    onFetchOnlineQuotesChanged: {
-        if (!configRef || !configRef.isLoaded) return
-        if (fetchOnlineQuotes) triggerQuoteFetch()
-        configRef.saveSettings()
-    }
-
-    onQuoteSourceChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
 
     onShowAssistantChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
     onAssistantBackendChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }

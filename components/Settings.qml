@@ -52,7 +52,7 @@ Item {
         { id: 6,  name: "Bluetooth",        icon: "bluetooth",       group: "CONNECTIVITY", keywords: "bt pair device headset battery mouse keyboard" },
         { id: 7,  name: "Weather",          icon: "thermostat",      group: "CONNECTIVITY", keywords: "forecast temperature location zip city climate" },
 
-        { id: 8,  name: "Mascot",           icon: "smart_toy",       group: "WIDGETS",      keywords: "pet gif character bounce phrase avatar" },
+        { id: 8,  name: "Mascot",           icon: "smart_toy",       group: "WIDGETS",      keywords: "pet character bounce avatar" },
         { id: 9,  name: "Clock",            icon: "schedule",        group: "WIDGETS",      keywords: "time date desktop 12 24 hour second" },
         { id: 19, name: "System Info",      icon: "terminal",        group: "WIDGETS",      keywords: "sysinfo fetch neofetch cpu ram uptime kernel host gpu disk" },
         { id: 10, name: "Keyboard",         icon: "keyboard",        group: "WIDGETS",      keywords: "keybind shortcut hotkey osk on-screen layout binding" },
@@ -278,7 +278,6 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
                         Config.showSettings = false
-                        if (mascotSettingsLoader.item) mascotSettingsLoader.item.showBrowser = false
                     }
                 }
                 HoverHandler { id: closeHover }

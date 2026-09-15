@@ -8,9 +8,14 @@ Turns a sprite sheet of poses into per-state animation clips.
 Three things happen that are easy to get wrong by hand:
 
   1. Chroma keying. A JPEG sheet has no alpha, so the background has to be
-     keyed out, and lossy compression smears colour across every edge. The
-     --fuzz value is the trade: too low leaves a coloured fringe, too high
-     erodes the character. --probe-fuzz measures it instead of guessing.
+     keyed out, and lossy compression smears colour across every edge. Fuzz
+     tolerance is NOT the trade it looks like: erosion is continuous with
+     fuzz (measured no plateau from 10% to 34% on real art), so a value high
+     enough to erase the fringe is already eating the character's own
+     green-toned regions elsewhere. Keep --fuzz low (default 15, just enough
+     to clear the solid background) and let despill() recolour the
+     remaining spill-tinted edge pixels instead of deleting them.
+     --probe-fuzz still helps confirm the background itself is fully gone.
 
   2. Alignment. Poses drawn free-hand on a grid are not registered to each
      other - the body wanders by tens of pixels between cells. Dropped in
@@ -80,10 +85,18 @@ def body_box(path):
 
     best = None
     for line in out.splitlines():
-        m = re.match(r"\s*\d+:\s+(\d+)x(\d+)\+(-?\d+)\+(-?\d+)\s+[\d.,]+\s+(\d+)\s+gray\((\d+)\)", line)
+        # Area is plain digits for a small component but ImageMagick switches
+        # to scientific notation (e.g. "1.29123e+06") once it crosses into
+        # the millions - a full-resolution single portrait's body is well
+        # past that on its own, where a sprite-sheet cell's never was. The
+        # area group has to accept both or every large source silently
+        # matches nothing and "no body found" fires on a perfectly good image.
+        m = re.match(r"\s*\d+:\s+(\d+)x(\d+)\+(-?\d+)\+(-?\d+)\s+[\d.,]+\s+([\d.]+(?:e[+-]?\d+)?)\s+gray\((\d+)\)", line)
         if not m:
             continue
-        w, h, x, y, area, grey = (int(g) for g in m.groups())
+        w, h, x, y = (int(g) for g in m.groups()[:4])
+        area = float(m.group(5))
+        grey = int(m.group(6))
         if grey < 128:          # gray(0) is the transparent background object
             continue
         if best is None or area > best[4]:
@@ -93,6 +106,98 @@ def body_box(path):
 
 def content_box(path):
     return magick(path, "-format", "%@", "info:").strip()
+
+
+def strip_strays(path, margin=60, max_aspect=3.5):
+    """Erase connected components that are a NEIGHBOURING cell's leftovers,
+    not this pose's own effects.
+
+    Cells on a hand-packed sheet don't always have a clean gutter on every
+    side - a kicking foot or trailing hair from the row above or below can
+    end up inside this cell's crop, keyed out as its own opaque blob same
+    as the body. body_box() already tells the difference between "the
+    body" and "everything else" for alignment purposes, but leaves the
+    everything-else untouched, so a bled-in fragment rides along into the
+    final frame - confirmed on a live rebuild as a shoe-sized fragment
+    floating above the character's head.
+
+    Two independent tests decide what gets erased, because neither alone
+    covers both shapes bleed actually takes:
+
+    - Distance: an effect that belongs to this pose sits close against the
+      body it was drawn for; a bled-in fragment from a whole different row
+      is typically most of a cell away. Anything whose box doesn't come
+      within `margin` px of the body's own box is erased.
+
+    - Aspect ratio: this one exists because distance alone missed a real
+      case - a foot sliced clean through by the row gutter lands almost
+      flush against the top of the NEXT row's body (that's what "above her
+      head" looks like), well inside any margin that wouldn't also cut off
+      a genuine sparkle sitting next to her raised hand. But a slice
+      through a limb is a thin, elongated sliver - nothing in this
+      character's own sparkle/bubble vocabulary is. Anything longer than
+      `max_aspect` times its own thickness is erased regardless of
+      distance.
+    """
+    box = body_box(path)
+    if box is None:
+        return
+    bw, bh, bx, by = box
+    ex0, ey0 = bx - margin, by - margin
+    ex1, ey1 = bx + bw + margin, by + bh + margin
+
+    out = run(["magick", path, "-alpha", "extract", "-threshold", "50%",
+               "-type", "bilevel",
+               "-define", "connected-components:verbose=true",
+               "-define", "connected-components:area-threshold=100",
+               "-connected-components", "8", "null:"]).stdout
+
+    for line in out.splitlines():
+        m = re.match(r"\s*\d+:\s+(\d+)x(\d+)\+(-?\d+)\+(-?\d+)\s+[\d.,]+\s+([\d.]+(?:e[+-]?\d+)?)\s+gray\((\d+)\)", line)
+        if not m:
+            continue
+        w, h, x, y = (int(g) for g in m.groups()[:4])
+        grey = int(m.group(6))
+        if grey < 128 or (w, h, x, y) == (bw, bh, bx, by):
+            continue                         # background, or the body itself
+        overlaps = not (x + w < ex0 or x > ex1 or y + h < ey0 or y > ey1)
+        aspect = max(w, h) / max(1, min(w, h))
+        if overlaps and aspect < max_aspect:
+            continue                         # close AND compact - this pose's own effect
+        # -region scopes -evaluate to just this rectangle. The tempting
+        # shortcut - compositing a small transparent patch with
+        # "-compose Src" - looks region-scoped but isn't: Porter-Duff Src
+        # is defined over the WHOLE canvas, and a source smaller than the
+        # canvas reads as "fully transparent everywhere else it doesn't
+        # cover" too, silently wiping the entire cell (found the hard way -
+        # it turned "no body found" into the failure on nearly every cell).
+        pad = 4
+        ew, eh = w + 2 * pad, h + 2 * pad
+        ex, ey = x - pad, y - pad
+        magick(path, "-alpha", "set", "-channel", "A",
+               "-region", f"{ew}x{eh}+{ex}+{ey}", "-evaluate", "set", "0",
+               "+channel", "+region", path)
+
+
+def despill(path):
+    """Suppress green spill on the edge pixels -transparent leaves behind.
+
+    A JPEG-compressed sheet has no hard edge between character and key
+    colour - the boundary pixels are a blend of both, tinted green but not
+    close enough to pure key colour to be within any SAFE fuzz tolerance.
+    Raising fuzz to catch them doesn't work: erosion is continuous with fuzz
+    (no plateau), so a tolerance loose enough to erase the fringe is already
+    eating the character's own green-toned regions (hair shadow, pant
+    fabric) everywhere else in the image. See probe_fuzz's note.
+
+    Recolouring instead of deleting sidesteps that entirely: any pixel whose
+    green channel outweighs both red and blue - the fringe's signature, not
+    the character's own palette, which has no channel that dominant - is
+    pulled to the red/blue average. The pixel stays exactly as opaque as it
+    was; only its hue changes.
+    """
+    magick(path, "-channel", "G",
+           "-fx", "u.g>max(u.r,u.b) ? (u.r+u.b)/2 : u.g", "+channel", path)
 
 
 # ------------------------------------------------------------------- pipeline
@@ -202,6 +307,7 @@ def slice_auto(sheet, key, fuzz, workdir):
 
     keyed = os.path.join(workdir, "keyed_sheet.png")
     magick(sheet, "-fuzz", f"{fuzz}%", "-transparent", key, keyed)
+    despill(keyed)
 
     cells, i, repaired = [], 0, []
     for (ry, rz) in rows:
@@ -223,6 +329,7 @@ def slice_auto(sheet, key, fuzz, workdir):
                     if (cz >= W - 1 and xx + ww >= bw) or (cx <= 0 and xx <= 0):
                         if mirror_repair(dst):
                             repaired.append(i)
+            strip_strays(dst)
             cells.append(dst)
             i += 1
     print(f"  {len(cells)} cells at {cw}x{ch}")
@@ -249,6 +356,8 @@ def slice_sheet(sheet, cols, rows, key, fuzz, workdir):
         src = os.path.join(workdir, f"raw_{i}.png")
         dst = os.path.join(workdir, f"keyed_{i}.png")
         magick(src, "-fuzz", f"{fuzz}%", "-transparent", key, dst)
+        despill(dst)
+        strip_strays(dst)
         cells.append(dst)
     return cells
 
@@ -256,9 +365,21 @@ def slice_sheet(sheet, cols, rows, key, fuzz, workdir):
 def probe_fuzz(cell):
     """Report how much of the sprite each fuzz level removes.
 
-    The jump between 'still fringing' and 'eating the character' is obvious
-    in these numbers: fringe removal costs a percent or two, erosion costs
-    ten or more.
+    CORRECTED: there is usually no plateau here. On JPEG-compressed art the
+    opaque-pixel count was measured falling in a steady ~3-8% step from
+    fuzz 10 all the way to fuzz 34, with no cliff to distinguish 'fringe'
+    from 'erosion' - a set built at fuzz 35 on that basis had visible holes
+    eaten clean through the hair and pant fabric, because -transparent
+    matches that colour EVERYWHERE in the image, not just the background,
+    and this character's own palette has green-toned regions. Do not chase
+    the fringe by raising fuzz - despill() (always applied after keying)
+    is what removes it, by recolouring spill-tinted edge pixels rather than
+    deleting them. Use this probe only to confirm the SOLID background is
+    gone (opaque count roughly flattens once the background itself is
+    fully keyed) - pick the lowest fuzz that achieves that, then inspect
+    the actual output against a contrasting (not just transparent-checker)
+    background before trusting it. mascot_validate.py cannot see colour
+    fringing or body erosion - only a rendered look does.
     """
     print("\n  fuzz   opaque px   change")
     prev = None
@@ -269,7 +390,9 @@ def probe_fuzz(cell):
         delta = "" if prev is None else f"{(n - prev) / prev * 100:+6.1f}%"
         print(f"  {fz:>3}%   {int(n):>9}   {delta}")
         prev = n
-    print("\n  Pick the highest value whose change is still ~1% or less.\n")
+    print("\n  Pick the LOWEST fuzz where the background is fully gone - do not\n"
+          "  chase remaining fringe by going higher, despill() handles that.\n"
+          "  Then look at the actual rendered result, not just this table.\n")
 
 
 def align(cells, workdir):
@@ -395,7 +518,9 @@ def main():
                     help="integer upscale of every cell, nearest-neighbour "
                          "(pixel art only - keeps edges crisp)")
     ap.add_argument("--key", default="#00FF00", help="background colour to remove")
-    ap.add_argument("--fuzz", type=int, default=40, help="key tolerance %% (default 40)")
+    ap.add_argument("--fuzz", type=int, default=15,
+                    help="key tolerance %% (default 15 - keep this LOW, see "
+                         "despill() and probe_fuzz's docstring for why)")
     ap.add_argument("--out", help="output directory for the clips")
     ap.add_argument("--assign", action="append", default=[],
                     metavar="STATE=INDEX", help="condition state from one pose (bobs)")
