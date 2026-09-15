@@ -103,6 +103,20 @@ PanelWindow {
     property real popoutYOffset: actualScreenHeight / 2.0
     property bool isCentered: false
 
+    // The button setPopoutPos was last given, so it can be re-measured below
+    // whenever the island bar's own live position/size changes. An island
+    // bar (isIsland, always centred on screen) grows and shrinks around its
+    // own centre, so a card anchored to one of its edges - like rightCard's
+    // bottom edge in vertical mode - physically slides as the bar grows,
+    // even though the button never moves within that card. popoutXOffset/
+    // YOffset were only ever captured once, at click time, so that slide
+    // left the popout anchored to where the icon *used to be*, producing a
+    // visible "scoop" as the icon (and the popout, still using the stale
+    // offset) drifted apart during the bar's own grow/shrink animation.
+    property var popoutAnchorItem: null
+    onIslandXChanged: if (popoutAnchorItem) setPopoutPos(popoutAnchorItem)
+    onIslandYChanged: if (popoutAnchorItem) setPopoutPos(popoutAnchorItem)
+
     property Timer barLayoutReopenTimer: Timer {
         id: barLayoutReopenTimer
         interval: 220
@@ -264,10 +278,22 @@ PanelWindow {
     readonly property real animScale: Math.max(0.0, progress)
     readonly property real closeFactor: root.isOpen ? progress : Math.pow(progress, 1.2)
 
-    // Unmodified popout squish math
-    readonly property real popoutHeight: targetHeight * Math.pow(closeFactor, 1.8)
-    readonly property real squishRatio: targetHeight > 0 ? (1.0 - (popoutHeight / targetHeight)) : 0.0
-    readonly property real popoutWidth: root.isOpen ? (targetWidth * animScale) : (targetWidth * (closeFactor + (0.33 * squishRatio * closeFactor)))
+    // Unmodified popout squish math - written in terms of depth (the axis
+    // that extends out from the bar, collapsing to zero via the closeFactor
+    // power curve) and span (the axis that runs along the bar, following the
+    // gentler squish-blend curve), then mapped onto width/height by
+    // orientation below. It used to hardcode height=depth/width=span, which
+    // is only correct for a horizontal (top/bottom) bar - for a vertical
+    // (left/right) bar, height is the span axis and width is the depth axis,
+    // so the two curves were swapped onto the wrong dimensions, giving
+    // vertical popouts a "scoop" on open/close that horizontal ones never had.
+    readonly property real depthTarget: isHorizontal ? targetHeight : targetWidth
+    readonly property real spanTarget: isHorizontal ? targetWidth : targetHeight
+    readonly property real popoutDepth: depthTarget * Math.pow(closeFactor, 1.8)
+    readonly property real squishRatio: depthTarget > 0 ? (1.0 - (popoutDepth / depthTarget)) : 0.0
+    readonly property real popoutSpan: root.isOpen ? (spanTarget * animScale) : (spanTarget * (closeFactor + (0.33 * squishRatio * closeFactor)))
+    readonly property real popoutWidth: isHorizontal ? popoutSpan : popoutDepth
+    readonly property real popoutHeight: isHorizontal ? popoutDepth : popoutSpan
 
     // Dynamic switch to peek geometry without polluting the squish lifecycle
     readonly property bool peekActive: root.isPeeking && !root.isOpen && root.progress <= 0.005
@@ -397,9 +423,22 @@ PanelWindow {
         + (activeWindowCard && activeWindowCard.visible ? 190 : 0) 
         + (root.isHorizontal ? rightCardTargetWidth : (rightCard ? rightCard.width : 0)) 
         + 64
+    // isPanelActive (open OR still closing), not isOpen: isOpen flips false
+    // the instant a close starts, which would drop this back to
+    // islandContentWidth immediately - well before animatedIslandWidth (which
+    // has its own Behavior, below) has actually shrunk back down.
+    //
+    // rawChildWidth, not targetWidth: targetWidth has its own overshoot
+    // Behavior (see its declaration above) for the popout's own springy
+    // grow/squish, but the island bar's footprint shouldn't also inherit that
+    // bounce on top of animatedIslandWidth's own Behavior below - that
+    // compounded into the bar visibly overshooting past its final width then
+    // snapping back, on both open and close. rawChildWidth is the stable,
+    // un-animated destination size, so animatedIslandWidth's own curve is the
+    // only bounce the bar's shape gets.
     readonly property real islandTargetWidth: Math.min(
         mainContainer.width - (root.currentMargin * 2),
-        Math.max(200, (root.isOpen && root.isHorizontal) ? Math.max(islandContentWidth, root.targetWidth) : islandContentWidth)
+        Math.max(200, (root.isPanelActive && root.isHorizontal) ? Math.max(islandContentWidth, root.rawChildWidth) : islandContentWidth)
     )
 
     property real animatedIslandWidth: isIsland ? islandTargetWidth : (mainContainer.width - Math.ceil(root.borderWidth))
@@ -417,9 +456,10 @@ PanelWindow {
         + (rightCard ? rightCard.height : 0) 
         + 64
 
+    // Same isPanelActive + rawChildHeight reasoning as islandTargetWidth above.
     readonly property real islandTargetHeight: Math.min(
         mainContainer.height - (root.currentMargin * 2),
-        Math.max(200, (root.isOpen && !root.isHorizontal) ? Math.max(islandContentHeight, root.targetHeight) : islandContentHeight)
+        Math.max(200, (root.isPanelActive && !root.isHorizontal) ? Math.max(islandContentHeight, root.rawChildHeight) : islandContentHeight)
     )
     property real animatedIslandHeight: isIsland ? islandTargetHeight : (mainContainer.height - Math.ceil(root.borderWidth))
     Behavior on animatedIslandHeight {
@@ -482,15 +522,15 @@ PanelWindow {
             ? (staticLeft <= (root.targetIslandX + safeCornerMargin))
             : (staticLeft <= (root.targetIslandY + safeCornerMargin)))
         : (root.isScreenFrame && !isCentered && (
-            (isHorizontal ? (popoutXOffset - targetWidth / 2.0) : (popoutYOffset - targetHeight / 2.0)) <= minPossibleLeft
+            (isHorizontal ? (popoutXOffset - rawChildWidth / 2.0) : (popoutYOffset - rawChildHeight / 2.0)) <= minPossibleLeft
         )))
 
     readonly property bool isRightFlush: isPanelActive && !peekActive && (root.isIsland
         ? (root.isHorizontal
-            ? ((staticLeft + targetWidth) >= (root.targetIslandX + root.islandTargetWidth - safeCornerMargin))
-            : ((staticLeft + targetHeight) >= (root.targetIslandY + root.islandTargetHeight - safeCornerMargin)))
+            ? ((staticLeft + rawChildWidth) >= (root.targetIslandX + root.islandTargetWidth - safeCornerMargin))
+            : ((staticLeft + rawChildHeight) >= (root.targetIslandY + root.islandTargetHeight - safeCornerMargin)))
         : (root.isScreenFrame && !isCentered && (
-            (isHorizontal ? (popoutXOffset + targetWidth / 2.0) : (popoutYOffset + targetHeight / 2.0)) >= maxPossibleRight
+            (isHorizontal ? (popoutXOffset + rawChildWidth / 2.0) : (popoutYOffset + rawChildHeight / 2.0)) >= maxPossibleRight
         )))
 
     // Deliberately keyed off currentWidth/currentHeight (the size the popout
@@ -512,7 +552,15 @@ PanelWindow {
 
     readonly property real staticLeft: {
         let span = isHorizontal ? currentWidth : currentHeight
-        let targetSpan = isHorizontal ? targetWidth : targetHeight
+        // rawChildWidth/Height, not targetWidth/Height: targetWidth has its
+        // own overshoot Behavior (see its declaration above), so it isn't
+        // actually settled during the open transition either - using it here
+        // let the flush decision below flip mid-open as the overshoot passed
+        // through the threshold, which is the "opens from the top right"-then-
+        // "snaps into place" bug this comment used to (incorrectly) claim
+        // couldn't happen. rawChildWidth/Height is the real, un-animated
+        // destination size, so it's stable from the very first frame.
+        let targetSpan = isHorizontal ? rawChildWidth : rawChildHeight
         let offset = isHorizontal ? popoutXOffset : popoutYOffset
         let safeMargin = root.safeCornerMargin
         if (isCentered) return targetCenteredLeft
@@ -687,6 +735,7 @@ PanelWindow {
     function setPopoutPos(item) {
         if (!item) return
         root.isCentered = false
+        root.popoutAnchorItem = item
         if (isHorizontal) {
             root.popoutXOffset = item.mapToItem(mainContainer, item.width / 2, 0).x
         } else {
