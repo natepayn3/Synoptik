@@ -20,17 +20,25 @@ QtObject {
     property bool isFetching: false
     property double lastFetchTime: 0
 
-    // 7-day forecast (fetched from Open-Meteo once we know coordinates,
-    // since wttr.in's free j1 endpoint only ever returns 3 days)
+    // 7-day forecast (Open-Meteo)
     property var forecast: []
+
+    readonly property var wmoDesc: ({
+        "0": "Clear Sky", "1": "Mainly Clear", "2": "Partly Cloudy", "3": "Overcast",
+        "45": "Foggy", "48": "Rime Fog", "51": "Light Drizzle", "53": "Moderate Drizzle",
+        "55": "Dense Drizzle", "61": "Slight Rain", "63": "Moderate Rain", "65": "Heavy Rain",
+        "71": "Light Snow", "73": "Moderate Snow", "75": "Heavy Snow",
+        "80": "Light Showers", "81": "Moderate Showers", "82": "Violent Showers",
+        "85": "Light Snow Showers", "86": "Heavy Snow Showers",
+        "95": "Thunderstorm", "96": "Thunderstorm with Hail", "99": "Severe Thunderstorm"
+    })
 
     function wmoGlyph(code) {
         if (code === 0) return "wb_sunny";
         if (code === 1 || code === 2) return "partly_cloudy_day";
         if (code === 3) return "cloud";
         if (code === 45 || code === 48) return "foggy";
-        if (code >= 51 && code <= 57) return "rainy";
-        if (code >= 61 && code <= 67) return "rainy";
+        if (code >= 51 && code <= 67) return "rainy";
         if (code >= 71 && code <= 77) return "ac_unit";
         if (code >= 80 && code <= 82) return "rainy";
         if (code === 85 || code === 86) return "ac_unit";
@@ -38,25 +46,47 @@ QtObject {
         return "cloud";
     }
 
-    function fetchForecast(latVal, lonVal) {
-        forecastFetcher.running = false;
+    // Step 2: once we have coordinates, fetch current conditions + 7-day
+    // forecast from Open-Meteo in a single request.
+    function fetchWeatherData(latVal, lonVal) {
+        weatherRoot.isFetching = true;
+        weatherFetcher.running = false;
         let url = "https://api.open-meteo.com/v1/forecast?latitude=" + latVal + "&longitude=" + lonVal
-            + "&daily=weathercode,temperature_2m_max,temperature_2m_min&temperature_unit=fahrenheit&timezone=auto&forecast_days=7";
-        forecastFetcher.command = ["curl", "-s", "-L", url];
-        forecastFetcher.running = true;
+            + "&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code,uv_index"
+            + "&daily=weather_code,temperature_2m_max,temperature_2m_min"
+            + "&temperature_unit=fahrenheit&wind_speed_unit=mph&timezone=auto&forecast_days=7";
+        weatherFetcher.command = ["curl", "-s", "-L", "--max-time", "10", url];
+        weatherFetcher.running = true;
     }
 
-    property Process forecastFetcherProcess: Process {
-        id: forecastFetcher
+    property Process weatherFetcherProcess: Process {
+        id: weatherFetcher
         running: false
 
         stdout: StdioCollector {
             onStreamFinished: {
+                weatherRoot.isFetching = false;
                 let trimmed = this.text ? this.text.trim() : "";
                 if (!trimmed.startsWith("{")) return;
 
                 try {
                     let data = JSON.parse(trimmed);
+
+                    if (data.current) {
+                        let current = data.current;
+                        let code = current.weather_code;
+
+                        weatherRoot.temp = Math.round(current.temperature_2m) + "°F";
+                        weatherRoot.feelsLike = Math.round(current.apparent_temperature) + "°F";
+                        weatherRoot.humidity = current.relative_humidity_2m + "%";
+                        weatherRoot.windSpeed = Math.round(current.wind_speed_10m) + " mph";
+                        weatherRoot.uvIndex = (current.uv_index !== undefined && current.uv_index !== null)
+                            ? Math.round(current.uv_index).toString() : "--";
+                        weatherRoot.desc = weatherRoot.wmoDesc[code.toString()] || "Clear";
+                        weatherRoot.glyph = weatherRoot.wmoGlyph(code);
+                        weatherRoot.lastFetchTime = Date.now();
+                    }
+
                     if (data.daily && data.daily.time) {
                         let days = [];
                         for (let i = 0; i < data.daily.time.length; i++) {
@@ -64,19 +94,25 @@ QtObject {
                                 date: data.daily.time[i],
                                 maxF: Math.round(data.daily.temperature_2m_max[i]),
                                 minF: Math.round(data.daily.temperature_2m_min[i]),
-                                glyph: weatherRoot.wmoGlyph(data.daily.weathercode[i])
+                                glyph: weatherRoot.wmoGlyph(data.daily.weather_code[i])
                             });
                         }
                         weatherRoot.forecast = days;
                     }
                 } catch (e) {
-                    console.error("Failed to parse forecast JSON:", e);
+                    console.error("Failed to parse weather JSON:", e);
                 }
             }
         }
     }
 
-    function getTargetUrl() {
+    // Step 1: resolve a zipcode/city query to coordinates via Open-Meteo's
+    // geocoding API, or fall back to IP-based geolocation (ipwho.is) when no
+    // location is configured ("Auto IP Geolocation" mode).
+    function fetchWeather(force) {
+        weatherRoot.isFetching = true;
+        locationFetcher.running = false;
+
         let loc = "";
         if (zipcode && zipcode.toString().trim() !== "") {
             loc = zipcode.toString().trim();
@@ -85,18 +121,14 @@ QtObject {
         }
 
         if (loc !== "") {
-            let formattedLoc = loc.replace(/\s+/g, "+");
-            return "https://wttr.in/" + formattedLoc + "?format=j1";
+            locationFetcher.mode = "geocode";
+            let url = "https://geocoding-api.open-meteo.com/v1/search?name=" + encodeURIComponent(loc) + "&count=1&format=json";
+            locationFetcher.command = ["curl", "-s", "-L", "--max-time", "10", url];
+        } else {
+            locationFetcher.mode = "ip";
+            locationFetcher.command = ["curl", "-s", "-L", "--max-time", "10", "https://ipwho.is/"];
         }
-        return "https://wttr.in/?format=j1";
-    }
-
-    function fetchWeather(force) {
-        let urlStr = getTargetUrl();
-        weatherRoot.isFetching = true;
-        weatherFetcher.running = false;
-        weatherFetcher.command = ["curl", "-s", "-L", "-H", "User-Agent: curl/7.68.0", urlStr];
-        weatherFetcher.running = true;
+        locationFetcher.running = true;
     }
 
     onZipcodeChanged: {
@@ -106,100 +138,47 @@ QtObject {
         }
     }
 
-    property Process fetcherProcess: Process {
-        id: weatherFetcher
+    property Process locationFetcherProcess: Process {
+        id: locationFetcher
         running: false
-        
+        property string mode: "geocode"
+
         stdout: StdioCollector {
             onStreamFinished: {
-                weatherRoot.isFetching = false;
                 let trimmed = this.text ? this.text.trim() : "";
-                
-                if (!trimmed.startsWith("{") && !trimmed.startsWith("[")) {
+                if (!trimmed.startsWith("{")) {
+                    weatherRoot.isFetching = false;
                     return;
                 }
 
                 try {
                     let data = JSON.parse(trimmed);
-                    if (data.current_condition && data.current_condition.length > 0) {
-                        let current = data.current_condition[0];
-                        weatherRoot.temp = current.temp_F + "°F";
-                        weatherRoot.feelsLike = current.FeelsLikeF + "°F";
-                        weatherRoot.humidity = (current.humidity || "--") + "%";
-                        weatherRoot.windSpeed = (current.windspeedMiles || "--") + " mph";
-                        weatherRoot.uvIndex = current.uvIndex ? current.uvIndex.toString() : "--";
-                        
-                        // Parse Area / Location name
-                        if (data.nearest_area && data.nearest_area.length > 0) {
-                            let area = data.nearest_area[0];
-                            let cityName = (area.areaName && area.areaName[0]) ? area.areaName[0].value : "";
-                            let regionName = (area.region && area.region[0]) ? area.region[0].value : "";
-                            if (cityName && regionName) {
-                                weatherRoot.areaName = cityName + ", " + regionName;
-                            } else if (cityName) {
-                                weatherRoot.areaName = cityName;
-                            }
+                    let latVal, lonVal;
 
-                            let latVal = parseFloat(area.latitude);
-                            let lonVal = parseFloat(area.longitude);
-                            if (!isNaN(latVal) && !isNaN(lonVal)) {
-                                weatherRoot.fetchForecast(latVal, lonVal);
-                            }
+                    if (locationFetcher.mode === "geocode") {
+                        if (!data.results || data.results.length === 0) {
+                            weatherRoot.isFetching = false;
+                            weatherRoot.desc = "Location not found";
+                            return;
                         }
-
-                        let code = current.weatherCode ? current.weatherCode.toString() : "";
-                        let rawDesc = (current.weatherDesc && current.weatherDesc[0]) ? current.weatherDesc[0].value : "";
-
-                        let descMap = { 
-                            "113": "Clear Sky", "116": "Partly Cloudy", "119": "Cloudy", "122": "Overcast",
-                            "143": "Mist", "176": "Patchy Rain", "179": "Patchy Snow", "182": "Patchy Sleet",
-                            "200": "Thunderstorms", "248": "Foggy", "260": "Freezing Fog", "263": "Light Drizzle",
-                            "266": "Drizzle", "293": "Patchy Light Rain", "296": "Light Rain", "299": "Moderate Rain",
-                            "302": "Moderate Rain", "305": "Heavy Rain", "308": "Heavy Rain", "353": "Light Showers",
-                            "356": "Moderate / Heavy Rain", "359": "Torrential Rain", "386": "Rain with Thunder",
-                            "389": "Heavy Rain & Thunder", "395": "Heavy Snow & Thunder",
-                            "0": "Clear Sky", "1": "Mainly Clear", "2": "Partly Cloudy", "3": "Overcast", 
-                            "45": "Foggy", "48": "Rime Fog", "51": "Light Drizzle", "53": "Moderate Drizzle", 
-                            "55": "Dense Drizzle", "61": "Slight Rain", "63": "Moderate Rain", "65": "Heavy Rain", 
-                            "71": "Light Snow", "73": "Moderate Snow", "75": "Heavy Snow", "80": "Light Showers", 
-                            "85": "Light Snow Showers", "95": "Thunderstorm" 
-                        };
-
-                        let iconMap = { 
-                            "113": "wb_sunny", "116": "partly_cloudy_day", "119": "cloud", "122": "cloud", 
-                            "143": "foggy", "176": "rainy", "179": "ac_unit", "182": "ac_unit", "185": "ac_unit", 
-                            "200": "thunderstorm", "227": "ac_unit", "230": "ac_unit", "248": "foggy", "260": "foggy", 
-                            "263": "rainy", "266": "rainy", "281": "ac_unit", "284": "ac_unit", "293": "rainy", 
-                            "296": "rainy", "299": "rainy", "302": "rainy", "305": "rainy", "308": "rainy", 
-                            "311": "ac_unit", "314": "ac_unit", "317": "ac_unit", "320": "ac_unit", "323": "ac_unit", 
-                            "326": "ac_unit", "329": "ac_unit", "332": "ac_unit", "335": "ac_unit", "338": "ac_unit", 
-                            "350": "ac_unit", "353": "rainy", "356": "rainy", "359": "rainy", "362": "ac_unit", 
-                            "365": "ac_unit", "368": "ac_unit", "371": "ac_unit", "374": "ac_unit", "377": "ac_unit", 
-                            "386": "thunderstorm", "389": "thunderstorm", "392": "thunderstorm", "395": "thunderstorm", 
-                            "0": "wb_sunny", "1": "partly_cloudy_day", "2": "partly_cloudy_day", "3": "cloud", 
-                            "45": "foggy", "48": "foggy", "51": "rainy", "53": "rainy", "55": "rainy", 
-                            "61": "rainy", "63": "rainy", "65": "rainy", "71": "ac_unit", "73": "ac_unit", 
-                            "75": "ac_unit", "80": "rainy", "85": "ac_unit", "95": "thunderstorm" 
-                        };
-                        
-                        weatherRoot.desc = rawDesc !== "" ? rawDesc : (descMap[code] || "Clear");
-
-                        let targetGlyph = iconMap[code];
-                        if (!targetGlyph) {
-                            let lower = weatherRoot.desc.toLowerCase();
-                            if (lower.includes("thunder")) targetGlyph = "thunderstorm";
-                            else if (lower.includes("rain") || lower.includes("drizzle") || lower.includes("shower")) targetGlyph = "rainy";
-                            else if (lower.includes("snow") || lower.includes("sleet") || lower.includes("blizzard") || lower.includes("ice")) targetGlyph = "ac_unit";
-                            else if (lower.includes("fog") || lower.includes("mist") || lower.includes("haze")) targetGlyph = "foggy";
-                            else if (lower.includes("sunny") || lower.includes("clear")) targetGlyph = "wb_sunny";
-                            else if (lower.includes("cloud")) targetGlyph = "partly_cloudy_day";
-                            else targetGlyph = "cloud";
+                        let place = data.results[0];
+                        latVal = place.latitude;
+                        lonVal = place.longitude;
+                        weatherRoot.areaName = place.admin1 ? (place.name + ", " + place.admin1) : place.name;
+                    } else {
+                        if (!data.success) {
+                            weatherRoot.isFetching = false;
+                            return;
                         }
-                        weatherRoot.glyph = targetGlyph;
-                        weatherRoot.lastFetchTime = Date.now();
+                        latVal = data.latitude;
+                        lonVal = data.longitude;
+                        weatherRoot.areaName = data.region ? (data.city + ", " + data.region) : data.city;
                     }
-                } catch(e) {
-                    console.error("Failed to parse weather JSON:", e);
+
+                    weatherRoot.fetchWeatherData(latVal, lonVal);
+                } catch (e) {
+                    weatherRoot.isFetching = false;
+                    console.error("Failed to parse location JSON:", e);
                 }
             }
         }

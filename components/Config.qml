@@ -1352,7 +1352,7 @@ QtObject {
             }
 
             // locationQuery empty is a valid "Auto IP Geolocation" mode
-            // (WeatherService.getTargetUrl falls back to plain wttr.in),
+            // (WeatherService falls back to IP-based lookup),
             // not "unconfigured" - don't skip the startup fetch for it.
             if (root.weather) {
                 root.weather.fetchWeather(true)

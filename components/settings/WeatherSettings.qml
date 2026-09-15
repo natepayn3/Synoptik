@@ -480,7 +480,7 @@ Item {
                         }
 
                         Text {
-                            text: "Weather metrics automatically synchronize every 15 minutes via wttr.in and update the calendar, desktop widgets, and status bar."
+                            text: "Weather metrics automatically synchronize every 15 minutes and update the calendar, desktop widgets, and status bar."
                             font.family: Config.sysFont
                             font.pixelSize: Config.size(Config.fontMicro)
                             color: Config.textMuted
