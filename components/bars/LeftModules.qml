@@ -34,7 +34,14 @@ Rectangle {
     height: (rootRef && rootRef.isHorizontal) ? 36 : Math.max(36, contentTargetHeight)
     radius: Config.cornerRadius / 2
     color: Qt.rgba(255, 255, 255, 0.05)
-    border.width: 1
+    // The unified island background (SdfIslandBar/BarClosedShape etc.) is
+    // meant to be one continuous shape spanning leftCard+activeWindowCard+
+    // rightCard together (see UnifiedSurface's islandContentWidth, which
+    // already sums all three) - this card's own border used to draw on top
+    // of that regardless, doubling up into a border-within-a-border. Only
+    // suppressed under the SDF renderer for now, so the Bezier path's look
+    // is unchanged until that's the default too.
+    border.width: Config.experimentalSdfBar ? 0 : 1
     border.color: Qt.rgba(255, 255, 255, 0.1)
     clip: true
 

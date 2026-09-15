@@ -56,7 +56,16 @@ Rectangle {
 
     radius: Config.cornerRadius / 2
     color: (Config.showTaskOverflow || cardHover.hovered) ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(255, 255, 255, 0.05)
-    border.width: (Config.showTaskOverflow || cardHover.hovered) ? 2 : 1
+    // Every border here (idle AND hover) doubled up with the unified island
+    // background's own border under the SDF renderer - same as
+    // LeftModules/RightModules for the idle case, but the hover/active
+    // border was worse: a standalone 2px accent-colored box popping up out
+    // of an otherwise borderless bar reads as even less cohesive than the
+    // constant 1px double-border did. The background tint above is already
+    // how every other bar icon shows hover/active state (see e.g.
+    // RightModules' btnSearchHoriz) - this card doesn't need its own border
+    // to do the same job.
+    border.width: Config.experimentalSdfBar ? 0 : ((Config.showTaskOverflow || cardHover.hovered) ? 2 : 1)
     border.color: (Config.showTaskOverflow || cardHover.hovered) ? Config.accent : Qt.rgba(255, 255, 255, 0.1)
     clip: true
 

@@ -95,7 +95,7 @@ PanelWindow {
     function stopPeek() {
         root.isPeeking = false
     }
-    
+
     readonly property real actualScreenWidth: screen ? screen.width : 1920
     readonly property real actualScreenHeight: screen ? screen.height : 1080
 
@@ -436,6 +436,22 @@ PanelWindow {
     readonly property real islandX: (mainContainer.width - animatedIslandWidth) / 2
     readonly property real islandY: (mainContainer.height - animatedIslandHeight) / 2
 
+    // Where the island bar's own edges settle once ITS resize animation
+    // finishes - unlike islandX/animatedIslandWidth above, which track
+    // where the bar visually IS on this frame, mid-animation included. The
+    // popout's own position (staticLeft) needs to clamp against the bar's
+    // FINAL bounds, not its live ones: the island bar growing wider to fit
+    // an opening panel and the panel itself growing are two independent
+    // Behavior animations with different easing curves, so at any given
+    // moment they're rarely at the same fraction of completion. Clamping
+    // the popout against the live (smaller, still catching up) island
+    // bounds pins it in tighter than it needs to be for part of the
+    // animation, then releases it once the island finishes expanding -
+    // which reads as the popout pushing out past where it should be and
+    // snapping back, even though nothing was ever actually out of bounds.
+    readonly property real targetIslandX: (mainContainer.width - islandTargetWidth) / 2
+    readonly property real targetIslandY: (mainContainer.height - islandTargetHeight) / 2
+
     readonly property bool isOsdView: activeView === "osd" || activeView === "notifOsd"
 
     readonly property real minPossibleLeft: isScreenFrame ? ((isHorizontal ? inX : inY) + halfB) : halfB
@@ -454,56 +470,109 @@ PanelWindow {
 
     readonly property bool isPanelActive: root.isOpen || root.progress > 0.005
 
+    // Compared against targetIslandX/islandTargetWidth (the bar's settled
+    // bounds), not islandX/animatedIslandWidth (its live, still-animating
+    // ones) - staticLeft below makes that same choice for the same reason,
+    // and comparing a target-based staticLeft against a live island bound
+    // would drift out of step with it for as long as the island bar is
+    // still resizing, flipping flush on/off independently of where the
+    // popout actually is.
     readonly property bool isLeftFlush: isPanelActive && !peekActive && (root.isIsland
-        ? (root.isHorizontal 
-            ? (staticLeft <= (root.islandX + safeCornerMargin)) 
-            : (staticLeft <= (root.islandY + safeCornerMargin)))
+        ? (root.isHorizontal
+            ? (staticLeft <= (root.targetIslandX + safeCornerMargin))
+            : (staticLeft <= (root.targetIslandY + safeCornerMargin)))
         : (root.isScreenFrame && !isCentered && (
             (isHorizontal ? (popoutXOffset - targetWidth / 2.0) : (popoutYOffset - targetHeight / 2.0)) <= minPossibleLeft
         )))
 
     readonly property bool isRightFlush: isPanelActive && !peekActive && (root.isIsland
-        ? (root.isHorizontal 
-            ? ((staticLeft + targetWidth) >= (root.islandX + root.animatedIslandWidth - safeCornerMargin)) 
-            : ((staticLeft + targetHeight) >= (root.islandY + root.animatedIslandHeight - safeCornerMargin)))
+        ? (root.isHorizontal
+            ? ((staticLeft + targetWidth) >= (root.targetIslandX + root.islandTargetWidth - safeCornerMargin))
+            : ((staticLeft + targetHeight) >= (root.targetIslandY + root.islandTargetHeight - safeCornerMargin)))
         : (root.isScreenFrame && !isCentered && (
             (isHorizontal ? (popoutXOffset + targetWidth / 2.0) : (popoutYOffset + targetHeight / 2.0)) >= maxPossibleRight
         )))
 
+    // Deliberately keyed off currentWidth/currentHeight (the size the popout
+    // actually is on this frame) rather than targetWidth/targetHeight (the
+    // size it's animating TOWARD). Using the target size fixes this edge at
+    // where the fully-grown box would sit and only grows width/height
+    // outward from there, so the shape visibly expands from a stationary
+    // top-left corner instead of from the icon it's supposed to emerge from.
+    // Keying off the live size instead means this edge moves every frame to
+    // keep the shape centred on the anchor, so it grows (and, closing,
+    // shrinks back to a point) symmetrically around it.
     readonly property real targetCenteredLeft: Math.max(
         minPossibleLeft + safeCornerMargin,
         Math.min(
-            maxPossibleRight - (isHorizontal ? targetWidth : targetHeight) - safeCornerMargin,
-            ((isHorizontal ? mainContainer.width : mainContainer.height) - (isHorizontal ? targetWidth : targetHeight)) / 2.0
+            maxPossibleRight - (isHorizontal ? currentWidth : currentHeight) - safeCornerMargin,
+            ((isHorizontal ? mainContainer.width : mainContainer.height) - (isHorizontal ? currentWidth : currentHeight)) / 2.0
         )
     )
 
     readonly property real staticLeft: {
-        let span = isHorizontal ? targetWidth : targetHeight
+        let span = isHorizontal ? currentWidth : currentHeight
+        let targetSpan = isHorizontal ? targetWidth : targetHeight
         let offset = isHorizontal ? popoutXOffset : popoutYOffset
         let safeMargin = root.safeCornerMargin
         if (isCentered) return targetCenteredLeft
 
+        // Which edge (if any) this popout ends up pinned against - left
+        // flush, right flush, or neither (grows centred on its icon) - is
+        // decided from targetSpan, the settled final size, not the live
+        // still-animating span. A popout that only becomes flush once it's
+        // mostly grown would otherwise pick the centred-on-icon branch
+        // early in the animation and the flush branch late, jumping
+        // sideways the instant span crosses the threshold - small and
+        // unnoticeable for an icon already near the edge (crosses within
+        // the first few frames, while the shape is tiny), but a visible
+        // snap for one further in (crosses late, once the shape is big).
+        // Deciding once up front from the size it's actually heading toward
+        // means the same branch - and the same edge - holds for the whole
+        // animation; only the live `span` still drives the interpolated
+        // position within that choice.
         if (root.isIsland) {
-            let barOrigin = isHorizontal ? root.islandX : root.islandY
-            let barEnd = isHorizontal ? (root.islandX + root.animatedIslandWidth) : (root.islandY + root.animatedIslandHeight)
-            let barSpan = barEnd - barOrigin
-            let rawLeft = offset - (span / 2.0)
-            let rawRight = offset + (span / 2.0)
-
-            if (span >= barSpan - safeMargin) {
-                return barOrigin + ((barSpan - span) / 2.0)
+            // If this popout alone is what's forcing the island bar past its
+            // natural content width (islandTargetWidth's own formula grows
+            // it to fit whichever is bigger - see islandTargetWidth above),
+            // an icon-anchored position can't work: the icon sits wherever
+            // it sits on the bar's CURRENT, smaller footprint, so anchoring
+            // to it and clamping to the (much wider) final bar would pin
+            // one edge at the icon and stretch the other almost the entire
+            // new width - overflowing the bar's current, not-yet-expanded
+            // shape on that side, then correcting once the bar catches up.
+            // There's no icon-relative position that avoids this, so don't
+            // try - centre plainly on the screen instead, exactly like
+            // islandX/Y already centre the bar itself as it grows. Both
+            // then animate around the same fixed point with nothing to
+            // race, which is what "the bar can expand but the panel is
+            // centred" actually requires.
+            let islandContentSpan = isHorizontal ? root.islandContentWidth : root.islandContentHeight
+            if (targetSpan > islandContentSpan - safeMargin) {
+                return ((isHorizontal ? mainContainer.width : mainContainer.height) - span) / 2.0
             }
-            if (rawLeft <= barOrigin + safeMargin) return barOrigin
-            if (rawRight >= barEnd - safeMargin) return barEnd - span
-            return Math.max(barOrigin + safeMargin, Math.min(barEnd - safeMargin - span, rawLeft))
+
+            // Otherwise the island bar isn't growing on this popout's
+            // account, so its bounds are effectively stable already - which
+            // edge (if any) the popout pins against is still decided from
+            // targetSpan rather than the live span, for the same reason as
+            // above: the decision must hold for the whole animation, not
+            // flip once span crosses a threshold mid-growth.
+            let barOrigin = isHorizontal ? root.targetIslandX : root.targetIslandY
+            let barEnd = isHorizontal ? (root.targetIslandX + root.islandTargetWidth) : (root.targetIslandY + root.islandTargetHeight)
+            let targetRawLeft = offset - (targetSpan / 2.0)
+            let targetRawRight = offset + (targetSpan / 2.0)
+
+            if (targetRawLeft <= barOrigin + safeMargin) return barOrigin
+            if (targetRawRight >= barEnd - safeMargin) return barEnd - span
+            return Math.max(barOrigin + safeMargin, Math.min(barEnd - safeMargin - span, offset - (span / 2.0)))
         }
 
-        let rawLeft = offset - (span / 2.0)
-        let rawRight = offset + (span / 2.0)
-        if (root.isScreenFrame && !isCentered && rawLeft <= minPossibleLeft) return minPossibleLeft
-        if (root.isScreenFrame && !isCentered && rawRight >= maxPossibleRight) return maxPossibleRight - span
-        return Math.max(minPossibleLeft + safeMargin, Math.min(maxPossibleRight - span - safeMargin, rawLeft))
+        let targetRawLeft = offset - (targetSpan / 2.0)
+        let targetRawRight = offset + (targetSpan / 2.0)
+        if (root.isScreenFrame && !isCentered && targetRawLeft <= minPossibleLeft) return minPossibleLeft
+        if (root.isScreenFrame && !isCentered && targetRawRight >= maxPossibleRight) return maxPossibleRight - span
+        return Math.max(minPossibleLeft + safeMargin, Math.min(maxPossibleRight - span - safeMargin, offset - (span / 2.0)))
     }
 
     readonly property real staticRight: staticLeft + (isHorizontal ? targetWidth : targetHeight)
@@ -781,11 +850,38 @@ PanelWindow {
             }
 
 
-            BarClosedShape { panelRoot: root; panelCanvas: mainContainer }
-            BarOpenShapeLeft { panelRoot: root }
-            BarOpenShapeTop { panelRoot: root }
-            BarOpenShapeBottom { panelRoot: root; panelCanvas: mainContainer }
-            BarOpenShapeRight { panelRoot: root; panelCanvas: mainContainer }
+            // Bezier wing renderer - the fallback for whatever SdfIslandBar
+            // doesn't cover (flush states, screen frame - see its own
+            // visible binding). Mirrors the negation of that condition
+            // exactly, rather than just "!experimentalSdfBar", so enabling
+            // the flag can never hide both renderers at once for a case
+            // SdfIslandBar excludes itself from.
+            Item {
+                anchors.fill: parent
+                visible: !Config.experimentalSdfBar || root.isScreenFrame
+                    || root.isLeftFlush || root.isRightFlush
+                BarClosedShape { panelRoot: root; panelCanvas: mainContainer }
+                BarOpenShapeLeft { panelRoot: root }
+                BarOpenShapeTop { panelRoot: root }
+                BarOpenShapeBottom { panelRoot: root; panelCanvas: mainContainer }
+                BarOpenShapeRight { panelRoot: root; panelCanvas: mainContainer }
+            }
+
+            // EXPERIMENTAL: one blob covering every bar state (idle, open,
+            // peeking) instead of the five Bezier files above - see
+            // SdfIslandBar.qml. Bound directly to barContent/
+            // contentContainer's own real geometry (declared further down
+            // this file - forward id references within one component are
+            // fine in QML), not a second derivation of it, which is what
+            // kept letting the bar and the popout disagree about where each
+            // other's edge was. Flush states and screen frame still render
+            // via the Bezier group above regardless of this flag
+            // (SdfIslandBar hides itself for those).
+            SdfIslandBar {
+                panelRoot: root
+                barContentItem: barContent
+                popoutContentItem: contentContainer
+            }
 
             ScreenFrameClosedGroup { panelRoot: root; panelCanvas: mainContainer }
             ScreenFrameOpenGroupLeft { panelRoot: root; panelCanvas: mainContainer }

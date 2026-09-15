@@ -524,6 +524,13 @@ QtObject {
     // --- BAR / FRAME / RENDERING TOGGLES + TYPOGRAPHY + THEMES (extracted to services/AppearanceConfig.qml) ---
     property AppearanceConfig appearance: AppearanceConfig { configRef: root }
     property alias barFrameStyle: root.appearance.barFrameStyle
+    // EXPERIMENTAL: renders the whole bar - idle, open+merged with a
+    // popout, peeking - as one merged SDF blob (components/surface/
+    // SdfIslandBar.qml) instead of the hand-authored Bezier shapes
+    // (BarClosedShape.qml, BarOpenShape*.qml). Deliberately not persisted -
+    // a runtime-only toggle for comparing the two while this is still being
+    // validated, not a real user-facing setting yet.
+    property bool experimentalSdfBar: true
     property alias barClockStyle: root.appearance.barClockStyle
     property alias animateGradient: root.appearance.animateGradient
     property alias showScreenFrame: root.appearance.showScreenFrame

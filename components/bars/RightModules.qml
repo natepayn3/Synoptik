@@ -45,7 +45,10 @@ Rectangle {
     clip: true
     radius: Config.cornerRadius / 2
     color: Qt.rgba(255, 255, 255, 0.05)
-    border.width: 1
+    // See LeftModules.qml's leftCard border for why this is suppressed
+    // under the SDF renderer - a border here doubles up with the unified
+    // island background's own border, which already spans this card too.
+    border.width: Config.experimentalSdfBar ? 0 : 1
     border.color: Qt.rgba(255, 255, 255, 0.1)
 
     Behavior on width { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
