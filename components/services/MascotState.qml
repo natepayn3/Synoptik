@@ -148,11 +148,28 @@ QtObject {
     property int frameMs: 120
 
     // Called once the reaction's own clip has loaded and its length is known.
+    //
+    // Idempotent per firing via reactionSeq/heldSeq: measured live, a large
+    // clip (cheer.webp, ~1MB vs the ~85KB bundled reactions this was
+    // originally tuned against) sometimes reports AnimatedImage.Ready before
+    // frameCount has actually been populated - the view's onStatusChanged
+    // calls this with frames < 2, it silently no-ops, and the reaction is
+    // left holding the reactionTimeoutMs fallback (4s) instead of the
+    // clip's real length every time, with no second chance. The view now
+    // also calls this from onCurrentFrameChanged as a retry once frameCount
+    // is definitely known; the seq guard is what makes calling it twice (or
+    // on every frame of a long clip) safe - it sets the real interval once
+    // per firing and then gets out of the way, rather than re-restarting
+    // the timer on every frame and never letting the reaction end.
     function holdReactionFor(frames) {
         if (reaction === "" || frames < 2) return
+        if (heldSeq === reactionSeq) return
+        heldSeq = reactionSeq
         reactionTimer.interval = Math.max(300, Math.min(frames * frameMs, reactionTimeoutMs))
         reactionTimer.restart()
     }
+    property int reactionSeq: 0
+    property int heldSeq: -1
 
     property Timer reactionTimer: Timer {
         interval: mascotState.reactionTimeoutMs
@@ -174,6 +191,7 @@ QtObject {
     function fire(name) {
         if (!name) return
         reaction = name
+        reactionSeq++
         reactionTimer.restart()
     }
 
@@ -281,7 +299,31 @@ QtObject {
         return configRef.builtinMascotDir ? (configRef.builtinMascotDir + "/idle.webp") : ""
     }
 
-    readonly property string currentClipPath: clipPathFor(current)
+    // Freezing on idle here rather than short-circuiting the ladder above
+    // keeps condition/reaction/current tracking real state regardless of the
+    // toggle - currentClipIsOwn and the reaction-hold timer stay correct,
+    // and flipping the setting back on needs no re-evaluation, just picks
+    // up whatever current already is.
+    readonly property bool animationsEnabled: !configRef || configRef.mascotAnimationsEnabled !== false
+
+    // Plain property updated imperatively, same reasoning as `current`
+    // above: a live binding here ("readonly property string currentClipPath:
+    // clipPathFor(...)") was observed going stale - reaction correctly
+    // cleared (reaction/condition/current all read right in isolation) but
+    // the displayed clip stayed pinned to the reaction's own clip until some
+    // LATER, unrelated condition change (e.g. grabbing the mascot) forced a
+    // fresh recompute. Exact QML engine cause unconfirmed, but explicitly
+    // re-deriving on every input that should affect it - rather than trusting
+    // one declarative expression to always re-run - is the same trade the
+    // `current` comment above already made for this file.
+    property string currentClipPath: ""
+    function updateClipPath() { currentClipPath = clipPathFor(animationsEnabled ? current : "idle") }
+    onCurrentChanged: updateClipPath()
+    onAnimationsEnabledChanged: updateClipPath()
+    property Connections clipManifestWatcher: Connections {
+        target: mascotState.configRef
+        function onMascotClipsChanged() { mascotState.updateClipPath() }
+    }
 
     // True when the state showing has a clip of its own, rather than having
     // fallen back. The view uses this to decide whether a reaction can be
@@ -304,5 +346,13 @@ QtObject {
     Component.onCompleted: {
         conditionSince = Date.now()
         evaluate()
+        // evaluate() only assigns condition (and so only cascades to
+        // current/currentClipPath) when the ladder's result differs from
+        // condition's own "idle" default - a fresh session that genuinely
+        // resolves to idle never fires that cascade at all. Both are plain
+        // properties now (see currentClipPath above), so nothing computes
+        // them until something actually changes unless this runs them once.
+        updateCurrent()
+        updateClipPath()
     }
 }

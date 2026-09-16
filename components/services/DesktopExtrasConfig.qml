@@ -18,6 +18,12 @@ QtObject {
     // --- DESKTOP MASCOT STATE & PERSISTENCE ---
     property bool showMascot: false
     property bool mascotAudioThrob: true
+    // Off freezes the character on its idle pose - the ladder in
+    // MascotState.qml still evaluates underneath (battery/media/lock signals
+    // keep working for anything else that reads them), only the displayed
+    // clip is pinned, so this is one flag rather than threading a check
+    // through every condition/reaction.
+    property bool mascotAnimationsEnabled: true
 
     // Per-state animation clips: { stateName: "/abs/path/clip.webp" }. State
     // names come from MascotState.allStateNames. The mascot is a single

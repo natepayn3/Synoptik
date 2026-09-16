@@ -474,6 +474,7 @@ QtObject {
     property alias screensaverCornerCounter: root.desktopExtras.screensaverCornerCounter
     property alias showMascot: root.desktopExtras.showMascot
     property alias mascotAudioThrob: root.desktopExtras.mascotAudioThrob
+    property alias mascotAnimationsEnabled: root.desktopExtras.mascotAnimationsEnabled
     property alias mascotClips: root.desktopExtras.mascotClips
     function setMascotClip(stateName, path) { root.desktopExtras.setMascotClip(stateName, path) }
     function clearMascotClips() { root.desktopExtras.clearMascotClips() }
@@ -955,7 +956,7 @@ QtObject {
         "wallpaperCursorParallax", "wallpaperParallaxIntensity", "slideshowActive", "slideshowMinutes",
         "showScreensaver", "screensaverText", "screensaverMode", "screensaverFontSize",
         "screensaverSpeed", "screensaverCornerCounter", "showOsk", "oskLayout", "showMascot",
-        "mascotPositions", "mascotLastScreen", "mascotSize", "mascotAudioThrob", "mascotClips",
+        "mascotPositions", "mascotLastScreen", "mascotSize", "mascotAudioThrob", "mascotAnimationsEnabled", "mascotClips",
         "showDesktopMediaCard", "mediaCardWidth", "mediaCardHeight", "mediaCardPositions", "mediaCardLastScreen", "barFrameStyle",
         "barClockStyle", "barPosition", "autoHideBar", "showScreenFrame", "sysFont", "nativeFontRendering",
         "fontScaleIndex", "locationQuery", "enabledBarScreens", "useCustomColors", "customBgBase",
@@ -1036,6 +1037,7 @@ QtObject {
             property var oskLayout
             property var showMascot
             property var mascotAudioThrob
+            property var mascotAnimationsEnabled
             property var mascotClips
             property var mascotPositions
             property var mascotLastScreen

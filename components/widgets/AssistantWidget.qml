@@ -1278,6 +1278,27 @@ PanelWindow {
 
     property bool assistantBusy: false
 
+    // Which of the bundled avatar_*.png expressions the header portrait
+    // shows. Priority mirrors MascotState's ladder in spirit (busy beats
+    // whatever the last message was), but there's no hold/dwell timer here -
+    // chat turns are already discrete and infrequent enough that flicker
+    // isn't a real risk the way a rapid battery/media signal would be.
+    // "happy" isn't time-limited either: it just reflects that the last
+    // message was a normal reply, and stays until the next user message
+    // (falling to the busy/thinking face) or error replaces it.
+    readonly property string headerAvatarMood: {
+        if (assistantWindow.assistantBusy) return "thinking"
+        let msgs = Config.assistantMessages
+        let last = msgs && msgs.length > 0 ? msgs[msgs.length - 1] : null
+        if (!last) return ""
+        if (last.role === "error") return "error"
+        if (last.role === "assistant") return "happy"
+        return ""
+    }
+    function avatarFileFor(mood) {
+        return "avatar" + (mood ? "_" + mood : "") + ".png"
+    }
+
     // The backend CLIs don't stream their reply incrementally in this
     // invocation mode - confirmed empirically (claude -p writes its entire
     // response in one burst right before exiting, not token-by-token), so
@@ -2446,14 +2467,48 @@ PanelWindow {
 
             AnimatedImage {
                 id: character
-                source: assistantWindow.formatFileUrl(assistantWindow.mascotState.currentClipPath)
                 anchors.fill: parent
                 fillMode: Image.PreserveAspectFit
                 playing: true
 
+                // Not a direct `source: ...currentClipPath` binding, on
+                // purpose. Confirmed live with a screenshot: this view can
+                // keep rendering a PREVIOUS clip's frame indefinitely even
+                // after currentClipPath/mascotState have already moved on
+                // correctly underneath (reaction "", currentClipPath back to
+                // idle.webp, read at the same instant the screen still showed
+                // cheer.webp mid-animation) - every clip here loops forever
+                // (-loop 0), and toggling `playing` false/true around a plain
+                // source reassignment (tried first) did not force Qt to
+                // actually tear down and reload the movie. Clearing source
+                // to "" and only setting the real path on the NEXT tick
+                // forces a genuine unload/reload cycle instead of a same-
+                // component in-place source swap, which is what actually
+                // fixes the stall.
+                function reload(path) {
+                    source = ""
+                    Qt.callLater(function() {
+                        character.source = assistantWindow.formatFileUrl(path)
+                    })
+                }
+                Connections {
+                    target: assistantWindow.mascotState
+                    function onCurrentClipPathChanged() {
+                        character.reload(assistantWindow.mascotState.currentClipPath)
+                    }
+                }
+                Component.onCompleted: character.reload(assistantWindow.mascotState.currentClipPath)
+
                 onCurrentFrameChanged: {
                     let st = assistantWindow.mascotState
                     if (st.reaction !== "" && !st.currentClipIsOwn) st.endReaction()
+                    // Retries holdReactionFor in case onStatusChanged's Ready
+                    // fired before frameCount was populated (seen on cheer.webp,
+                    // ~1MB vs the tiny bundled reactions this was tuned
+                    // against) - a no-op once the real hold is already set,
+                    // see holdReactionFor's own comment.
+                    else if (st.reaction !== "" && st.currentClipIsOwn)
+                        st.holdReactionFor(frameCount)
                 }
 
                 transformOrigin: Item.Bottom
@@ -2540,11 +2595,14 @@ PanelWindow {
                     // portraits, so fitting one into a 40px square slot caps
                     // it at 21px wide and leaves the face around 8px tall -
                     // unreadable against a translucent panel over a wallpaper.
-                    // avatar.png is a square head-and-shoulders crop of the
-                    // same character (it's what AssistantSettings.qml shows),
-                    // so it fills the slot at full size. The trade is that the
-                    // header no longer tracks mascotState - the collapsed
-                    // character and the notify bounce below still do.
+                    // avatar*.png are square head-and-shoulders crops of the
+                    // same character (avatar.png, the neutral one, is what
+                    // AssistantSettings.qml shows), so one fills the slot at
+                    // full size. The trade is that the header doesn't track
+                    // mascotState - the collapsed character and the notify
+                    // bounce below still do - it tracks headerAvatarMood
+                    // instead, which is chat state (busy/error/reply), not
+                    // battery/media/lock.
                     Item {
                         id: headerAvatar
                         implicitWidth: 40
@@ -2553,7 +2611,7 @@ PanelWindow {
                         Image {
                             id: headerCharacter
                             anchors.fill: parent
-                            source: assistantWindow.formatFileUrl(Config.builtinMascotDir + "/avatar.png")
+                            source: assistantWindow.formatFileUrl(Config.builtinMascotDir + "/" + assistantWindow.avatarFileFor(assistantWindow.headerAvatarMood))
                             fillMode: Image.PreserveAspectFit
                             // Rendered at 40px from a 154px source: ask for the
                             // decode at display size rather than scaling the

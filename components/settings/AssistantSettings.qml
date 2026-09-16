@@ -162,6 +162,19 @@ Item {
                     checked: Config.mascotAudioThrob !== false
                     onToggled: Config.mascotAudioThrob = (Config.mascotAudioThrob === false)
                 }
+
+                // TOGGLE: REACTION ANIMATIONS
+                // Off keeps the character on-screen but pinned to its idle
+                // pose - battery/media/lock signals etc. still work, they
+                // just stop changing what's shown. The full off switch above
+                // removes the character entirely; this is for someone who
+                // wants it there but finds the dancing/cheering distracting.
+                SettingsToggleRow {
+                    title: "Animate Reactions"
+                    subtitle: "Let the character dance, cheer, and react - off keeps it on its idle pose"
+                    checked: Config.mascotAnimationsEnabled !== false
+                    onToggled: Config.mascotAnimationsEnabled = (Config.mascotAnimationsEnabled === false)
+                }
             }
         }
 
