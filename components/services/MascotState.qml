@@ -69,15 +69,26 @@ QtObject {
         { name: "dancing",  hold: 1500, when: function() { return !!(mascotState.shellRef && mascotState.shellRef.mediaPlaying) } },
         // 4. ambient status
         { name: "lowbattery",hold:1200, when: function() { return mascotState.onBattery && mascotState.batteryPct <= 30 } },
-        // `charging` stays ABOVE `muted`/`offline`, and widening pluggedIn below
-        // does not change that. Both of those are ordinary long-lived states
-        // here - muted audio and an unassociated radio can each be true all day
-        // - and neither ships a clip of its own in the built-in set, so winning
-        // the ladder means falling back to plain idle. Demoting `charging`
-        // under them therefore does not show a different reaction, it shows no
-        // reaction: the glow disappears for the whole time you are docked, which
-        // is the exact opposite of the resting look this row is here to provide.
-        { name: "charging", hold: 1200, when: function() { return mascotState.pluggedIn } },
+        // `charging`/`charged` stay ABOVE `muted`/`offline`, and widening
+        // pluggedIn below does not change that. Both of those are ordinary
+        // long-lived states here - muted audio and an unassociated radio can
+        // each be true all day - and neither ships a clip of its own in the
+        // built-in set, so winning the ladder means falling back to plain idle.
+        // Demoting the glow under them therefore does not show a different
+        // reaction, it shows no reaction: it disappears for the whole time you
+        // are docked, which is the exact opposite of the resting look these
+        // rows are here to provide.
+        //
+        // Two rows, not one, because charging.webp alternates between a soft
+        // golden aura and a crackling-energy pose. That reads as work being
+        // done, which is right while the cell is filling and wrong once it is
+        // full - at which point it is just an animation running all day. So
+        // `charged` holds charged.webp, a single static frame of the soft aura
+        // alone (frame 0 of the same clip), for as long as the adapter stays
+        // attached. `charged` tests only pluggedIn because `charging` is
+        // evaluated first and takes everything still actually charging.
+        { name: "charging", hold: 1200, when: function() { return mascotState.activelyCharging } },
+        { name: "charged",  hold: 1200, when: function() { return mascotState.pluggedIn } },
         { name: "muted",    hold:  800, when: function() { return !!(mascotState.shellRef && mascotState.shellRef.audioMuted) } },
         { name: "offline",  hold: 2000, when: function() { return mascotState.networkDown } },
         { name: "idle",     hold:    0, when: function() { return true } }
@@ -99,6 +110,9 @@ QtObject {
         && (shellRef.battStatus === "Charging"
             || shellRef.battStatus === "Full"
             || shellRef.battStatus === "Not charging")
+    // Narrower than pluggedIn: true only while the cell is actually taking
+    // charge, which is what separates the animated clip from the static one.
+    readonly property bool activelyCharging: hasBattery && shellRef.battStatus === "Charging"
     readonly property bool onBattery: hasBattery && !pluggedIn
     readonly property int batteryPct: hasBattery ? shellRef.battCapacity : 100
 

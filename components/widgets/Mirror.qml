@@ -186,8 +186,25 @@ PanelWindow {
             function onIsLoadedChanged() { if (Config.isLoaded) mirrorContainer.restorePosition() }
         }
 
+        // The window only reaches screen size once the compositor has
+        // configured the layer-shell surface. Until then Qt reports its own
+        // default 500x500, which is nonzero and so passed the `width <= 0`
+        // guard this replaces - so a restore landing in that gap sized the
+        // fallback position against a 500x500 phantom screen, corrected to
+        // whatever screen was picked before Config loaded, and then latched
+        // `initialized` so the real configure that followed never re-restored.
+        // See AssistantWidget.qml's identical property for the longer write-up
+        // (there it also fed a position clamp, which destroyed saved positions
+        // outright rather than just the defaults).
+        //
+        // Self-correcting: the onWidthChanged/onHeightChanged hooks above
+        // re-run restorePosition() when the configure lands.
+        readonly property bool screenGeometryReady: !!mirrorWindow.screen
+            && mirrorWindow.width >= mirrorWindow.screen.width
+            && mirrorWindow.height >= mirrorWindow.screen.height
+
         function restorePosition() {
-            if (initialized || mirrorWindow.width <= 0 || mirrorWindow.height <= 0 || !Config.isLoaded) return
+            if (initialized || !screenGeometryReady || !Config.isLoaded) return
 
             // mirrorWindow's own Component.onCompleted picks a screen from
             // Hyprland.focusedMonitor before Config has loaded (needed just

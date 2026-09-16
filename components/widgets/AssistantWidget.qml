@@ -1763,7 +1763,9 @@ PanelWindow {
         property real cardWidth: 320
         property real cardHeight: 420
         // Collapsed (mascot) size - wheel-adjustable like Mascot.qml's own
-        // was, and likewise not persisted (always starts back at 128).
+        // was. Seeded from the saved value by restoreCollapsedGeometry() and
+        // written back, debounced, by the wheel handler, so it survives a
+        // reload the way the expanded panel's own size always has.
         property real mascotSize: 128
         // Every registered clip shares one canvas - see Mascot.qml's
         // identical comment (now folded into this file) for why this ratio
@@ -1782,6 +1784,15 @@ PanelWindow {
             id: sizeSaveDebounce
             interval: 400
             onTriggered: Config.saveAssistantSize(assistantContainer.cardWidth, assistantContainer.cardHeight)
+        }
+        // The collapsed form's equivalent. Separate from the one above because
+        // it saves mascotSize itself, not cardWidth/cardHeight - a collapse
+        // writes the character's dimensions into those, which must never reach
+        // the panel's saved size (see onCardWidthChanged below).
+        Timer {
+            id: mascotSizeSaveDebounce
+            interval: 400
+            onTriggered: Config.saveMascotSize(assistantContainer.mascotSize)
         }
         // Only the expanded chat panel's size is ever saved - a collapse
         // sets cardWidth/cardHeight to mascotSize, which must never
@@ -1802,7 +1813,26 @@ PanelWindow {
         // Runs on every size change (this covers expand/collapse and any
         // resize), not just once on restore, so a mid-resize-drag toward an
         // edge can't push it off either.
+        // A layer-shell surface anchored to all four edges ends up exactly the
+        // size of its screen - but not immediately. Between the window being
+        // created and the compositor configuring the surface, Qt reports its
+        // own default 500x500, which is nonzero and so sailed through the old
+        // `width <= 0` guards below. Restoring against it ran clampToScreen()
+        // with a 500x500 "screen", pinning the saved position up into the
+        // top-left corner, and the initialized flags then latched so the real
+        // configure that arrived a moment later never re-restored. That read
+        // as the position never being saved: it was saved, and read back
+        // correctly, and then immediately clamped away.
+        //
+        // Waiting for the window to actually match its screen is self
+        // correcting - the onWidthChanged/onHeightChanged hooks below re-run
+        // restorePosition() when the configure lands.
+        readonly property bool screenGeometryReady: !!assistantWindow.screen
+            && assistantWindow.width >= assistantWindow.screen.width
+            && assistantWindow.height >= assistantWindow.screen.height
+
         function clampToScreen() {
+            if (!screenGeometryReady) return
             if (assistantWindow.width <= 0 || assistantWindow.height <= 0) return
             dragX = Math.max(0, Math.min(assistantWindow.width - cardWidth, dragX))
             dragY = Math.max(0, Math.min(assistantWindow.height - cardHeight, dragY))
@@ -1835,7 +1865,7 @@ PanelWindow {
         }
 
         function restoreExpandedGeometry() {
-            if (assistantInitialized || assistantWindow.width <= 0 || assistantWindow.height <= 0 || !Config.isLoaded) return
+            if (assistantInitialized || !screenGeometryReady || !Config.isLoaded) return
 
             if (Config.assistantLastScreen && assistantWindow.screen && Config.assistantLastScreen !== assistantWindow.screen.name) {
                 let savedScreen = Quickshell.screens.find(s => s.name === Config.assistantLastScreen)
@@ -1866,12 +1896,17 @@ PanelWindow {
         }
 
         function restoreCollapsedGeometry() {
-            if (mascotInitialized || assistantWindow.width <= 0 || assistantWindow.height <= 0 || !Config.isLoaded) return
+            if (mascotInitialized || !screenGeometryReady || !Config.isLoaded) return
 
             if (Config.mascotLastScreen && assistantWindow.screen && Config.mascotLastScreen !== assistantWindow.screen.name) {
                 let savedScreen = Quickshell.screens.find(s => s.name === Config.mascotLastScreen)
                 if (savedScreen) assistantWindow.screen = savedScreen
             }
+
+            // Seeded here rather than in the property's initialiser, which has
+            // no way to wait for Config.isLoaded - this function is already
+            // gated on it above.
+            mascotSize = Math.max(32, Config.mascotSize > 0 ? Config.mascotSize : 128)
 
             cardWidth = mascotSize
             cardHeight = character.implicitWidth ? (mascotSize * (character.implicitHeight / character.implicitWidth)) : mascotSize * mascotClipAspect
@@ -1955,7 +1990,17 @@ PanelWindow {
             dragX = snapOverlay.snappedX(dragX, width)
             dragY = snapOverlay.snappedY(dragY, height)
             if (assistantWindow.screen) {
-                Config.saveAssistantPosition(assistantWindow.screen.name, dragX, dragY)
+                // Same expanded/collapsed split as the onXChanged/onYChanged
+                // writes above, and for the same reason. Saving unconditionally
+                // to the assistant bucket meant dragging the collapsed
+                // character left its PRE-snap position in mascotPositions (the
+                // last thing the drag itself wrote) while the snapped position
+                // it actually came to rest at went to assistantPositions - so
+                // the character reappeared up to a grid cell away from where
+                // she was dropped, and the chat panel's own saved position got
+                // overwritten every time the character was moved.
+                if (assistantWindow.expanded) Config.saveAssistantPosition(assistantWindow.screen.name, dragX, dragY)
+                else Config.saveMascotPosition(assistantWindow.screen.name, dragX, dragY)
             }
         }
 
@@ -2449,6 +2494,34 @@ PanelWindow {
 
             Behavior on border.color { ColorAnimation { duration: 150 } }
 
+            // A faint watermark of the character's full standing pose, centred
+            // behind the conversation. Declared before the ColumnLayout below
+            // rather than given a z, since children paint in declaration order
+            // and the Rectangle's own fill is always under all of them anyway.
+            //
+            // A plain Image, not an AnimatedImage, pointed at the idle clip:
+            // Image decodes the first frame of an animated WebP and holds it,
+            // which is exactly what's wanted here - a breathing, bobbing
+            // watermark would pull the eye straight off the text.
+            //
+            // The opacity is deliberately far under the text's: this panel is
+            // translucent over whatever wallpaper happens to be behind it, and
+            // anything stronger stops reading as artwork and starts reading as
+            // grime on the glass. Height is taken from the panel so it tracks a
+            // resize, and width follows from the clips' shared canvas ratio
+            // rather than being guessed separately.
+            Image {
+                id: panelWatermark
+                source: assistantWindow.formatFileUrl(Config.builtinMascotDir + "/idle.webp")
+                fillMode: Image.PreserveAspectFit
+                anchors.centerIn: parent
+                height: parent.height * 0.82
+                width: height / assistantContainer.mascotClipAspect
+                opacity: 0.07
+                smooth: true
+                visible: panelWatermark.status === Image.Ready
+            }
+
             ColumnLayout {
                 anchors.fill: parent
                 anchors.margins: Config.cardMargin
@@ -2458,20 +2531,36 @@ PanelWindow {
                     Layout.fillWidth: true
                     spacing: 8
 
-                    // The live mascot character - click to collapse back
-                    // down to the desktop character, the reverse of the
-                    // click-to-expand gesture on the collapsed form.
+                    // Click to collapse back down to the desktop character,
+                    // the reverse of the click-to-expand gesture on the
+                    // collapsed form.
+                    //
+                    // The static bust portrait, not the live clip the
+                    // collapsed form plays. The clips are 441x830 full-body
+                    // portraits, so fitting one into a 40px square slot caps
+                    // it at 21px wide and leaves the face around 8px tall -
+                    // unreadable against a translucent panel over a wallpaper.
+                    // avatar.png is a square head-and-shoulders crop of the
+                    // same character (it's what AssistantSettings.qml shows),
+                    // so it fills the slot at full size. The trade is that the
+                    // header no longer tracks mascotState - the collapsed
+                    // character and the notify bounce below still do.
                     Item {
                         id: headerAvatar
                         implicitWidth: 40
                         implicitHeight: 40
 
-                        AnimatedImage {
+                        Image {
                             id: headerCharacter
                             anchors.fill: parent
-                            source: assistantWindow.formatFileUrl(assistantWindow.mascotState.currentClipPath)
+                            source: assistantWindow.formatFileUrl(Config.builtinMascotDir + "/avatar.png")
                             fillMode: Image.PreserveAspectFit
-                            playing: true
+                            // Rendered at 40px from a 154px source: ask for the
+                            // decode at display size rather than scaling the
+                            // full bitmap down every frame the bounce runs.
+                            sourceSize.width: 80
+                            sourceSize.height: 80
+                            visible: headerCharacter.status === Image.Ready
                             scale: headerAvatarHover.hovered ? 1.1 : 1.0
 
                             Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
@@ -3109,6 +3198,7 @@ PanelWindow {
                 assistantContainer.cardHeight = character.implicitWidth
                     ? (assistantContainer.mascotSize * (character.implicitHeight / character.implicitWidth))
                     : assistantContainer.mascotSize * assistantContainer.mascotClipAspect
+                mascotSizeSaveDebounce.restart()
             }
         }
     }

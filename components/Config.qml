@@ -482,6 +482,8 @@ QtObject {
     property alias mascotLastScreen: root.desktopExtras.mascotLastScreen
     function getMascotPosition(screenName, defaultX, defaultY) { return desktopExtras.getMascotPosition(screenName, defaultX, defaultY) }
     function saveMascotPosition(screenName, x, y) { desktopExtras.saveMascotPosition(screenName, x, y) }
+    property alias mascotSize: root.desktopExtras.mascotSize
+    function saveMascotSize(size) { desktopExtras.saveMascotSize(size) }
     property alias showAssistant: root.desktopExtras.showAssistant
     property alias assistantBackend: root.desktopExtras.assistantBackend
     property alias assistantModel: root.desktopExtras.assistantModel
@@ -933,7 +935,7 @@ QtObject {
     // exist, built by scripts/mascot_sheet.py from the sheets in
     // assets/mascot_sheets/ - see that folder's sheets for the source art.
     readonly property string builtinMascotDir: root.shellDir + "/assets/mascot"
-    readonly property var builtinMascotStates: ["idle", "dancing", "charging", "notify", "poke"]
+    readonly property var builtinMascotStates: ["idle", "dancing", "charging", "charged", "notify", "poke"]
 
     readonly property string settingsPath: root.shellDir + "/settings.json"
 
@@ -953,7 +955,7 @@ QtObject {
         "wallpaperCursorParallax", "wallpaperParallaxIntensity", "slideshowActive", "slideshowMinutes",
         "showScreensaver", "screensaverText", "screensaverMode", "screensaverFontSize",
         "screensaverSpeed", "screensaverCornerCounter", "showOsk", "oskLayout", "showMascot",
-        "mascotPositions", "mascotLastScreen", "mascotAudioThrob", "mascotClips",
+        "mascotPositions", "mascotLastScreen", "mascotSize", "mascotAudioThrob", "mascotClips",
         "showDesktopMediaCard", "mediaCardWidth", "mediaCardHeight", "mediaCardPositions", "mediaCardLastScreen", "barFrameStyle",
         "barClockStyle", "barPosition", "autoHideBar", "showScreenFrame", "sysFont", "nativeFontRendering",
         "fontScaleIndex", "locationQuery", "enabledBarScreens", "useCustomColors", "customBgBase",
@@ -1037,6 +1039,7 @@ QtObject {
             property var mascotClips
             property var mascotPositions
             property var mascotLastScreen
+            property var mascotSize
             property var showDesktopMediaCard
             property var mediaCardWidth
             property var mediaCardHeight
@@ -1335,6 +1338,15 @@ QtObject {
             // paths rather than a fixed set-directory convention).
             if (!root.mascotClips || !root.mascotClips["petted"]) {
                 root.setMascotClip("petted", root.builtinMascotDir + "/notify.webp")
+            }
+
+            // "charged" is a real file, unlike "petted" above, but it needs the
+            // same treatment for the same reason: the set seeding further up
+            // only runs while mascotClips is empty, so a config written before
+            // this state existed would never pick it up and would fall back to
+            // the plain idle pose while docked.
+            if (!root.mascotClips || !root.mascotClips["charged"]) {
+                root.setMascotClip("charged", root.builtinMascotDir + "/charged.webp")
             }
 
             root.resetDraftMonitorConfigs()

@@ -71,6 +71,19 @@ QtObject {
     property var mascotPositions: ({})
     property string mascotLastScreen: ""
 
+    // Wheel-adjusted size of the collapsed character, as the width in px (its
+    // height follows from the clip's aspect ratio). Persisted for the same
+    // reason assistantWidth/Height below are: the expanded panel remembered
+    // the size you gave it across a reload while the character always snapped
+    // back to 128, which reads as the shell forgetting rather than as a
+    // deliberate difference between the two forms.
+    property real mascotSize: 128
+
+    function saveMascotSize(size) {
+        mascotSize = Math.max(32, size)
+        if (configRef) configRef.saveSettings()
+    }
+
     function getMascotPosition(screenName, defaultX, defaultY) {
         if (mascotPositions && mascotPositions[screenName]) {
             return mascotPositions[screenName]
