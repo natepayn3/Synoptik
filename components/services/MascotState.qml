@@ -298,7 +298,7 @@ QtObject {
     // listed separately because they carry an authoring constraint the
     // conditions don't: they must end on a pose that matches idle frame 0.
     readonly property var conditionNames: conditions.map(function(r) { return r.name })
-    readonly property var reactionNames: ["notify", "poke"]
+    readonly property var reactionNames: ["notify", "poke", "cheer"]
     readonly property var allStateNames: conditionNames.concat(reactionNames)
 
     Component.onCompleted: {

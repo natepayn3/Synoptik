@@ -512,6 +512,22 @@ ShellRoot {
         function toggle(): void { Config.showMirror = !Config.showMirror }
     }
 
+    // Assigns a clip file to a mascot state (see MascotState.qml's
+    // allStateNames for the vocabulary). Routes through Config.setMascotClip,
+    // which persists via the same saveSettings() call every other write here
+    // uses - editing settings.json directly while the shell is running does
+    // NOT stick, because the live process holds mascotClips in memory and
+    // rewrites the whole file from it on its own next save (e.g. dragging the
+    // mascot), clobbering an out-of-band edit:
+    //   qs -c Synoptik ipc call mascot assign notify /path/to/clip.webp
+    IpcHandler {
+        target: "mascot"
+        function assign(state: string, path: string): string {
+            Config.setMascotClip(state, path)
+            return "ok: " + state + " -> " + path
+        }
+    }
+
     // Closes whatever drawer panel is open, whatever it is - the IPC twin of
     // the Escape key handler on the drawer Loader below.
     IpcHandler {
