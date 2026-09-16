@@ -2557,29 +2557,33 @@ PanelWindow {
 
             Behavior on border.color { ColorAnimation { duration: 150 } }
 
-            // A faint watermark of the character's full standing pose, centred
+            // A faint watermark of the character's bust portrait, centred
             // behind the conversation. Declared before the ColumnLayout below
             // rather than given a z, since children paint in declaration order
             // and the Rectangle's own fill is always under all of them anyway.
             //
-            // A plain Image, not an AnimatedImage, pointed at the idle clip:
-            // Image decodes the first frame of an animated WebP and holds it,
-            // which is exactly what's wanted here - a breathing, bobbing
-            // watermark would pull the eye straight off the text.
+            // Same avatar_<mood>.png source as headerAvatar above, and the
+            // same headerAvatarMood binding drives it - a plain source
+            // expression, so it swaps the moment the mood does, with no
+            // separate tracking needed here.
             //
             // The opacity is deliberately far under the text's: this panel is
             // translucent over whatever wallpaper happens to be behind it, and
             // anything stronger stops reading as artwork and starts reading as
             // grime on the glass. Height is taken from the panel so it tracks a
-            // resize, and width follows from the clips' shared canvas ratio
-            // rather than being guessed separately.
+            // resize; width matches it since avatar*.png are square crops.
             Image {
                 id: panelWatermark
-                source: assistantWindow.formatFileUrl(Config.builtinMascotDir + "/idle.webp")
+                source: assistantWindow.formatFileUrl(Config.builtinMascotDir + "/" + assistantWindow.avatarFileFor(assistantWindow.headerAvatarMood))
                 fillMode: Image.PreserveAspectFit
                 anchors.centerIn: parent
                 height: parent.height * 0.82
-                width: height / assistantContainer.mascotClipAspect
+                width: height
+                // avatar*.png are pre-downscaled to 128px native (see
+                // headerCharacter above) - sourceSize caps the decode there
+                // rather than requesting more, which would just upscale.
+                sourceSize.width: 128
+                sourceSize.height: 128
                 opacity: 0.07
                 smooth: true
                 visible: panelWatermark.status === Image.Ready
