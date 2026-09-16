@@ -2582,7 +2582,7 @@ PanelWindow {
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 8
+                    spacing: 10
 
                     // Click to collapse back down to the desktop character,
                     // the reverse of the click-to-expand gesture on the
@@ -2590,53 +2590,58 @@ PanelWindow {
                     //
                     // The static bust portrait, not the live clip the
                     // collapsed form plays. The clips are 441x830 full-body
-                    // portraits, so fitting one into a 40px square slot caps
-                    // it at 21px wide and leaves the face around 8px tall -
-                    // unreadable against a translucent panel over a wallpaper.
-                    // avatar*.png are square head-and-shoulders crops of the
-                    // same character (avatar.png, the neutral one, is what
+                    // portraits, so fitting one into a small square slot
+                    // leaves the face a sliver - unreadable against a
+                    // translucent panel over a wallpaper. avatar*.png are
+                    // square head-and-shoulders crops of the same character
+                    // (avatar.png, the neutral one, is what
                     // AssistantSettings.qml shows), so one fills the slot at
                     // full size. The trade is that the header doesn't track
                     // mascotState - the collapsed character and the notify
                     // bounce below still do - it tracks headerAvatarMood
                     // instead, which is chat state (busy/error/reply), not
                     // battery/media/lock.
+                    //
+                    // Spans both rows to the right (title, then controls)
+                    // rather than sitting only next to the title - a
+                    // same-height sibling to just the title row left the
+                    // whole rest of that row empty while the controls row
+                    // below it, with no avatar-width column of its own, had
+                    // no matching gap. One tall avatar next to a two-row
+                    // column uses the space next to it for both.
                     Item {
                         id: headerAvatar
-                        implicitWidth: 40
-                        implicitHeight: 40
+                        implicitWidth: 80
+                        implicitHeight: 80
+                        Layout.alignment: Qt.AlignTop
                         // RowLayout only honours implicitWidth/Height as a
                         // hint - when the row is squeezed (a long title, a
                         // narrow expanded panel) it can shrink this item's
                         // width without shrinking its height to match,
                         // handing the square Image below a non-square box
                         // and squashing the character. Pinning min/max to
-                        // the same 40 stops the row from ever resizing it.
-                        Layout.preferredWidth: 40
-                        Layout.preferredHeight: 40
-                        Layout.minimumWidth: 40
-                        Layout.maximumWidth: 40
-                        Layout.minimumHeight: 40
-                        Layout.maximumHeight: 40
+                        // the same 80 stops the row from ever resizing it.
+                        Layout.preferredWidth: 80
+                        Layout.preferredHeight: 80
+                        Layout.minimumWidth: 80
+                        Layout.maximumWidth: 80
+                        Layout.minimumHeight: 80
+                        Layout.maximumHeight: 80
 
                         Image {
                             id: headerCharacter
                             anchors.fill: parent
                             source: assistantWindow.formatFileUrl(Config.builtinMascotDir + "/" + assistantWindow.avatarFileFor(assistantWindow.headerAvatarMood))
                             fillMode: Image.PreserveAspectFit
-                            // Rendered at 40px from a 128px source: ask for the
-                            // decode at display size rather than scaling the
-                            // full bitmap down every frame the bounce runs.
-                            // avatar*.png are pre-downscaled with Lanczos to
-                            // 128px specifically so this stays a mild ~3x
-                            // reduction - measured, Qt's own runtime bilinear
-                            // scaling from the original 320px art (an 8x
-                            // reduction) blurred the pixel-art linework into
-                            // a mushy, ill-defined face even though the
-                            // painted box itself was a correct, unstretched
-                            // 40x40 square the whole time.
-                            sourceSize.width: 80
-                            sourceSize.height: 80
+                            // Rendered at 80px from a 128px source: ask for
+                            // the decode at display size rather than scaling
+                            // the full bitmap down every frame the bounce
+                            // runs. avatar*.png are pre-downscaled with
+                            // Lanczos to 128px, so sourceSize is capped at
+                            // that native resolution rather than requesting
+                            // more (would just make Qt upscale on decode).
+                            sourceSize.width: 128
+                            sourceSize.height: 128
                             visible: headerCharacter.status === Image.Ready
                             scale: headerAvatarHover.hovered ? 1.1 : 1.0
 
@@ -2660,145 +2665,165 @@ PanelWindow {
                         HoverHandler { id: headerAvatarHover; cursorShape: Qt.PointingHandCursor }
                     }
 
-                    // Same title-glow pattern as Settings.qml/WidgetContextMenu.qml's
-                    // headers - gated on Config.clockShowGlow, the shell-wide
-                    // header-glow toggle despite the clock-specific name.
-                    Item {
-                        implicitWidth: assistantTitleText.implicitWidth
-                        implicitHeight: assistantTitleText.implicitHeight
-
-                        Glow {
-                            anchors.fill: assistantTitleText
-                            source: assistantTitleText
-                            radius: 8
-                            samples: 16
-                            color: Config.accent
-                            spread: 0.2
-                            transparentBorder: true
-                            visible: Config.clockShowGlow
-                        }
-
-                        Text {
-                            id: assistantTitleText
-                            anchors.fill: parent
-                            text: "ASSISTANT"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontTitle)
-                            font.bold: true
-                            font.italic: true
-                        }
-                    }
-
-                    Item { Layout.fillWidth: true }
-
-                    Rectangle {
-                        id: backendPill
-                        implicitWidth: backendPillRow.implicitWidth + 16
-                        implicitHeight: backendPillRow.implicitHeight + 6
-                        radius: Config.cornerRadius / 3
-                        color: backendPillHover.hovered ? Qt.rgba(255, 255, 255, 0.14) : Qt.rgba(255, 255, 255, 0.08)
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 6
 
                         RowLayout {
-                            id: backendPillRow
-                            anchors.centerIn: parent
-                            spacing: 3
+                            Layout.fillWidth: true
+                            spacing: 10
 
-                            Text {
-                                id: backendBadgeText
-                                text: assistantWindow.backendLabel()
-                                color: Config.textMuted
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontMicro)
-                                font.bold: true
+                            // Same title-glow pattern as Settings.qml/WidgetContextMenu.qml's
+                            // headers - gated on Config.clockShowGlow, the shell-wide
+                            // header-glow toggle despite the clock-specific name.
+                            Item {
+                                implicitWidth: assistantTitleText.implicitWidth
+                                implicitHeight: assistantTitleText.implicitHeight
+
+                                Glow {
+                                    anchors.fill: assistantTitleText
+                                    source: assistantTitleText
+                                    radius: 8
+                                    samples: 16
+                                    color: Config.accent
+                                    spread: 0.2
+                                    transparentBorder: true
+                                    visible: Config.clockShowGlow
+                                }
+
+                                Text {
+                                    id: assistantTitleText
+                                    anchors.fill: parent
+                                    text: "ASSISTANT"
+                                    color: Config.textMain
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontTitle)
+                                    font.bold: true
+                                    font.italic: true
+                                }
                             }
 
-                            Text {
-                                text: "arrow_drop_down"
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 14
-                                color: Config.textMuted
-                            }
+                            Item { Layout.fillWidth: true }
                         }
 
-                        TapHandler { onTapped: assistantWindow.backendMenuOpen = !assistantWindow.backendMenuOpen }
-                        HoverHandler { id: backendPillHover; cursorShape: Qt.PointingHandCursor }
-                    }
-
-                    // Ollama is the only backend with a local, switchable
-                    // model - the others are a hosted account's own default
-                    // (or an optional --model override set once in
-                    // Settings), not something to flip between mid-chat.
-                    Rectangle {
-                        id: modelPill
-                        visible: Config.assistantBackend === "ollama"
-                        Layout.maximumWidth: 150
-                        implicitWidth: Math.min(150, modelPillRow.implicitWidth + 16)
-                        implicitHeight: modelPillRow.implicitHeight + 6
-                        radius: Config.cornerRadius / 3
-                        color: modelPillHover.hovered ? Qt.rgba(255, 255, 255, 0.14) : Qt.rgba(255, 255, 255, 0.08)
-
+                        // Controls row: backend/model pickers on the left,
+                        // font-size and clear icons pushed to the right by
+                        // the spacer between them.
                         RowLayout {
-                            id: modelPillRow
-                            anchors.centerIn: parent
-                            spacing: 3
+                            Layout.fillWidth: true
+                            spacing: 8
 
-                            Text {
-                                Layout.maximumWidth: 110
-                                text: assistantWindow.ollamaModelName()
-                                elide: Text.ElideRight
-                                color: Config.textMuted
-                                font.family: Config.sysFont
-                                font.pixelSize: Config.size(Config.fontMicro)
-                                font.bold: true
+                            Rectangle {
+                                id: backendPill
+                                implicitWidth: backendPillRow.implicitWidth + 16
+                                implicitHeight: backendPillRow.implicitHeight + 6
+                                radius: Config.cornerRadius / 3
+                                color: backendPillHover.hovered ? Qt.rgba(255, 255, 255, 0.14) : Qt.rgba(255, 255, 255, 0.08)
+
+                                RowLayout {
+                                    id: backendPillRow
+                                    anchors.centerIn: parent
+                                    spacing: 3
+
+                                    Text {
+                                        id: backendBadgeText
+                                        text: assistantWindow.backendLabel()
+                                        color: Config.textMuted
+                                        font.family: Config.sysFont
+                                        font.pixelSize: Config.size(Config.fontMicro)
+                                        font.bold: true
+                                    }
+
+                                    Text {
+                                        text: "arrow_drop_down"
+                                        font.family: "Material Symbols Outlined"
+                                        font.pixelSize: 14
+                                        color: Config.textMuted
+                                    }
+                                }
+
+                                TapHandler { onTapped: assistantWindow.backendMenuOpen = !assistantWindow.backendMenuOpen }
+                                HoverHandler { id: backendPillHover; cursorShape: Qt.PointingHandCursor }
                             }
 
+                            // Ollama is the only backend with a local, switchable
+                            // model - the others are a hosted account's own default
+                            // (or an optional --model override set once in
+                            // Settings), not something to flip between mid-chat.
+                            Rectangle {
+                                id: modelPill
+                                visible: Config.assistantBackend === "ollama"
+                                Layout.maximumWidth: 150
+                                implicitWidth: Math.min(150, modelPillRow.implicitWidth + 16)
+                                implicitHeight: modelPillRow.implicitHeight + 6
+                                radius: Config.cornerRadius / 3
+                                color: modelPillHover.hovered ? Qt.rgba(255, 255, 255, 0.14) : Qt.rgba(255, 255, 255, 0.08)
+
+                                RowLayout {
+                                    id: modelPillRow
+                                    anchors.centerIn: parent
+                                    spacing: 3
+
+                                    Text {
+                                        Layout.maximumWidth: 110
+                                        text: assistantWindow.ollamaModelName()
+                                        elide: Text.ElideRight
+                                        color: Config.textMuted
+                                        font.family: Config.sysFont
+                                        font.pixelSize: Config.size(Config.fontMicro)
+                                        font.bold: true
+                                    }
+
+                                    Text {
+                                        text: "arrow_drop_down"
+                                        font.family: "Material Symbols Outlined"
+                                        font.pixelSize: 14
+                                        color: Config.textMuted
+                                    }
+                                }
+
+                                TapHandler {
+                                    onTapped: {
+                                        assistantWindow.modelMenuOpen = !assistantWindow.modelMenuOpen
+                                        if (assistantWindow.modelMenuOpen) assistantWindow.refreshOllamaModelList()
+                                    }
+                                }
+                                HoverHandler { id: modelPillHover; cursorShape: Qt.PointingHandCursor }
+                            }
+
+                            Item { Layout.fillWidth: true }
+
                             Text {
-                                text: "arrow_drop_down"
+                                text: "text_decrease"
                                 font.family: "Material Symbols Outlined"
-                                font.pixelSize: 14
-                                color: Config.textMuted
+                                font.pixelSize: 16
+                                color: fontDecHover.hovered ? Config.accent : Config.textMuted
+
+                                TapHandler { onTapped: assistantWindow.adjustFontScale(-0.1) }
+                                HoverHandler { id: fontDecHover; cursorShape: Qt.PointingHandCursor }
+                            }
+
+                            Text {
+                                text: "text_increase"
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 16
+                                color: fontIncHover.hovered ? Config.accent : Config.textMuted
+
+                                TapHandler { onTapped: assistantWindow.adjustFontScale(0.1) }
+                                HoverHandler { id: fontIncHover; cursorShape: Qt.PointingHandCursor }
+                            }
+
+                            Text {
+                                text: "delete_sweep"
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 16
+                                color: clearHover.hovered ? Config.accent : Config.textMuted
+                                visible: Config.assistantMessages && Config.assistantMessages.length > 0
+
+                                TapHandler { onTapped: Config.clearAssistantMessages() }
+                                HoverHandler { id: clearHover; cursorShape: Qt.PointingHandCursor }
                             }
                         }
-
-                        TapHandler {
-                            onTapped: {
-                                assistantWindow.modelMenuOpen = !assistantWindow.modelMenuOpen
-                                if (assistantWindow.modelMenuOpen) assistantWindow.refreshOllamaModelList()
-                            }
-                        }
-                        HoverHandler { id: modelPillHover; cursorShape: Qt.PointingHandCursor }
-                    }
-
-                    Text {
-                        text: "text_decrease"
-                        font.family: "Material Symbols Outlined"
-                        font.pixelSize: 16
-                        color: fontDecHover.hovered ? Config.accent : Config.textMuted
-
-                        TapHandler { onTapped: assistantWindow.adjustFontScale(-0.1) }
-                        HoverHandler { id: fontDecHover; cursorShape: Qt.PointingHandCursor }
-                    }
-
-                    Text {
-                        text: "text_increase"
-                        font.family: "Material Symbols Outlined"
-                        font.pixelSize: 16
-                        color: fontIncHover.hovered ? Config.accent : Config.textMuted
-
-                        TapHandler { onTapped: assistantWindow.adjustFontScale(0.1) }
-                        HoverHandler { id: fontIncHover; cursorShape: Qt.PointingHandCursor }
-                    }
-
-                    Text {
-                        text: "delete_sweep"
-                        font.family: "Material Symbols Outlined"
-                        font.pixelSize: 16
-                        color: clearHover.hovered ? Config.accent : Config.textMuted
-                        visible: Config.assistantMessages && Config.assistantMessages.length > 0
-
-                        TapHandler { onTapped: Config.clearAssistantMessages() }
-                        HoverHandler { id: clearHover; cursorShape: Qt.PointingHandCursor }
                     }
                 }
 
