@@ -69,6 +69,14 @@ QtObject {
         { name: "dancing",  hold: 1500, when: function() { return !!(mascotState.shellRef && mascotState.shellRef.mediaPlaying) } },
         // 4. ambient status
         { name: "lowbattery",hold:1200, when: function() { return mascotState.onBattery && mascotState.batteryPct <= 30 } },
+        // `charging` stays ABOVE `muted`/`offline`, and widening pluggedIn below
+        // does not change that. Both of those are ordinary long-lived states
+        // here - muted audio and an unassociated radio can each be true all day
+        // - and neither ships a clip of its own in the built-in set, so winning
+        // the ladder means falling back to plain idle. Demoting `charging`
+        // under them therefore does not show a different reaction, it shows no
+        // reaction: the glow disappears for the whole time you are docked, which
+        // is the exact opposite of the resting look this row is here to provide.
         { name: "charging", hold: 1200, when: function() { return mascotState.pluggedIn } },
         { name: "muted",    hold:  800, when: function() { return !!(mascotState.shellRef && mascotState.shellRef.audioMuted) } },
         { name: "offline",  hold: 2000, when: function() { return mascotState.networkDown } },
@@ -78,7 +86,19 @@ QtObject {
     // Battery inputs normalised once, so the ladder rows stay one-liners and
     // the "no battery at all" case is handled in exactly one place.
     readonly property bool hasBattery: !!(shellRef && shellRef.hasBattery)
-    readonly property bool pluggedIn: hasBattery && shellRef.battStatus === "Charging"
+    // "Adapter attached", not "current is flowing into the cell". battStatus is
+    // sysfs verbatim (shell.qml's battStatusReader), and a docked laptop only
+    // reads "Charging" until the cell fills - after that it reads "Full", or
+    // "Not charging" whenever a charge threshold is deliberately holding it
+    // below 100%. Keying off "Charging" alone therefore glowed for an hour and
+    // then quietly fell back to idle without the cable having moved.
+    //
+    // "Unknown" is left out on purpose: it is what an unreadable or not-yet-read
+    // supply reports, so counting it would glow on a guess.
+    readonly property bool pluggedIn: hasBattery
+        && (shellRef.battStatus === "Charging"
+            || shellRef.battStatus === "Full"
+            || shellRef.battStatus === "Not charging")
     readonly property bool onBattery: hasBattery && !pluggedIn
     readonly property int batteryPct: hasBattery ? shellRef.battCapacity : 100
 
