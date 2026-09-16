@@ -26,6 +26,8 @@ Item {
         return "file://" + Quickshell.env("HOME") + "/" + path
     }
 
+    readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
+
     Process {
         id: claudeCheck
         command: ["which", "claude"]
@@ -81,7 +83,7 @@ Item {
 
         ColumnLayout {
         id: mainColumn
-        width: parent.width - 8
+        width: Math.min(mainFlickable.width - (root.cardMargin * 2), 620)
         anchors.horizontalCenter: parent.horizontalCenter
         spacing: 12
 
