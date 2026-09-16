@@ -116,37 +116,6 @@ QtObject {
     // instance per monitor.
     property real assistantFontScale: 1.0
 
-    // Badge image shown in the header and inline next to assistant replies,
-    // "" -> fall back to a default glyph pattern.
-    property string assistantBadgePath: ""
-
-    // Paths the user has browsed to and picked as a badge - NOT copies of
-    // the files (those stay wherever they already are on disk), just
-    // remembered paths, so they reappear as selectable thumbnails next to
-    // the bundled "Default images" without needing to duplicate anything
-    // into the shell's own (git-tracked, update-overwritten) assets folder.
-    // settings.json itself is gitignored, so this list survives updates the
-    // same way every other setting already does.
-    property var assistantCustomBadges: []
-
-    function addCustomBadge(path) {
-        if (!path) return
-        let list = assistantCustomBadges ? assistantCustomBadges.slice() : []
-        if (list.indexOf(path) !== -1) return
-        list.push(path)
-        assistantCustomBadges = list
-    }
-
-    function removeCustomBadge(path) {
-        let list = assistantCustomBadges ? assistantCustomBadges.slice() : []
-        let idx = list.indexOf(path)
-        if (idx === -1) return
-        list.splice(idx, 1)
-        assistantCustomBadges = list
-    }
-
-    onAssistantCustomBadgesChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
-
     // A normal resizable/draggable desktop panel, same model as the detached
     // media card - see mediaCardWidth/mediaCardPositions above for the
     // pattern this mirrors.
@@ -257,7 +226,6 @@ QtObject {
     onShowAssistantChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
     onAssistantBackendChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
     onAssistantModelChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
-    onAssistantBadgePathChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
     onAssistantTimeoutSecondsChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
     onAssistantFontScaleChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
 }

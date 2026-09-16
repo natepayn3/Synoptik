@@ -166,13 +166,18 @@ ClippingRectangle {
     // declared default of false. isEnabled() below reads the per-id Config
     // property directly inside each row's own binding instead, so only the
     // one row whose property actually changed re-evaluates.
+    // "assistant" used to be its own row here, back when it was a separate
+    // widget from the mascot - now it's just the mascot's expanded form, so
+    // "mascot" (labeled "Assistant" - the character is its collapsed state)
+    // is the only row that shows/hides it. Toggling the expanded/collapsed
+    // state itself is done by clicking the character (or its header avatar
+    // to collapse), not from this generic widget list.
     readonly property var widgetDefs: [
         { id: "clock",   icon: "schedule",      label: "Clock" },
         { id: "sysinfo", icon: "monitor_heart", label: "System Info" },
         { id: "cava",    icon: "graphic_eq",    label: "Audio Visualizer" },
-        { id: "mascot",  icon: "face",          label: "Desktop Mascot" },
+        { id: "mascot",  icon: "face",          label: "Assistant" },
         { id: "media",   icon: "album",         label: "Media Player" },
-        { id: "assistant", icon: "smart_toy",   label: "Assistant" },
         { id: "mirror",  icon: "photo_camera",  label: "Mirror" },
         { id: "appdock", icon: "dock_to_bottom", label: "App Dock" }
     ]
@@ -183,7 +188,6 @@ ClippingRectangle {
         else if (id === "cava") return Config.showDesktopCava
         else if (id === "mascot") return Config.showMascot
         else if (id === "media") return Config.showDesktopMediaCard
-        else if (id === "assistant") return Config.showAssistant
         else if (id === "mirror") return Config.showMirror
         else if (id === "appdock") return Config.showAppDock
         return false
@@ -195,7 +199,6 @@ ClippingRectangle {
         else if (id === "cava") Config.showDesktopCava = !Config.showDesktopCava
         else if (id === "mascot") Config.showMascot = !Config.showMascot
         else if (id === "media") Config.showDesktopMediaCard = !Config.showDesktopMediaCard
-        else if (id === "assistant") Config.showAssistant = !Config.showAssistant
         else if (id === "mirror") Config.showMirror = !Config.showMirror
         else if (id === "appdock") Config.showAppDock = !Config.showAppDock
     }

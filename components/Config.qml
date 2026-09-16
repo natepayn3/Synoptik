@@ -486,10 +486,6 @@ QtObject {
     property alias assistantBackend: root.desktopExtras.assistantBackend
     property alias assistantModel: root.desktopExtras.assistantModel
     property alias assistantOllamaModel: root.desktopExtras.assistantOllamaModel
-    property alias assistantBadgePath: root.desktopExtras.assistantBadgePath
-    property alias assistantCustomBadges: root.desktopExtras.assistantCustomBadges
-    function addCustomBadge(path) { desktopExtras.addCustomBadge(path) }
-    function removeCustomBadge(path) { desktopExtras.removeCustomBadge(path) }
     property alias assistantTimeoutSeconds: root.desktopExtras.assistantTimeoutSeconds
     property alias assistantFontScale: root.desktopExtras.assistantFontScale
     property alias assistantWidth: root.desktopExtras.assistantWidth
@@ -989,7 +985,7 @@ QtObject {
         "lockscreenClockSize", "lockscreenTargetMonitor", "workspaceStyle", "workspaceGlow",
         "workspaceScroll", "workspaceTooltips", "workspaceShowAddBtn", "workspaceShowOverviewBtn",
         "workspaceShowSpecial", "workspaceContainerStyle", "wallhavenUsername", "wallhavenApiKey",
-        "showAssistant", "assistantBackend", "assistantModel", "assistantOllamaModel", "assistantBadgePath", "assistantCustomBadges", "assistantTimeoutSeconds", "assistantFontScale", "assistantWidth", "assistantHeight",
+        "showAssistant", "assistantBackend", "assistantModel", "assistantOllamaModel", "assistantTimeoutSeconds", "assistantFontScale", "assistantWidth", "assistantHeight",
         "assistantPositions", "assistantLastScreen", "assistantMessages",
         "showAppDock", "appDockOrientation", "appDockScale", "appDockShowBorder", "appDockShowBackground",
         "appDockShowGlow", "appDockPositions", "appDockScales", "enabledAppDockScreens",
@@ -1195,8 +1191,6 @@ QtObject {
             property var assistantBackend
             property var assistantModel
             property var assistantOllamaModel
-            property var assistantBadgePath
-            property var assistantCustomBadges
             property var assistantTimeoutSeconds
             property var assistantFontScale
             property var assistantWidth

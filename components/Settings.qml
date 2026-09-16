@@ -52,7 +52,6 @@ Item {
         { id: 6,  name: "Bluetooth",        icon: "bluetooth",       group: "CONNECTIVITY", keywords: "bt pair device headset battery mouse keyboard" },
         { id: 7,  name: "Weather",          icon: "thermostat",      group: "CONNECTIVITY", keywords: "forecast temperature location zip city climate" },
 
-        { id: 8,  name: "Mascot",           icon: "smart_toy",       group: "WIDGETS",      keywords: "pet character bounce avatar" },
         { id: 9,  name: "Clock",            icon: "schedule",        group: "WIDGETS",      keywords: "time date desktop 12 24 hour second" },
         { id: 19, name: "System Info",      icon: "terminal",        group: "WIDGETS",      keywords: "sysinfo fetch neofetch cpu ram uptime kernel host gpu disk" },
         { id: 10, name: "Keyboard",         icon: "keyboard",        group: "WIDGETS",      keywords: "keybind shortcut hotkey osk on-screen layout binding" },
@@ -60,7 +59,7 @@ Item {
         { id: 15, name: "Lockscreen",       icon: "lock",            group: "WIDGETS",      keywords: "lock password blur idle hypridle security" },
         { id: 18, name: "Screensaver",      icon: "tv",              group: "WIDGETS",      keywords: "idle screen saver matrix bounce" },
         { id: 20, name: "Retro Shader",     icon: "videogame_asset", group: "WIDGETS",      keywords: "pixel crt dither palette shader retro effect scanline" },
-        { id: 22, name: "Assistant",        icon: "support_agent",   group: "WIDGETS",      keywords: "ai llm ollama claude codex gemini chat model prompt" },
+        { id: 22, name: "Assistant",        icon: "support_agent",   group: "WIDGETS",      keywords: "ai llm ollama claude codex gemini chat model prompt mascot pet character bounce avatar" },
         { id: 23, name: "App Dock",         icon: "dock_to_bottom",  group: "WIDGETS",      keywords: "dock taskbar launcher pin pinned apps icons floating draggable" },
 
         { id: 11, name: "Shell",            icon: "terminal",        group: "SYSTEM",       keywords: "update git version reload restart about repository profile" }
@@ -1030,7 +1029,6 @@ Item {
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 6; visible: active; sourceComponent: BluetoothSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 7; visible: active; sourceComponent: WeatherSettings {} }
 
-                    Loader { id: mascotSettingsLoader; anchors.fill: parent; active: settingsRoot.activeSection === 8; visible: active; sourceComponent: MascotSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 9; visible: active; sourceComponent: ClockSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 19; visible: active; sourceComponent: SysInfoSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 10; visible: active; sourceComponent: KeyboardSettings {} }

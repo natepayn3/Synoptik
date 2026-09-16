@@ -688,7 +688,9 @@ ShellRoot {
 
     VolumeOSD { id: volumeOsd }
     NotificationOSD { id: notificationOsd }
-    Mascot { id: mascotWidget }
+    // AssistantWidget is the desktop mascot too now - collapsed, it's just
+    // the character; expanded, it's the chat panel with the character
+    // shrunk into the header. See that file's header comment.
     AssistantWidget { id: assistantWidget }
     MediaCardWidget { id: mediaCardWidget }
     Mirror { id: mirrorWidget }

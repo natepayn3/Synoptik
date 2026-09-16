@@ -6,12 +6,19 @@ import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Hyprland
 import ".."
+import "../services"
 
-// A normal resizable/draggable desktop panel showing a chat UI that shells
-// out to a locally-installed CLI (Claude Code / Codex CLI / Gemini CLI) in
-// its own one-shot headless mode - see backendCommand() below. Architecture
-// is a direct copy of MediaCardWidget.qml's drag+resize model (itself
-// explained at length in that file's header comment): a layer-shell
+// The desktop mascot, merged with the assistant chat panel: collapsed, this
+// is just the animated character sitting on the desktop (drag to move, right
+// click for the widget menu, left click to pop open); expanded, it's the
+// same resizable/draggable chat UI as before, with the character shrunk down
+// into the header as a click-to-collapse avatar. Config.showMascot is the
+// master on/off switch for the whole thing (still named for the character,
+// since that's the part that's always there); Config.showAssistant is which
+// of the two forms it's currently in - collapsed (false) or expanded (true).
+//
+// Architecture is a direct copy of MediaCardWidget.qml's drag+resize model
+// (itself explained at length in that file's header comment): a layer-shell
 // PanelWindow, an invisible drag/resize anchor (assistantContainer) that
 // tracks the cursor 1:1 and is also the window's input mask, and a separate
 // visible skin (ghostBody) that follows it via a real binding so a Behavior
@@ -19,7 +26,35 @@ import ".."
 // trigger a Behavior placed on that same item.
 PanelWindow {
     id: assistantWindow
-    visible: Config.showAssistant
+    readonly property bool expanded: Config.showAssistant
+    // Gated on the RESOLVED clip rather than assuming mascotClips is
+    // populated - see Mascot.qml's identical comment (now folded into this
+    // file) for why.
+    visible: Config.showMascot && mascotState.currentClipPath !== ""
+
+    property MascotState mascotState: MascotState {
+        shellRef: (typeof shellRoot !== "undefined") ? shellRoot : null
+        configRef: Config
+        dragging: dragArea.drag.active
+        hovered: dragArea.containsMouse
+    }
+
+    Shortcut {
+        sequences: ["Escape"]
+        enabled: assistantWindow.expanded
+        onActivated: Config.showAssistant = false
+    }
+
+    // Ported from Mascot.qml: bounce the character on any notification,
+    // whichever form (collapsed or expanded) is currently showing.
+    Connections {
+        target: Config
+        function onNotificationArrived() {
+            if (!Config.showMascot) return
+            notifyBounce.restart()
+            assistantWindow.mascotState.fire("notify")
+        }
+    }
 
     Component.onCompleted: {
         let activeName = Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""
@@ -119,53 +154,6 @@ PanelWindow {
         if (path.startsWith("file://")) return path
         if (path.startsWith("/")) return "file://" + path
         return "file://" + Quickshell.env("HOME") + "/" + path
-    }
-
-    // Shared badge visual - used both in the header and inline next to each
-    // assistant reply, so the "same badge image" the user configures shows
-    // up in both places from one definition. Falls back to the smart_toy
-    // glyph whenever no badge image is set or it fails to load. Circular
-    // crop via OpacityMask, same pattern as MediaCardWidget.qml's album-art
-    // disc.
-    component AssistantBadge: Item {
-        id: badge
-        property real diameter: 24
-        implicitWidth: diameter
-        implicitHeight: diameter
-
-        Text {
-            anchors.centerIn: parent
-            text: "smart_toy"
-            font.family: "Material Symbols Outlined"
-            font.pixelSize: badge.diameter * 0.72
-            color: Config.accent
-            visible: badgeImage.status !== AnimatedImage.Ready
-        }
-
-        AnimatedImage {
-            id: badgeImage
-            anchors.fill: parent
-            source: Config.assistantBadgePath ? assistantWindow.formatFileUrl(Config.assistantBadgePath) : ""
-            fillMode: Image.PreserveAspectCrop
-            playing: true
-            visible: false
-            asynchronous: true
-        }
-
-        Rectangle {
-            id: badgeMaskShape
-            anchors.fill: parent
-            radius: width / 2
-            color: "black"
-            visible: false
-        }
-
-        OpacityMask {
-            anchors.fill: parent
-            source: badgeImage
-            maskSource: badgeMaskShape
-            visible: badgeImage.status === AnimatedImage.Ready
-        }
     }
 
     function adjustFontScale(delta) {
@@ -1774,7 +1762,16 @@ PanelWindow {
         property real dragY: 0
         property real cardWidth: 320
         property real cardHeight: 420
-        property bool initialized: false
+        // Collapsed (mascot) size - wheel-adjustable like Mascot.qml's own
+        // was, and likewise not persisted (always starts back at 128).
+        property real mascotSize: 128
+        // Every registered clip shares one canvas - see Mascot.qml's
+        // identical comment (now folded into this file) for why this ratio
+        // is the right fallback before the character's own clip has loaded.
+        readonly property real mascotClipAspect: 830 / 441
+        property bool assistantInitialized: false
+        property bool mascotInitialized: false
+        readonly property bool initialized: assistantWindow.expanded ? assistantInitialized : mascotInitialized
 
         x: dragX
         y: dragY
@@ -1786,13 +1783,45 @@ PanelWindow {
             interval: 400
             onTriggered: Config.saveAssistantSize(assistantContainer.cardWidth, assistantContainer.cardHeight)
         }
-        onCardWidthChanged: sizeSaveDebounce.restart()
-        onCardHeightChanged: sizeSaveDebounce.restart()
+        // Only the expanded chat panel's size is ever saved - a collapse
+        // sets cardWidth/cardHeight to mascotSize, which must never
+        // overwrite the user's actual saved panel size.
+        onCardWidthChanged: {
+            if (assistantWindow.expanded) sizeSaveDebounce.restart()
+            clampToScreen()
+        }
+        onCardHeightChanged: {
+            if (assistantWindow.expanded) sizeSaveDebounce.restart()
+            clampToScreen()
+        }
+
+        // Guardrail against bleeding off the screen edge: expanding grows
+        // cardWidth/Height in place around wherever the mascot was last
+        // dragged to, which can easily put the far edge of the full panel
+        // past the monitor's bounds if the mascot was sitting near a corner.
+        // Runs on every size change (this covers expand/collapse and any
+        // resize), not just once on restore, so a mid-resize-drag toward an
+        // edge can't push it off either.
+        function clampToScreen() {
+            if (assistantWindow.width <= 0 || assistantWindow.height <= 0) return
+            dragX = Math.max(0, Math.min(assistantWindow.width - cardWidth, dragX))
+            dragY = Math.max(0, Math.min(assistantWindow.height - cardHeight, dragY))
+        }
 
         Connections {
             target: assistantWindow
             function onWidthChanged() { assistantContainer.restorePosition() }
             function onHeightChanged() { assistantContainer.restorePosition() }
+            // Re-syncs geometry from the *other* form's saved position/size
+            // whenever the user actually toggles between them (clicking the
+            // mascot to expand, or the header avatar/Escape to collapse) -
+            // restorePosition() alone only ever fires once per form, on
+            // startup, via the initialized guards above.
+            function onExpandedChanged() {
+                if (assistantWindow.expanded) assistantContainer.assistantInitialized = false
+                else assistantContainer.mascotInitialized = false
+                assistantContainer.restorePosition()
+            }
         }
 
         Connections {
@@ -1801,7 +1830,12 @@ PanelWindow {
         }
 
         function restorePosition() {
-            if (initialized || assistantWindow.width <= 0 || assistantWindow.height <= 0 || !Config.isLoaded) return
+            if (assistantWindow.expanded) restoreExpandedGeometry()
+            else restoreCollapsedGeometry()
+        }
+
+        function restoreExpandedGeometry() {
+            if (assistantInitialized || assistantWindow.width <= 0 || assistantWindow.height <= 0 || !Config.isLoaded) return
 
             if (Config.assistantLastScreen && assistantWindow.screen && Config.assistantLastScreen !== assistantWindow.screen.name) {
                 let savedScreen = Quickshell.screens.find(s => s.name === Config.assistantLastScreen)
@@ -1820,7 +1854,39 @@ PanelWindow {
 
             dragX = savedPos.x
             dragY = savedPos.y
-            initialized = true
+            assistantInitialized = true
+            // Explicit, not just relying on the onCardWidthChanged/Height
+            // hook above: cardWidth/Height are set earlier in this same
+            // function, before dragX/Y are known, so that hook's clamp runs
+            // against the *old* drag position - this covers the actual
+            // final one, restored from a screen/size combo that may no
+            // longer match (a saved position from a smaller monitor, or
+            // from before the panel was resized).
+            clampToScreen()
+        }
+
+        function restoreCollapsedGeometry() {
+            if (mascotInitialized || assistantWindow.width <= 0 || assistantWindow.height <= 0 || !Config.isLoaded) return
+
+            if (Config.mascotLastScreen && assistantWindow.screen && Config.mascotLastScreen !== assistantWindow.screen.name) {
+                let savedScreen = Quickshell.screens.find(s => s.name === Config.mascotLastScreen)
+                if (savedScreen) assistantWindow.screen = savedScreen
+            }
+
+            cardWidth = mascotSize
+            cardHeight = character.implicitWidth ? (mascotSize * (character.implicitHeight / character.implicitWidth)) : mascotSize * mascotClipAspect
+
+            let defaultX = Math.max(0, (assistantWindow.width / 2) - (cardWidth / 2))
+            let defaultY = Math.max(0, (assistantWindow.height / 2) - (cardHeight / 2))
+
+            let savedPos = assistantWindow.screen
+                ? Config.getMascotPosition(assistantWindow.screen.name, defaultX, defaultY)
+                : { x: defaultX, y: defaultY }
+
+            dragX = savedPos.x
+            dragY = savedPos.y
+            mascotInitialized = true
+            clampToScreen()
         }
 
         Component.onCompleted: restorePosition()
@@ -1828,13 +1894,15 @@ PanelWindow {
         onXChanged: {
             checkScreenBoundary()
             if (initialized && assistantWindow.screen && (dragArea.drag.active || anyResizeActive)) {
-                Config.saveAssistantPosition(assistantWindow.screen.name, dragX, dragY)
+                if (assistantWindow.expanded) Config.saveAssistantPosition(assistantWindow.screen.name, dragX, dragY)
+                else Config.saveMascotPosition(assistantWindow.screen.name, dragX, dragY)
             }
         }
         onYChanged: {
             checkScreenBoundary()
             if (initialized && assistantWindow.screen && (dragArea.drag.active || anyResizeActive)) {
-                Config.saveAssistantPosition(assistantWindow.screen.name, dragX, dragY)
+                if (assistantWindow.expanded) Config.saveAssistantPosition(assistantWindow.screen.name, dragX, dragY)
+                else Config.saveMascotPosition(assistantWindow.screen.name, dragX, dragY)
             }
         }
 
@@ -1903,6 +1971,12 @@ PanelWindow {
         component ResizeEdge: MouseArea {
             id: resizeEdge
             required property int edges
+
+            // Collapsed (mascot) form resizes by scroll wheel instead - see
+            // dragArea.onWheel - so these edge/corner handles only matter,
+            // and only take up hit-testing space, while expanded.
+            visible: assistantWindow.expanded
+            enabled: assistantWindow.expanded
 
             hoverEnabled: true
             cursorShape: {
@@ -2023,7 +2097,11 @@ PanelWindow {
             width: assistantContainer.cornerSize; height: assistantContainer.cornerSize
         }
 
-        WidgetContextMenu { id: widgetMenu; hostWidgetId: "assistant" }
+        // "mascot", not "assistant": Config.showMascot is the master switch
+        // that tears down this whole window (see WidgetContextMenu's
+        // isEnabled/toggle) - showAssistant just flips the expanded/collapsed
+        // form now, so toggling it off from this menu must not close it.
+        WidgetContextMenu { id: widgetMenu; hostWidgetId: "mascot" }
 
         // Quick backend switcher, filtered to only whatever CLIs are
         // actually detected on this machine (Settings still lets you pick
@@ -2267,9 +2345,23 @@ PanelWindow {
         x: (Config.snapDesktopWidgets && dragArea.drag.active) ? snapOverlay.snappedX(assistantContainer.x, width) : assistantContainer.x
         y: (Config.snapDesktopWidgets && dragArea.drag.active) ? snapOverlay.snappedY(assistantContainer.y, height) : assistantContainer.y
         // Size never grid-snaps (only position does) and never lags behind a
-        // live resize - direct mirror, no Behavior.
+        // live edge/corner-handle resize or the wheel-resize of the
+        // collapsed form - direct mirror there, no Behavior. The one case it
+        // *should* lag is the expand/collapse transition itself (cardWidth/
+        // Height jumping between the mascot size and the full panel size),
+        // which is what the Behaviors below are for - anyResizeActive is
+        // false in that case, so they're free to animate it.
         width: assistantContainer.cardWidth
         height: assistantContainer.cardHeight
+
+        Behavior on width {
+            enabled: !assistantContainer.anyResizeActive
+            NumberAnimation { duration: 280; easing.type: Easing.OutBack; easing.overshoot: 0.4 }
+        }
+        Behavior on height {
+            enabled: !assistantContainer.anyResizeActive
+            NumberAnimation { duration: 280; easing.type: Easing.OutBack; easing.overshoot: 0.4 }
+        }
 
         Behavior on x {
             enabled: !Config.snapDesktopWidgets
@@ -2288,8 +2380,66 @@ PanelWindow {
             }
         }
 
+        // The collapsed (mascot) form: the animated character alone, filling
+        // the whole (small) card. Ported from Mascot.qml - see that file's
+        // history for the reasoning behind each reaction below. Declared
+        // before cardBg so cardBg's own children keep click priority over it
+        // while expanded (matches the dragArea-after-content ordering used
+        // throughout this file).
+        Item {
+            id: mascotCharacter
+            anchors.fill: parent
+            visible: !assistantWindow.expanded
+
+            readonly property real batteryLow: (typeof shellRoot !== "undefined" && shellRoot.hasBattery && shellRoot.battStatus !== "Charging")
+                ? Math.max(0, Math.min(1, (30 - shellRoot.battCapacity) / 30))
+                : 0
+
+            scale: (Config.mascotAudioThrob && typeof shellRoot !== "undefined")
+                ? 1.0 + (shellRoot.breathAmount * 0.4)
+                : 1.0
+
+            AnimatedImage {
+                id: character
+                source: assistantWindow.formatFileUrl(assistantWindow.mascotState.currentClipPath)
+                anchors.fill: parent
+                fillMode: Image.PreserveAspectFit
+                playing: true
+
+                onCurrentFrameChanged: {
+                    let st = assistantWindow.mascotState
+                    if (st.reaction !== "" && !st.currentClipIsOwn) st.endReaction()
+                }
+
+                transformOrigin: Item.Bottom
+                scale: 1.0
+                rotation: mascotCharacter.batteryLow * 8
+
+                layer.enabled: mascotCharacter.batteryLow > 0.001
+                layer.effect: Desaturate { desaturation: mascotCharacter.batteryLow }
+
+                Behavior on rotation { NumberAnimation { duration: 400; easing.type: Easing.OutCubic } }
+
+                onStatusChanged: {
+                    if (status === AnimatedImage.Ready) {
+                        playing = true
+                        let st = assistantWindow.mascotState
+                        if (st.reaction !== "" && st.currentClipIsOwn)
+                            st.holdReactionFor(frameCount)
+                    }
+                }
+            }
+
+            SequentialAnimation {
+                id: notifyBounce
+                NumberAnimation { target: character; property: "scale"; to: 1.22; duration: 90; easing.type: Easing.OutQuad }
+                NumberAnimation { target: character; property: "scale"; to: 1.0; duration: 260; easing.type: Easing.OutBack; easing.overshoot: 4 }
+            }
+        }
+
         Rectangle {
             id: cardBg
+            visible: assistantWindow.expanded
             anchors.fill: parent
             radius: Config.cornerRadius
             color: Config.bgPanel
@@ -2308,7 +2458,41 @@ PanelWindow {
                     Layout.fillWidth: true
                     spacing: 8
 
-                    AssistantBadge { diameter: 48 }
+                    // The live mascot character - click to collapse back
+                    // down to the desktop character, the reverse of the
+                    // click-to-expand gesture on the collapsed form.
+                    Item {
+                        id: headerAvatar
+                        implicitWidth: 40
+                        implicitHeight: 40
+
+                        AnimatedImage {
+                            id: headerCharacter
+                            anchors.fill: parent
+                            source: assistantWindow.formatFileUrl(assistantWindow.mascotState.currentClipPath)
+                            fillMode: Image.PreserveAspectFit
+                            playing: true
+                            scale: headerAvatarHover.hovered ? 1.1 : 1.0
+
+                            Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
+                        }
+
+                        SequentialAnimation {
+                            id: headerNotifyBounce
+                            NumberAnimation { target: headerCharacter; property: "scale"; to: 1.3; duration: 90; easing.type: Easing.OutQuad }
+                            NumberAnimation { target: headerCharacter; property: "scale"; to: 1.0; duration: 260; easing.type: Easing.OutBack; easing.overshoot: 4 }
+                        }
+
+                        Connections {
+                            target: notifyBounce
+                            function onStarted() { headerNotifyBounce.restart() }
+                        }
+
+                        TapHandler {
+                            onTapped: Config.showAssistant = false
+                        }
+                        HoverHandler { id: headerAvatarHover; cursorShape: Qt.PointingHandCursor }
+                    }
 
                     // Same title-glow pattern as Settings.qml/WidgetContextMenu.qml's
                     // headers - gated on Config.clockShowGlow, the shell-wide
@@ -2495,17 +2679,6 @@ PanelWindow {
                                 id: contentRow
                                 width: parent.width
                                 spacing: 6
-
-                                // Only the assistant gets a badge - it's the
-                                // assistant's own avatar, not the user's. A
-                                // diagnostic (error or info) isn't the
-                                // assistant talking either, so it gets a
-                                // plain glyph instead.
-                                AssistantBadge {
-                                    diameter: 48
-                                    visible: !isUser && !isDiagnostic
-                                    Layout.alignment: Qt.AlignTop
-                                }
 
                                 Text {
                                     text: isError ? "warning" : "info"
@@ -2853,58 +3026,89 @@ PanelWindow {
                     }
                 }
             }
+        }
 
-            // --- MOVE + RIGHT-CLICK WIDGET MENU --- declared after the
-            // content above so it keeps click priority, z:-1 makes that
-            // explicit too. Same pattern as MediaCardWidget.qml/Mascot.qml.
-            MouseArea {
-                id: dragArea
-                anchors.fill: parent
-                acceptedButtons: Qt.LeftButton | Qt.RightButton
-                cursorShape: Qt.PointingHandCursor
-                z: -1
+        // --- MOVE + RIGHT-CLICK WIDGET MENU --- a ghostBody sibling of
+        // cardBg/mascotCharacter, NOT nested inside cardBg (where it used to
+        // live) - cardBg is invisible for the whole collapsed form (see its
+        // `visible` above), and an invisible item's children receive no
+        // input in QtQuick, so nesting it there meant clicking or dragging
+        // the collapsed mascot did nothing at all. Living here, it keeps
+        // working for both forms; z:-1 still keeps cardBg's own buttons/
+        // text (and mascotCharacter, if it ever gains its own handlers)
+        // taking input priority over it, same as before.
+        MouseArea {
+            id: dragArea
+            anchors.fill: parent
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
+            cursorShape: Qt.PointingHandCursor
+            z: -1
 
-                property bool dragMoved: false
+            property bool dragMoved: false
 
-                onPressed: dragMoved = false
+            onPressed: dragMoved = false
 
-                drag {
-                    target: assistantContainer
-                    axis: Drag.XAndYAxis
-                    onActiveChanged: {
-                        if (!drag.active) assistantContainer.commitGridSnap()
-                    }
+            drag {
+                target: assistantContainer
+                axis: Drag.XAndYAxis
+                onActiveChanged: {
+                    if (!drag.active) assistantContainer.commitGridSnap()
                 }
+            }
 
-                onReleased: if (dragMoved) assistantContainer.commitGridSnap()
+            onReleased: if (dragMoved) assistantContainer.commitGridSnap()
 
-                onPositionChanged: {
-                    if (drag.active) {
-                        dragMoved = true
-                        assistantContainer.dragX = assistantContainer.x
-                        assistantContainer.dragY = assistantContainer.y
-                    }
+            onPositionChanged: {
+                if (drag.active) {
+                    dragMoved = true
+                    assistantContainer.dragX = assistantContainer.x
+                    assistantContainer.dragY = assistantContainer.y
                 }
+            }
 
-                onClicked: (mouse) => {
-                    if (assistantWindow.backendMenuOpen) {
-                        assistantWindow.backendMenuOpen = false
-                        return
-                    }
-                    if (assistantWindow.modelMenuOpen) {
-                        assistantWindow.modelMenuOpen = false
-                        return
-                    }
-                    if (widgetMenu.visible) {
-                        widgetMenu.close()
-                        return
-                    }
-                    if (mouse.button === Qt.RightButton) {
-                        widgetMenu.openAt(mouse.x, mouse.y, assistantContainer, assistantWindow.width, assistantWindow.height)
-                        return
-                    }
-                    Config.closeWidgetMenus()
+            onClicked: (mouse) => {
+                if (assistantWindow.backendMenuOpen) {
+                    assistantWindow.backendMenuOpen = false
+                    return
                 }
+                if (assistantWindow.modelMenuOpen) {
+                    assistantWindow.modelMenuOpen = false
+                    return
+                }
+                if (widgetMenu.visible) {
+                    widgetMenu.close()
+                    return
+                }
+                if (mouse.button === Qt.RightButton) {
+                    widgetMenu.openAt(mouse.x, mouse.y, assistantContainer, assistantWindow.width, assistantWindow.height)
+                    return
+                }
+                Config.closeWidgetMenus()
+
+                // Collapsed: a left click that wasn't a drag is a poke
+                // that also pops the full panel open - same guard Mascot.qml
+                // used, so letting go at the end of a drag doesn't read as one.
+                if (!assistantWindow.expanded && !dragMoved) {
+                    assistantWindow.mascotState.fire("poke")
+                    Config.showAssistant = true
+                }
+            }
+
+            // Collapsed-only: scroll to resize the character, same as
+            // Mascot.qml did - the expanded form resizes via the edge/
+            // corner handles above instead.
+            onWheel: (wheel) => {
+                if (assistantWindow.expanded) return
+                let step = 16
+                if (wheel.angleDelta.y > 0) {
+                    assistantContainer.mascotSize += step
+                } else {
+                    assistantContainer.mascotSize = Math.max(32, assistantContainer.mascotSize - step)
+                }
+                assistantContainer.cardWidth = assistantContainer.mascotSize
+                assistantContainer.cardHeight = character.implicitWidth
+                    ? (assistantContainer.mascotSize * (character.implicitHeight / character.implicitWidth))
+                    : assistantContainer.mascotSize * assistantContainer.mascotClipAspect
             }
         }
     }
