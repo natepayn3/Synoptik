@@ -1290,9 +1290,7 @@ PanelWindow {
         if (assistantWindow.assistantBusy) return "thinking"
         let msgs = Config.assistantMessages
         let last = msgs && msgs.length > 0 ? msgs[msgs.length - 1] : null
-        if (!last) return ""
-        if (last.role === "error") return "error"
-        if (last.role === "assistant") return "happy"
+        if (last && last.role === "error") return "error"
         return ""
     }
     function avatarFileFor(mood) {
@@ -2607,15 +2605,36 @@ PanelWindow {
                         id: headerAvatar
                         implicitWidth: 40
                         implicitHeight: 40
+                        // RowLayout only honours implicitWidth/Height as a
+                        // hint - when the row is squeezed (a long title, a
+                        // narrow expanded panel) it can shrink this item's
+                        // width without shrinking its height to match,
+                        // handing the square Image below a non-square box
+                        // and squashing the character. Pinning min/max to
+                        // the same 40 stops the row from ever resizing it.
+                        Layout.preferredWidth: 40
+                        Layout.preferredHeight: 40
+                        Layout.minimumWidth: 40
+                        Layout.maximumWidth: 40
+                        Layout.minimumHeight: 40
+                        Layout.maximumHeight: 40
 
                         Image {
                             id: headerCharacter
                             anchors.fill: parent
                             source: assistantWindow.formatFileUrl(Config.builtinMascotDir + "/" + assistantWindow.avatarFileFor(assistantWindow.headerAvatarMood))
                             fillMode: Image.PreserveAspectFit
-                            // Rendered at 40px from a 154px source: ask for the
+                            // Rendered at 40px from a 128px source: ask for the
                             // decode at display size rather than scaling the
                             // full bitmap down every frame the bounce runs.
+                            // avatar*.png are pre-downscaled with Lanczos to
+                            // 128px specifically so this stays a mild ~3x
+                            // reduction - measured, Qt's own runtime bilinear
+                            // scaling from the original 320px art (an 8x
+                            // reduction) blurred the pixel-art linework into
+                            // a mushy, ill-defined face even though the
+                            // painted box itself was a correct, unstretched
+                            // 40x40 square the whole time.
                             sourceSize.width: 80
                             sourceSize.height: 80
                             visible: headerCharacter.status === Image.Ready

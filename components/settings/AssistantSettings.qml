@@ -113,6 +113,10 @@ Item {
             Rectangle {
                 Layout.preferredWidth: 96
                 Layout.preferredHeight: 96
+                Layout.minimumWidth: 96
+                Layout.maximumWidth: 96
+                Layout.minimumHeight: 96
+                Layout.maximumHeight: 96
                 Layout.alignment: Qt.AlignTop
                 color: Qt.rgba(0, 0, 0, 0.2)
                 radius: Config.cornerRadius
