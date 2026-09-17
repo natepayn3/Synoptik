@@ -235,7 +235,7 @@ set AUR_PKGS (string split " " "$SYN_AUR_PKGS")
 set MISSING_AUR_PKGS
 for pkg in $AUR_PKGS
     # Strip -git suffix for local capability comparison
-    set base_pkg (string replace -r "-git\$" "" $pkg)
+    set base_pkg (string replace -r -- "-git\$" "" $pkg)
 
     # Test if package, base package, or capability is satisfied
     if pacman -T $pkg >/dev/null 2>&1
