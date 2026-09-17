@@ -822,6 +822,112 @@ Flickable {
                             }
                         }
                     }
+
+                    // ==========================================
+                    // NOW PLAYING IN THE WINDOW CARD
+                    // ==========================================
+                    Text {
+                        text: "WHILE MEDIA IS PLAYING:"
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        font.bold: true
+                        Layout.topMargin: 8
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: "What the centre card does when something is playing. It used to always be Take Over, which meant the focused window's title was unreachable for as long as music was on."
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: Config.size(Config.fontMicro)
+                        wrapMode: Text.WordWrap
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 8
+
+                        Repeater {
+                            model: [
+                                { id: "chip",     name: "Art Chip",  icon: "album",      desc: "Keep the window title; art chip on the end plays/pauses" },
+                                { id: "takeover", name: "Take Over", icon: "music_note", desc: "Replace the window with the track while it plays" },
+                                { id: "off",      name: "Ignore",    icon: "music_off",  desc: "The card only ever shows the focused window" }
+                            ]
+
+                            delegate: Rectangle {
+                                id: mediaModeRow
+                                required property var modelData
+                                Layout.fillWidth: true
+                                implicitHeight: 48
+                                radius: Config.cornerRadius / 2
+
+                                readonly property bool isSelected: Config.activeWindowMediaMode === modelData.id
+
+                                color: isSelected
+                                    ? Qt.rgba(255, 255, 255, 0.14)
+                                    : (mediaModeHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(255, 255, 255, 0.03))
+                                border.width: isSelected ? 1.5 : 1
+                                border.color: isSelected ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+
+                                Behavior on color { ColorAnimation { duration: 150 } }
+                                Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                                RowLayout {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 10
+                                    anchors.rightMargin: 10
+                                    spacing: 8
+
+                                    Text {
+                                        text: modelData.icon
+                                        font.family: "Material Symbols Outlined"
+                                        font.pixelSize: 18
+                                        color: mediaModeRow.isSelected ? Config.accent : Config.textMuted
+                                    }
+
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 1
+
+                                        Text {
+                                            text: modelData.name
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontCaption)
+                                            font.bold: true
+                                            color: mediaModeRow.isSelected ? Config.accent : Config.textMain
+                                            elide: Text.ElideRight
+                                        }
+
+                                        Text {
+                                            text: modelData.desc
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontMicro)
+                                            color: Config.textMuted
+                                            elide: Text.ElideRight
+                                            Layout.fillWidth: true
+                                        }
+                                    }
+
+                                    Text {
+                                        text: "check_circle"
+                                        font.family: "Material Symbols Outlined"
+                                        font.pixelSize: 15
+                                        color: Config.accent
+                                        visible: mediaModeRow.isSelected
+                                    }
+                                }
+
+                                MouseArea {
+                                    id: mediaModeHover
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: Config.activeWindowMediaMode = modelData.id
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }

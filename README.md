@@ -42,6 +42,7 @@ Best of all, it's entirely built in a single Quickshell environment without a lo
 ## ✨ Key Features
 
 * **Morphing Layouts:** A single persistent surface that fluidly expands and shifts into dedicated modules (App Launcher, Control Center, Media Player) without layout jumps.
+* **Native System Tray:** Full StatusNotifierItem support, with each app's D-Bus menu drawn in Synoptik's own language and expanded inline rather than popped as a stock platform menu. Pin the icons you want on the bar; the rest stay listed alongside your running windows.
 * **Compositor Integration:** Leverages native Hyprland layer-shell protocol features, including real-time dynamic blur, custom alpha blending, and xray passthrough.
 * **Integrated Lock & Idle IPC:** Bundled `hypridle` and custom IPC hooks for smooth screen locking and screensaver transitions.
 * **Zero Boilerplate Deployment:** Single-command setup script with automatic self-update tracking.

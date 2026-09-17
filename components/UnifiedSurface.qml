@@ -181,6 +181,7 @@ PanelWindow {
         if (root.activeView === "notifOsd") return notifOsdModule.implicitWidth
         if (root.activeView === "launcherOsd") return launcherOsdModule.implicitWidth
         if (root.activeView === "taskOverflow") return taskOverflowModule.implicitWidth
+        if (root.activeView === "trayMenu") return trayMenuModule.implicitWidth
         if (root.activeDrawerItem && root.activeDrawerItem.implicitWidth > 0) {
             return root.activeDrawerItem.implicitWidth
         }
@@ -199,6 +200,7 @@ PanelWindow {
         if (root.activeView === "notifOsd") return notifOsdModule.implicitHeight
         if (root.activeView === "launcherOsd") return launcherOsdModule.implicitHeight
         if (root.activeView === "taskOverflow") return taskOverflowModule.implicitHeight
+        if (root.activeView === "trayMenu") return trayMenuModule.implicitHeight
         if (root.activeDrawerItem && root.activeDrawerItem.implicitHeight > 0) {
             return root.activeDrawerItem.implicitHeight
         }
@@ -721,6 +723,7 @@ PanelWindow {
             else if (Config.showScreenRecorder) nextView = "screenRecorder"
             else if (Config.showControlCenter) nextView = "controlCenter"
             else if (typeof Config.showTaskOverflow !== "undefined" && Config.showTaskOverflow) nextView = "taskOverflow"
+            else if (typeof Config.showTrayMenu !== "undefined" && Config.showTrayMenu) nextView = "trayMenu"
         }
 
         if (nextView === "none") {
@@ -803,6 +806,14 @@ PanelWindow {
                 closeOthers("taskOverflow")
                 if (activeWindowCard) setPopoutPos(activeWindowCard)
             }
+            updateActiveView()
+        }
+        // No setPopoutPos here, unlike its neighbours: the tray icon that was
+        // actually clicked emits popoutRequested with itself immediately after
+        // flipping this flag, so the menu anchors under that one icon rather
+        // than under the middle of the whole tray card.
+        function onShowTrayMenuChanged() {
+            if (Config.showTrayMenu) closeOthers("trayMenu")
             updateActiveView()
         }
         function onShowLauncherOsdChanged() { if (Config.showLauncherOsd) { closeOthers("launcherOsd"); let btn = rightCard ? rightCard.getButton("search") : null; if (btn) setPopoutPos(btn); } updateActiveView() }
@@ -981,7 +992,14 @@ PanelWindow {
 
                     // Factor in the 30px outer shell margins for both cards
                     readonly property real leftBound: leftCard ? (root.isHorizontal ? (leftCard.width + 30) : (leftCard.height + 30)) : 30
-                    readonly property real rightBound: rightCard ? (root.isHorizontal ? (parent.width - rightCard.width - 30) : (parent.height - rightCard.height - 30)) : (root.isHorizontal ? parent.width : parent.height)
+                    // The tray sits between this card and the right modules, so
+                    // its footprint has to come out of the gap too - otherwise
+                    // the window title slides underneath the tray icons as soon
+                    // as more than a couple of apps register one.
+                    readonly property real trayReserve: (trayCard && trayCard.visible)
+                        ? ((root.isHorizontal ? trayCard.width : trayCard.height) + 8)
+                        : 0
+                    readonly property real rightBound: rightCard ? (root.isHorizontal ? (parent.width - rightCard.width - trayReserve - 30) : (parent.height - rightCard.height - trayReserve - 30)) : (root.isHorizontal ? parent.width : parent.height)
                     readonly property real barSpan: root.isHorizontal ? parent.width : parent.height
 
                     // Real available gap bounded cleanly between the padded card edges
@@ -1003,6 +1021,23 @@ PanelWindow {
                     id: rightCard
                     rootRef: root
                     onPopoutRequested: item => root.setPopoutPos(item)
+                }
+
+                // Rides just inboard of the right modules: the tray is status,
+                // like the modules it sits next to, rather than navigation like
+                // the left card.
+                TrayGroup {
+                    id: trayCard
+                    rootRef: root
+                    onPopoutRequested: item => root.setPopoutPos(item)
+
+                    anchors.right: root.isHorizontal ? rightCard.left : undefined
+                    anchors.rightMargin: root.isHorizontal ? 8 : 0
+                    anchors.verticalCenter: root.isHorizontal ? rightCard.verticalCenter : undefined
+
+                    anchors.bottom: root.isHorizontal ? undefined : rightCard.top
+                    anchors.bottomMargin: root.isHorizontal ? 0 : 8
+                    anchors.horizontalCenter: root.isHorizontal ? undefined : rightCard.horizontalCenter
                 }
 
                 HoverHandler {
@@ -1192,6 +1227,13 @@ PanelWindow {
                     anchors.fill: parent
                     activeScreenName: screen ? screen.name : ""
                     visible: root.activeView === "taskOverflow"
+                }
+
+                TrayMenu {
+                    id: trayMenuModule
+                    objectName: "internalTrayMenu"
+                    anchors.fill: parent
+                    visible: root.activeView === "trayMenu"
                 }
             }
         }

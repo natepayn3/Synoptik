@@ -358,7 +358,12 @@ ShellRoot {
 
     Notifs.NotificationServer {
         id: notifServer
-        property bool dnd: false
+        // Bound, not assigned: DND is a persisted preference with a schedule
+        // and a fullscreen trigger behind it (services/DndConfig.qml), not a
+        // session-local bool. Readonly so that a stray `notifServer.dnd = x`
+        // fails loudly instead of quietly overwriting the binding and stranding
+        // DND in whatever state that assignment left it.
+        readonly property bool dnd: Config.dndActive
         bodySupported: true
 
         // actionsSupported changes client behaviour over D-Bus - Thunderbird,
@@ -438,6 +443,67 @@ ShellRoot {
     IpcHandler {
         target: "workspaceoverview"
         function toggle(): void { if (shellRoot.isFocusedBarEnabled) Config.togglePanel("workspacePreview") }
+    }
+
+    // The running-tasks popout. It was the one panel reachable only by clicking
+    // the window card, which made it the one panel you couldn't bind a key to -
+    // odd for what is effectively the shell's window switcher.
+    IpcHandler {
+        target: "taskoverflow"
+        function toggle(): void { if (shellRoot.isFocusedBarEnabled) Config.togglePanel("taskOverflow") }
+    }
+
+    // The tray. `list` exists because a tray icon is the one bar element whose
+    // contents come from other applications - when one doesn't appear, the
+    // question is always whether the app registered at all, and this answers it
+    // without guessing from the bar.
+    //
+    //   qs -c Synoptik ipc call tray list
+    //   qs -c Synoptik ipc call tray menu discord
+    //   qs -c Synoptik ipc call tray activate syncthing
+    IpcHandler {
+        target: "tray"
+
+        function list(): string {
+            let items = Config.tray.items
+            if (items.length === 0) {
+                return "no tray items registered"
+                    + "\n(apps started before the shell had a StatusNotifierWatcher"
+                    + " never registered - restart them)"
+            }
+            return items.map(it => {
+                let key = Config.tray.keyFor(it)
+                let bits = []
+                if (Config.tray.isPinned(it)) bits.push("pinned")
+                if (it.hasMenu) bits.push("menu")
+                if (it.onlyMenu) bits.push("menu-only")
+                bits.push(["passive", "active", "attention"][it.status] || "?")
+                return key + "  [" + bits.join(", ") + "]  " + Config.tray.labelFor(it)
+            }).join("\n")
+        }
+
+        function menu(id: string): string {
+            let item = Config.tray.items.find(it => Config.tray.keyFor(it) === id)
+            if (!item) return "no tray item with id \"" + id + "\" - try `tray list`"
+            if (!item.hasMenu) return id + " provides no menu"
+            if (!shellRoot.isFocusedBarEnabled) return "the focused monitor has no bar"
+            Config.openTrayMenu(item)
+            return "opened " + id + "'s menu"
+        }
+
+        function activate(id: string): string {
+            let item = Config.tray.items.find(it => Config.tray.keyFor(it) === id)
+            if (!item) return "no tray item with id \"" + id + "\" - try `tray list`"
+            item.activate()
+            return "activated " + id
+        }
+
+        function pin(id: string): string {
+            let item = Config.tray.items.find(it => Config.tray.keyFor(it) === id)
+            if (!item) return "no tray item with id \"" + id + "\" - try `tray list`"
+            Config.tray.togglePin(item)
+            return id + (Config.tray.isPinned(item) ? " pinned to the bar" : " unpinned")
+        }
     }
 
     // The Settings panel, plus the shell's settings control API. Everything

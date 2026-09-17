@@ -61,6 +61,7 @@ Item {
         { id: 20, name: "Retro Shader",     icon: "videogame_asset", group: "WIDGETS",      keywords: "pixel crt dither palette shader retro effect scanline" },
         { id: 22, name: "Assistant",        icon: "support_agent",   group: "WIDGETS",      keywords: "ai llm ollama claude codex gemini chat model prompt mascot pet character bounce avatar" },
         { id: 23, name: "App Dock",         icon: "dock_to_bottom",  group: "WIDGETS",      keywords: "dock taskbar launcher pin pinned apps icons floating draggable" },
+        { id: 24, name: "Notifications",    icon: "notifications",   group: "WIDGETS",      keywords: "notification dnd do not disturb quiet hours schedule fullscreen silence tray systray status icon background apps pin" },
 
         { id: 11, name: "Shell",            icon: "terminal",        group: "SYSTEM",       keywords: "update git version reload restart about repository profile" }
     ]
@@ -341,7 +342,7 @@ Item {
                         width: parent.width - 8
                         spacing: 8
 
-                        // Sidebar filter. 21 sections across three collapsed groups
+                        // Sidebar filter. 22 sections across three collapsed groups
                         // meant the only way to find a setting was to remember which
                         // group it lived under and expand them one at a time.
                         Rectangle {
@@ -1036,6 +1037,7 @@ Item {
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 21; visible: active; sourceComponent: CavaSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 22; visible: active; sourceComponent: AssistantSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 23; visible: active; sourceComponent: AppDockSettings {} }
+                    Loader { anchors.fill: parent; active: settingsRoot.activeSection === 24; visible: active; sourceComponent: NotificationSettings {} }
 
                     // Shell View (Section 11)
                     Loader {

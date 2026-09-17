@@ -12,6 +12,17 @@ QtObject {
     // overlapping up into it). See RightModules.qml.
     property string barClockStyle: "cascading"
     onBarClockStyleChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
+    // What the bar's ActiveWindowCard does while media is playing:
+    //   "chip"     - keep showing the focused window; a small album-art chip
+    //                appears at the trailing edge (tap to play/pause, hover to
+    //                read the track). Default.
+    //   "takeover" - media replaces the window entirely, the original behaviour.
+    //   "off"      - the card only ever shows windows.
+    // "chip" is the default because "takeover" meant that while anything was
+    // playing there was no way at all to see the focused window's title, which
+    // is the card's actual job. See ActiveWindowCard.qml.
+    property string activeWindowMediaMode: "chip"
+    onActiveWindowMediaModeChanged: { if (configRef && configRef.isLoaded) configRef.saveSettings() }
     property bool animateGradient: true
     property bool showScreenFrame: false
     property real shellOpacity: 1.0

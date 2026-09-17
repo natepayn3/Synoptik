@@ -35,6 +35,14 @@ QtObject {
             summary: notif.summary || "",
             body: notif.body || "",
             timestamp: Date.now(),
+            // shell.qml declares imageSupported/appIcon handling on the server
+            // specifically so clients send album art, avatars and app icons -
+            // and then none of it was recorded, so the History tab rendered a
+            // wall of identical text while the OSD that had just shown the same
+            // notification had artwork. Both are kept now; see sanitize() for
+            // which of the two can survive a restart.
+            appIcon: notif.appIcon || "",
+            image: notif.image || "",
             // Urgency was read to drive the OSD's critical treatment and then
             // dropped on the floor here, so in the history list a
             // battery-critical warning was typographically identical to a
@@ -59,6 +67,34 @@ QtObject {
     function save() {
         if (!isLoaded) return
         saveTimer.restart()
+    }
+
+    // An entry's `image` is usually an image://qsimage/... URL backed by the
+    // live Notification object's pixmap. That object is destroyed when the
+    // notification is dismissed or expires, and the provider entry dies with
+    // it, so writing that URL to disk would persist a link that resolves to
+    // nothing the moment the shell restarts - worse than no image, because the
+    // row would then reserve space for one.
+    //
+    // A real path (some clients pass image-path rather than raw pixel data)
+    // does survive, and so does appIcon, which is a theme icon name or file
+    // path rather than a handle to anything. So: keep everything in memory,
+    // where the provider URL is still valid and the history list can use it,
+    // and write only the parts that will still mean something next launch.
+    function sanitize(list) {
+        return list.map(e => {
+            let img = e.image || ""
+            let persistable = img.startsWith("/") || img.startsWith("file://")
+            return {
+                appName: e.appName,
+                summary: e.summary,
+                body: e.body,
+                timestamp: e.timestamp,
+                urgency: e.urgency,
+                appIcon: e.appIcon || "",
+                image: persistable ? img : ""
+            }
+        })
     }
 
     // Written through FileView rather than the `sh -c "printf '%s' '<json>' >
@@ -103,6 +139,6 @@ QtObject {
     property Timer saveTimer: Timer {
         interval: 400
         repeat: false
-        onTriggered: historyFile.setText(JSON.stringify(root.entries, null, 2))
+        onTriggered: historyFile.setText(JSON.stringify(root.sanitize(root.entries), null, 2))
     }
 }

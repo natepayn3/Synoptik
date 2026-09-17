@@ -46,6 +46,28 @@ QtObject {
             desc: "Draw an accent frame around the screen edge" },
         "enableHoverPeek": { type: "bool", group: "bar",
             desc: "Let bar modules preview their panel on hover instead of requiring a click" },
+        "activeWindowMediaMode": { hints: "now playing music track title window card centre", type: "enum", values: ["chip", "takeover", "off"], group: "bar",
+            desc: "What the bar's centre card does while media is playing - chip = keep the focused window's title and add a small album-art play/pause chip; takeover = show the track instead of the window; off = never show media there" },
+
+        // --- SYSTEM TRAY ---
+        "showTray": { hints: "systray status icons background apps discord steam syncthing", type: "bool", group: "bar",
+            desc: "Show tray icons for apps that run without a window" },
+        "trayCollapsed": { hints: "fold hide overflow tidy declutter", type: "bool", group: "bar", requires: "showTray",
+            desc: "Keep only pinned tray icons on the bar; the rest stay listed in the task popout" },
+        "trayHidePassive": { hints: "inactive idle quiet", type: "bool", group: "bar", requires: "showTray",
+            desc: "Hide tray icons an app has marked inactive - note that some apps set this once and never update it, so their icon disappears for good" },
+
+        // --- DO NOT DISTURB ---
+        "dndManual": { hints: "dnd quiet silence mute notifications focus", type: "bool", group: "sound",
+            desc: "Do Not Disturb - silence notification popups and sounds until turned off; notifications are still recorded in history" },
+        "dndScheduleEnabled": { hints: "quiet hours nightly bedtime schedule", type: "bool", group: "sound",
+            desc: "Silence notifications automatically between the scheduled start and end hours each day" },
+        "dndScheduleStart": { hints: "quiet hours begin bedtime", type: "int", min: 0, max: 23, group: "sound", requires: "dndScheduleEnabled",
+            desc: "Hour quiet hours begin, 0-23 on a 24-hour clock" },
+        "dndScheduleEnd": { hints: "quiet hours finish morning wake", type: "int", min: 0, max: 23, group: "sound", requires: "dndScheduleEnabled",
+            desc: "Hour quiet hours end, 0-23 on a 24-hour clock" },
+        "dndWhenFullscreen": { hints: "gaming movie presenting fullscreen", type: "bool", group: "sound",
+            desc: "Silence notifications while a window on the focused workspace is fullscreen" },
 
         // --- SHAPE & SURFACE ---
         "surfaceRadius": { hints: "corners rounded round sharp square", type: "real", min: 0, max: 40, group: "look",

@@ -92,6 +92,41 @@ QtObject {
     property alias displayProfileMap: root.displayProfiles.displayProfileMap
     property alias displayAutoSwitch: root.displayProfiles.autoSwitchEnabled
     function getAppIcon(iconName) { return iconIndexService.getAppIcon(iconName) }
+    function appIconFor(appId) { return iconIndexService.appIconFor(appId) }
+
+    // --- DO NOT DISTURB (extracted to services/DndConfig.qml) ---
+    property DndConfig dnd: DndConfig { configRef: root }
+    property alias dndManual: root.dnd.dndManual
+    property alias dndScheduleEnabled: root.dnd.dndScheduleEnabled
+    property alias dndScheduleStart: root.dnd.dndScheduleStart
+    property alias dndScheduleEnd: root.dnd.dndScheduleEnd
+    property alias dndWhenFullscreen: root.dnd.dndWhenFullscreen
+    readonly property alias dndActive: root.dnd.active
+    readonly property alias dndReason: root.dnd.reason
+
+    // --- SYSTEM TRAY (extracted to services/TrayService.qml) ---
+    property TrayService tray: TrayService { configRef: root }
+    property alias showTray: root.tray.showTray
+    property alias trayCollapsed: root.tray.trayCollapsed
+    property alias trayPinned: root.tray.trayPinned
+    property alias trayHidePassive: root.tray.trayHidePassive
+
+    // Which tray item's menu the bar is showing. Deliberately NOT persisted:
+    // it's a pointer to a live D-Bus object, meaningless across a restart.
+    property var trayMenuItem: null
+    property bool showTrayMenu: false
+
+    function openTrayMenu(item) {
+        if (!item) return
+        // Re-tapping the icon whose menu is already open closes it, the way
+        // every other bar module toggles its own panel.
+        if (root.showTrayMenu && root.trayMenuItem === item) {
+            root.showTrayMenu = false
+            return
+        }
+        root.trayMenuItem = item
+        root.showTrayMenu = true
+    }
 
     property bool showTaskOverflow: false
 
@@ -176,7 +211,8 @@ QtObject {
         "screenRecorder":   "showScreenRecorder",
         "controlCenter":    "showControlCenter",
         "settings":         "showSettings",
-        "taskOverflow":     "showTaskOverflow"
+        "taskOverflow":     "showTaskOverflow",
+        "trayMenu":         "showTrayMenu"
     })
 
     // The two OSDs deliberately sit outside the panel table: they're transient
@@ -521,6 +557,7 @@ QtObject {
     // validated, not a real user-facing setting yet.
     property bool experimentalSdfBar: true
     property alias barClockStyle: root.appearance.barClockStyle
+    property alias activeWindowMediaMode: root.appearance.activeWindowMediaMode
     property alias animateGradient: root.appearance.animateGradient
     property alias showScreenFrame: root.appearance.showScreenFrame
     property alias shellOpacity: root.appearance.shellOpacity
@@ -958,7 +995,7 @@ QtObject {
         "screensaverSpeed", "screensaverCornerCounter", "showOsk", "oskLayout", "showMascot",
         "mascotPositions", "mascotLastScreen", "mascotSize", "mascotAudioThrob", "mascotAnimationsEnabled", "mascotClips",
         "showDesktopMediaCard", "mediaCardWidth", "mediaCardHeight", "mediaCardPositions", "mediaCardLastScreen", "barFrameStyle",
-        "barClockStyle", "barPosition", "autoHideBar", "showScreenFrame", "sysFont", "nativeFontRendering",
+        "barClockStyle", "activeWindowMediaMode", "barPosition", "autoHideBar", "showScreenFrame", "sysFont", "nativeFontRendering",
         "fontScaleIndex", "locationQuery", "enabledBarScreens", "useCustomColors", "customBgBase",
         "customBgPanel", "customAccent", "animateGradient", "shellOpacity", "enableBlur", "enableXray",
         "enableIris", "irisIntensity", "showWatermarks", "bounceWatermarks", "windowStyle", "playWindowSounds",
@@ -969,6 +1006,8 @@ QtObject {
         "pixelShaderBoost", "showMirror", "mirrorShowPanel", "mirrorMirrored", "mirrorKeepAspect",
         "mirrorPositions", "mirrorLastScreen", "mirrorWidth", "mirrorHeight", "leftCardOrder", "rightCardOrder",
         "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides", "surfaceRadius",
+        "showTray", "trayCollapsed", "trayPinned", "trayHidePassive",
+        "dndManual", "dndScheduleEnabled", "dndScheduleStart", "dndScheduleEnd", "dndWhenFullscreen",
         "borderThickness", "cardMargin", "ccCardArrangement", "calendarArrangement", "showDesktopClock", "clockStyle", "clockScale",
         "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", "clockShowBackground",
         "clockShowGlow", "clockPositions", "clockScales", "enabledClockScreens", "showDesktopSysInfo",
@@ -1049,6 +1088,7 @@ QtObject {
             property var mediaCardLastScreen
             property var barFrameStyle
             property var barClockStyle
+            property var activeWindowMediaMode
             property var barPosition
             property var autoHideBar
             property var showScreenFrame
@@ -1103,6 +1143,15 @@ QtObject {
             property var rightCardCollapsed
             property var pinnedIcons
             property var iconOverrides
+            property var showTray
+            property var trayCollapsed
+            property var trayPinned
+            property var trayHidePassive
+            property var dndManual
+            property var dndScheduleEnabled
+            property var dndScheduleStart
+            property var dndScheduleEnd
+            property var dndWhenFullscreen
             property var surfaceRadius
             property var borderThickness
             property var cardMargin

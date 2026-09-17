@@ -15,31 +15,101 @@ Rectangle {
     readonly property string barPos: rootRef ? (rootRef.barPosition || "top") : "top"
     readonly property bool isHoriz: rootRef ? rootRef.isHorizontal : true
 
-    // Direct O(1) focused client resolution without O(n) toplevel list traversal (Fix #14)
-    readonly property var activeClient: {
-        let top = Hyprland.activeToplevel
-        if (top) {
-            let matchesScreen = !activeScreenName || !top.monitor || top.monitor.name === activeScreenName
-            if (matchesScreen && top.activated) return top
-        }
-
-        // Fallback to the monitor's focused workspace active window if activeToplevel is on another monitor
-        if (rootRef && rootRef.screen && Hyprland.focusedMonitor && Hyprland.focusedMonitor.name === activeScreenName) {
-            return Hyprland.activeToplevel
+    // This monitor's own active workspace, which is what the card is really
+    // about: one bar instance exists per screen, and each should describe its
+    // own screen rather than all of them echoing whichever monitor happens to
+    // hold keyboard focus.
+    readonly property var thisMonitor: {
+        if (!activeScreenName) return Hyprland.focusedMonitor
+        let mons = Hyprland.monitors ? Hyprland.monitors.values : []
+        for (let i = 0; i < mons.length; i++) {
+            if (mons[i] && mons[i].name === activeScreenName) return mons[i]
         }
         return null
+    }
+
+    // Focused client resolution, per monitor.
+    //
+    // The fast path is still Hyprland.activeToplevel - when the focused window
+    // is on this screen, that's the answer without touching the toplevel list.
+    //
+    // The slow path replaces a fallback that never worked: it was guarded on
+    // `Hyprland.focusedMonitor.name === activeScreenName`, i.e. it only ran when
+    // this monitor WAS the focused one, and then returned the very
+    // Hyprland.activeToplevel the fast path had just rejected. Its comment
+    // claimed to handle "activeToplevel is on another monitor" - the one case
+    // the guard made unreachable. So on a multi-monitor setup every unfocused
+    // monitor's card went blank instead of showing that monitor's window.
+    //
+    // The scan is O(n) over toplevels, but only on the path the old code got
+    // wrong, and n here is "windows you have open" - a couple of dozen at the
+    // extreme, re-evaluated only when Hyprland signals a change.
+    readonly property var activeClient: {
+        let top = Hyprland.activeToplevel
+        if (top && top.activated) {
+            let matchesScreen = !activeScreenName || !top.monitor || top.monitor.name === activeScreenName
+            if (matchesScreen) return top
+        }
+
+        // Focus is elsewhere: show the most recently focused window on this
+        // monitor's active workspace. Hyprland's per-client focusHistoryID is
+        // exactly that ordering (0 = most recent), so this keeps showing the
+        // window you'd land on if you moved focus back here, rather than an
+        // arbitrary pick that reshuffles whenever the toplevel list reorders.
+        let ws = thisMonitor ? thisMonitor.activeWorkspace : null
+        if (!ws) return null
+
+        let all = Hyprland.toplevels ? Hyprland.toplevels.values : []
+        let best = null
+        let bestRank = Infinity
+        for (let i = 0; i < all.length; i++) {
+            let t = all[i]
+            if (!t || !t.workspace || t.workspace.id !== ws.id) continue
+
+            let hist = t.lastIpcObject ? t.lastIpcObject.focusHistoryID : undefined
+            // No focusHistoryID (an IPC object not refreshed yet) sorts behind
+            // every window that has one, instead of tying at 0 and winning.
+            let rank = (hist === undefined || hist === null) ? Number.MAX_SAFE_INTEGER : hist
+            if (rank < bestRank) {
+                bestRank = rank
+                best = t
+            }
+        }
+        return best
     }
 
     readonly property string appId: activeClient ? (activeClient.wayland?.appId || activeClient.lastIpcObject?.class || "") : ""
     readonly property string winTitle: activeClient ? (activeClient.title || appId || "") : ""
     readonly property bool hasWindow: activeClient !== null && winTitle !== ""
 
-    // Media takes over the card whenever mpris reports something playing (Fix: media card in bar)
+    // --- NOW PLAYING ---
+    // Media used to take the card over outright whenever mpris reported
+    // something playing, which meant that for as long as music was on there was
+    // no way to see the focused window's title - the one thing this card exists
+    // to tell you. Config.activeWindowMediaMode picks the behaviour now;
+    // "takeover" is still available and is exactly what this did before.
     readonly property bool mediaPlaying: (typeof shellRoot !== "undefined") && shellRoot.mediaPlaying === true
-    readonly property string displayTitle: mediaPlaying ? shellRoot.mediaTitle : winTitle
+    readonly property string mediaMode: Config.activeWindowMediaMode || "chip"
+    readonly property bool mediaActive: mediaPlaying && mediaMode !== "off"
     readonly property string mediaArtUrl: (typeof shellRoot !== "undefined" && shellRoot.mediaArtUrl) ? shellRoot.mediaArtUrl : ""
 
-    visible: hasWindow || mediaPlaying
+    // With no window to show, chip mode has nothing to defer to, so it falls
+    // through to the takeover layout rather than rendering an empty card with a
+    // chip stuck on the end of it.
+    readonly property bool mediaTakesOver: mediaActive && (mediaMode === "takeover" || !hasWindow)
+    readonly property bool showArtChip: mediaActive && !mediaTakesOver
+
+    // Hovering the chip swaps the title line to the track for as long as you
+    // hold there - the whole track name, without permanently spending the
+    // card's one line of text on it.
+    readonly property bool chipPeek: showArtChip && (artChipHoriz.peeking || artChipVert.peeking)
+    readonly property string displayTitle: (mediaTakesOver || chipPeek) ? shellRoot.mediaTitle : winTitle
+
+    visible: hasWindow || mediaActive
+
+    function togglePlayback() {
+        Quickshell.execDetached(["playerctl", "--player=%any,playerctld", "play-pause"])
+    }
 
     signal popoutRequested(var item)
 
@@ -104,25 +174,17 @@ Rectangle {
 
         IconImage {
             id: iconHoriz
-            visible: !activeWinCard.mediaPlaying
+            visible: !activeWinCard.mediaTakesOver
             Layout.preferredWidth: 20
             Layout.preferredHeight: 20
             Layout.alignment: activeWinCard.width <= 44 ? Qt.AlignCenter : Qt.AlignVCenter
             asynchronous: true
-            source: {
-                if (!activeWinCard.appId) return Quickshell.iconPath("application-x-executable", true)
-                let entry = DesktopEntries.heuristicLookup(activeWinCard.appId)
-                if (entry && entry.icon) {
-                    let path = Quickshell.iconPath(entry.icon, true)
-                    if (path) return path
-                }
-                return Quickshell.iconPath(activeWinCard.appId, true) || Quickshell.iconPath("application-x-executable", true)
-            }
+            source: Config.appIconFor(activeWinCard.appId)
         }
 
         Item {
             id: artBoxHoriz
-            visible: activeWinCard.mediaPlaying
+            visible: activeWinCard.mediaTakesOver
             Layout.preferredWidth: 20
             Layout.preferredHeight: 20
             Layout.alignment: activeWinCard.width <= 44 ? Qt.AlignCenter : Qt.AlignVCenter
@@ -175,9 +237,16 @@ Rectangle {
             onWidthChanged: refreshTicker()
             onVisibleChanged: refreshTicker()
 
+            // Scroll out, hold on the tail, ease back, hold on the head, repeat.
+            // This used to be `loops: 1` with only the outward leg, so a long
+            // title crawled to its end once and then sat there permanently
+            // truncated at the FRONT - the half you actually need to identify a
+            // window - until the title text happened to change. The return leg
+            // is eased rather than linear so it reads as a rewind, not a second
+            // pass of the same scroll.
             SequentialAnimation {
                 id: tickerAnimHoriz
-                loops: 1
+                loops: Animation.Infinite
 
                 PauseAnimation { duration: 1000 }
 
@@ -187,6 +256,16 @@ Rectangle {
                     to: -tickerBoxHoriz.overflowDist
                     duration: Math.max(1000, tickerBoxHoriz.overflowDist * 40)
                     easing.type: Easing.Linear
+                }
+
+                PauseAnimation { duration: 1600 }
+
+                NumberAnimation {
+                    target: titleTextHoriz
+                    property: "x"
+                    to: 0
+                    duration: Math.max(450, tickerBoxHoriz.overflowDist * 8)
+                    easing.type: Easing.InOutCubic
                 }
             }
 
@@ -202,6 +281,62 @@ Rectangle {
                 onTextChanged: tickerBoxHoriz.refreshTicker()
             }
         }
+
+        // --- NOW-PLAYING CHIP ---
+        // A MouseArea, not a TapHandler: the card itself carries a TapHandler
+        // that toggles the task list, and an accepting MouseArea is what stops
+        // a tap on the chip from also opening that popout behind it.
+        Item {
+            id: artChipHoriz
+            visible: activeWinCard.showArtChip && activeWinCard.width > 66
+            property bool peeking: visible && chipMouseHoriz.containsMouse
+            Layout.alignment: Qt.AlignVCenter
+            Layout.preferredWidth: 18
+            Layout.preferredHeight: 18
+
+            Rectangle {
+                anchors.fill: parent
+                radius: 5
+                clip: true
+                color: Qt.rgba(255, 255, 255, 0.08)
+                border.width: 1
+                border.color: chipMouseHoriz.containsMouse ? Config.accent : Qt.rgba(255, 255, 255, 0.14)
+                Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                Image {
+                    id: chipArtHoriz
+                    anchors.fill: parent
+                    source: activeWinCard.mediaArtUrl
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                    visible: status === Image.Ready
+                    opacity: chipMouseHoriz.containsMouse ? 0.35 : 1.0
+                    Behavior on opacity { NumberAnimation { duration: 150 } }
+                }
+
+                // Shown when there's no art to show, and again under the hover
+                // dim as the affordance that the chip is a play/pause button.
+                Text {
+                    anchors.centerIn: parent
+                    text: chipMouseHoriz.containsMouse
+                        ? (activeWinCard.mediaPlaying ? "pause" : "play_arrow")
+                        : "music_note"
+                    font.family: "Material Symbols Outlined"
+                    font.pixelSize: 12
+                    color: chipMouseHoriz.containsMouse ? Config.accent : Config.textMuted
+                    visible: chipMouseHoriz.containsMouse || chipArtHoriz.status !== Image.Ready
+                }
+            }
+
+            MouseArea {
+                id: chipMouseHoriz
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                acceptedButtons: Qt.LeftButton
+                onClicked: activeWinCard.togglePlayback()
+            }
+        }
     }
 
     // VERTICAL LAYOUT (Icon positioned at the leading start of the text reading direction)
@@ -214,31 +349,27 @@ Rectangle {
         columnSpacing: 0
         rowSpacing: activeWinCard.height <= 44 ? 0 : 8
         columns: 1
-        rows: 2
+        // Three rows since the now-playing chip joined: the icon sits at the
+        // leading end of the reading direction, the chip at the trailing end,
+        // which swap places between a left bar (text rotated -90, reading
+        // bottom-to-top) and a right one.
+        rows: 3
 
         IconImage {
             id: iconVert
-            visible: !activeWinCard.mediaPlaying
-            Layout.row: activeWinCard.barPos === "left" ? 1 : 0
+            visible: !activeWinCard.mediaTakesOver
+            Layout.row: activeWinCard.barPos === "left" ? 2 : 0
             Layout.preferredWidth: 20
             Layout.preferredHeight: 20
             Layout.alignment: activeWinCard.height <= 44 ? Qt.AlignCenter : Qt.AlignHCenter
             asynchronous: true
-            source: {
-                if (!activeWinCard.appId) return Quickshell.iconPath("application-x-executable", true)
-                let entry = DesktopEntries.heuristicLookup(activeWinCard.appId)
-                if (entry && entry.icon) {
-                    let path = Quickshell.iconPath(entry.icon, true)
-                    if (path) return path
-                }
-                return Quickshell.iconPath(activeWinCard.appId, true) || Quickshell.iconPath("application-x-executable", true)
-            }
+            source: Config.appIconFor(activeWinCard.appId)
         }
 
         Item {
             id: artBoxVert
-            visible: activeWinCard.mediaPlaying
-            Layout.row: activeWinCard.barPos === "left" ? 1 : 0
+            visible: activeWinCard.mediaTakesOver
+            Layout.row: activeWinCard.barPos === "left" ? 2 : 0
             Layout.preferredWidth: 20
             Layout.preferredHeight: 20
             Layout.alignment: activeWinCard.height <= 44 ? Qt.AlignCenter : Qt.AlignHCenter
@@ -265,7 +396,7 @@ Rectangle {
 
         Item {
             id: tickerBoxVert
-            Layout.row: activeWinCard.barPos === "left" ? 0 : 1
+            Layout.row: 1
             visible: activeWinCard.height > 50
             Layout.fillWidth: true
             Layout.fillHeight: true
@@ -290,9 +421,10 @@ Rectangle {
             onHeightChanged: refreshTicker()
             onVisibleChanged: refreshTicker()
 
+            // See tickerAnimHoriz for why this loops and returns.
             SequentialAnimation {
                 id: tickerAnimVert
-                loops: 1
+                loops: Animation.Infinite
 
                 PauseAnimation { duration: 1000 }
 
@@ -302,6 +434,16 @@ Rectangle {
                     to: tickerBoxVert.isCcw ? tickerBoxVert.overflowDist : -tickerBoxVert.overflowDist
                     duration: Math.max(1000, tickerBoxVert.overflowDist * 40)
                     easing.type: Easing.Linear
+                }
+
+                PauseAnimation { duration: 1600 }
+
+                NumberAnimation {
+                    target: tickerBoxVert
+                    property: "tickerOffset"
+                    to: 0
+                    duration: Math.max(450, tickerBoxVert.overflowDist * 8)
+                    easing.type: Easing.InOutCubic
                 }
             }
 
@@ -332,6 +474,63 @@ Rectangle {
                 }
 
                 onTextChanged: tickerBoxVert.refreshTicker()
+            }
+        }
+
+        // --- NOW-PLAYING CHIP ---
+        // A MouseArea, not a TapHandler: the card itself carries a TapHandler
+        // that toggles the task list, and an accepting MouseArea is what stops
+        // a tap on the chip from also opening that popout behind it.
+        Item {
+            id: artChipVert
+            visible: activeWinCard.showArtChip && activeWinCard.height > 66
+            property bool peeking: visible && chipMouseVert.containsMouse
+            Layout.row: activeWinCard.barPos === "left" ? 0 : 2
+            Layout.alignment: Qt.AlignHCenter
+            Layout.preferredWidth: 18
+            Layout.preferredHeight: 18
+
+            Rectangle {
+                anchors.fill: parent
+                radius: 5
+                clip: true
+                color: Qt.rgba(255, 255, 255, 0.08)
+                border.width: 1
+                border.color: chipMouseVert.containsMouse ? Config.accent : Qt.rgba(255, 255, 255, 0.14)
+                Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                Image {
+                    id: chipArtVert
+                    anchors.fill: parent
+                    source: activeWinCard.mediaArtUrl
+                    fillMode: Image.PreserveAspectCrop
+                    asynchronous: true
+                    visible: status === Image.Ready
+                    opacity: chipMouseVert.containsMouse ? 0.35 : 1.0
+                    Behavior on opacity { NumberAnimation { duration: 150 } }
+                }
+
+                // Shown when there's no art to show, and again under the hover
+                // dim as the affordance that the chip is a play/pause button.
+                Text {
+                    anchors.centerIn: parent
+                    text: chipMouseVert.containsMouse
+                        ? (activeWinCard.mediaPlaying ? "pause" : "play_arrow")
+                        : "music_note"
+                    font.family: "Material Symbols Outlined"
+                    font.pixelSize: 12
+                    color: chipMouseVert.containsMouse ? Config.accent : Config.textMuted
+                    visible: chipMouseVert.containsMouse || chipArtVert.status !== Image.Ready
+                }
+            }
+
+            MouseArea {
+                id: chipMouseVert
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                acceptedButtons: Qt.LeftButton
+                onClicked: activeWinCard.togglePlayback()
             }
         }
     }

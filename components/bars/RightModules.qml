@@ -213,6 +213,31 @@ Rectangle {
                     }
                 }
 
+
+                // DND lived only inside the Control Center, which meant the one
+                // state that silently stops notifications reaching you was also
+                // the one state the bar never showed. The badge rides the button
+                // that opens the card it's set from.
+                Rectangle {
+                    visible: Config.dndActive
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    anchors.margins: 2
+                    implicitWidth: 12
+                    implicitHeight: 12
+                    radius: 6
+                    color: Config.bgBase
+                    border.width: 1
+                    border.color: Config.accent
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "notifications_off"
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 8
+                        color: Config.accent
+                    }
+                }
                 TapHandler {
                     onTapped: {
                         if (rootRef && rootRef.stopPeek) rootRef.stopPeek()
@@ -670,6 +695,31 @@ Rectangle {
                     }
                 }
 
+
+                // DND lived only inside the Control Center, which meant the one
+                // state that silently stops notifications reaching you was also
+                // the one state the bar never showed. The badge rides the button
+                // that opens the card it's set from.
+                Rectangle {
+                    visible: Config.dndActive
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    anchors.margins: 2
+                    implicitWidth: 12
+                    implicitHeight: 12
+                    radius: 6
+                    color: Config.bgBase
+                    border.width: 1
+                    border.color: Config.accent
+
+                    Text {
+                        anchors.centerIn: parent
+                        text: "notifications_off"
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 8
+                        color: Config.accent
+                    }
+                }
                 TapHandler {
                     onTapped: {
                         if (rootRef && rootRef.stopPeek) rootRef.stopPeek()

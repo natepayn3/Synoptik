@@ -440,6 +440,32 @@ Item {
                                 readonly property bool isCritical:
                                     modelData && modelData.urgency === 2
 
+                                // Album art / avatar if the client sent one,
+                                // then its declared app icon, then a guess from
+                                // the app name. The last step is what stops
+                                // well-behaved-but-iconless apps from being the
+                                // one blank row in an otherwise illustrated list.
+                                readonly property string artSource: {
+                                    if (!modelData) return ""
+                                    if (modelData.image) return modelData.image
+                                    if (modelData.appIcon) return Config.getAppIcon(modelData.appIcon)
+                                    if (modelData.appName) return Config.appIconFor(modelData.appName.toLowerCase())
+                                    return ""
+                                }
+
+                                // A burst from one app (six Discord messages, a
+                                // download finishing in four stages) repeated
+                                // the same app name down the whole list. The
+                                // name now prints once per run and the rest of
+                                // the run is indented under it, so what reads
+                                // vertically is the messages, not the sender.
+                                readonly property bool continuesRun: {
+                                    if (!root.showNotifHistory || index <= 0) return false
+                                    let m = notifListView.model
+                                    let prev = (m && m.length > index - 1) ? m[index - 1] : null
+                                    return !!(prev && modelData && prev.appName === modelData.appName)
+                                }
+
                                 Rectangle {
                                     anchors.left: parent.left
                                     anchors.top: parent.top
@@ -451,20 +477,75 @@ Item {
                                     visible: notifRow.isCritical
                                 }
 
-                                ColumnLayout {
+                                RowLayout {
                                     id: itemLayout
                                     anchors.top: parent.top
                                     anchors.left: parent.left
                                     anchors.right: parent.right
                                     anchors.margins: 10
-                                    spacing: 3
+                                    spacing: 8
+
+                                    // Reserves its slot even with nothing to
+                                    // show, so the text in a run of rows stays
+                                    // on one left edge instead of stepping in
+                                    // and out as artwork comes and goes.
+                                    Item {
+                                        Layout.preferredWidth: 28
+                                        Layout.preferredHeight: 28
+                                        Layout.alignment: Qt.AlignTop
+                                        visible: !notifRow.continuesRun
+
+                                        ClippingRectangle {
+                                            anchors.fill: parent
+                                            radius: Config.cornerRadius / 3
+                                            color: Qt.rgba(255, 255, 255, 0.06)
+
+                                            Image {
+                                                id: notifArt
+                                                anchors.fill: parent
+                                                source: notifRow.artSource
+                                                fillMode: Image.PreserveAspectCrop
+                                                asynchronous: true
+                                                visible: status === Image.Ready
+                                            }
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                visible: notifArt.status !== Image.Ready
+                                                text: notifRow.isCritical ? "priority_high" : "notifications"
+                                                font.family: "Material Symbols Outlined"
+                                                font.pixelSize: 15
+                                                color: notifRow.isCritical ? "#ef4444" : Config.textMuted
+                                            }
+                                        }
+                                    }
+
+                                    // Keeps the indent when the icon is
+                                    // suppressed mid-run.
+                                    Item {
+                                        visible: notifRow.continuesRun
+                                        Layout.preferredWidth: 28
+                                        Layout.preferredHeight: 1
+                                    }
+
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        Layout.alignment: Qt.AlignTop
+                                        spacing: 3
 
                                     RowLayout {
                                         Layout.fillWidth: true
                                         spacing: 6
 
+                                        // Blanked rather than hidden mid-run:
+                                        // this is the fillWidth item, so
+                                        // removing it from the layout would drag
+                                        // the timestamp beside it out of the
+                                        // right-hand column it lines up in.
                                         Text {
-                                            text: (modelData && modelData.appName) ? modelData.appName.toUpperCase() : "SYSTEM"
+                                            text: notifRow.continuesRun
+                                                ? ""
+                                                : ((modelData && modelData.appName) ? modelData.appName.toUpperCase() : "SYSTEM")
                                             color: notifRow.isCritical ? "#ef4444" : Config.accent
                                             font.family: Config.sysFont
                                             font.pixelSize: Config.size(Config.fontMicro)
@@ -502,6 +583,7 @@ Item {
                                         font.pixelSize: Config.size(Config.fontMicro)
                                         Layout.fillWidth: true
                                         wrapMode: Text.Wrap
+                                    }
                                     }
                                 }
 

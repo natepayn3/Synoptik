@@ -16,9 +16,15 @@ Rectangle {
     color: cardHover.hovered ? Qt.rgba(Config.bgBase.r, Config.bgBase.g, Config.bgBase.b, 1.0) : Qt.rgba(0, 0, 0, 0.25)
     Behavior on color { ColorAnimation { duration: 150 } }
 
-    // Bind directly to your root NotificationServer instance
+    // Bind directly to your root NotificationServer instance, which is itself
+    // bound to Config.dndActive - so this reflects a schedule window opening or
+    // a window going fullscreen, not just taps on this card.
     property bool dndActive: notifServer.dnd
     onDndActiveChanged: bellWobble.restart()
+
+    // Why DND is on, so an automatic trigger doesn't look like a card that
+    // turned itself on for no reason.
+    readonly property string dndReason: Config.dndReason
 
     TapHandler {
         onTapped: root.toggleDnd()
@@ -30,7 +36,7 @@ Rectangle {
     }
 
     function toggleDnd() {
-        notifServer.dnd = !notifServer.dnd
+        Config.dnd.toggle()
     }
 
     RowLayout {
@@ -79,7 +85,12 @@ Rectangle {
             }
 
             Text {
-                text: root.dndActive ? "On" : "Off"
+                text: {
+                    if (!root.dndActive) return "Off"
+                    if (root.dndReason === "schedule") return "On · Scheduled"
+                    if (root.dndReason === "fullscreen") return "On · Fullscreen"
+                    return "On"
+                }
                 font.family: Config.sysFont
                 font.pixelSize: Config.size(Config.fontMicro)
                 color: Config.textMuted
