@@ -166,12 +166,16 @@ print(dumped)
     // appIconFor without the generic-executable last resort: "" when this app
     // has no icon of its own.
     //
-    // Whether a generic stand-in beats nothing depends on the surface. In a row
-    // of tray icons it wins - a gap there reads as a broken item. Beside a
-    // notification it loses: the theme's generic icon is a fixed-palette asset
-    // (Adwaita's is hardcoded GNOME blue) that cannot follow the accent colour,
-    // so it clashes with every theme that isn't blue, and a Material glyph in
-    // the accent says the same thing while matching the shell.
+    // Used wherever the surface has something better than a generic icon to
+    // fall back to. The theme's generic icon is a fixed-palette asset -
+    // Adwaita's is hardcoded GNOME blue - so it cannot follow the accent colour
+    // and clashes with every theme that isn't blue; a Material glyph says the
+    // same thing in the shell's own colours. Notifications and tray items both
+    // draw such a glyph, so both resolve strictly.
+    //
+    // appIconFor() keeps the generic fallback for the callers that have no
+    // glyph behind them - a window in the task list or on the bar, where an
+    // empty source really would leave a blank.
     function appIconStrict(appId) {
         if (!appId) return ""
         let entry = DesktopEntries.heuristicLookup(appId)

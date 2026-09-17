@@ -95,9 +95,16 @@ QtObject {
         if (!item) return ""
         let resolved = resolveIconSpec(item.icon)
         if (resolved) return resolved
-        // Nothing usable from the app: fall back to the same app-icon lookup a
-        // window of theirs would get, rather than leaving a clickable blank.
-        if (configRef) return configRef.appIconFor(keyFor(item))
+
+        // The app's own icon, looked up the way a window of theirs would be -
+        // but strictly, so an app with no icon at all returns "" rather than
+        // the icon theme's generic placeholder. Every surface that draws a tray
+        // item has a Material glyph behind it (TrayGroup, TaskOverflow's
+        // background-apps list, the settings list), and that glyph follows the
+        // shell's colours, while the theme's generic icon is a fixed-palette
+        // asset - Adwaita's is hardcoded GNOME blue - that clashes with any
+        // accent that isn't blue.
+        if (configRef) return configRef.appIconStrict(keyFor(item))
         return ""
     }
 
