@@ -1406,9 +1406,13 @@ print(json.dumps(results))
                                     border.width: wallpaperGrid.currentIndex === index ? 1 : 0
                                     border.color: Config.accent
 
+                                    // Flush with the ClippingRectangle's own edge (no margin) -
+                                    // an inset image is clipped by the same corner radius as
+                                    // the border but from a smaller box, so its corner cut
+                                    // looks tighter than the border's curve. Flush means both
+                                    // share the exact same clipped boundary.
                                     Image {
                                         anchors.fill: parent
-                                        anchors.margins: 2
                                         source: "file://" + osdRoot.wallpaperThumbPath(modelData)
                                         fillMode: Image.PreserveAspectCrop
                                         horizontalAlignment: Image.AlignHCenter
