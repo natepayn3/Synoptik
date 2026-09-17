@@ -283,6 +283,129 @@ Scope {
 
                 property var currentTime: new Date()
 
+                // --- ENTRANCE / EXIT ---
+                // This surface used to render its finished state on its very
+                // first frame - wallpaper already at full blur, every element at
+                // final opacity - which is what made locking a jump cut.
+                //
+                // ext-session-lock gives no way to cross-fade from the desktop:
+                // the compositor hides your real surfaces the instant the lock
+                // exists, so there is never a frame containing both. The
+                // transition therefore has to happen inside the lock, and it is
+                // deliberately kept here rather than done by capturing the
+                // screen first or animating before locking - either of those
+                // would put real desktop pixels on a locked screen, or leave the
+                // session unlocked while the animation played.
+                // Deliberately LINEAR, and the only place the total length is
+                // set. The easing lives in easePhase/springPhase below, per
+                // element, because an eased driver makes the stagger windows
+                // below meaningless: OutCubic puts half its progress in the
+                // first fifth of the time, so every "delay" bunched up near the
+                // start no matter how long the animation ran. Linear means a
+                // window of 0.3..0.9 really is 30% to 90% of the wall clock.
+                property real entrance: 0
+                NumberAnimation on entrance {
+                    from: 0
+                    to: 1
+                    duration: 2200
+                    easing.type: Easing.Linear
+                    running: true
+                }
+
+                // Fades back out on a successful unlock. This costs nothing: it
+                // fits inside the 320ms unlockTimer that already sits between
+                // PAM saying yes and sessionLocked actually dropping.
+                property real exitFade: lockscreenScope.isSuccess ? 0 : 1
+                Behavior on exitFade {
+                    NumberAnimation { duration: 260; easing.type: Easing.InCubic }
+                }
+
+                // Slices the shared entrance progress into overlapping windows,
+                // so elements arrive in sequence off one animation rather than
+                // needing a timer and an animation each.
+                function phase(delay, span) {
+                    return Math.max(0, Math.min(1, (surfaceRoot.entrance - delay) / span))
+                }
+
+                // Ease-out for anything that must not exceed its target -
+                // opacity, and the wallpaper scale, which would expose a screen
+                // edge if it undershot 1.0.
+                function easePhase(delay, span) {
+                    let t = 1 - phase(delay, span)
+                    return 1 - (t * t * t)
+                }
+
+                // An underdamped spring, evaluated at an arbitrary point on the
+                // driver so the same curve can also be differentiated for
+                // velocity (see springVel):
+                //
+                //     f(t) = 1 - e^(-damping*t) * cos(freq*t)
+                //
+                // It oscillates about its target with decaying amplitude rather
+                // than overshooting once and stopping - the same underdamped
+                // behaviour UnifiedSurface's jelly deformation uses, which is
+                // what makes motion in this shell read as liquid rather than
+                // mechanical. Higher damping means fewer, smaller bounces.
+                //
+                // The curve stays strictly inside (0, 2): it converges on 1
+                // from both sides, and the exponential envelope never lets it
+                // reach 0 again, so a value fed through this can exceed its
+                // target but can never go negative - which is what keeps the
+                // blur radius safe. t >= 1 returns exactly 1, so every element
+                // has an exact rest state rather than a residual fraction of a
+                // pixel.
+                readonly property real springFreq: 12.0
+
+                function springAt(p, delay, span, damping) {
+                    let t = Math.max(0, Math.min(1, (p - delay) / span))
+                    if (t >= 1) return 1
+                    return 1 - Math.exp(-damping * t) * Math.cos(surfaceRoot.springFreq * t)
+                }
+
+                function springPhase(delay, span, damping) {
+                    return springAt(surfaceRoot.entrance, delay, span, damping)
+                }
+
+                // d/dt of that spring, by central difference. Drives squash and
+                // stretch: an element deforms in proportion to how fast it is
+                // travelling right now, so it stretches on the way and squashes
+                // as it lands, rather than sliding rigidly.
+                function springVel(delay, span, damping) {
+                    // Zero once this element's window is over. Without it the
+                    // central difference straddles the end of the window - one
+                    // sample inside the still-oscillating curve, one clamped to
+                    // the rest value - and reports motion that isn't happening.
+                    // An element whose window ends exactly when the driver does
+                    // then never returns to its resting shape: the power bar sat
+                    // permanently 2.4% stretched.
+                    if ((surfaceRoot.entrance - delay) / span >= 1) return 0
+
+                    const h = 0.004
+                    let a = springAt(surfaceRoot.entrance - h, delay, span, damping)
+                    let b = springAt(surfaceRoot.entrance + h, delay, span, damping)
+                    return (b - a) / (2 * h)
+                }
+
+                // Velocity -> stretch along the direction of travel. The
+                // perpendicular axis takes 1/stretch, so the deformation is
+                // volume preserving - the same rule as UnifiedSurface's
+                // deformation matrix, capped just as conservatively so nothing
+                // spills past a screen edge.
+                readonly property real maxStretch: 1.07
+
+                // The gain is derived, not guessed: this spring's peak speed
+                // across the three elements is ~590 (travel px per unit of
+                // driver progress), so 0.07/590 maps the fastest moment of the
+                // fastest element exactly onto the cap. Picked by hand, the
+                // first value saturated for a fifth of the run, which reads as
+                // an element stuck at full stretch rather than flexing.
+                readonly property real stretchGain: 0.000119
+
+                function stretchFor(travel, delay, span, damping) {
+                    let speed = Math.abs(travel * springVel(delay, span, damping))
+                    return 1.0 + Math.min(speed * surfaceRoot.stretchGain, surfaceRoot.maxStretch - 1.0)
+                }
+
                 readonly property bool isTargetScreen: {
                     let target = Config.lockscreenTargetMonitor || "focused"
                     if (target === "focused") {
@@ -384,10 +507,17 @@ Scope {
                 Item {
                     anchors.fill: parent
                     visible: surfaceRoot.isTargetScreen
+                    opacity: surfaceRoot.exitFade
 
                     // 1. WALLPAPER BACKGROUND + BLUR
                     Item {
                         anchors.fill: parent
+
+                        // Opens very slightly over-scaled and settles, so the
+                        // wallpaper reads as coming to rest rather than simply
+                        // being there. Never goes below 1.0, so no edge is ever
+                        // exposed by the scale.
+                        scale: 1.06 - (0.06 * surfaceRoot.easePhase(0.0, 1.0))
 
                         Image {
                             id: bgImage
@@ -402,9 +532,58 @@ Scope {
                             id: blurredBg
                             anchors.fill: bgImage
                             source: bgImage
+                            // Ramped, not fixed: the wallpaper arrives sharp and
+                            // blurs into place. Ends at exactly the configured
+                            // radius, so the resting state is unchanged.
                             radius: (Config.lockscreenBlurRadius !== undefined ? Config.lockscreenBlurRadius : 36)
+                                * surfaceRoot.springPhase(0.0, 0.92, 9.0)
                             transparentBorder: false
                             visible: bgImage.status === Image.Ready
+                        }
+
+                        // --- LIQUID ENTRANCE ---
+                        // A ring-shaped disturbance expands from the centre and
+                        // settles, so the wallpaper behaves like water dropped
+                        // into rather than an image being blurred. See
+                        // services/shaders/lockwave.frag.
+                        //
+                        // Both this and its texture switch off the moment the
+                        // entrance completes: the shader's own envelope decays
+                        // to zero by then, so leaving it running would cost a
+                        // full-screen pass per frame, for the rest of the time
+                        // the machine sits locked, to render an image identical
+                        // to the plain blur underneath. With it inactive,
+                        // hideSource releases the blur to draw itself and the
+                        // resting lockscreen is exactly the render path it was
+                        // before any of this existed.
+                        ShaderEffectSource {
+                            id: blurTexture
+                            anchors.fill: blurredBg
+                            sourceItem: blurredBg
+                            live: lockWave.active
+                            hideSource: lockWave.active
+                            visible: false
+                        }
+
+                        ShaderEffect {
+                            id: lockWave
+                            readonly property bool active: surfaceRoot.entrance < 1.0
+
+                            anchors.fill: blurredBg
+                            visible: active && bgImage.status === Image.Ready
+
+                            property variant source: blurTexture
+                            property real uProgress: surfaceRoot.entrance
+                            // Displacement in texture units - deliberately small.
+                            // The wave should read as the surface flexing, not
+                            // as the wallpaper being torn.
+                            property real uAmplitude: 0.035
+                            property real uFrequency: 2.2
+                            // Keeps the rings circular on a wide screen instead
+                            // of stretching them into ellipses.
+                            property real uAspect: width / Math.max(1, height)
+
+                            fragmentShader: "../services/shaders/lockwave.frag.qsb"
                         }
 
                         Rectangle {
@@ -435,11 +614,30 @@ Scope {
 
                     // 2. TOP STATUS BAR
                     Rectangle {
+                        id: topBarRow
                         anchors.top: parent.top
                         anchors.left: parent.left
                         anchors.right: parent.right
                         height: 48
                         color: "transparent"
+
+                        // Arrives first and from above, since it is chrome
+                        // rather than the thing being asked of you.
+                        opacity: surfaceRoot.easePhase(0.10, 0.40)
+                        transform: [
+                            Translate { y: -22 * (1 - surfaceRoot.springPhase(0.1, 0.4, 5.0)) },
+                            // Squash and stretch, volume preserving: taller and
+                            // narrower while travelling, wider and shorter as it
+                            // lands. Scaled about the item's own centre so the
+                            // deformation reads as the element flexing rather
+                            // than drifting.
+                            Scale {
+                                origin.x: topBarRow.width / 2
+                                origin.y: topBarRow.height / 2
+                                yScale: surfaceRoot.stretchFor(-22, 0.1, 0.4, 5.0)
+                                xScale: 1.0 / surfaceRoot.stretchFor(-22, 0.1, 0.4, 5.0)
+                            }
+                        ]
 
                         RowLayout {
                             anchors.fill: parent
@@ -522,9 +720,29 @@ Scope {
 
                     // 3. MAIN CENTER AUTHENTICATION CARD
                     ColumnLayout {
+                        id: centreCard
                         anchors.centerIn: parent
                         spacing: 24
                         width: Math.min(520, surfaceRoot.width - 48)
+
+                        // Last and slowest of the three, rising into place: this
+                        // is what the eye should end on, and what the keyboard
+                        // is already aimed at.
+                        opacity: surfaceRoot.easePhase(0.35, 0.50)
+                        transform: [
+                            Translate { y: 34 * (1 - surfaceRoot.springPhase(0.35, 0.5, 5.0)) },
+                            // Squash and stretch, volume preserving: taller and
+                            // narrower while travelling, wider and shorter as it
+                            // lands. Scaled about the item's own centre so the
+                            // deformation reads as the element flexing rather
+                            // than drifting.
+                            Scale {
+                                origin.x: centreCard.width / 2
+                                origin.y: centreCard.height / 2
+                                yScale: surfaceRoot.stretchFor(34, 0.35, 0.5, 5.0)
+                                xScale: 1.0 / surfaceRoot.stretchFor(34, 0.35, 0.5, 5.0)
+                            }
+                        ]
 
                         // CLOCK SECTION
                         ColumnLayout {
@@ -825,9 +1043,26 @@ Scope {
 
                     // 6. BOTTOM POWER CONTROLS
                     Rectangle {
+                        id: powerBar
                         anchors.bottom: parent.bottom
                         anchors.bottomMargin: 24
                         anchors.horizontalCenter: parent.horizontalCenter
+
+                        opacity: surfaceRoot.easePhase(0.60, 0.40)
+                        transform: [
+                            Translate { y: 22 * (1 - surfaceRoot.springPhase(0.6, 0.4, 5.0)) },
+                            // Squash and stretch, volume preserving: taller and
+                            // narrower while travelling, wider and shorter as it
+                            // lands. Scaled about the item's own centre so the
+                            // deformation reads as the element flexing rather
+                            // than drifting.
+                            Scale {
+                                origin.x: powerBar.width / 2
+                                origin.y: powerBar.height / 2
+                                yScale: surfaceRoot.stretchFor(22, 0.6, 0.4, 5.0)
+                                xScale: 1.0 / surfaceRoot.stretchFor(22, 0.6, 0.4, 5.0)
+                            }
+                        ]
                         implicitWidth: powerRow.implicitWidth + 24
                         implicitHeight: 48
                         radius: 24
