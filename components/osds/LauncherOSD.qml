@@ -294,14 +294,18 @@ print(json.dumps(result))
 
         if (q === "") {
             let out = []
+            let seen = new Set()
             let recents = Config.emojiRecents || []
             for (let i = 0; i < recents.length; i++) {
                 let e = osdRoot.emojiEntryFor(recents[i])
-                if (e) out.push(e)
+                if (e && !seen.has(e.c)) { out.push(e); seen.add(e.c) }
             }
-            // Nothing used yet: lead with the smileys rather than an empty grid.
-            if (out.length === 0) {
-                out = osdRoot.emojiData.filter(e => e.g === "Smileys").slice(0, 60)
+            // Fill the rest of the grid with the default browse set, deduped
+            // against recents - otherwise picking a single emoji shrinks the
+            // whole grid down to just that one entry on the next open.
+            let smileys = osdRoot.emojiData.filter(e => e.g === "Smileys")
+            for (let i = 0; i < smileys.length && out.length < 60; i++) {
+                if (!seen.has(smileys[i].c)) { out.push(smileys[i]); seen.add(smileys[i].c) }
             }
             return out
         }
