@@ -2,7 +2,6 @@ import QtQuick
 import Qt5Compat.GraphicalEffects
 import QtQuick.Layouts
 import QtQuick.Controls
-import QtMultimedia
 import Quickshell
 import Quickshell.Io
 import ".."
@@ -25,11 +24,16 @@ Item {
         NumberAnimation { duration: 120; easing.type: Easing.OutQuad }
     }
 
-    SoundEffect {
+    // pw-play (PipeWire's own client), not SoundEffect - QSoundEffect's
+    // QRtAudioEngine segfaults when the active output device changes mid-
+    // playback (e.g. Bluetooth headphones connecting). Restarting the same
+    // Process on every retrigger (same pattern used throughout this codebase
+    // for debounced/rapid actions) kills any still-running tick before
+    // starting the next one, so rapid volume scrolling doesn't pile up
+    // overlapping pw-play processes.
+    Process {
         id: volumeTick
-        // Inline Comment: Pre-buffer volume step tick WAV
-        source: Qt.resolvedUrl(Quickshell.shellDir.toString() + "/assets/sound2.wav")
-        volume: 0.1
+        command: ["pw-play", "--volume", "0.1", Config.shellDir + "/assets/sound2.wav"]
     }
 
     function trigger() {
@@ -315,7 +319,8 @@ Item {
                                     morphAnim.restart()
                                     
                                     // Inline Comment: Re-trigger PCM sample instantly on rapid volume changes
-                                    volumeTick.play()
+                                    volumeTick.running = false
+                                    volumeTick.running = true
                                 }
                             }
                         }

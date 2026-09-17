@@ -1,8 +1,8 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
-import QtMultimedia
 import Quickshell
+import Quickshell.Io
 import ".."
 import "../settings"
 
@@ -22,22 +22,20 @@ ColumnLayout {
         return clean.charAt(0).toUpperCase() + clean.slice(1).replace(/(\d+)/, " $1")
     }
 
-    SoundEffect {
+    Process {
         id: previewPlayer
-        volume: 0.25
     }
 
+    // pw-play (PipeWire's own client), not SoundEffect - QSoundEffect's
+    // QRtAudioEngine segfaults when the active output device changes mid-
+    // playback (e.g. Bluetooth headphones connecting), a bug inside core
+    // libQt6Multimedia rather than something QT_MEDIA_BACKEND can route
+    // around. pw-play sidesteps Qt Multimedia's audio engine entirely.
     function previewSound(fileName) {
         if (!fileName) return
-        let baseDir = Quickshell.shellDir.toString()
-        if (!baseDir.endsWith("/")) baseDir += "/"
-        
-        // Inline Comment: Convert to a strict QUrl to keep QtMultimedia happy
-        let fullUrl = Qt.resolvedUrl(baseDir + "assets/" + fileName)
-        
-        previewPlayer.stop()
-        previewPlayer.source = fullUrl
-        previewPlayer.play()
+        previewPlayer.running = false
+        previewPlayer.command = ["pw-play", "--volume", "0.25", Config.shellDir + "/assets/" + fileName]
+        previewPlayer.running = true
     }
 
     Text {

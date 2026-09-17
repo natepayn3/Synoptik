@@ -1,9 +1,9 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
-import QtMultimedia
 import Qt5Compat.GraphicalEffects
 import Quickshell
+import Quickshell.Io
 import Quickshell.Services.Notifications as Notifs
 import ".."
 
@@ -50,23 +50,25 @@ Item {
     // long it stays. Held so trigger() doesn't have to re-derive any of it.
     property var currentDecision: null
 
-    SoundEffect {
+    // pw-play (PipeWire's own client), not SoundEffect - QSoundEffect's
+    // QRtAudioEngine segfaults when the active output device changes mid-
+    // playback (e.g. Bluetooth headphones connecting), a bug inside core
+    // libQt6Multimedia rather than something QT_MEDIA_BACKEND can route
+    // around.
+    Process {
         id: notifSoundPlayer
-        // Follows the decision's soundPath, which is the per-app override when
-        // one is set and the global sound otherwise.
-        source: Qt.resolvedUrl(Quickshell.shellDir.toString() + "/assets/"
-            + ((osdRoot.currentDecision && osdRoot.currentDecision.soundPath)
-                ? osdRoot.currentDecision.soundPath
-                : (Config.notificationSoundPath || "sound1.wav")))
-        volume: 0.25
     }
 
     function playNotificationSound() {
         // The global playNotificationSounds toggle and any per-app "silent"
         // rule are both already folded into decision.sound.
         if (!osdRoot.currentDecision || !osdRoot.currentDecision.sound) return
-        // Inline Comment: Instant sample trigger without FFmpeg demuxer buffer rewinds
-        notifSoundPlayer.play()
+        // Follows the decision's soundPath, which is the per-app override
+        // when one is set and the global sound otherwise.
+        let soundPath = (osdRoot.currentDecision.soundPath) || (Config.notificationSoundPath || "sound1.wav")
+        notifSoundPlayer.running = false
+        notifSoundPlayer.command = ["pw-play", "--volume", "0.25", Config.shellDir + "/assets/" + soundPath]
+        notifSoundPlayer.running = true
     }
 
     readonly property string appIcon: {
