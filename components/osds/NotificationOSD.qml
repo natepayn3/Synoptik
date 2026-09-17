@@ -38,18 +38,33 @@ Item {
     // Notification images (album art from a music player, an avatar from a
     // chat client) were dropped too - imageSupported was never declared, so
     // clients didn't send them.
-    readonly property string notifImage: currentNotif ? (currentNotif.image || "") : ""
-    readonly property string notifAppIcon: currentNotif ? (currentNotif.appIcon || "") : ""
+    // Same resolution the Control Center's list uses - see
+    // IconIndexService.notificationIcon(). This was `image`, else `appIcon`
+    // handed raw to an Image, which could not load the icon NAME most clients
+    // send, so the popup showed a glyph for notifications the list showed a
+    // real icon for.
+    readonly property string notifIcon: Config.notificationIcon(currentNotif)
+
+    // The decision NotificationRules made about the notification currently on
+    // screen: whether it should be here at all, what it may sound like and how
+    // long it stays. Held so trigger() doesn't have to re-derive any of it.
+    property var currentDecision: null
 
     SoundEffect {
         id: notifSoundPlayer
-        // Inline Comment: Dynamically target notification sound WAV asset from Quickshell directory
-        source: Qt.resolvedUrl(Quickshell.shellDir.toString() + "/assets/" + (Config.notificationSoundPath || "sound1.wav"))
+        // Follows the decision's soundPath, which is the per-app override when
+        // one is set and the global sound otherwise.
+        source: Qt.resolvedUrl(Quickshell.shellDir.toString() + "/assets/"
+            + ((osdRoot.currentDecision && osdRoot.currentDecision.soundPath)
+                ? osdRoot.currentDecision.soundPath
+                : (Config.notificationSoundPath || "sound1.wav")))
         volume: 0.25
     }
 
     function playNotificationSound() {
-        if (!Config.playNotificationSounds) return
+        // The global playNotificationSounds toggle and any per-app "silent"
+        // rule are both already folded into decision.sound.
+        if (!osdRoot.currentDecision || !osdRoot.currentDecision.sound) return
         // Inline Comment: Instant sample trigger without FFmpeg demuxer buffer rewinds
         notifSoundPlayer.play()
     }
@@ -73,14 +88,19 @@ Item {
             if (!notif) return;
             notif.tracked = true;
 
-            // Block OSD if DND is active
-            if (typeof notifServer !== "undefined" && notifServer && notifServer.dnd) return;
+            // Was an inline `if (notifServer.dnd) return`, which is why per-app
+            // muting had nowhere to live: DND was the only reason this OSD
+            // knew about for staying quiet. decide() answers that and the
+            // sound, timeout and urgency questions together.
+            let decision = Config.decideNotification(notif);
+            if (!decision.osd) return;
 
+            osdRoot.currentDecision = decision;
             osdRoot.currentNotif = notif;
             osdRoot.notifApp = notif.appName ? notif.appName : "System";
             osdRoot.notifTitle = notif.summary ? notif.summary : "Notification";
             osdRoot.notifBody = notif.body ? notif.body : "";
-            osdRoot.notifUrgency = notif.urgency;
+            osdRoot.notifUrgency = decision.urgency;
 
             osdRoot.trigger();
         }
@@ -102,10 +122,13 @@ Item {
         osdRoot.playNotificationSound()
         rippleAnim.restart()
 
-        // A card with buttons has to stay up long enough to actually click
-        // one; 4s is fine for a receipt, not for a decision.
-        osdHideTimer.interval = osdRoot.notifActions.length > 0 ? 9000 : 4000
-        if (osdRoot.notifUrgency !== Notifs.NotificationUrgency.Critical) {
+        // Every input to this - a per-app override, Critical staying until
+        // dismissed, the expireTimeout the client asked for, and the longer
+        // default for a card carrying buttons - is resolved by
+        // NotificationRules.timeoutFor(). 0 means it stays until dismissed.
+        let ms = osdRoot.currentDecision ? osdRoot.currentDecision.timeout : 4000
+        if (ms > 0) {
+            osdHideTimer.interval = ms
             osdHideTimer.restart()
         }
     }
@@ -114,6 +137,7 @@ Item {
         Config.showNotificationOsd = false
         osdHideTimer.stop()
         osdRoot.currentNotif = null
+        osdRoot.currentDecision = null
     }
 
     Timer {
@@ -161,7 +185,7 @@ Item {
                 id: notifImageView
                 anchors.fill: parent
                 anchors.margins: 1
-                source: osdRoot.notifImage !== "" ? osdRoot.notifImage : osdRoot.notifAppIcon
+                source: osdRoot.notifIcon
                 visible: source != "" && status === Image.Ready
                 fillMode: Image.PreserveAspectCrop
                 asynchronous: true
@@ -274,6 +298,47 @@ Item {
                             spread: 0.1
                             visible: true 
                         }
+                    }
+
+                    // Mute this app, from the popup that is annoying you, at
+                    // the moment it is annoying you. Every other way in - the
+                    // history list, the settings page - requires remembering to
+                    // go and do it later, which is when the intent has passed.
+                    // The rule it writes is the same one the settings page
+                    // edits, so this is a shortcut, not a second system.
+                    Rectangle {
+                        implicitWidth: 22
+                        implicitHeight: 22
+                        radius: 11
+                        color: muteArea.containsMouse ? Qt.rgba(255, 255, 255, 0.25) : "transparent"
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "notifications_off"
+                            color: muteArea.containsMouse ? Config.accent : Config.textMuted
+                            font.family: "Material Symbols Outlined"
+                            font.pixelSize: 15
+                        }
+
+                        MouseArea {
+                            id: muteArea
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: (mouse) => {
+                                mouse.accepted = true
+                                let key = osdRoot.currentDecision ? osdRoot.currentDecision.key : ""
+                                if (key !== "") Config.notifRules.setRuleField(key, "mute", true)
+                                // Taking the card down is the point: leaving a
+                                // popup up from an app you just silenced reads
+                                // as the button not having worked.
+                                osdRoot.dismiss()
+                            }
+                        }
+
+                        ToolTip.visible: muteArea.containsMouse
+                        ToolTip.delay: 400
+                        ToolTip.text: "Mute " + osdRoot.notifApp + " - it stays in history"
                     }
 
                     Rectangle {

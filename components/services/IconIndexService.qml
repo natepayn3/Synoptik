@@ -68,6 +68,54 @@ print(dumped)
         }
     }
 
+    readonly property string themeUrlPrefix: "image://icon/"
+
+    // Resolve whatever an application hands over as "its icon", which arrives
+    // in two very different shapes under one property:
+    //
+    //   image://icon/<name>  - a THEME NAME the app asked for. Quickshell will
+    //       build this URL for a name the installed theme has never heard of,
+    //       and the provider then answers with Qt's magenta missing-image
+    //       pattern or nothing at all - either way Image.status says Ready, so
+    //       nothing downstream can tell it failed. The name has to be checked
+    //       against the theme BEFORE the URL reaches an Image.
+    //   image://qsimage/... , file://... , /path  - real data. Always usable.
+    //
+    // Returns "" when nothing resolves, so callers can choose between a
+    // fallback icon and drawing something else entirely.
+    //
+    // Lived in TrayService until notifications turned out to need it too: a
+    // client passing `-i <name>` gets that same image://icon/ URL on
+    // notif.image, so an unavailable name silently blanked the popup.
+    function resolveIconSpec(spec) {
+        let ic = spec || ""
+        if (ic === "") return ""
+
+        if (ic.startsWith(themeUrlPrefix)) {
+            let name = ic.substring(themeUrlPrefix.length)
+            if (name === "") return ""
+
+            // The index is tried BEFORE the provider URL, because the two
+            // disagree: hasThemeIcon("audio-headphones") answers true while the
+            // provider then fails to produce a pixmap for it ("Could not load
+            // icon ... from request"), presumably because the theme carries it
+            // only at sizes the request doesn't match. The index resolves the
+            // same icon to a concrete .svg on disk, which Image renders at any
+            // size. A direct file is the more reliable of two paths to the same
+            // artwork, so it wins.
+            let indexed = resolveIcon(name)
+            if (indexed) return indexed
+
+            // Not indexed, but the theme claims it - worth letting the provider
+            // try, since the index deliberately skips small and symbolic dirs.
+            if (Quickshell.hasThemeIcon(name)) return ic
+            return ""
+        }
+
+        if (ic.startsWith("image://") || ic.startsWith("file://") || ic.startsWith("/")) return ic
+        return resolveIcon(ic)
+    }
+
     // appId (a Wayland app_id / X11 WM_CLASS) -> icon path, which is NOT the
     // same lookup as getAppIcon() below: an app_id is not an icon name. It has
     // to go through the desktop entry first, because the two agree far less
@@ -113,6 +161,68 @@ print(dumped)
 
     function getAppIcon(iconName) {
         return resolveIcon(iconName) || genericIcon()
+    }
+
+    // appIconFor without the generic-executable last resort: "" when this app
+    // has no icon of its own.
+    //
+    // Whether a generic stand-in beats nothing depends on the surface. In a row
+    // of tray icons it wins - a gap there reads as a broken item. Beside a
+    // notification it loses: the theme's generic icon is a fixed-palette asset
+    // (Adwaita's is hardcoded GNOME blue) that cannot follow the accent colour,
+    // so it clashes with every theme that isn't blue, and a Material glyph in
+    // the accent says the same thing while matching the shell.
+    function appIconStrict(appId) {
+        if (!appId) return ""
+        let entry = DesktopEntries.heuristicLookup(appId)
+        if (entry && entry.icon) {
+            let themed = resolveIcon(entry.icon)
+            if (themed) return themed
+        }
+        return resolveIcon(appId)
+    }
+
+    // The icon for one notification, wherever it is being drawn.
+    //
+    // Lives here because the popup and the Control Center list were resolving
+    // it differently and disagreeing about the same notification: the OSD
+    // handed notif.appIcon straight to an Image, which works for a path but
+    // not for the icon NAME most clients send, so it silently fell through to
+    // a glyph while the list - which resolved that name through the index -
+    // showed the real thing.
+    //
+    // Takes a live Notification or a recorded history entry; both carry the
+    // same four fields (NotificationHistoryService records them for exactly
+    // this reason).
+    function notificationIcon(notif) {
+        if (!notif) return ""
+
+        // What the client attached to THIS notification: album art, an avatar.
+        // Most specific, so it wins - but only if it actually resolves, since
+        // `notify-send -i <name>` lands here as an image://icon/ URL that may
+        // name an icon the theme doesn't have.
+        if (notif.image) {
+            let attached = resolveIconSpec(notif.image)
+            if (attached) return attached
+        }
+
+        // The icon the client declared for itself - a path or a theme name.
+        if (notif.appIcon) {
+            let declared = resolveIconSpec(notif.appIcon)
+            if (declared) return declared
+        }
+
+        // Nothing declared: find the app. desktopEntry is the .desktop id and
+        // so a far better lookup key than the display name, which is why it is
+        // tried first.
+        if (notif.desktopEntry) {
+            let byEntry = appIconStrict(notif.desktopEntry.toLowerCase())
+            if (byEntry) return byEntry
+        }
+        if (notif.appName) return appIconStrict(notif.appName.toLowerCase())
+
+        // Deliberately no generic-executable fallback - see appIconStrict.
+        return ""
     }
 
     // Last-resort icon, resolved through the index FIRST.

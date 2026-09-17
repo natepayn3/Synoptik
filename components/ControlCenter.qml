@@ -445,13 +445,12 @@ Item {
                                 // the app name. The last step is what stops
                                 // well-behaved-but-iconless apps from being the
                                 // one blank row in an otherwise illustrated list.
-                                readonly property string artSource: {
-                                    if (!modelData) return ""
-                                    if (modelData.image) return modelData.image
-                                    if (modelData.appIcon) return Config.getAppIcon(modelData.appIcon)
-                                    if (modelData.appName) return Config.appIconFor(modelData.appName.toLowerCase())
-                                    return ""
-                                }
+                                // Resolved by IconIndexService.notificationIcon
+                                // so this row and the popup can never disagree
+                                // about the same notification. "" falls through
+                                // to the accent glyph below rather than to the
+                                // icon theme's fixed-blue generic icon.
+                                readonly property string artSource: Config.notificationIcon(modelData)
 
                                 // A burst from one app (six Discord messages, a
                                 // download finishing in four stages) repeated
@@ -515,7 +514,12 @@ Item {
                                                 text: notifRow.isCritical ? "priority_high" : "notifications"
                                                 font.family: "Material Symbols Outlined"
                                                 font.pixelSize: 15
-                                                color: notifRow.isCritical ? "#ef4444" : Config.textMuted
+                                                // Accent rather than muted grey:
+                                                // this is now the common case,
+                                                // not a rare fallback, so it
+                                                // should look deliberate and
+                                                // follow the theme.
+                                                color: notifRow.isCritical ? "#ef4444" : Config.accent
                                             }
                                         }
                                     }
@@ -585,6 +589,50 @@ Item {
                                         wrapMode: Text.Wrap
                                     }
                                     }
+                                }
+
+                                // Mute this app, from the row that is telling
+                                // you about it. Same rule the popup's own mute
+                                // button and the settings page write - this is
+                                // the after-the-fact version, for the app you
+                                // only notice is noisy when you look at the
+                                // list. keyForEntry reads desktopEntry/appName,
+                                // which a live Notification and a history entry
+                                // both carry, so one expression covers both tabs.
+                                Rectangle {
+                                    readonly property string ruleKey: Config.notifRules.keyForEntry(modelData)
+                                    readonly property bool isMuted: ruleKey !== "" && Config.notifRules.ruleFor(ruleKey).mute
+
+                                    anchors.right: parent.right
+                                    anchors.top: parent.top
+                                    anchors.topMargin: 6
+                                    anchors.rightMargin: root.showNotifHistory ? 6 : 28
+                                    implicitWidth: 18
+                                    implicitHeight: 18
+                                    radius: 9
+                                    color: muteHover.hovered ? Qt.rgba(255, 255, 255, 0.2) : "transparent"
+                                    // Stays visible while muted, so the row
+                                    // explains why that app stopped popping up.
+                                    opacity: (cardMouse.hovered || isMuted) ? 1.0 : 0.0
+                                    Behavior on opacity { NumberAnimation { duration: 150 } }
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: parent.isMuted ? "notifications_off" : "notifications_active"
+                                        color: parent.isMuted
+                                            ? Config.accent
+                                            : (muteHover.hovered ? Config.accent : Config.textMuted)
+                                        font.family: "Material Symbols Outlined"
+                                        font.pixelSize: 12
+                                    }
+
+                                    TapHandler {
+                                        onTapped: {
+                                            let k = parent.ruleKey
+                                            if (k !== "") Config.notifRules.toggleRuleField(k, "mute")
+                                        }
+                                    }
+                                    HoverHandler { id: muteHover; cursorShape: Qt.PointingHandCursor }
                                 }
 
                                 Rectangle {

@@ -93,6 +93,8 @@ QtObject {
     property alias displayAutoSwitch: root.displayProfiles.autoSwitchEnabled
     function getAppIcon(iconName) { return iconIndexService.getAppIcon(iconName) }
     function appIconFor(appId) { return iconIndexService.appIconFor(appId) }
+    function appIconStrict(appId) { return iconIndexService.appIconStrict(appId) }
+    function notificationIcon(notif) { return iconIndexService.notificationIcon(notif) }
 
     // --- DO NOT DISTURB (extracted to services/DndConfig.qml) ---
     property DndConfig dnd: DndConfig { configRef: root }
@@ -103,6 +105,13 @@ QtObject {
     property alias dndWhenFullscreen: root.dnd.dndWhenFullscreen
     readonly property alias dndActive: root.dnd.active
     readonly property alias dndReason: root.dnd.reason
+
+    // --- NOTIFICATION RULES (extracted to services/NotificationRules.qml) ---
+    // Declared after dnd above because decide() reads dndActive.
+    property NotificationRules notifRules: NotificationRules { configRef: root }
+    property alias notificationRules: root.notifRules.notificationRules
+    property alias dndAllowCritical: root.notifRules.dndAllowCritical
+    function decideNotification(notif) { return notifRules.decide(notif) }
 
     // --- SYSTEM TRAY (extracted to services/TrayService.qml) ---
     property TrayService tray: TrayService { configRef: root }
@@ -1008,6 +1017,7 @@ QtObject {
         "leftCardCollapsed", "rightCardCollapsed", "pinnedIcons", "iconOverrides", "surfaceRadius",
         "showTray", "trayCollapsed", "trayPinned", "trayHidePassive",
         "dndManual", "dndScheduleEnabled", "dndScheduleStart", "dndScheduleEnd", "dndWhenFullscreen",
+        "notificationRules", "dndAllowCritical",
         "borderThickness", "cardMargin", "ccCardArrangement", "calendarArrangement", "showDesktopClock", "clockStyle", "clockScale",
         "clockShowSeconds", "clockUse12Hour", "clockShowAmPm", "clockShowBorder", "clockShowBackground",
         "clockShowGlow", "clockPositions", "clockScales", "enabledClockScreens", "showDesktopSysInfo",
@@ -1152,6 +1162,8 @@ QtObject {
             property var dndScheduleStart
             property var dndScheduleEnd
             property var dndWhenFullscreen
+            property var notificationRules
+            property var dndAllowCritical
             property var surfaceRadius
             property var borderThickness
             property var cardMargin

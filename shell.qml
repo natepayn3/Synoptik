@@ -380,10 +380,15 @@ ShellRoot {
         imageSupported: true
 
         onNotification: notif => {
-            if (notif) {
-                notif.tracked = true
-                Config.recordNotification(notif)
-            }
+            if (!notif) return
+            notif.tracked = true
+
+            // Recording is a policy question, not an unconditional one: a
+            // transient status blip or an app the user has hidden shouldn't
+            // take a slot in a capped history. NotificationOSD asks the same
+            // function about the popup - see services/NotificationRules.qml
+            // for why both callers ask rather than one telling the other.
+            if (Config.decideNotification(notif).record) Config.recordNotification(notif)
         }
     }
 
@@ -448,9 +453,82 @@ ShellRoot {
     // The running-tasks popout. It was the one panel reachable only by clicking
     // the window card, which made it the one panel you couldn't bind a key to -
     // odd for what is effectively the shell's window switcher.
+    // The Control Center is the largest panel in the shell and was the other
+    // one with no verb, so it couldn't be bound to a key either.
+    IpcHandler {
+        target: "controlcenter"
+        function toggle(): void { if (shellRoot.isFocusedBarEnabled) Config.togglePanel("controlCenter") }
+    }
+
     IpcHandler {
         target: "taskoverflow"
         function toggle(): void { if (shellRoot.isFocusedBarEnabled) Config.togglePanel("taskOverflow") }
+    }
+
+    // Per-app notification rules, and a way to ask why something did or didn't
+    // appear. `explain` exists for the same reason `tray list` does: the
+    // behaviour depends on state the user can't see (a rule, a DND schedule,
+    // an urgency the app chose), so guessing from an absent popup is the
+    // alternative.
+    //
+    //   qs -c Synoptik ipc call notify rules
+    //   qs -c Synoptik ipc call notify explain discord
+    //   qs -c Synoptik ipc call notify mute discord
+    //   qs -c Synoptik ipc call notify set discord timeout 10000
+    //   qs -c Synoptik ipc call notify clear discord
+    IpcHandler {
+        target: "notify"
+
+        function rules(): string {
+            let apps = Config.notifRules.knownApps
+            if (apps.length === 0) return "no apps have sent a notification yet"
+            return apps.map(a => {
+                let r = Config.notifRules.ruleFor(a.key)
+                let on = Object.keys(Config.notifRules.ruleDefaults)
+                    .filter(f => r[f] !== Config.notifRules.ruleDefaults[f])
+                    .map(f => f + "=" + r[f])
+                return a.key + "  (" + a.count + " seen)"
+                    + (on.length > 0 ? "  [" + on.join(", ") + "]" : "")
+            }).join("\n")
+        }
+
+        function explain(app: string): string {
+            let key = app.trim().toLowerCase()
+            return key + ":\n" + Config.notifRules.explain(key)
+        }
+
+        function mute(app: string): string {
+            let key = app.trim().toLowerCase()
+            Config.notifRules.toggleRuleField(key, "mute")
+            return key + (Config.notifRules.ruleFor(key).mute ? " muted" : " unmuted")
+        }
+
+        function set(app: string, field: string, value: string): string {
+            let key = app.trim().toLowerCase()
+            let defaults = Config.notifRules.ruleDefaults
+            if (defaults[field] === undefined) {
+                return "no such rule field \"" + field + "\" - one of: " + Object.keys(defaults).join(", ")
+            }
+
+            // The rule table is typed by its defaults, so the wire value is
+            // coerced to whatever shape that field already holds rather than
+            // storing the string "true" where a bool belongs.
+            let coerced = value
+            if (typeof defaults[field] === "boolean") coerced = (value === "true" || value === "1" || value === "on")
+            else if (typeof defaults[field] === "number") {
+                coerced = parseInt(value, 10)
+                if (isNaN(coerced)) return "\"" + value + "\" is not a number"
+            }
+
+            Config.notifRules.setRuleField(key, field, coerced)
+            return key + "." + field + " = " + coerced
+        }
+
+        function clear(app: string): string {
+            let key = app.trim().toLowerCase()
+            Config.notifRules.clearRule(key)
+            return "cleared any rule for " + key
+        }
     }
 
     // The tray. `list` exists because a tray icon is the one bar element whose

@@ -84,49 +84,11 @@ QtObject {
     }
 
     // --- ICONS ---
-    // An SNI hands over one of two very different things under the same
-    // `icon` property, and they need opposite treatment:
-    //
-    //   image://icon/<name>  - a THEME NAME the app asked for. Quickshell will
-    //       happily build this URL for a name the installed icon theme has
-    //       never heard of, and the provider then answers with Qt's magenta
-    //       "missing image" checkerboard. That is a successfully loaded image
-    //       as far as Image.status is concerned, so a status-based fallback
-    //       never fires and the bar shows two pink squares. The name has to be
-    //       checked against the theme BEFORE the URL is handed to an Image.
-    //
-    //   image://qsimage/... - real pixmap data the app sent over D-Bus. Always
-    //       usable, and always better than anything we could substitute.
-    //
-    // So: verify a theme name, and only then trust the URL. Anything that
-    // doesn't resolve falls back through the shell's own icon index and then
-    // the app-id lookup, the same path a window icon takes.
-    readonly property string themeUrlPrefix: "image://icon/"
-
-    // Shared by tray icons and by the icons on individual menu rows, which
-    // arrive in exactly the same two forms and fail in exactly the same way.
-    // Returns "" when nothing resolves, so callers can decide between a
-    // fallback icon and drawing nothing at all.
+    // The two shapes an SNI's `icon` can take, and the theme check one of them
+    // needs, are documented on IconIndexService.resolveIconSpec() - notifications
+    // hit the same problem, so the logic lives there rather than here.
     function resolveIconSpec(spec) {
-        let ic = spec || ""
-        if (ic === "") return ""
-
-        if (ic.startsWith(themeUrlPrefix)) {
-            let name = ic.substring(themeUrlPrefix.length)
-            if (name !== "" && Quickshell.hasThemeIcon(name)) return ic
-            // Named, but not installed. The shell's own index covers icon dirs
-            // Qt's theme lookup doesn't (Papirus variants, pixmaps), so it gets
-            // a turn before we give up on the name entirely.
-            if (configRef) {
-                let indexed = configRef.iconIndexService.resolveIcon(name)
-                if (indexed) return indexed
-            }
-            return ""
-        }
-
-        if (ic.startsWith("image://") || ic.startsWith("file://") || ic.startsWith("/")) return ic
-        if (configRef) return configRef.iconIndexService.resolveIcon(ic)
-        return ""
+        return configRef ? configRef.iconIndexService.resolveIconSpec(spec) : ""
     }
 
     function iconFor(item) {

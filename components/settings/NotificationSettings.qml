@@ -8,14 +8,34 @@ import ".."
 Item {
     id: root
 
-    ScrollView {
+    readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
+
+    // Flickable + ScrollBar with a centred, width-capped column - the same
+    // wrapper AssistantSettings.qml and CavaSettings.qml use.
+    //
+    // This was a ScrollView that took a 12px right margin AND sized its column
+    // to root.width - 24, so the two stacked: content sat flush against the
+    // left edge with 24px of dead space down the right. Anchoring flush and
+    // centring the column is what keeps the gutters equal at any panel width,
+    // and the 620 cap stops the description paragraphs from running to
+    // unreadable line lengths on a wide panel.
+    Flickable {
+        id: mainFlickable
         anchors.fill: parent
-        anchors.rightMargin: 12
+        contentWidth: width
+        contentHeight: mainColumn.implicitHeight + 8
         clip: true
-        ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+        boundsBehavior: Flickable.StopAtBounds
+
+        ScrollBar.vertical: ScrollBar {
+            policy: ScrollBar.AsNeeded
+            active: mainFlickable.moving || mainFlickable.flicking
+        }
 
         ColumnLayout {
-            width: root.width - 24
+            id: mainColumn
+            width: Math.min(mainFlickable.width - (root.cardMargin * 2), 620)
+            anchors.horizontalCenter: parent.horizontalCenter
             spacing: 12
 
             // =====================================================
@@ -134,6 +154,13 @@ Item {
                 subtitle: "Hold notifications while a window on the focused workspace is fullscreen"
                 checked: Config.dndWhenFullscreen
                 onToggled: Config.dndWhenFullscreen = !Config.dndWhenFullscreen
+            }
+
+            SettingsToggleRow {
+                title: "Let Critical Through"
+                subtitle: "Urgent notifications - a dying battery, a failed backup - still appear while Do Not Disturb is on"
+                checked: Config.dndAllowCritical
+                onToggled: Config.dndAllowCritical = !Config.dndAllowCritical
             }
 
             Rectangle {
@@ -300,6 +327,375 @@ Item {
                                 HoverHandler { cursorShape: Qt.PointingHandCursor }
                             }
                         }
+                    }
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.topMargin: 6
+                Layout.bottomMargin: 6
+                implicitHeight: 1
+                color: Qt.rgba(255, 255, 255, 0.1)
+            }
+
+            // =====================================================
+            // PER-APP RULES
+            // =====================================================
+            Text {
+                text: "PER-APP RULES"
+                color: Config.textMain
+                font.family: Config.sysFont
+                font.pixelSize: Config.size(Config.fontSubhead)
+                font.bold: true
+            }
+
+            Text {
+                Layout.fillWidth: true
+                text: "Do Not Disturb is all-or-nothing; this is the per-app version. The list is built from what has actually sent you something, so there is no app name to type. You can also mute an app straight from its popup."
+                color: Config.textMuted
+                font.family: Config.sysFont
+                font.pixelSize: Config.size(Config.fontCaption)
+                wrapMode: Text.WordWrap
+            }
+
+            Text {
+                Layout.fillWidth: true
+                visible: Config.notifRules.knownApps.length === 0
+                text: "Nothing has sent a notification yet."
+                color: Config.textMuted
+                font.family: Config.sysFont
+                font.pixelSize: Config.size(Config.fontCaption)
+                wrapMode: Text.WordWrap
+            }
+
+            Repeater {
+                model: Config.notifRules.knownApps
+
+                delegate: Rectangle {
+                    id: appCard
+                    required property var modelData
+
+                    readonly property string appKey: modelData.key
+                    // ruleFor() reads notificationRules, so this binding
+                    // re-evaluates on its own whenever a rule changes.
+                    readonly property var rule: Config.notifRules.ruleFor(appKey)
+                    readonly property bool hasRule: Config.notifRules.hasRule(appKey)
+                    property bool expanded: false
+
+                    // One line saying what the rule does, so a collapsed list
+                    // is readable without opening every row.
+                    readonly property string summary: {
+                        if (!hasRule) return "Default"
+                        let bits = []
+                        if (rule.hide) bits.push("Hidden")
+                        else if (rule.mute) bits.push("Muted")
+                        if (rule.silent && !rule.mute && !rule.hide) bits.push("Silent")
+                        if (rule.bypassDnd) bits.push("Ignores DND")
+                        if (rule.urgency >= 0) bits.push(["Low", "Normal", "Critical"][rule.urgency])
+                        if (rule.timeout > 0) bits.push((rule.timeout / 1000) + "s")
+                        if (rule.sound !== "") bits.push(rule.sound.replace(".wav", ""))
+                        return bits.length > 0 ? bits.join(" · ") : "Default"
+                    }
+
+                    Layout.fillWidth: true
+                    implicitHeight: appCardCol.implicitHeight + 16
+                    radius: Config.cornerRadius / 2
+                    color: Qt.rgba(0, 0, 0, 0.25)
+                    border.width: appCard.hasRule ? 1 : 0
+                    border.color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.4)
+
+                    ColumnLayout {
+                        id: appCardCol
+                        anchors.top: parent.top
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.margins: 8
+                        spacing: 8
+
+                        RowLayout {
+                            Layout.fillWidth: true
+                            spacing: 8
+
+                            Text {
+                                text: appCard.expanded ? "expand_more" : "chevron_right"
+                                font.family: "Material Symbols Outlined"
+                                font.pixelSize: 16
+                                color: Config.textMuted
+                            }
+
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 0
+
+                                Text {
+                                    text: appCard.modelData.label
+                                    color: Config.textMain
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontCaption)
+                                    font.bold: true
+                                    elide: Text.ElideRight
+                                    Layout.fillWidth: true
+                                }
+
+                                Text {
+                                    text: appCard.summary
+                                        + (appCard.modelData.count > 0 ? "  ·  " + appCard.modelData.count + " in history" : "")
+                                    color: appCard.hasRule ? Config.accent : Config.textMuted
+                                    font.family: Config.sysFont
+                                    font.pixelSize: 9
+                                    elide: Text.ElideRight
+                                    Layout.fillWidth: true
+                                }
+                            }
+
+                            Rectangle {
+                                visible: appCard.hasRule
+                                implicitWidth: resetLabel.implicitWidth + 16
+                                implicitHeight: 22
+                                radius: 11
+                                color: resetArea.containsMouse ? Qt.rgba(255, 255, 255, 0.18) : Qt.rgba(255, 255, 255, 0.06)
+
+                                Behavior on color { ColorAnimation { duration: 150 } }
+
+                                Text {
+                                    id: resetLabel
+                                    anchors.centerIn: parent
+                                    text: "Reset"
+                                    color: Config.textMuted
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontMicro)
+                                    font.bold: true
+                                }
+
+                                MouseArea {
+                                    id: resetArea
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: Config.notifRules.clearRule(appCard.appKey)
+                                }
+                            }
+                        }
+
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 24
+                            spacing: 8
+                            visible: appCard.expanded
+
+                            Repeater {
+                                model: [
+                                    { field: "mute",      name: "Mute popups",        desc: "Still recorded in history" },
+                                    { field: "silent",    name: "Silent",             desc: "Shows, but makes no sound" },
+                                    { field: "bypassDnd", name: "Show during DND",    desc: "Ignores Do Not Disturb entirely" },
+                                    { field: "hide",      name: "Keep out of history", desc: "No popup, no sound, no record" }
+                                ]
+
+                                delegate: SettingsToggleRow {
+                                    required property var modelData
+                                    title: modelData.name
+                                    subtitle: modelData.desc
+                                    checked: appCard.rule[modelData.field] === true
+                                    onToggled: Config.notifRules.toggleRuleField(appCard.appKey, modelData.field)
+                                }
+                            }
+
+                            // --- SOUND ---
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 8
+                                enabled: !appCard.rule.mute && !appCard.rule.hide && !appCard.rule.silent
+                                opacity: enabled ? 1.0 : 0.35
+
+                                Text {
+                                    text: "SOUND"
+                                    color: Config.textMuted
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontMicro)
+                                    font.bold: true
+                                    Layout.preferredWidth: 60
+                                }
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    implicitHeight: 26
+                                    radius: Config.cornerRadius / 2
+                                    color: soundArea.containsMouse ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(255, 255, 255, 0.05)
+
+                                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                                    Text {
+                                        anchors.centerIn: parent
+                                        text: appCard.rule.sound === ""
+                                            ? "Default (" + (Config.notificationSoundPath || "sound1.wav").replace(".wav", "") + ")"
+                                            : appCard.rule.sound.replace(".wav", "")
+                                        color: appCard.rule.sound === "" ? Config.textMuted : Config.accent
+                                        font.family: Config.sysFont
+                                        font.pixelSize: Config.size(Config.fontMicro)
+                                        font.bold: appCard.rule.sound !== ""
+                                    }
+
+                                    // Cycles rather than opening a dropdown: ten
+                                    // options in a fixed order, and cycling keeps
+                                    // the row the same height whether or not it
+                                    // is open.
+                                    MouseArea {
+                                        id: soundArea
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: {
+                                            let opts = ["", "sound1.wav", "sound2.wav", "sound3.wav", "sound4.wav",
+                                                        "sound5.wav", "sound6.wav", "sound7.wav", "sound8.wav", "sound9.wav"]
+                                            let i = opts.indexOf(appCard.rule.sound)
+                                            Config.notifRules.setRuleField(appCard.appKey, "sound", opts[(i + 1) % opts.length])
+                                        }
+                                    }
+                                }
+                            }
+
+                            // --- TIMEOUT ---
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 6
+                                enabled: !appCard.rule.mute && !appCard.rule.hide
+                                opacity: enabled ? 1.0 : 0.35
+
+                                Text {
+                                    text: "LASTS"
+                                    color: Config.textMuted
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontMicro)
+                                    font.bold: true
+                                    Layout.preferredWidth: 60
+                                }
+
+                                Repeater {
+                                    model: [
+                                        { name: "Auto", ms: 0 },
+                                        { name: "3s", ms: 3000 },
+                                        { name: "10s", ms: 10000 },
+                                        { name: "30s", ms: 30000 }
+                                    ]
+
+                                    delegate: Rectangle {
+                                        id: timeoutChip
+                                        required property var modelData
+                                        readonly property bool isSelected: appCard.rule.timeout === modelData.ms
+
+                                        Layout.fillWidth: true
+                                        implicitHeight: 26
+                                        radius: Config.cornerRadius / 2
+                                        color: timeoutChip.isSelected
+                                            ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.22)
+                                            : (timeoutArea.containsMouse ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(255, 255, 255, 0.05))
+                                        border.width: timeoutChip.isSelected ? 1 : 0
+                                        border.color: Config.accent
+
+                                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: timeoutChip.modelData.name
+                                            color: timeoutChip.isSelected ? Config.accent : Config.textMuted
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontMicro)
+                                            font.bold: timeoutChip.isSelected
+                                        }
+
+                                        MouseArea {
+                                            id: timeoutArea
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: Config.notifRules.setRuleField(appCard.appKey, "timeout", timeoutChip.modelData.ms)
+                                        }
+                                    }
+                                }
+                            }
+
+                            // --- URGENCY ---
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 6
+
+                                Text {
+                                    text: "URGENCY"
+                                    color: Config.textMuted
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontMicro)
+                                    font.bold: true
+                                    Layout.preferredWidth: 60
+                                }
+
+                                Repeater {
+                                    model: [
+                                        { name: "As sent", v: -1 },
+                                        { name: "Low", v: 0 },
+                                        { name: "Normal", v: 1 },
+                                        { name: "Critical", v: 2 }
+                                    ]
+
+                                    delegate: Rectangle {
+                                        id: urgencyChip
+                                        required property var modelData
+                                        readonly property bool isSelected: appCard.rule.urgency === modelData.v
+
+                                        Layout.fillWidth: true
+                                        implicitHeight: 26
+                                        radius: Config.cornerRadius / 2
+                                        color: urgencyChip.isSelected
+                                            ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.22)
+                                            : (urgencyArea.containsMouse ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(255, 255, 255, 0.05))
+                                        border.width: urgencyChip.isSelected ? 1 : 0
+                                        border.color: Config.accent
+
+                                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: urgencyChip.modelData.name
+                                            color: urgencyChip.isSelected ? Config.accent : Config.textMuted
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontMicro)
+                                            font.bold: urgencyChip.isSelected
+                                        }
+
+                                        MouseArea {
+                                            id: urgencyArea
+                                            anchors.fill: parent
+                                            hoverEnabled: true
+                                            cursorShape: Qt.PointingHandCursor
+                                            onClicked: Config.notifRules.setRuleField(appCard.appKey, "urgency", urgencyChip.modelData.v)
+                                        }
+                                    }
+                                }
+                            }
+
+                            // What the rule adds up to, in the same words the
+                            // `notify explain` IPC uses - seven controls with
+                            // precedence between them needs a plain answer.
+                            Text {
+                                Layout.fillWidth: true
+                                Layout.topMargin: 2
+                                text: Config.notifRules.explain(appCard.appKey)
+                                color: Config.textMuted
+                                font.family: Config.sysFont
+                                font.pixelSize: 9
+                                font.italic: true
+                                wrapMode: Text.WordWrap
+                            }
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        height: 36
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: appCard.expanded = !appCard.expanded
                     }
                 }
             }

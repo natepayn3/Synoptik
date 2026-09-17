@@ -43,6 +43,10 @@ QtObject {
             // which of the two can survive a restart.
             appIcon: notif.appIcon || "",
             image: notif.image || "",
+            // Recorded so the per-app rules UI can key on the same stable id
+            // NotificationRules.keyFor() matches on, rather than re-deriving a
+            // key from the display name and quietly disagreeing with it.
+            desktopEntry: notif.desktopEntry || "",
             // Urgency was read to drive the OSD's critical treatment and then
             // dropped on the floor here, so in the history list a
             // battery-critical warning was typographically identical to a
@@ -91,6 +95,7 @@ QtObject {
                 body: e.body,
                 timestamp: e.timestamp,
                 urgency: e.urgency,
+                desktopEntry: e.desktopEntry || "",
                 appIcon: e.appIcon || "",
                 image: persistable ? img : ""
             }
