@@ -24,6 +24,7 @@ Item {
     property bool visualsExpanded: false
     property bool connectivityExpanded: false
     property bool widgetsExpanded: false
+    property bool systemExpanded: false
 
     // Single source of truth for every settings section. The id/name/icon/category
     // mapping used to live in four hand-maintained places - two switch statements
@@ -37,6 +38,15 @@ Item {
     // `keywords` exists for the sidebar filter: what someone types when they don't
     // remember which panel a setting lives under ("psk" -> Wi-Fi, "font" ->
     // Typography, "crt" -> Retro Shader).
+    // Grouping rule, since "widget" has a specific meaning here: WIDGETS holds
+    // exactly the desktop widgets - the things listed in WidgetContextMenu's
+    // widgetDefs and toggled from the desktop right-click menu. Everything else
+    // that had accumulated there (keybinds, sounds, the lockscreen, the
+    // screensaver, notifications) is shell behaviour rather than a widget, and
+    // now lives under SYSTEM.
+    //
+    // Media Player and Mirror are widgets with no settings page of their own -
+    // their options live on the widget itself - so they have no entry here.
     readonly property var sectionCatalog: [
         { id: 0,  name: "Display",          icon: "aspect_ratio",    group: "VISUALS",      keywords: "monitor resolution refresh rate scale rotate rotation position arrangement hidpi screen vrr" },
         { id: 16, name: "Bar",              icon: "dock",            group: "VISUALS",      keywords: "panel taskbar position top bottom left right autohide floating island frame height margin module" },
@@ -45,7 +55,7 @@ Item {
         { id: 2,  name: "Typography",       icon: "match_case",      group: "VISUALS",      keywords: "font family size scale text rendering antialias" },
         { id: 3,  name: "Wallpaper",        icon: "wallpaper",       group: "VISUALS",      keywords: "background image slideshow parallax wallhaven transition swww awww" },
         { id: 12, name: "Icons",            icon: "account_circle",  group: "VISUALS",      keywords: "icon glyph override module pin order material symbol" },
-        { id: 21, name: "Audio Visualizer", icon: "graphic_eq",      group: "VISUALS",      keywords: "cava spectrum bar equalizer visualiser music beat breathe ambient" },
+        { id: 20, name: "Retro Shader",     icon: "videogame_asset", group: "VISUALS",      keywords: "pixel crt dither palette shader retro effect scanline" },
 
         { id: 4,  name: "Network",          icon: "lan",             group: "CONNECTIVITY", keywords: "ethernet vpn ip dns gateway connection nmcli interface" },
         { id: 5,  name: "Wi-Fi",            icon: "wifi",            group: "CONNECTIVITY", keywords: "wireless wlan ssid password psk scan connect hotspot" },
@@ -54,16 +64,19 @@ Item {
 
         { id: 9,  name: "Clock",            icon: "schedule",        group: "WIDGETS",      keywords: "time date desktop 12 24 hour second" },
         { id: 19, name: "System Info",      icon: "terminal",        group: "WIDGETS",      keywords: "sysinfo fetch neofetch cpu ram uptime kernel host gpu disk" },
-        { id: 10, name: "Keyboard",         icon: "keyboard",        group: "WIDGETS",      keywords: "keybind shortcut hotkey osk on-screen layout binding" },
-        { id: 13, name: "Sounds",           icon: "volume_up",       group: "WIDGETS",      keywords: "audio notification window sound effect volume wav" },
-        { id: 15, name: "Lockscreen",       icon: "lock",            group: "WIDGETS",      keywords: "lock password blur idle hypridle security" },
-        { id: 18, name: "Screensaver",      icon: "tv",              group: "WIDGETS",      keywords: "idle screen saver matrix bounce" },
-        { id: 20, name: "Retro Shader",     icon: "videogame_asset", group: "WIDGETS",      keywords: "pixel crt dither palette shader retro effect scanline" },
+        { id: 21, name: "Audio Visualizer", icon: "graphic_eq",      group: "WIDGETS",      keywords: "cava spectrum bar equalizer visualiser music beat breathe ambient" },
         { id: 22, name: "Assistant",        icon: "support_agent",   group: "WIDGETS",      keywords: "ai llm ollama claude codex gemini chat model prompt mascot pet character bounce avatar" },
         { id: 23, name: "App Dock",         icon: "dock_to_bottom",  group: "WIDGETS",      keywords: "dock taskbar launcher pin pinned apps icons floating draggable" },
-        { id: 24, name: "Notifications",    icon: "notifications",   group: "WIDGETS",      keywords: "notification dnd do not disturb quiet hours schedule fullscreen silence tray systray status icon background apps pin" },
 
-        { id: 11, name: "Shell",            icon: "terminal",        group: "SYSTEM",       keywords: "update git version reload restart about repository profile" }
+        { id: 24, name: "Notifications",    icon: "notifications",   group: "SYSTEM",       keywords: "notification dnd do not disturb quiet hours schedule fullscreen silence tray systray status icon background apps pin rules mute per-app" },
+        { id: 13, name: "Sounds",           icon: "volume_up",       group: "SYSTEM",       keywords: "audio notification window sound effect volume wav" },
+        { id: 10, name: "Keyboard",         icon: "keyboard",        group: "SYSTEM",       keywords: "keybind shortcut hotkey osk on-screen layout binding" },
+        { id: 15, name: "Lockscreen",       icon: "lock",            group: "SYSTEM",       keywords: "lock password blur idle hypridle security" },
+        { id: 18, name: "Screensaver",      icon: "tv",              group: "SYSTEM",       keywords: "idle screen saver matrix bounce" },
+
+        // Rendered as its own pinned row beneath the groups rather than inside
+        // one, so its group name only ever shows up in the breadcrumb.
+        { id: 11, name: "Shell",            icon: "terminal",        group: "SHELL",        keywords: "update git version reload restart about repository profile" }
     ]
 
     // Sidebar filter text. Empty = show everything, exactly as before.
@@ -88,6 +101,7 @@ Item {
     readonly property bool navFiltering: navFilter.trim() !== ""
     readonly property int navMatchCount: sectionsFor("VISUALS").length
         + sectionsFor("CONNECTIVITY").length + sectionsFor("WIDGETS").length
+        + sectionsFor("SYSTEM").length
 
     function expandActiveCategory(sectionId) {
         let cat = sectionById(sectionId)
@@ -95,6 +109,7 @@ Item {
         if (cat.group === "VISUALS") visualsExpanded = true
         else if (cat.group === "CONNECTIVITY") connectivityExpanded = true
         else if (cat.group === "WIDGETS") widgetsExpanded = true
+        else if (cat.group === "SYSTEM") systemExpanded = true
     }
 
     function getSectionCategory(sectionId) {
@@ -342,7 +357,7 @@ Item {
                         width: parent.width - 8
                         spacing: 8
 
-                        // Sidebar filter. 22 sections across three collapsed groups
+                        // Sidebar filter. 23 sections across four collapsed groups
                         // meant the only way to find a setting was to remember which
                         // group it lived under and expand them one at a time.
                         Rectangle {
@@ -395,7 +410,8 @@ Item {
                                         if (settingsRoot.navMatchCount !== 1) return
                                         let hit = settingsRoot.sectionsFor("VISUALS")
                                             .concat(settingsRoot.sectionsFor("CONNECTIVITY"))
-                                            .concat(settingsRoot.sectionsFor("WIDGETS"))[0]
+                                            .concat(settingsRoot.sectionsFor("WIDGETS"))
+                                            .concat(settingsRoot.sectionsFor("SYSTEM"))[0]
                                         if (hit) settingsRoot.activeSection = hit.id
                                     }
 
@@ -834,6 +850,139 @@ Item {
                                         onClicked: settingsRoot.activeSection = modelData.id
                                     }
                                     HoverHandler { id: navHover3 }
+                                }
+                            }
+                        }
+
+                        // ---------------- CATEGORY 4: SYSTEM ----------------
+                        Rectangle {
+                            Layout.fillWidth: true
+                            implicitHeight: 34
+                            // A group with no matches drops out of the sidebar entirely
+                            // while filtering, rather than sitting there as an empty header.
+                            visible: settingsRoot.sectionsFor("SYSTEM").length > 0
+                            radius: 8
+                            color: systemCatHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent"
+
+                            Behavior on color { ColorAnimation { duration: 150; easing.type: Easing.OutQuad } }
+
+                            RowLayout {
+                                anchors.fill: parent
+                                anchors.leftMargin: 8
+                                anchors.rightMargin: 8
+                                spacing: 8
+
+                                Text {
+                                    text: "tune"
+                                    color: settingsRoot.systemExpanded ? Config.accent : Config.textMuted
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 16
+                                }
+
+                                Text {
+                                    text: "SYSTEM"
+                                    color: settingsRoot.systemExpanded ? Config.textMain : Config.textMuted
+                                    font.family: Config.sysFont
+                                    font.pixelSize: Config.size(Config.fontCaption)
+                                    font.bold: true
+                                    Layout.fillWidth: true
+                                }
+
+                                Text {
+                                    text: settingsRoot.systemExpanded ? "expand_more" : "chevron_right"
+                                    color: Config.textMuted
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 18
+                                }
+                            }
+
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: settingsRoot.systemExpanded = !settingsRoot.systemExpanded
+                            }
+                            HoverHandler { id: systemCatHover }
+                        }
+
+                        ColumnLayout {
+                            // While filtering, groups auto-open so matches are visible
+                            // without the user having to expand each one by hand.
+                            visible: settingsRoot.navFiltering || settingsRoot.systemExpanded
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 4
+                            spacing: 3
+
+                            Repeater {
+                                model: settingsRoot.sectionsFor("SYSTEM")
+
+                                delegate: Rectangle {
+                                    id: navDelegate4
+                                    Layout.fillWidth: true
+                                    implicitHeight: 36
+                                    radius: 8
+                                    readonly property bool isSelected: settingsRoot.activeSection === modelData.id
+                                    scale: navMouse4.pressed ? 0.97 : 1.0
+                                    color: navDelegate4.isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14) : (navHover4.hovered ? Qt.rgba(255, 255, 255, 0.05) : "transparent")
+                                    border.width: navDelegate4.isSelected ? 1 : 0
+                                    border.color: navDelegate4.isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.25) : "transparent"
+
+                                    Behavior on color { ColorAnimation { duration: 150; easing.type: Easing.OutQuad } }
+                                    Behavior on border.color { ColorAnimation { duration: 150; easing.type: Easing.OutQuad } }
+                                    Behavior on scale { NumberAnimation { duration: 100; easing.type: Easing.OutQuad } }
+
+                                    Rectangle {
+                                        anchors.left: parent.left
+                                        anchors.leftMargin: 2
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        width: 3
+                                        height: 18
+                                        radius: 1.5
+                                        visible: navDelegate4.isSelected
+                                        gradient: Gradient {
+                                            GradientStop { position: 0.0; color: Qt.lighter(Config.accent, 1.35) }
+                                            GradientStop { position: 1.0; color: Config.accent }
+                                        }
+                                    }
+
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 10
+                                        anchors.rightMargin: 8
+                                        spacing: 8
+
+                                        Rectangle {
+                                            implicitWidth: 24
+                                            implicitHeight: 24
+                                            radius: 6
+                                            color: navDelegate4.isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.2) : (navHover4.hovered ? Qt.rgba(255, 255, 255, 0.06) : "transparent")
+
+                                            Text {
+                                                anchors.centerIn: parent
+                                                text: modelData.icon
+                                                color: navDelegate4.isSelected ? Config.accent : Config.textMuted
+                                                font.family: "Material Symbols Outlined"
+                                                font.pixelSize: 15
+                                            }
+                                        }
+
+                                        Text {
+                                            text: modelData.name
+                                            color: navDelegate4.isSelected ? Config.accent : Config.textMain
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontCaption)
+                                            font.bold: navDelegate4.isSelected
+                                            Layout.fillWidth: true
+                                            elide: Text.ElideRight
+                                        }
+                                    }
+
+                                    MouseArea {
+                                        id: navMouse4
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: settingsRoot.activeSection = modelData.id
+                                    }
+                                    HoverHandler { id: navHover4 }
                                 }
                             }
                         }
