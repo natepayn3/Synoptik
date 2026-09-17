@@ -4,6 +4,7 @@ import QtQuick.Layouts
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Io
+import Quickshell.Widgets
 import ".."
 
 Item {
@@ -16,7 +17,9 @@ Item {
     implicitHeight: mainLayout.implicitHeight + (cardMargin * 2)
 
     // --- MODE / QUERY STATE ---
-    // "apps" (default) | "files" (# prefix) | "ipc" (> prefix) | "calc" (auto-detected math)
+    // "apps" (default) | "files" (# prefix) | "ipc" (> prefix, also settings
+    // sections) | "emoji" (: prefix) | "wallpaper" (~ prefix) | "clipboard"
+    // (^ prefix) | "calc" (auto-detected math)
     property string searchMode: "apps"
     property string queryText: ""
     property var filteredApps: []
@@ -80,6 +83,141 @@ Item {
     }
     property var filteredFiles: []
     property var filteredCommands: []
+    property var filteredWallpapers: []
+    property var filteredClipboard: []
+    property var allClipboardItems: []
+
+    // Mirrors Wallpaper.qml's getThumbPath - same cache convention, so
+    // thumbnails preloaded by WallpaperConfig.qml's thumbPreloader are
+    // reused here without any new generation step.
+    function wallpaperThumbPath(filePath) {
+        if (!filePath) return ""
+        let clean = (typeof filePath === "string" ? filePath : filePath.toString()).replace(/^file:\/\//, "")
+        let fileName = clean.split('/').pop()
+        let baseName = fileName.replace(/\.[^/.]+$/, "")
+        return Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + baseName + ".jpg"
+    }
+
+    readonly property int wallpaperGridColumns: 4
+    readonly property int wallpaperCellWidth: 150
+    readonly property int wallpaperCellHeight: 94
+
+    // The clipboard list keeps its own selection (clipboardListView, declared
+    // further down) rather than sharing resultList's - the preview pane needs
+    // to read "whatever's selected" from plain property bindings, and ids
+    // resolve file-wide in QML so this is safe to declare before that id exists.
+    readonly property var clipboardCurrentItem: (osdRoot.searchMode === "clipboard"
+        && clipboardListView.currentIndex >= 0
+        && clipboardListView.currentIndex < osdRoot.currentResults.length)
+        ? osdRoot.currentResults[clipboardListView.currentIndex] : null
+
+    // A file-manager "copy" (Nautilus etc.) lands in cliphist as the plain
+    // path, indistinguishable from ordinary copied text at the parsing stage
+    // in clipboardFetchProc - this is what tells the preview pane to show
+    // file details instead of just echoing the path back as "TEXT".
+    function looksLikeFilePath(text) {
+        if (!text) return false
+        let t = ("" + text).trim()
+        if (t.indexOf("\n") !== -1) return false
+        return t.startsWith("/") || t.startsWith("file://")
+    }
+
+    readonly property bool clipboardCurrentIsFile: osdRoot.clipboardCurrentItem !== null
+        && osdRoot.looksLikeFilePath(osdRoot.clipboardCurrentItem.previewText)
+
+    function clipboardFileBasename(text) {
+        let clean = ("" + text).replace(/^file:\/\//, "").trim()
+        let parts = clean.split("/")
+        return parts[parts.length - 1] || clean
+    }
+
+    // Row icon is a synchronous extension guess (no stat round-trip needed
+    // just to draw the list) - the preview pane's mime type from the stat
+    // script is the authoritative one.
+    function clipboardRowIcon(item) {
+        if (!item) return "description"
+        if (item.isImage) return "image"
+        if (!osdRoot.looksLikeFilePath(item.previewText)) return "description"
+        let clean = osdRoot.clipboardFileBasename(item.previewText).toLowerCase()
+        if (/\.(mp4|webm|mkv|mov|avi)$/.test(clean)) return "movie"
+        if (/\.(mp3|wav|flac|ogg|m4a)$/.test(clean)) return "audiotrack"
+        if (/\.pdf$/.test(clean)) return "picture_as_pdf"
+        if (/\.(zip|tar|gz|7z|rar|xz)$/.test(clean)) return "folder_zip"
+        if (/\.(lua|py|js|ts|qml|sh|c|cpp|rs|go|java|html|css|json|yaml|yml|toml)$/.test(clean)) return "code"
+        return "insert_drive_file"
+    }
+
+    function clipboardRowLabel(item) {
+        if (!item) return ""
+        if (osdRoot.looksLikeFilePath(item.previewText)) return osdRoot.clipboardFileBasename(item.previewText)
+        return item.previewText
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === undefined || bytes === null) return ""
+        if (bytes < 1024) return bytes + " B"
+        let units = ["KB", "MB", "GB", "TB"]
+        let val = bytes
+        let i = -1
+        do { val /= 1024; i++ } while (val >= 1024 && i < units.length - 1)
+        return val.toFixed(1) + " " + units[i]
+    }
+
+    function formatModTime(epochSeconds) {
+        if (!epochSeconds) return ""
+        return Qt.formatDateTime(new Date(epochSeconds * 1000), "MMM d, yyyy · h:mm AP")
+    }
+
+    // --- CLIPBOARD FILE STAT (for entries that look like a copied file) ---
+    // Path is passed as a process argument, never embedded in the script
+    // text, same rule as fileSearchScript below.
+    readonly property string clipboardStatScript: `
+import sys, os, json, subprocess
+
+path = sys.argv[1]
+result = {"exists": False}
+if os.path.exists(path):
+    st = os.stat(path)
+    result["exists"] = True
+    result["isDir"] = os.path.isdir(path)
+    result["size"] = st.st_size
+    result["mtime"] = st.st_mtime
+    try:
+        mime = subprocess.run(["file", "--mime-type", "-b", path], capture_output=True, text=True, timeout=2).stdout.strip()
+    except Exception:
+        mime = ""
+    result["mime"] = mime
+print(json.dumps(result))
+`
+
+    property var clipboardFileInfo: null
+
+    Process {
+        id: clipboardStatProc
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    osdRoot.clipboardFileInfo = JSON.parse(this.text.trim())
+                } catch (e) {
+                    osdRoot.clipboardFileInfo = null
+                }
+            }
+        }
+    }
+
+    onClipboardCurrentItemChanged: {
+        let item = osdRoot.clipboardCurrentItem
+        if (item && osdRoot.looksLikeFilePath(item.previewText)) {
+            osdRoot.clipboardFileInfo = null
+            let cleanPath = item.previewText.replace(/^file:\/\//, "").trim()
+            clipboardStatProc.command = ["python3", "-c", osdRoot.clipboardStatScript, cleanPath]
+            clipboardStatProc.running = false
+            clipboardStatProc.running = true
+        } else {
+            osdRoot.clipboardFileInfo = null
+        }
+    }
 
     // --- EMOJI & GLYPH STATE ---
     // Fifth launcher mode, on the ":" prefix (the convention everywhere from
@@ -196,6 +334,8 @@ Item {
         if (searchMode === "files") return filteredFiles
         if (searchMode === "ipc") return filteredCommands
         if (searchMode === "emoji") return filteredEmoji
+        if (searchMode === "wallpaper") return filteredWallpapers
+        if (searchMode === "clipboard") return filteredClipboard
         if (searchMode === "calc") return []
         return filteredApps
     }
@@ -204,6 +344,8 @@ Item {
         if (searchMode === "files") return "FILES"
         if (searchMode === "ipc") return "COMMANDS"
         if (searchMode === "emoji") return "EMOJI"
+        if (searchMode === "wallpaper") return "WALLPAPERS"
+        if (searchMode === "clipboard") return "CLIPBOARD"
         if (searchMode === "calc") return "CALC"
         return ""
     }
@@ -212,6 +354,8 @@ Item {
         if (searchMode === "files") return "folder_open"
         if (searchMode === "ipc") return "terminal"
         if (searchMode === "emoji") return "mood"
+        if (searchMode === "wallpaper") return "wallpaper"
+        if (searchMode === "clipboard") return "content_paste"
         if (searchMode === "calc") return "calculate"
         return "search"
     }
@@ -220,6 +364,8 @@ Item {
         if (searchMode === "files") return "Search files..."
         if (searchMode === "ipc") return "Search commands..."
         if (searchMode === "emoji") return "Search emoji & symbols..."
+        if (searchMode === "wallpaper") return "Search wallpapers..."
+        if (searchMode === "clipboard") return "Search clipboard history..."
         return "Search apps..."
     }
 
@@ -238,6 +384,15 @@ Item {
             let rows = Math.ceil(currentResults.length / emojiGridColumns)
             return Math.min(rows, 4) * emojiCellSize + 44
         }
+        if (searchMode === "wallpaper") {
+            if (currentResults.length === 0) return 52
+            let rows = Math.ceil(currentResults.length / wallpaperGridColumns)
+            return Math.min(rows, 2) * wallpaperCellHeight + 44
+        }
+        // Fixed rather than sized off row count - the right-hand preview
+        // pane needs real room for an image regardless of how many/few
+        // entries are in the list.
+        if (searchMode === "clipboard") return currentResults.length === 0 ? 52 : 320
         if ((searchInput.text === "" && !browsingAllApps) || currentResults.length === 0) return 52
         return Math.min(currentResults.length, maxVisibleRows) * resultRowHeight + 16
     }
@@ -258,6 +413,36 @@ Item {
         { target: "screensaver",       fn: "start",      name: "Start Screensaver",         icon: "hourglass_empty" },
         { target: "screensaver",       fn: "stop",       name: "Stop Screensaver",          icon: "hourglass_disabled" },
         { target: "shader",            fn: "toggle",     name: "Retro Shader",              icon: "videogame_asset" }
+    ]
+
+    // Mirrors Settings.qml's sectionCatalog (name/icon/keywords only - id is
+    // what Config.lastSettingsSection needs to jump straight to a section).
+    // Kept as a separate array from ipcCommands rather than merged in because
+    // activation is different (set a section + open Settings, not an IPC call).
+    readonly property var settingsSections: [
+        { sectionId: 0,  name: "Display",          icon: "aspect_ratio",    group: "VISUALS",      keywords: "monitor resolution refresh rate scale rotate rotation position arrangement hidpi screen vrr" },
+        { sectionId: 16, name: "Bar",              icon: "dock",            group: "VISUALS",      keywords: "panel taskbar position top bottom left right autohide floating island frame height margin module" },
+        { sectionId: 1,  name: "Appearance",       icon: "palette",         group: "VISUALS",      keywords: "theme color colour accent blur transparency opacity xray border gradient watermark iris night mode dark corner radius" },
+        { sectionId: 17, name: "Workspaces",       icon: "view_carousel",   group: "VISUALS",      keywords: "workspace indicator style glow scroll tooltip special overview" },
+        { sectionId: 2,  name: "Typography",       icon: "match_case",      group: "VISUALS",      keywords: "font family size scale text rendering antialias" },
+        { sectionId: 3,  name: "Wallpaper",        icon: "wallpaper",       group: "VISUALS",      keywords: "background image slideshow parallax wallhaven transition swww awww" },
+        { sectionId: 12, name: "Icons",            icon: "account_circle",  group: "VISUALS",      keywords: "icon glyph override module pin order material symbol" },
+        { sectionId: 20, name: "Retro Shader",     icon: "videogame_asset", group: "VISUALS",      keywords: "pixel crt dither palette shader retro effect scanline" },
+        { sectionId: 4,  name: "Network",          icon: "lan",             group: "CONNECTIVITY", keywords: "ethernet vpn ip dns gateway connection nmcli interface" },
+        { sectionId: 5,  name: "Wi-Fi",            icon: "wifi",            group: "CONNECTIVITY", keywords: "wireless wlan ssid password psk scan connect hotspot" },
+        { sectionId: 6,  name: "Bluetooth",        icon: "bluetooth",       group: "CONNECTIVITY", keywords: "bt pair device headset battery mouse keyboard" },
+        { sectionId: 7,  name: "Weather",          icon: "thermostat",      group: "CONNECTIVITY", keywords: "forecast temperature location zip city climate" },
+        { sectionId: 9,  name: "Clock",            icon: "schedule",        group: "WIDGETS",      keywords: "time date desktop 12 24 hour second" },
+        { sectionId: 19, name: "System Info",      icon: "terminal",        group: "WIDGETS",      keywords: "sysinfo fetch neofetch cpu ram uptime kernel host gpu disk" },
+        { sectionId: 21, name: "Audio Visualizer", icon: "graphic_eq",      group: "WIDGETS",      keywords: "cava spectrum bar equalizer visualiser music beat breathe ambient" },
+        { sectionId: 22, name: "Assistant",        icon: "support_agent",   group: "WIDGETS",      keywords: "ai llm ollama claude codex gemini chat model prompt mascot pet character bounce avatar" },
+        { sectionId: 23, name: "App Dock",         icon: "dock_to_bottom",  group: "WIDGETS",      keywords: "dock taskbar launcher pin pinned apps icons floating draggable" },
+        { sectionId: 24, name: "Notifications",    icon: "notifications",   group: "SYSTEM",       keywords: "notification dnd do not disturb quiet hours schedule fullscreen silence tray systray status icon background apps pin rules mute per-app" },
+        { sectionId: 13, name: "Sounds",           icon: "volume_up",       group: "SYSTEM",       keywords: "audio notification window sound effect volume wav" },
+        { sectionId: 10, name: "Keyboard",         icon: "keyboard",        group: "SYSTEM",       keywords: "keybind shortcut hotkey osk on-screen layout binding" },
+        { sectionId: 15, name: "Lockscreen",       icon: "lock",            group: "SYSTEM",       keywords: "lock password blur idle hypridle security" },
+        { sectionId: 18, name: "Screensaver",      icon: "tv",              group: "SYSTEM",       keywords: "idle screen saver matrix bounce" },
+        { sectionId: 11, name: "Shell",            icon: "terminal",        group: "SHELL",        keywords: "update git version reload restart about repository profile" }
     ]
 
     // Icon indexing is shared via Config.iconIndexService (see
@@ -322,6 +507,108 @@ print(json.dumps(results))
             fileSearchProc.running = false;
             fileSearchProc.running = true;
         }
+    }
+
+    // --- CLIPBOARD SEARCH (^ prefix) ---
+    // Fetch/parse logic mirrors Clipboard.qml's fetchProc verbatim so both
+    // surfaces agree on what counts as an image vs text entry.
+    Process {
+        id: clipboardFetchProc
+        running: false
+        command: ["cliphist", "list"]
+
+        stdout: StdioCollector {
+            id: clipboardFetchOut
+            onStreamFinished: {
+                let outText = clipboardFetchOut.text;
+                let newItems = [];
+
+                if (outText && outText.trim() !== "") {
+                    let lines = outText.trim().split("\n");
+                    for (let line of lines) {
+                        if (!line) continue;
+                        let firstTab = line.indexOf("\t");
+                        if (firstTab === -1) continue;
+
+                        let id = line.substring(0, firstTab).trim();
+                        let text = line.substring(firstTab + 1).trim();
+
+                        let isBinary = text.includes("binary data") || text.includes("image") || text.startsWith("[[");
+                        let isBase64 = text.startsWith("data:image/");
+                        let isWebUrl = /^https?:\/\/.*\.(png|jpg|jpeg|webp|gif|svg)(\?.*)?$/i.test(text);
+                        let isLocalFile = (text.startsWith("/") || text.startsWith("file://")) &&
+                                          /\.(png|jpg|jpeg|webp|gif|svg)$/i.test(text);
+
+                        let finalImgPath = "";
+                        if (isBinary || isBase64) finalImgPath = "";
+                        else if (isWebUrl) finalImgPath = text;
+                        else if (isLocalFile) finalImgPath = text.startsWith("file://") ? text : ("file://" + text);
+
+                        let isVisualItem = isBinary || isBase64 || isWebUrl || isLocalFile;
+
+                        newItems.push({
+                            itemId: id,
+                            previewText: text,
+                            isImage: isVisualItem,
+                            imagePath: finalImgPath
+                        });
+                    }
+                }
+
+                osdRoot.allClipboardItems = newItems;
+                if (osdRoot.searchMode === "clipboard") osdRoot.updateModel();
+
+                clipboardCacheProc.running = false;
+                clipboardCacheProc.running = true;
+            }
+        }
+    }
+
+    // Thumbnail cache for image entries - same /tmp/cliphist convention as
+    // Clipboard.qml, so thumbnails generated by either surface are reused by
+    // the other.
+    Process {
+        id: clipboardCacheProc
+        running: false
+        command: [
+            "sh", "-c",
+            "mkdir -p /tmp/cliphist; " +
+            "cliphist list | head -n 40 | while read -r id line; do " +
+                "img_path=\"/tmp/cliphist/$id.png\"; " +
+                "if [ -f \"$img_path\" ]; then " +
+                    "echo \"$id\"; " +
+                "else " +
+                    "case \"$line\" in " +
+                        "*\\[\\[*|*image*|*binary*) " +
+                            "printf '%s\\t%s\\n' \"$id\" \"$line\" | cliphist decode > \"$img_path\" 2>/dev/null; " +
+                            "[ -s \"$img_path\" ] && echo \"$id\"; " +
+                            ";; " +
+                    "esac; " +
+                "fi; " +
+            "done"
+        ]
+
+        stdout: StdioCollector {
+            id: clipboardCacheOut
+            onStreamFinished: {
+                let out = clipboardCacheOut.text;
+                if (!out) return;
+                let generatedIds = out.trim().split("\n");
+                if (generatedIds.length === 0 || !generatedIds[0]) return;
+
+                osdRoot.allClipboardItems = osdRoot.allClipboardItems.map(item => {
+                    if (generatedIds.includes(item.itemId)) {
+                        return Object.assign({}, item, { imagePath: "file:///tmp/cliphist/" + item.itemId + ".png?t=" + Date.now() });
+                    }
+                    return item;
+                });
+                if (osdRoot.searchMode === "clipboard") osdRoot.updateModel();
+            }
+        }
+    }
+
+    Process {
+        id: clipboardCopyProc
     }
 
     // --- CALCULATOR (auto-detected, no prefix) ---
@@ -443,10 +730,33 @@ print(json.dumps(results))
         } else if (raw.startsWith(">")) {
             osdRoot.searchMode = "ipc";
             let q = raw.slice(1).trim().toLowerCase();
-            osdRoot.filteredCommands = osdRoot.ipcCommands.filter(c => {
+            let ipcMatches = osdRoot.ipcCommands.filter(c => {
                 if (q === "") return true;
                 return c.name.toLowerCase().includes(q) || c.target.toLowerCase().includes(q) || c.fn.toLowerCase().includes(q);
             });
+            let settingsMatches = osdRoot.settingsSections.filter(s => {
+                if (q === "") return true;
+                return s.name.toLowerCase().includes(q) || s.keywords.includes(q);
+            });
+            osdRoot.filteredCommands = ipcMatches.concat(settingsMatches);
+        } else if (raw.startsWith("~")) {
+            osdRoot.searchMode = "wallpaper";
+            let q = raw.slice(1).trim().toLowerCase();
+            let list = (Config.wallpaper && Config.wallpaper.wallpapers) ? Config.wallpaper.wallpapers : [];
+            osdRoot.filteredWallpapers = list.filter(p => {
+                if (q === "") return true;
+                let base = ("" + p).split("/").pop().toLowerCase();
+                return base.includes(q);
+            });
+        } else if (raw.startsWith("^")) {
+            let wasClipboard = osdRoot.searchMode === "clipboard";
+            osdRoot.searchMode = "clipboard";
+            if (!wasClipboard) {
+                clipboardFetchProc.running = false;
+                clipboardFetchProc.running = true;
+            }
+            let q = raw.slice(1).trim().toLowerCase();
+            osdRoot.filteredClipboard = osdRoot.allClipboardItems.filter(it => q === "" || it.previewText.toLowerCase().includes(q));
         } else if (osdRoot.looksLikeMath(raw)) {
             osdRoot.searchMode = "calc";
             try {
@@ -494,6 +804,8 @@ print(json.dumps(results))
 
         resultList.currentIndex = osdRoot.currentResults.length > 0 ? 0 : -1;
         emojiGrid.currentIndex = osdRoot.currentResults.length > 0 ? 0 : -1;
+        wallpaperGrid.currentIndex = osdRoot.currentResults.length > 0 ? 0 : -1;
+        clipboardListView.currentIndex = osdRoot.currentResults.length > 0 ? 0 : -1;
         resultList.positionViewAtBeginning();
     }
 
@@ -566,9 +878,32 @@ print(json.dumps(results))
         Config.showLauncherOsd = false;
     }
 
+    // Handles both the static IPC verbs and the settingsSections entries -
+    // the latter have no target/fn, just a sectionId to jump Settings to.
     function runIpcCommand(entry) {
         if (!entry) return;
-        Quickshell.execDetached(["qs", "-c", "Synoptik", "ipc", "call", entry.target, entry.fn]);
+        if (entry.sectionId !== undefined) {
+            Config.lastSettingsSection = entry.sectionId;
+            Config.showSettings = true;
+        } else {
+            Quickshell.execDetached(["qs", "-c", "Synoptik", "ipc", "call", entry.target, entry.fn]);
+        }
+        Config.showLauncherOsd = false;
+    }
+
+    function applyWallpaperResult(path) {
+        if (!path) return;
+        Config.applyWallpaperBackend(path, false);
+        Config.showLauncherOsd = false;
+    }
+
+    // Mirrors Clipboard.qml's copyProc command exactly - itemId comes from
+    // cliphist's own output, never from typed text.
+    function copyClipboardItem(item) {
+        if (!item || !item.itemId) return;
+        clipboardCopyProc.command = ["sh", "-c", "cliphist list | awk 'BEGIN{FS=\"\\t\"} $1 == \"" + item.itemId + "\" {print $0}' | cliphist decode | wl-copy"];
+        clipboardCopyProc.running = false;
+        clipboardCopyProc.running = true;
         Config.showLauncherOsd = false;
     }
 
@@ -577,22 +912,29 @@ print(json.dumps(results))
         if (osdRoot.searchMode === "files") osdRoot.launchFile(item);
         else if (osdRoot.searchMode === "ipc") osdRoot.runIpcCommand(item);
         else if (osdRoot.searchMode === "emoji") osdRoot.pickEmoji(item);
+        else if (osdRoot.searchMode === "wallpaper") osdRoot.applyWallpaperResult(item);
+        else if (osdRoot.searchMode === "clipboard") osdRoot.copyClipboardItem(item);
         else osdRoot.launchApp(item);
     }
 
     function activateCurrent() {
-        // The grid keeps its own selection; the list's currentIndex means
-        // nothing in emoji mode.
-        if (osdRoot.searchMode === "emoji") {
-            if (emojiGrid.currentIndex < 0 || emojiGrid.currentIndex >= osdRoot.currentResults.length) return;
-            osdRoot.activateResult(osdRoot.currentResults[emojiGrid.currentIndex]);
+        // The grids and the clipboard list keep their own selection; the
+        // shared resultList's currentIndex means nothing in those modes.
+        if (osdRoot.searchMode === "emoji" || osdRoot.searchMode === "wallpaper") {
+            let grid = osdRoot.searchMode === "wallpaper" ? wallpaperGrid : emojiGrid;
+            if (grid.currentIndex < 0 || grid.currentIndex >= osdRoot.currentResults.length) return;
+            osdRoot.activateResult(osdRoot.currentResults[grid.currentIndex]);
+            return;
+        }
+        if (osdRoot.searchMode === "clipboard") {
+            if (osdRoot.clipboardCurrentItem) osdRoot.activateResult(osdRoot.clipboardCurrentItem);
             return;
         }
         if (resultList.currentIndex < 0 || resultList.currentIndex >= osdRoot.currentResults.length) return;
         osdRoot.activateResult(osdRoot.currentResults[resultList.currentIndex]);
     }
 
-    // --- RESULT FIELD HELPERS (shared delegate across all three modes) ---
+    // --- RESULT FIELD HELPERS (shared delegate across modes) ---
     function resultTitle(item) {
         if (osdRoot.searchMode === "apps") return item.name || "";
         if (osdRoot.searchMode === "ipc") return item.name || "";
@@ -604,7 +946,9 @@ print(json.dumps(results))
         if (osdRoot.searchMode === "apps") {
             return (item.comment && item.comment !== "") ? item.comment : ((item.genericName && item.genericName !== "") ? item.genericName : "Application");
         }
-        if (osdRoot.searchMode === "ipc") return "> " + item.target + " " + item.fn;
+        if (osdRoot.searchMode === "ipc") {
+            return item.sectionId !== undefined ? ("Settings — " + item.group) : ("> " + item.target + " " + item.fn);
+        }
         let str = "" + item;
         let idx = str.lastIndexOf("/");
         let dir = idx >= 0 ? str.substring(0, idx) : "";
@@ -684,27 +1028,32 @@ print(json.dumps(results))
                         onTextChanged: osdRoot.updateModel()
 
                         Keys.onPressed: (event) => {
-                            // Emoji mode is a grid, so it moves in two axes and
-                            // up/down steps a whole row rather than one item.
-                            if (osdRoot.searchMode === "emoji"
+                            // Emoji/wallpaper modes are grids, so they move in
+                            // two axes and up/down steps a whole row rather
+                            // than one item.
+                            if ((osdRoot.searchMode === "emoji" || osdRoot.searchMode === "wallpaper")
                                 && (event.key === Qt.Key_Down || event.key === Qt.Key_Up
                                     || event.key === Qt.Key_Left || event.key === Qt.Key_Right)) {
                                 let n = osdRoot.currentResults.length;
+                                let grid = osdRoot.searchMode === "wallpaper" ? wallpaperGrid : emojiGrid;
+                                let cols = osdRoot.searchMode === "wallpaper" ? osdRoot.wallpaperGridColumns : osdRoot.emojiGridColumns;
                                 if (n > 0) {
-                                    let i = Math.max(0, emojiGrid.currentIndex);
+                                    let i = Math.max(0, grid.currentIndex);
                                     if (event.key === Qt.Key_Right) i += 1;
                                     else if (event.key === Qt.Key_Left) i -= 1;
-                                    else if (event.key === Qt.Key_Down) i += osdRoot.emojiGridColumns;
-                                    else i -= osdRoot.emojiGridColumns;
-                                    emojiGrid.currentIndex = Math.max(0, Math.min(n - 1, i));
-                                    emojiGrid.positionViewAtIndex(emojiGrid.currentIndex, GridView.Contain);
+                                    else if (event.key === Qt.Key_Down) i += cols;
+                                    else i -= cols;
+                                    grid.currentIndex = Math.max(0, Math.min(n - 1, i));
+                                    grid.positionViewAtIndex(grid.currentIndex, GridView.Contain);
                                 }
                                 event.accepted = true;
                             } else if (event.key === Qt.Key_Down) {
-                                resultList.incrementCurrentIndex();
+                                if (osdRoot.searchMode === "clipboard") clipboardListView.incrementCurrentIndex();
+                                else resultList.incrementCurrentIndex();
                                 event.accepted = true;
                             } else if (event.key === Qt.Key_Up) {
-                                resultList.decrementCurrentIndex();
+                                if (osdRoot.searchMode === "clipboard") clipboardListView.decrementCurrentIndex();
+                                else resultList.decrementCurrentIndex();
                                 event.accepted = true;
                             } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
                                 if (osdRoot.searchMode === "calc") {
@@ -720,7 +1069,7 @@ print(json.dumps(results))
                         }
                     }
 
-                    // Mode badge pill (only shown for # files / > commands)
+                    // Mode badge pill (shown for every non-apps mode)
                     Rectangle {
                         visible: osdRoot.modeBadge !== ""
                         Layout.alignment: Qt.AlignVCenter
@@ -858,7 +1207,9 @@ print(json.dumps(results))
                             model: [
                                 { prefix: "#", desc: "files" },
                                 { prefix: ">", desc: "commands" },
-                                { prefix: ":", desc: "emoji" }
+                                { prefix: ":", desc: "emoji" },
+                                { prefix: "~", desc: "wallpapers" },
+                                { prefix: "^", desc: "clipboard" }
                             ]
 
                             delegate: RowLayout {
@@ -886,6 +1237,7 @@ print(json.dumps(results))
                         visible: (searchInput.text !== "" || osdRoot.browsingAllApps)
                             && osdRoot.currentResults.length === 0
                             && osdRoot.searchMode !== "calc" && osdRoot.searchMode !== "emoji"
+                            && osdRoot.searchMode !== "wallpaper" && osdRoot.searchMode !== "clipboard"
                         text: osdRoot.searchMode === "files" && osdRoot.queryText.trim() === ""
                             ? "Type to search files..."
                             : (osdRoot.browsingAllApps ? "No apps found" : "No results")
@@ -999,12 +1351,339 @@ print(json.dumps(results))
                         }
                     }
 
+                    // --- WALLPAPER GRID ---
+                    // Thumbnails, not a text row, so this reuses the emoji
+                    // grid's structure rather than the shared resultList.
+                    Item {
+                        anchors.fill: parent
+                        anchors.margins: 8
+                        visible: osdRoot.searchMode === "wallpaper"
+
+                        Text {
+                            anchors.centerIn: parent
+                            visible: osdRoot.currentResults.length === 0
+                            text: "No matching wallpapers"
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            font.italic: true
+                        }
+
+                        GridView {
+                            id: wallpaperGrid
+                            anchors.fill: parent
+                            clip: true
+                            visible: osdRoot.currentResults.length > 0
+                            cellWidth: osdRoot.wallpaperCellWidth
+                            cellHeight: osdRoot.wallpaperCellHeight
+                            boundsBehavior: Flickable.StopAtBounds
+                            model: osdRoot.currentResults
+                            currentIndex: 0
+
+                            // Same centering trick as the emoji grid - without it
+                            // a row that doesn't fill every column sits flush
+                            // left instead of centred.
+                            leftMargin: Math.max(0, (width - (osdRoot.wallpaperGridColumns * cellWidth)) / 2)
+
+                            delegate: Item {
+                                required property var modelData
+                                required property int index
+
+                                width: osdRoot.wallpaperCellWidth
+                                height: osdRoot.wallpaperCellHeight
+
+                                // ClippingRectangle, not plain Rectangle - plain
+                                // Rectangle.clip only clips to the square
+                                // bounding box, so a square Image would blow
+                                // past the rounded corners (see Clipboard.qml's
+                                // watermark for the same fix).
+                                ClippingRectangle {
+                                    anchors.centerIn: parent
+                                    width: parent.width - 8
+                                    height: parent.height - 10
+                                    radius: Config.cornerRadius / 2
+                                    color: Qt.rgba(255, 255, 255, 0.04)
+                                    border.width: wallpaperGrid.currentIndex === index ? 1 : 0
+                                    border.color: Config.accent
+
+                                    Image {
+                                        anchors.fill: parent
+                                        anchors.margins: 2
+                                        source: "file://" + osdRoot.wallpaperThumbPath(modelData)
+                                        fillMode: Image.PreserveAspectCrop
+                                        horizontalAlignment: Image.AlignHCenter
+                                        verticalAlignment: Image.AlignVCenter
+                                        asynchronous: true
+                                        cache: true
+                                    }
+
+                                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                                    TapHandler {
+                                        onTapped: {
+                                            wallpaperGrid.currentIndex = index
+                                            osdRoot.activateResult(modelData)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
+                    // --- CLIPBOARD SPLIT VIEW ---
+                    // A compact left-aligned list (like a file list) plus a
+                    // dedicated preview pane, rather than reusing the shared
+                    // resultList - clipboard entries need to show either an
+                    // image or the full text, which a single-column row can't.
+                    Item {
+                        anchors.fill: parent
+                        anchors.margins: 8
+                        visible: osdRoot.searchMode === "clipboard"
+
+                        Text {
+                            anchors.centerIn: parent
+                            visible: osdRoot.currentResults.length === 0
+                            text: {
+                                if (clipboardFetchProc.running) return "Loading clipboard history..."
+                                if (osdRoot.allClipboardItems.length === 0) return "Clipboard history is empty"
+                                return "No matching clipboard entries"
+                            }
+                            color: Config.textMuted
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            font.italic: true
+                        }
+
+                        RowLayout {
+                            anchors.fill: parent
+                            visible: osdRoot.currentResults.length > 0
+                            spacing: 10
+
+                            ListView {
+                                id: clipboardListView
+                                Layout.preferredWidth: 220
+                                Layout.fillHeight: true
+                                clip: true
+                                spacing: 2
+                                boundsBehavior: Flickable.StopAtBounds
+                                model: osdRoot.currentResults
+                                currentIndex: 0
+
+                                delegate: Rectangle {
+                                    id: clipRowDelegate
+                                    required property var modelData
+                                    required property int index
+
+                                    width: clipboardListView.width
+                                    implicitHeight: 32
+                                    radius: Config.cornerRadius / 2
+                                    color: clipboardListView.currentIndex === index
+                                        ? Qt.rgba(255, 255, 255, 0.12)
+                                        : (clipRowHover.hovered ? Qt.rgba(255, 255, 255, 0.08) : "transparent")
+
+                                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 8
+                                        anchors.rightMargin: 8
+                                        spacing: 8
+
+                                        Text {
+                                            text: osdRoot.clipboardRowIcon(clipRowDelegate.modelData)
+                                            color: clipboardListView.currentIndex === clipRowDelegate.index ? Config.accent : Config.textMuted
+                                            font.family: "Material Symbols Outlined"
+                                            font.pixelSize: 15
+                                        }
+
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: osdRoot.clipboardRowLabel(clipRowDelegate.modelData)
+                                            color: Config.textMain
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontCaption)
+                                            horizontalAlignment: Text.AlignLeft
+                                            elide: Text.ElideRight
+                                        }
+                                    }
+
+                                    HoverHandler { id: clipRowHover; cursorShape: Qt.PointingHandCursor }
+                                    TapHandler {
+                                        onTapped: {
+                                            clipboardListView.currentIndex = clipRowDelegate.index
+                                            osdRoot.activateResult(clipRowDelegate.modelData)
+                                        }
+                                    }
+                                }
+
+                                ScrollBar.vertical: ScrollBar {
+                                    active: clipboardListView.moving || clipboardListView.flickableDirection
+                                    policy: ScrollBar.AsNeeded
+                                }
+                            }
+
+                            Rectangle {
+                                Layout.preferredWidth: 1
+                                Layout.fillHeight: true
+                                color: Qt.rgba(255, 255, 255, 0.1)
+                            }
+
+                            // --- PREVIEW PANE ---
+                            Item {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                visible: osdRoot.clipboardCurrentItem !== null
+
+                                ColumnLayout {
+                                    anchors.fill: parent
+                                    anchors.margins: 6
+                                    spacing: 6
+
+                                    Text {
+                                        text: {
+                                            if (!osdRoot.clipboardCurrentItem) return ""
+                                            if (osdRoot.clipboardCurrentIsFile) return "FILE"
+                                            return osdRoot.clipboardCurrentItem.isImage ? "IMAGE" : "TEXT"
+                                        }
+                                        color: Config.accent
+                                        font.family: Config.sysFont
+                                        font.pixelSize: Config.size(Config.fontMicro)
+                                        font.bold: true
+                                        font.letterSpacing: 0.6
+                                    }
+
+                                    // Filename + full path - the row already shows just the
+                                    // basename, so this is where the rest of the path lives.
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 1
+                                        visible: osdRoot.clipboardCurrentIsFile
+
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: osdRoot.clipboardCurrentItem ? osdRoot.clipboardFileBasename(osdRoot.clipboardCurrentItem.previewText) : ""
+                                            color: Config.textMain
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontBody)
+                                            font.bold: true
+                                            elide: Text.ElideMiddle
+                                        }
+                                        Text {
+                                            Layout.fillWidth: true
+                                            text: osdRoot.clipboardCurrentItem
+                                                ? osdRoot.clipboardCurrentItem.previewText.replace(/^file:\/\//, "").replace(Quickshell.env("HOME"), "~")
+                                                : ""
+                                            color: Config.textMuted
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontMicro)
+                                            elide: Text.ElideMiddle
+                                        }
+                                    }
+
+                                    ClippingRectangle {
+                                        Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        radius: Config.cornerRadius / 2
+                                        color: Qt.rgba(255, 255, 255, 0.03)
+                                        visible: osdRoot.clipboardCurrentItem
+                                            && osdRoot.clipboardCurrentItem.isImage
+                                            && osdRoot.clipboardCurrentItem.imagePath !== ""
+
+                                        Image {
+                                            anchors.fill: parent
+                                            anchors.margins: 6
+                                            source: (osdRoot.clipboardCurrentItem && osdRoot.clipboardCurrentItem.isImage)
+                                                ? osdRoot.clipboardCurrentItem.imagePath : ""
+                                            fillMode: Image.PreserveAspectFit
+                                            asynchronous: true
+                                            cache: true
+                                        }
+                                    }
+
+                                    // File details (size / modified / type) - fetched async by
+                                    // the stat Process whenever selection lands on a file entry.
+                                    ColumnLayout {
+                                        Layout.fillWidth: true
+                                        spacing: 2
+                                        visible: osdRoot.clipboardCurrentIsFile
+
+                                        Text {
+                                            visible: osdRoot.clipboardFileInfo === null
+                                            text: "Reading file info..."
+                                            color: Config.textMuted
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontCaption)
+                                            font.italic: true
+                                        }
+
+                                        Text {
+                                            visible: osdRoot.clipboardFileInfo !== null && osdRoot.clipboardFileInfo.exists === false
+                                            text: "This file no longer exists at that path"
+                                            color: Config.textMuted
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontCaption)
+                                            font.italic: true
+                                        }
+
+                                        Repeater {
+                                            model: (osdRoot.clipboardFileInfo && osdRoot.clipboardFileInfo.exists) ? [
+                                                { label: "Size", value: osdRoot.clipboardFileInfo.isDir ? "Folder" : osdRoot.formatFileSize(osdRoot.clipboardFileInfo.size) },
+                                                { label: "Modified", value: osdRoot.formatModTime(osdRoot.clipboardFileInfo.mtime) },
+                                                { label: "Type", value: osdRoot.clipboardFileInfo.mime || "unknown" }
+                                            ] : []
+
+                                            delegate: RowLayout {
+                                                Layout.fillWidth: true
+                                                spacing: 8
+
+                                                Text {
+                                                    Layout.preferredWidth: 70
+                                                    text: modelData.label
+                                                    color: Config.textMuted
+                                                    font.family: Config.sysFont
+                                                    font.pixelSize: Config.size(Config.fontCaption)
+                                                }
+                                                Text {
+                                                    Layout.fillWidth: true
+                                                    text: modelData.value
+                                                    color: Config.textMain
+                                                    font.family: Config.sysFont
+                                                    font.pixelSize: Config.size(Config.fontCaption)
+                                                    elide: Text.ElideRight
+                                                }
+                                            }
+                                        }
+                                    }
+
+                                    Flickable {
+                                        Layout.fillWidth: true
+                                        Layout.fillHeight: true
+                                        visible: osdRoot.clipboardCurrentItem && !osdRoot.clipboardCurrentItem.isImage && !osdRoot.clipboardCurrentIsFile
+                                        clip: true
+                                        contentWidth: width
+                                        contentHeight: clipPreviewText.implicitHeight
+                                        boundsBehavior: Flickable.StopAtBounds
+
+                                        Text {
+                                            id: clipPreviewText
+                                            width: parent.width
+                                            text: osdRoot.clipboardCurrentItem ? osdRoot.clipboardCurrentItem.previewText : ""
+                                            color: Config.textMain
+                                            font.family: Config.sysFont
+                                            font.pixelSize: Config.size(Config.fontBody)
+                                            wrapMode: Text.Wrap
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     ListView {
                         id: resultList
                         anchors.fill: parent
                         anchors.margins: 8
                         clip: true
-                        visible: osdRoot.searchMode !== "emoji"
+                        visible: osdRoot.searchMode !== "emoji" && osdRoot.searchMode !== "wallpaper" && osdRoot.searchMode !== "clipboard"
                             && (searchInput.text !== "" || osdRoot.browsingAllApps) && osdRoot.currentResults.length > 0
                         spacing: 2
                         keyNavigationEnabled: false
