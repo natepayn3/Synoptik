@@ -421,9 +421,17 @@ PanelWindow {
     readonly property real rightCardTargetWidth: rightCard ? (root.isHorizontal ? (rightCard.contentTargetWidth || rightCard.width) : 36) : 0
     readonly property real rightCardTargetHeight: rightCard ? (!root.isHorizontal ? (rightCard.contentTargetHeight || rightCard.height) : 36) : 0
 
-    readonly property real islandContentWidth: (root.isHorizontal ? leftCardTargetWidth : (leftCard ? leftCard.width : 0)) 
-        + (activeWindowCard && activeWindowCard.visible ? 190 : 0) 
-        + (root.isHorizontal ? rightCardTargetWidth : (rightCard ? rightCard.width : 0)) 
+    // Tray footprint, same "+8" reservation as ActiveWindowCard's own
+    // trayReserve below - without it, the island's total width never grows
+    // to make room for tray icons, so they eat into the shared middle gap
+    // instead and the bar visibly leans right as more apps register one.
+    readonly property real islandTraySpan: (trayCard && trayCard.visible)
+        ? ((root.isHorizontal ? trayCard.width : trayCard.height) + 8) : 0
+
+    readonly property real islandContentWidth: (root.isHorizontal ? leftCardTargetWidth : (leftCard ? leftCard.width : 0))
+        + (activeWindowCard && activeWindowCard.visible ? 190 : 0)
+        + (root.isHorizontal ? rightCardTargetWidth : (rightCard ? rightCard.width : 0))
+        + root.islandTraySpan
         + 64
     // isPanelActive (open OR still closing), not isOpen: isOpen flips false
     // the instant a close starts, which would drop this back to
@@ -453,9 +461,10 @@ PanelWindow {
         }
     }
 
-    readonly property real islandContentHeight: (!root.isHorizontal ? leftCardTargetHeight : (leftCard ? leftCard.height : 0)) 
-        + (activeWindowCard && activeWindowCard.visible ? 190 : 0) 
-        + (rightCard ? rightCard.height : 0) 
+    readonly property real islandContentHeight: (!root.isHorizontal ? leftCardTargetHeight : (leftCard ? leftCard.height : 0))
+        + (activeWindowCard && activeWindowCard.visible ? 190 : 0)
+        + (rightCard ? rightCard.height : 0)
+        + root.islandTraySpan
         + 64
 
     // Same isPanelActive + rawChildHeight reasoning as islandTargetWidth above.
@@ -995,10 +1004,9 @@ PanelWindow {
                     // The tray sits between this card and the right modules, so
                     // its footprint has to come out of the gap too - otherwise
                     // the window title slides underneath the tray icons as soon
-                    // as more than a couple of apps register one.
-                    readonly property real trayReserve: (trayCard && trayCard.visible)
-                        ? ((root.isHorizontal ? trayCard.width : trayCard.height) + 8)
-                        : 0
+                    // as more than a couple of apps register one. Same value
+                    // islandContentWidth uses to grow the bar's own footprint.
+                    readonly property real trayReserve: root.islandTraySpan
                     readonly property real rightBound: rightCard ? (root.isHorizontal ? (parent.width - rightCard.width - trayReserve - 30) : (parent.height - rightCard.height - trayReserve - 30)) : (root.isHorizontal ? parent.width : parent.height)
                     readonly property real barSpan: root.isHorizontal ? parent.width : parent.height
 
