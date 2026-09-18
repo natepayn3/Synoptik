@@ -79,9 +79,9 @@ Rectangle {
         StyledComboBox {
             id: userBox
             Layout.fillWidth: true
-            model: sddm.userModel
+            model: userModel
             textRole: "name"
-            currentIndex: sddm.userModel.lastIndex
+            currentIndex: userModel.lastIndex
         }
 
         TextField {
@@ -109,9 +109,9 @@ Rectangle {
         StyledComboBox {
             id: sessionBox
             Layout.fillWidth: true
-            model: sddm.sessionModel
+            model: sessionModel
             textRole: "name"
-            currentIndex: sddm.sessionModel.lastIndex
+            currentIndex: sessionModel.lastIndex
         }
 
         Text {
