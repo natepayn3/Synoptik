@@ -1,0 +1,13 @@
+[SddmGreeterTheme]
+Name=Synoptik City
+Description=Neon night-city Syn Optik artwork with a bottom-right login panel
+Author=natepayn3
+Copyright=2026, natepayn3
+License=MIT
+Type=sddm-theme
+Version=1.0
+QtVersion=6
+MainScript=Main.qml
+ConfigFile=theme.conf
+TranslationsDirectory=translations
+Theme-Id=synoptik-city
