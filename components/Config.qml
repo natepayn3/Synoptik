@@ -857,6 +857,17 @@ QtObject {
     property Process themeWriter: Process { id: writer }
     readonly property string hyprThemePath: Quickshell.env("HOME") + "/.config/hypr/hypr_style.lua"
 
+    // --- HYPRLAND GENERAL/ANIMATIONS/INPUT (extracted to services/HyprlandConfig.qml) ---
+    property HyprlandConfig hyprland: HyprlandConfig { configRef: root }
+    property alias hyprGapsIn: root.hyprland.hyprGapsIn
+    property alias hyprLayoutMode: root.hyprland.hyprLayoutMode
+    property alias hyprResizeOnBorder: root.hyprland.hyprResizeOnBorder
+    property alias hyprAllowTearing: root.hyprland.hyprAllowTearing
+    property alias hyprAnimationsEnabled: root.hyprland.hyprAnimationsEnabled
+    property alias hyprSensitivity: root.hyprland.hyprSensitivity
+    property alias hyprFollowMouse: root.hyprland.hyprFollowMouse
+    property alias hyprNaturalScroll: root.hyprland.hyprNaturalScroll
+
     function syncHyprlandBorders() {
         if (!isLoaded) return
 
@@ -909,8 +920,12 @@ QtObject {
             "            existing_monitors = '\\n\\n'.join(mons)\n\n" +
             "new_config = '''hl.config({\n" +
             "    general = {\n" +
+            "        gaps_in = " + hyprGapsIn + ",\n" +
             "        gaps_out = " + gapsOut + ",\n" +
             "        border_size = " + borderSize + ",\n" +
+            "        layout = \"" + hyprLayoutMode + "\",\n" +
+            "        resize_on_border = " + (hyprResizeOnBorder ? "true" : "false") + ",\n" +
+            "        allow_tearing = " + (hyprAllowTearing ? "true" : "false") + ",\n" +
             "        col = {\n" +
             "            active_border = " + activeLua + ",\n" +
             "            inactive_border = \"" + inactiveStr + "\"\n" +
@@ -919,6 +934,18 @@ QtObject {
             "    decoration = {\n" +
             "        rounding = " + roundingVal + ",\n" +
             "        screen_shader = \"" + shaderPath + "\"\n" +
+            "    },\n" +
+            "    animations = {\n" +
+            "        enabled = " + (hyprAnimationsEnabled ? "true" : "false") + "\n" +
+            "    }\n" +
+            "})\n\n" +
+            "hl.config({\n" +
+            "    input = {\n" +
+            "        sensitivity = " + hyprSensitivity.toFixed(2) + ",\n" +
+            "        follow_mouse = " + hyprFollowMouse + ",\n" +
+            "        touchpad = {\n" +
+            "            natural_scroll = " + (hyprNaturalScroll ? "true" : "false") + "\n" +
+            "        }\n" +
             "    }\n" +
             "})\n\n" +
             // Autostart hooks for session daemons Synoptik depends on
@@ -1045,7 +1072,9 @@ QtObject {
         "assistantPositions", "assistantLastScreen", "assistantMessages",
         "showAppDock", "appDockOrientation", "appDockScale", "appDockShowBorder", "appDockShowBackground",
         "appDockShowGlow", "appDockPositions", "appDockScales", "enabledAppDockScreens",
-        "displayProfileMap", "displayAutoSwitch", "emojiRecents"
+        "displayProfileMap", "displayAutoSwitch", "emojiRecents",
+        "hyprGapsIn", "hyprLayoutMode", "hyprResizeOnBorder", "hyprAllowTearing",
+        "hyprAnimationsEnabled", "hyprSensitivity", "hyprFollowMouse", "hyprNaturalScroll"
     ]
 
     // Settings are stored as JSON via Quickshell's own FileView+JsonAdapter instead of a
@@ -1284,6 +1313,14 @@ QtObject {
             property var customThemes
             property var currentThemeIndex
             property var isFloatingBar  // legacy pre-barFrameStyle key, load-only migration
+            property var hyprGapsIn
+            property var hyprLayoutMode
+            property var hyprResizeOnBorder
+            property var hyprAllowTearing
+            property var hyprAnimationsEnabled
+            property var hyprSensitivity
+            property var hyprFollowMouse
+            property var hyprNaturalScroll
         }
 
         function applyLoadedSettings() {

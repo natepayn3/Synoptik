@@ -74,6 +74,7 @@ Item {
         { id: 15, name: "Lockscreen",       icon: "lock",            group: "SYSTEM",       keywords: "lock password blur idle hypridle security" },
         { id: 18, name: "Screensaver",      icon: "tv",              group: "SYSTEM",       keywords: "idle screen saver matrix bounce" },
         { id: 25, name: "Greeter",          icon: "login",           group: "SYSTEM",       keywords: "sddm login screen greeter theme display manager startup" },
+        { id: 26, name: "Hyprland",         icon: "window",          group: "SYSTEM",       keywords: "wm window manager gaps layout dwindle master scrolling animation tearing resize input sensitivity mouse natural scroll follow" },
 
         // Rendered as its own pinned row beneath the groups rather than inside
         // one, so its group name only ever shows up in the breadcrumb.
@@ -1189,6 +1190,7 @@ Item {
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 23; visible: active; sourceComponent: AppDockSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 24; visible: active; sourceComponent: NotificationSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 25; visible: active; sourceComponent: GreeterSettings {} }
+                    Loader { anchors.fill: parent; active: settingsRoot.activeSection === 26; visible: active; sourceComponent: HyprlandSettings {} }
 
                     // Shell View (Section 11)
                     Loader {
