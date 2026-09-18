@@ -9,17 +9,22 @@ Rectangle {
 
     property string label: ""
     property bool highlighted: false
+    property bool danger: false
     signal clicked()
 
     implicitWidth: labelText.implicitWidth + 20
     implicitHeight: 26
     radius: 6
     opacity: control.enabled ? 1.0 : 0.4
-    color: control.highlighted
-        ? (hover.hovered ? Qt.lighter(Config.accent, 1.1) : Config.accent)
-        : (hover.hovered ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(255, 255, 255, 0.05))
+    color: control.danger
+        ? (hover.hovered ? "#e0435a" : Qt.rgba(0.937, 0.267, 0.267, 0.18))
+        : (control.highlighted
+            ? (hover.hovered ? Qt.lighter(Config.accent, 1.1) : Config.accent)
+            : (hover.hovered ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(255, 255, 255, 0.05)))
     border.width: 1
-    border.color: control.highlighted ? Config.accent : Qt.rgba(255, 255, 255, 0.12)
+    border.color: control.danger
+        ? "#ef4444"
+        : (control.highlighted ? Config.accent : Qt.rgba(255, 255, 255, 0.12))
 
     Behavior on color { ColorAnimation { duration: 150 } }
 
@@ -27,7 +32,9 @@ Rectangle {
         id: labelText
         anchors.centerIn: parent
         text: control.label
-        color: control.highlighted ? Config.bgBase : Config.textMain
+        color: control.danger
+            ? (hover.hovered ? Config.bgBase : "#ef4444")
+            : (control.highlighted ? Config.bgBase : Config.textMain)
         font.family: Config.sysFont
         font.pixelSize: Config.size(Config.fontMicro)
         font.bold: true

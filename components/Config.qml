@@ -85,6 +85,10 @@ QtObject {
     // Time-to-empty/full, health and charge thresholds - see BatteryService.qml.
     property BatteryService battery: BatteryService { configRef: root }
 
+    // SDDM greeter theme list/apply/delete state - see GreeterService.qml for
+    // why this needs to live outside the Settings panel's own component tree.
+    property GreeterService greeter: GreeterService {}
+
     // Auto-applies a saved profile when the set of connected displays changes
     // (dock/undock). Built on the profile system below rather than duplicating
     // any display state - see DisplayProfileService.qml.

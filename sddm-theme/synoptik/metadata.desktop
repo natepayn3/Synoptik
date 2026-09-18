@@ -10,3 +10,4 @@ MainScript=Main.qml
 ConfigFile=theme.conf
 TranslationsDirectory=translations
 Theme-Id=synoptik
+X-Synoptik=true
