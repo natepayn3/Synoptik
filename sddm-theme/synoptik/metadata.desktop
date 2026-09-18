@@ -6,6 +6,7 @@ Copyright=2026, natepayn3
 License=MIT
 Type=sddm-theme
 Version=1.0
+QtVersion=6
 MainScript=Main.qml
 ConfigFile=theme.conf
 TranslationsDirectory=translations
