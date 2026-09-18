@@ -44,7 +44,7 @@ PACMAN_PKGS=(
     grim slurp satty showmethekey wf-recorder hypridle libnotify ffmpeg
     procps-ng psmisc xdg-utils gawk sed coreutils util-linux
     power-profiles-daemon libcanberra qt6-webview qt6-imageformats
-    noto-fonts-emoji polkit
+    noto-fonts-emoji polkit sddm
 )
 AUR_PKGS=(
     quickshell-git awww mpvpaper cliphist
@@ -56,6 +56,10 @@ HYPR_LUA="$HOME/.config/hypr/hyprland.lua"
 LUA_MARKER='require("hypr_style")'
 HYPR_STYLE="$HOME/.config/hypr/hypr_style.lua"
 MEDIA_CARD_MARKER='float-synoptik-media-card'
+SDDM_THEME_ID="synoptik"
+SDDM_THEME_SRC="$TARGET_DIR/sddm-theme/$SDDM_THEME_ID"
+SDDM_THEME_DEST="/usr/share/sddm/themes/$SDDM_THEME_ID"
+SDDM_CONF_FILE="/etc/sddm.conf.d/theme.conf"
 
 # Given an AUR package spec, report whether it (or its -git-stripped base
 # package, or a locally-installed provider) already satisfies the install -
@@ -115,6 +119,12 @@ if [ "$DRY_RUN" -eq 1 ]; then
         echo "[enable]  systemd service: power-profiles-daemon.service"
     fi
 
+    if systemctl is-enabled --quiet sddm.service 2>/dev/null; then
+        echo "[ok]      sddm.service already enabled"
+    else
+        echo "[enable]  systemd service: sddm.service (becomes the active display manager, replacing any other enabled one)"
+    fi
+
     if [ -d "$TARGET_DIR/.git" ]; then
         echo "[sync]    $TARGET_DIR exists as a git checkout — would git fetch + reset --hard origin/main"
         echo "          (any local, uncommitted edits under this directory would be discarded)"
@@ -122,6 +132,18 @@ if [ "$DRY_RUN" -eq 1 ]; then
         echo "[replace] $TARGET_DIR exists but is NOT a git checkout — would be deleted entirely and re-cloned"
     else
         echo "[install] would clone Synoptik to $TARGET_DIR"
+    fi
+
+    if [ -d "$SDDM_THEME_DEST" ]; then
+        echo "[sync]    $SDDM_THEME_DEST exists — would be replaced with the repo's current $SDDM_THEME_ID theme files"
+    else
+        echo "[install] would install the $SDDM_THEME_ID SDDM greeter theme to $SDDM_THEME_DEST"
+    fi
+
+    if [ -f "$SDDM_CONF_FILE" ] && grep -q "^Current=$SDDM_THEME_ID\$" "$SDDM_CONF_FILE" 2>/dev/null; then
+        echo "[ok]      $SDDM_CONF_FILE already sets Current=$SDDM_THEME_ID"
+    else
+        echo "[modify]  would set Current=$SDDM_THEME_ID in $SDDM_CONF_FILE"
     fi
 
     if [ -f "$HYPR_LUA" ] && grep -q "$LUA_MARKER" "$HYPR_LUA" 2>/dev/null; then
@@ -160,6 +182,9 @@ export SYN_AUR_PKGS="${AUR_PKGS[*]}"
 export SYN_TARGET_DIR="$TARGET_DIR"
 export SYN_HYPR_LUA="$HYPR_LUA"
 export SYN_HYPR_STYLE="$HYPR_STYLE"
+export SYN_SDDM_THEME_ID="$SDDM_THEME_ID"
+export SYN_SDDM_THEME_DEST="$SDDM_THEME_DEST"
+export SYN_SDDM_CONF_FILE="$SDDM_CONF_FILE"
 
 # 2. Hand execution off to fish
 exec fish -c '
@@ -295,6 +320,37 @@ end
 if test -d "$TARGET_DIR/scripts"
     say "Setting executable permissions on backend scripts..."
     chmod +x "$TARGET_DIR"/scripts/*
+end
+
+# The SDDM greeter theme ships inside the repo (sddm-theme/<id>) so it stays
+# in sync with everything else on a `git reset --hard` re-run, rather than
+# living only on whichever machine first built it.
+set SDDM_THEME_ID "$SYN_SDDM_THEME_ID"
+set SDDM_THEME_SRC "$TARGET_DIR/sddm-theme/$SDDM_THEME_ID"
+set SDDM_THEME_DEST "$SYN_SDDM_THEME_DEST"
+set SDDM_CONF_FILE "$SYN_SDDM_CONF_FILE"
+
+if test -d "$SDDM_THEME_SRC"
+    say "Installing the $SDDM_THEME_ID SDDM greeter theme..."
+    sudo rm -rf "$SDDM_THEME_DEST"
+    sudo cp -r "$SDDM_THEME_SRC" "$SDDM_THEME_DEST"
+    or begin
+        echo "Failed to install SDDM theme to $SDDM_THEME_DEST"
+        exit 1
+    end
+
+    sudo mkdir -p (dirname "$SDDM_CONF_FILE")
+    if test -f "$SDDM_CONF_FILE"; and grep -q '^Current=' "$SDDM_CONF_FILE"
+        sudo sed -i "s/^Current=.*/Current=$SDDM_THEME_ID/" "$SDDM_CONF_FILE"
+    else
+        printf '[Theme]\nCurrent=%s\n' "$SDDM_THEME_ID" | sudo tee "$SDDM_CONF_FILE" >/dev/null
+    end
+
+    say "Enabling sddm.service..."
+    sudo systemctl enable --now sddm.service
+    or exit 1
+else
+    say "No sddm-theme/$SDDM_THEME_ID directory found in the repo, skipping greeter install."
 end
 
 set HYPR_LUA "$SYN_HYPR_LUA"

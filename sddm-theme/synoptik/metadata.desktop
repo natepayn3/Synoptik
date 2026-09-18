@@ -1,0 +1,12 @@
+[SddmGreeterTheme]
+Name=Synoptik
+Description=SynOptik artwork background with a right-offset login panel
+Author=natepayn3
+Copyright=2026, natepayn3
+License=MIT
+Type=sddm-theme
+Version=1.0
+MainScript=Main.qml
+ConfigFile=theme.conf
+TranslationsDirectory=translations
+Theme-Id=synoptik

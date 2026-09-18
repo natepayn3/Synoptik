@@ -73,6 +73,7 @@ Item {
         { id: 10, name: "Keyboard",         icon: "keyboard",        group: "SYSTEM",       keywords: "keybind shortcut hotkey osk on-screen layout binding" },
         { id: 15, name: "Lockscreen",       icon: "lock",            group: "SYSTEM",       keywords: "lock password blur idle hypridle security" },
         { id: 18, name: "Screensaver",      icon: "tv",              group: "SYSTEM",       keywords: "idle screen saver matrix bounce" },
+        { id: 25, name: "Greeter",          icon: "login",           group: "SYSTEM",       keywords: "sddm login screen greeter theme display manager startup" },
 
         // Rendered as its own pinned row beneath the groups rather than inside
         // one, so its group name only ever shows up in the breadcrumb.
@@ -1187,6 +1188,7 @@ Item {
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 22; visible: active; sourceComponent: AssistantSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 23; visible: active; sourceComponent: AppDockSettings {} }
                     Loader { anchors.fill: parent; active: settingsRoot.activeSection === 24; visible: active; sourceComponent: NotificationSettings {} }
+                    Loader { anchors.fill: parent; active: settingsRoot.activeSection === 25; visible: active; sourceComponent: GreeterSettings {} }
 
                     // Shell View (Section 11)
                     Loader {

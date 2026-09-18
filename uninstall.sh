@@ -7,11 +7,13 @@
 #   - moves ~/.config/quickshell/Synoptik out of the way (or deletes it
 #     outright with --purge)
 #
-# It deliberately does NOT remove pacman/AUR packages or disable the
-# power-profiles-daemon.service install.sh enabled — those are shared
-# system state other things may depend on, and pruning them automatically
-# is exactly the kind of "helpful" surprise an uninstaller shouldn't spring
-# on you. They're listed at the end instead.
+# It deliberately does NOT remove pacman/AUR packages, disable the
+# power-profiles-daemon.service or sddm.service install.sh enabled, or touch
+# the SDDM greeter theme/config it installed — those are shared system state
+# other things may depend on (sddm.service in particular is your login
+# manager), and pruning them automatically is exactly the kind of "helpful"
+# surprise an uninstaller shouldn't spring on you. They're listed at the end
+# instead.
 
 set -u
 
@@ -94,7 +96,9 @@ if [ "$DRY_RUN" -eq 1 ]; then
     echo ""
     echo "Not touched (shared system state — remove manually if you want them gone):"
     echo "  - pacman/AUR packages installed for Synoptik (hyprland, quickshell-git, cava, awww, ...)"
-    echo "  - the power-profiles-daemon.service systemd unit"
+    echo "  - the power-profiles-daemon.service and sddm.service systemd units"
+    echo "  - the installed SDDM greeter theme at /usr/share/sddm/themes/synoptik and its"
+    echo "    Current= selection in /etc/sddm.conf.d/theme.conf"
     echo ""
     echo "Dry run complete — no changes were made. Run without --dry-run to apply."
     exit 0
@@ -149,4 +153,6 @@ echo "Done. Synoptik has been removed."
 echo ""
 echo "Not touched (shared system state — remove manually if you want them gone):"
 echo "  - pacman/AUR packages installed for Synoptik (hyprland, quickshell-git, cava, awww, ...)"
-echo "  - the power-profiles-daemon.service systemd unit"
+echo "  - the power-profiles-daemon.service and sddm.service systemd units"
+echo "  - the installed SDDM greeter theme at /usr/share/sddm/themes/synoptik and its"
+echo "    Current= selection in /etc/sddm.conf.d/theme.conf"
