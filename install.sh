@@ -368,7 +368,7 @@ if test $INSTALLED_ANY_THEME -eq 1
     # or one pointed at something outside our set.
     set CURRENT_VAL ""
     if test -f "$SDDM_CONF_FILE"
-        set CURRENT_VAL (grep -h '^Current=' $SDDM_CONF_FILE 2>/dev/null | tail -1 | cut -d= -f2)
+        set CURRENT_VAL (grep -h '\''^Current='\'' $SDDM_CONF_FILE 2>/dev/null | tail -1 | cut -d= -f2)
     end
     set ALREADY_OURS 0
     for id in $SDDM_THEME_IDS
@@ -378,10 +378,10 @@ if test $INSTALLED_ANY_THEME -eq 1
     end
 
     if test $ALREADY_OURS -eq 0
-        if test -f "$SDDM_CONF_FILE"; and grep -q '^Current=' "$SDDM_CONF_FILE"
+        if test -f "$SDDM_CONF_FILE"; and grep -q '\''^Current='\'' "$SDDM_CONF_FILE"
             sudo sed -i "s/^Current=.*/Current=$SDDM_THEME_ID/" "$SDDM_CONF_FILE"
         else
-            printf '[Theme]\nCurrent=%s\n' "$SDDM_THEME_ID" | sudo tee "$SDDM_CONF_FILE" >/dev/null
+            printf '\''[Theme]\nCurrent=%s\n'\'' "$SDDM_THEME_ID" | sudo tee "$SDDM_CONF_FILE" >/dev/null
         end
     end
 
