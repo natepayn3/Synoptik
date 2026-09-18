@@ -56,9 +56,9 @@ HYPR_LUA="$HOME/.config/hypr/hyprland.lua"
 LUA_MARKER='require("hypr_style")'
 HYPR_STYLE="$HOME/.config/hypr/hypr_style.lua"
 MEDIA_CARD_MARKER='float-synoptik-media-card'
-SDDM_THEME_ID="synoptik"
-SDDM_THEME_SRC="$TARGET_DIR/sddm-theme/$SDDM_THEME_ID"
-SDDM_THEME_DEST="/usr/share/sddm/themes/$SDDM_THEME_ID"
+SDDM_THEME_IDS=("synoptik" "synoptik-city")
+SDDM_THEME_ID="synoptik"  # default active greeter on a fresh install
+SDDM_THEMES_DIR="/usr/share/sddm/themes"
 SDDM_CONF_FILE="/etc/sddm.conf.d/theme.conf"
 
 # Given an AUR package spec, report whether it (or its -git-stripped base
@@ -134,14 +134,25 @@ if [ "$DRY_RUN" -eq 1 ]; then
         echo "[install] would clone Synoptik to $TARGET_DIR"
     fi
 
-    if [ -d "$SDDM_THEME_DEST" ]; then
-        echo "[sync]    $SDDM_THEME_DEST exists — would be replaced with the repo's current $SDDM_THEME_ID theme files"
-    else
-        echo "[install] would install the $SDDM_THEME_ID SDDM greeter theme to $SDDM_THEME_DEST"
-    fi
+    for id in "${SDDM_THEME_IDS[@]}"; do
+        dest="$SDDM_THEMES_DIR/$id"
+        if [ -d "$dest" ]; then
+            echo "[sync]    $dest exists — would be replaced with the repo's current $id theme files"
+        else
+            echo "[install] would install the $id SDDM greeter theme to $dest"
+        fi
+    done
 
-    if [ -f "$SDDM_CONF_FILE" ] && grep -q "^Current=$SDDM_THEME_ID\$" "$SDDM_CONF_FILE" 2>/dev/null; then
-        echo "[ok]      $SDDM_CONF_FILE already sets Current=$SDDM_THEME_ID"
+    current_val=""
+    if [ -f "$SDDM_CONF_FILE" ]; then
+        current_val="$(grep -h '^Current=' "$SDDM_CONF_FILE" 2>/dev/null | tail -1 | cut -d= -f2)"
+    fi
+    already_ours=0
+    for id in "${SDDM_THEME_IDS[@]}"; do
+        [ "$current_val" = "$id" ] && already_ours=1
+    done
+    if [ "$already_ours" -eq 1 ]; then
+        echo "[ok]      $SDDM_CONF_FILE already set to your chosen greeter (Current=$current_val), would leave it"
     else
         echo "[modify]  would set Current=$SDDM_THEME_ID in $SDDM_CONF_FILE"
     fi
@@ -183,7 +194,8 @@ export SYN_TARGET_DIR="$TARGET_DIR"
 export SYN_HYPR_LUA="$HYPR_LUA"
 export SYN_HYPR_STYLE="$HYPR_STYLE"
 export SYN_SDDM_THEME_ID="$SDDM_THEME_ID"
-export SYN_SDDM_THEME_DEST="$SDDM_THEME_DEST"
+export SYN_SDDM_THEME_IDS="${SDDM_THEME_IDS[*]}"
+export SYN_SDDM_THEMES_DIR="$SDDM_THEMES_DIR"
 export SYN_SDDM_CONF_FILE="$SDDM_CONF_FILE"
 
 # 2. Hand execution off to fish
@@ -326,31 +338,56 @@ end
 # in sync with everything else on a `git reset --hard` re-run, rather than
 # living only on whichever machine first built it.
 set SDDM_THEME_ID "$SYN_SDDM_THEME_ID"
-set SDDM_THEME_SRC "$TARGET_DIR/sddm-theme/$SDDM_THEME_ID"
-set SDDM_THEME_DEST "$SYN_SDDM_THEME_DEST"
+set SDDM_THEME_IDS (string split " " "$SYN_SDDM_THEME_IDS")
+set SDDM_THEMES_DIR "$SYN_SDDM_THEMES_DIR"
 set SDDM_CONF_FILE "$SYN_SDDM_CONF_FILE"
 
-if test -d "$SDDM_THEME_SRC"
-    say "Installing the $SDDM_THEME_ID SDDM greeter theme..."
-    sudo rm -rf "$SDDM_THEME_DEST"
-    sudo cp -r "$SDDM_THEME_SRC" "$SDDM_THEME_DEST"
-    or begin
-        echo "Failed to install SDDM theme to $SDDM_THEME_DEST"
-        exit 1
+set INSTALLED_ANY_THEME 0
+for id in $SDDM_THEME_IDS
+    set theme_src "$TARGET_DIR/sddm-theme/$id"
+    set theme_dest "$SDDM_THEMES_DIR/$id"
+    if test -d "$theme_src"
+        say "Installing the $id SDDM greeter theme..."
+        sudo rm -rf "$theme_dest"
+        sudo cp -r "$theme_src" "$theme_dest"
+        or begin
+            echo "Failed to install SDDM theme to $theme_dest"
+            exit 1
+        end
+        set INSTALLED_ANY_THEME 1
+    else
+        say "No sddm-theme/$id directory found in the repo, skipping."
+    end
+end
+
+if test $INSTALLED_ANY_THEME -eq 1
+    sudo mkdir -p (dirname "$SDDM_CONF_FILE")
+
+    # Avoid clobbering a greeter the user already picked (via Settings) among
+    # the themes we ship - only fall back to the default on a fresh config
+    # or one pointed at something outside our set.
+    set CURRENT_VAL ""
+    if test -f "$SDDM_CONF_FILE"
+        set CURRENT_VAL (grep -h '^Current=' $SDDM_CONF_FILE 2>/dev/null | tail -1 | cut -d= -f2)
+    end
+    set ALREADY_OURS 0
+    for id in $SDDM_THEME_IDS
+        if test "$CURRENT_VAL" = "$id"
+            set ALREADY_OURS 1
+        end
     end
 
-    sudo mkdir -p (dirname "$SDDM_CONF_FILE")
-    if test -f "$SDDM_CONF_FILE"; and grep -q '^Current=' "$SDDM_CONF_FILE"
-        sudo sed -i "s/^Current=.*/Current=$SDDM_THEME_ID/" "$SDDM_CONF_FILE"
-    else
-        printf '[Theme]\nCurrent=%s\n' "$SDDM_THEME_ID" | sudo tee "$SDDM_CONF_FILE" >/dev/null
+    if test $ALREADY_OURS -eq 0
+        if test -f "$SDDM_CONF_FILE"; and grep -q '^Current=' "$SDDM_CONF_FILE"
+            sudo sed -i "s/^Current=.*/Current=$SDDM_THEME_ID/" "$SDDM_CONF_FILE"
+        else
+            printf '[Theme]\nCurrent=%s\n' "$SDDM_THEME_ID" | sudo tee "$SDDM_CONF_FILE" >/dev/null
+        end
     end
 
     say "Enabling sddm.service..."
     sudo systemctl enable --now sddm.service
     or exit 1
-else
-    say "No sddm-theme/$SDDM_THEME_ID directory found in the repo, skipping greeter install."
 end
 
 set HYPR_LUA "$SYN_HYPR_LUA"

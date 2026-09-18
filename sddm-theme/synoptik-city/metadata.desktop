@@ -11,3 +11,4 @@ MainScript=Main.qml
 ConfigFile=theme.conf
 TranslationsDirectory=translations
 Theme-Id=synoptik-city
+X-Synoptik=true
