@@ -24,8 +24,11 @@ PanelWindow {
 
     Component.onCompleted: {
         let activeName = Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""
-        let found = Quickshell.screens.find(s => s.name === activeName)
-        mirrorWindow.screen = found || Quickshell.screens[0]
+        let target = Quickshell.screens.find(s => s.name === activeName) || Quickshell.screens[0]
+        // See AssistantWidget.qml's onCompleted comment: skip the no-op
+        // reassignment, which otherwise races WallpaperSurface's own
+        // output binding at startup and can segfault the shell.
+        if (mirrorWindow.screen !== target) mirrorWindow.screen = target
     }
 
     WlrLayershell.layer: WlrLayer.Bottom
@@ -212,7 +215,16 @@ PanelWindow {
             // it to the remembered screen now that we actually know it.
             if (Config.mirrorLastScreen && mirrorWindow.screen && Config.mirrorLastScreen !== mirrorWindow.screen.name) {
                 let savedScreen = Quickshell.screens.find(s => s.name === Config.mirrorLastScreen)
-                if (savedScreen) mirrorWindow.screen = savedScreen
+                if (savedScreen) {
+                    // See MediaCardWidget.qml's restorePosition() for why
+                    // this defers and re-enters rather than reassigning
+                    // .screen inline.
+                    Qt.callLater(() => {
+                        mirrorWindow.screen = savedScreen
+                        restorePosition()
+                    })
+                    return
+                }
             }
 
             cardWidth = mirrorWindow.clampSize(Config.mirrorWidth, mirrorWindow.minCardSize.width, mirrorWindow.maxCardSize.width, 380)

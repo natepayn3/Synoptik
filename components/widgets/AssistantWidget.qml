@@ -58,8 +58,14 @@ PanelWindow {
 
     Component.onCompleted: {
         let activeName = Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""
-        let found = Quickshell.screens.find(s => s.name === activeName)
-        assistantWindow.screen = found || Quickshell.screens[0]
+        let target = Quickshell.screens.find(s => s.name === activeName) || Quickshell.screens[0]
+        // Reassigning .screen even to the window's current output forces
+        // Qt to tear down and rebind the layer-shell surface's Wayland
+        // output association - harmless alone, but racing another panel's
+        // (e.g. WallpaperSurface's) own output binding at startup trips a
+        // use-after-free in QWaylandWindow::calculateExposure() and
+        // segfaults the whole shell. Skipping the no-op case avoids it.
+        if (assistantWindow.screen !== target) assistantWindow.screen = target
 
         claudeCheck.running = true
         codexCheck.running = true
@@ -1898,7 +1904,16 @@ PanelWindow {
 
             if (Config.assistantLastScreen && assistantWindow.screen && Config.assistantLastScreen !== assistantWindow.screen.name) {
                 let savedScreen = Quickshell.screens.find(s => s.name === Config.assistantLastScreen)
-                if (savedScreen) assistantWindow.screen = savedScreen
+                if (savedScreen) {
+                    // See MediaCardWidget.qml's restorePosition() for why
+                    // this defers and re-enters rather than reassigning
+                    // .screen inline.
+                    Qt.callLater(() => {
+                        assistantWindow.screen = savedScreen
+                        restoreExpandedGeometry()
+                    })
+                    return
+                }
             }
 
             cardWidth = assistantWindow.clampSize(Config.assistantWidth, assistantWindow.minCardSize.width, assistantWindow.maxCardSize.width, 320)
@@ -1929,7 +1944,16 @@ PanelWindow {
 
             if (Config.mascotLastScreen && assistantWindow.screen && Config.mascotLastScreen !== assistantWindow.screen.name) {
                 let savedScreen = Quickshell.screens.find(s => s.name === Config.mascotLastScreen)
-                if (savedScreen) assistantWindow.screen = savedScreen
+                if (savedScreen) {
+                    // See MediaCardWidget.qml's restorePosition() for why
+                    // this defers and re-enters rather than reassigning
+                    // .screen inline.
+                    Qt.callLater(() => {
+                        assistantWindow.screen = savedScreen
+                        restoreCollapsedGeometry()
+                    })
+                    return
+                }
             }
 
             // Seeded here rather than in the property's initialiser, which has

@@ -43,8 +43,11 @@ PanelWindow {
 
     Component.onCompleted: {
         let activeName = Hyprland.focusedMonitor ? Hyprland.focusedMonitor.name : ""
-        let found = Quickshell.screens.find(s => s.name === activeName)
-        mediaCardWindow.screen = found || Quickshell.screens[0]
+        let target = Quickshell.screens.find(s => s.name === activeName) || Quickshell.screens[0]
+        // See AssistantWidget.qml's onCompleted comment: skip the no-op
+        // reassignment, which otherwise races WallpaperSurface's own
+        // output binding at startup and can segfault the shell.
+        if (mediaCardWindow.screen !== target) mediaCardWindow.screen = target
     }
 
     WlrLayershell.layer: WlrLayer.Bottom
@@ -323,7 +326,22 @@ PanelWindow {
             // it to the remembered screen now that we actually know it.
             if (Config.mediaCardLastScreen && mediaCardWindow.screen && Config.mediaCardLastScreen !== mediaCardWindow.screen.name) {
                 let savedScreen = Quickshell.screens.find(s => s.name === Config.mediaCardLastScreen)
-                if (savedScreen) mediaCardWindow.screen = savedScreen
+                if (savedScreen) {
+                    // Reassigning .screen synchronously here races
+                    // WallpaperSurface's own per-screen output binding
+                    // during the same startup tick - same use-after-free as
+                    // the Component.onCompleted case above (see
+                    // AssistantWidget.qml's onCompleted comment). Deferred
+                    // a tick and re-entering restorePosition() rather than
+                    // just setting .screen inline: the position lookup
+                    // below needs the corrected screen's name, and this
+                    // way the re-entrant call sees it already matching.
+                    Qt.callLater(() => {
+                        mediaCardWindow.screen = savedScreen
+                        restorePosition()
+                    })
+                    return
+                }
             }
 
             cardWidth = mediaCardWindow.clampSize(Config.mediaCardWidth, mediaCardWindow.minCardSize.width, mediaCardWindow.maxCardSize.width, 232)
