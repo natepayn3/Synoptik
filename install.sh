@@ -119,6 +119,12 @@ if [ "$DRY_RUN" -eq 1 ]; then
         echo "[enable]  systemd service: power-profiles-daemon.service"
     fi
 
+    if systemctl is-enabled --quiet bluetooth.service 2>/dev/null; then
+        echo "[ok]      bluetooth.service already enabled"
+    else
+        echo "[enable]  systemd service: bluetooth.service"
+    fi
+
     if systemctl is-enabled --quiet sddm.service 2>/dev/null; then
         echo "[ok]      sddm.service already enabled"
     else
@@ -296,6 +302,8 @@ end
 
 say "Enabling systemd services..."
 sudo systemctl enable --now power-profiles-daemon.service
+or exit 1
+sudo systemctl enable --now bluetooth.service
 or exit 1
 
 set TARGET_DIR "$SYN_TARGET_DIR"
