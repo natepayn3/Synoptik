@@ -15,7 +15,34 @@ PanelWindow {
 
     property alias positionRestored: dockContainer.initialized
 
-    visible: positionRestored && Config.showAppDock && (screen ? Config.isAppDockEnabledForScreen(screen.name) : true)
+    // Hyprland's ext-session-lock teardown doesn't reliably re-register this
+    // surface for pointer hit-testing on unlock - being WlrLayer.Bottom with
+    // no exclusive zone and no keyboard focus, it's low-priority enough that
+    // it renders fine but stops accepting clicks until its layer surface is
+    // unmapped/remapped. There's no protocol call to ask the compositor to
+    // redo hit-testing directly, so kickInputFocus() below forces the remap
+    // by briefly hiding instead.
+    property bool forceRemapHidden: false
+
+    visible: positionRestored && Config.showAppDock && !forceRemapHidden && (screen ? Config.isAppDockEnabledForScreen(screen.name) : true)
+
+    function kickInputFocus() {
+        forceRemapHidden = true
+        remapTimer.restart()
+    }
+
+    Timer {
+        id: remapTimer
+        interval: 100
+        onTriggered: dockWindow.forceRemapHidden = false
+    }
+
+    Connections {
+        target: Config
+        function onSessionLockedChanged() {
+            if (!Config.sessionLocked) dockWindow.kickInputFocus()
+        }
+    }
 
     WlrLayershell.layer: WlrLayer.Bottom
     WlrLayershell.namespace: "quickshell-desktop-appdock"

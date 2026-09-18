@@ -903,7 +903,7 @@ ShellRoot {
             id: appDockDelegate
             required property var modelData
             screen: modelData
-            visible: appDockDelegate.positionRestored && Config.showAppDock && (modelData ? Config.isAppDockEnabledForScreen(modelData.name) : true)
+            visible: appDockDelegate.positionRestored && Config.showAppDock && !appDockDelegate.forceRemapHidden && (modelData ? Config.isAppDockEnabledForScreen(modelData.name) : true)
         }
     }
 }
