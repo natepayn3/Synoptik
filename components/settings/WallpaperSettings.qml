@@ -759,7 +759,15 @@ SettingsPage {
 
         Rectangle {
             Layout.fillWidth: true
-            implicitHeight: Math.max(260, gridView.contentHeight + 12)
+
+            // Capped at five rows so the grid scrolls internally. It used to
+            // take its full contentHeight - about 6000px for a 137-wallpaper
+            // library - which made the GridView's viewport as tall as its own
+            // content, so virtualisation never engaged and every delegate in
+            // the library was built on page open no matter where you were
+            // scrolled. Still shrinks to fit when there are fewer than five
+            // rows, so a small library doesn't get a scrollbar it can't use.
+            implicitHeight: Math.max(260, Math.min(gridView.cellHeight * 5, gridView.contentHeight) + 12)
             color: SettingsStyle.controlBg
             radius: Config.cornerRadius / 2
             border.width: 1
@@ -775,9 +783,61 @@ SettingsPage {
 
                 clip: true
                 boundsBehavior: Flickable.StopAtBounds
-                cacheBuffer: 4000
+
+                // Two rows either side of the viewport: enough that a normal
+                // flick never shows an empty cell, without the old 4000px
+                // (~30 rows) that pulled in most of the library at once.
+                cacheBuffer: Math.round(cellHeight * 2)
                 reuseItems: true
                 model: Config.wallpapers
+
+                ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+                // Qt doesn't chain wheel events between nested Flickables:
+                // once the grid hits its end the wheel stops dead there
+                // instead of carrying on down the page.
+                //
+                // `blocking: false` is what makes this additive - the grid
+                // still handles its own wheel exactly as before, and this
+                // only steps in for the events the grid can no longer use.
+                // At a bound the grid's own handling is a no-op (it is
+                // StopAtBounds), so there's no chance of scrolling twice.
+                WheelHandler {
+                    blocking: false
+                    acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+
+                    onWheel: event => {
+                        const dy = event.angleDelta.y
+                        if (dy === 0)
+                            return
+
+                        const gridMax = Math.max(0, gridView.contentHeight - gridView.height)
+                        const atTop = gridView.contentY <= 0.5
+                        const atBottom = gridView.contentY >= gridMax - 0.5
+
+                        // The grid still has somewhere to go - let it.
+                        if ((dy > 0 && !atTop) || (dy < 0 && !atBottom))
+                            return
+
+                        // Carry on from where an in-flight chain was heading,
+                        // so spinning the wheel accumulates instead of
+                        // restarting from the current position each time.
+                        const base = pageChain.running ? pageChain.to : root.contentY
+                        const pageMax = Math.max(0, root.contentHeight - root.height)
+                        pageChain.to = Math.max(0, Math.min(pageMax, base - dy))
+                        pageChain.restart()
+                    }
+                }
+
+                // Eased rather than a direct jump, so a chained scroll reads
+                // like the page's own.
+                NumberAnimation {
+                    id: pageChain
+                    target: root
+                    property: "contentY"
+                    duration: 120
+                    easing.type: Easing.OutQuad
+                }
 
                 delegate: Item {
                     id: delegateItem
@@ -804,9 +864,31 @@ SettingsPage {
                         return false
                     }
 
-                    readonly property string imageSource: isVideo ? 
-                        ("file://" + Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + baseName + ".jpg") : 
-                        ("file://" + cleanPath)
+                    // WallpaperConfig's startup scanner already renders a
+                    // 960px thumbnail for every wallpaper - stills included -
+                    // into this directory. The grid used to read the cache for
+                    // videos only and hand Image the full-size original for
+                    // everything else, so opening this page decoded the whole
+                    // library (210MB of it here, single files up to 12MB) down
+                    // to a 320x180 cell on every shell launch.
+                    readonly property string thumbSource:
+                        "file://" + Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + baseName + ".jpg"
+
+                    // A wallpaper added since the last scan has no thumbnail
+                    // yet. Stills can fall back to the original; a video has
+                    // nothing to fall back to and stays blank until the
+                    // preloader catches up.
+                    property bool thumbMissing: false
+
+                    readonly property string imageSource: (thumbMissing && !isVideo)
+                        ? ("file://" + cleanPath)
+                        : thumbSource
+
+                    // Bumped when the preloader finishes a pass, so a delegate
+                    // that fell back to the original picks the thumbnail up.
+                    readonly property int thumbEpoch:
+                        Config.wallpaperService ? Config.wallpaperService.thumbEpoch : 0
+                    onThumbEpochChanged: thumbMissing = false
 
                     Item {
                         anchors.fill: parent
@@ -825,6 +907,11 @@ SettingsPage {
                                 sourceSize.height: 180
                                 asynchronous: true
                                 cache: true
+
+                                onStatusChanged: {
+                                    if (status === Image.Error && !delegateItem.thumbMissing)
+                                        delegateItem.thumbMissing = true
+                                }
                             }
 
                             Rectangle {
