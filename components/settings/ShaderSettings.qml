@@ -1,318 +1,152 @@
 import QtQuick
-import QtQuick.Layouts
-import Quickshell
 import ".."
 
-Item {
+SettingsPage {
     id: root
 
-    RowLayout {
-        anchors.fill: parent
-        spacing: 20
+    title: "Retro Shader"
+    description: "Post-processing fragment shaders applied across your displays."
+    icon: "videogame_asset"
 
-        ColumnLayout {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            Layout.alignment: Qt.AlignTop
-            spacing: 12
+    readonly property bool shaderEnabled: Config.pixelShaderEnabled === true
+    readonly property string shaderMode: Config.pixelShaderMode || "pixelate"
 
-            Text {
-                text: "RETRO SCREEN SHADER CONFIGURATION"
-                color: Config.textMain
-                font.family: Config.sysFont
-                font.pixelSize: Config.size(Config.fontSubhead)
-                font.bold: true
+    // Every option on this page has to call Config.updateShader() after the
+    // assignment - the shader source is rebuilt from these values rather than
+    // bound to them, so a write alone changes nothing on screen.
+    function apply() {
+        Config.updateShader()
+    }
+
+    SettingsCard {
+        title: "Screen Shader"
+        icon: "videogame_asset"
+
+        SettingsToggleRow {
+            title: "Enable Screen Shader"
+            subtitle: "Apply custom post-processing fragment shaders across your displays"
+            checked: Config.pixelShaderEnabled === true
+            onToggled: {
+                Config.pixelShaderEnabled = !Config.pixelShaderEnabled
+                root.apply()
             }
+        }
 
-            // MASTER TOGGLE
-            SettingsToggleRow {
-                title: "Enable Screen Shader"
-                subtitle: "Apply custom post-processing fragment shaders across your displays"
-                checked: Config.pixelShaderEnabled === true
-                onToggled: {
-                    Config.pixelShaderEnabled = !Config.pixelShaderEnabled
-                    Config.updateShader()
-                }
-            }
+        SettingsField {
+            label: "Preset"
+            active: root.shaderEnabled
 
-            // OPTIONS CONTAINER
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 12
-                enabled: Config.pixelShaderEnabled === true
-                opacity: Config.pixelShaderEnabled ? 1.0 : 0.4
-
-                Behavior on opacity { NumberAnimation { duration: 160 } }
-
-                // SHADER MODE SELECTOR
-                ColumnLayout {
-                    spacing: 6
-
-                    Text {
-                        text: "SHADER PRESET"
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                        font.bold: true
-                    }
-
-                    RowLayout {
-                        spacing: 8
-
-                        Repeater {
-                            model: [
-                                { name: "Pixelate / 8-Bit", id: "pixelate" },
-                                { name: "Arcade CRT", id: "crt" },
-                                { name: "Macintosh 1-Bit", id: "mac1bit" }
-                            ]
-
-                            delegate: Rectangle {
-                                required property var modelData
-                                implicitWidth: 140
-                                implicitHeight: 36
-                                radius: Config.cornerRadius / 2
-
-                                readonly property bool isSelected: (Config.pixelShaderMode || "pixelate") === modelData.id
-                                color: isSelected ? Qt.rgba(255, 255, 255, 0.12) : (modeHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : Qt.rgba(255, 255, 255, 0.03))
-                                border.width: isSelected ? 2 : 0
-                                border.color: Config.accent
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: modelData.name
-                                    color: isSelected ? Config.accent : Config.textMain
-                                    font.family: Config.sysFont
-                                    font.pixelSize: Config.size(Config.fontCaption)
-                                    font.bold: isSelected
-                                }
-
-                                TapHandler { 
-                                    onTapped: {
-                                        Config.pixelShaderMode = modelData.id
-                                        Config.updateShader()
-                                    }
-                                }
-                                HoverHandler { id: modeHover; cursorShape: Qt.PointingHandCursor }
-                            }
-                        }
-                    }
-                }
-
-                // PIXEL DENSITY / SCALE (PIXELATE ONLY)
-                ColumnLayout {
-                    spacing: 6
-                    visible: (Config.pixelShaderMode || "pixelate") === "pixelate"
-
-                    Text {
-                        text: "PIXEL SCALE"
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                        font.bold: true
-                    }
-
-                    RowLayout {
-                        spacing: 8
-
-                        Repeater {
-                            model: [
-                                { name: "Subtle (2px)", val: 2.0 },
-                                { name: "Retro (3px)", val: 3.0 },
-                                { name: "Chunky (4px)", val: 4.0 }
-                            ]
-
-                            delegate: Rectangle {
-                                required property var modelData
-                                implicitWidth: 130
-                                implicitHeight: 36
-                                radius: Config.cornerRadius / 2
-
-                                readonly property bool isSelected: (Config.pixelShaderSize || 2.0) === modelData.val
-                                color: isSelected ? Qt.rgba(255, 255, 255, 0.12) : (szHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : Qt.rgba(255, 255, 255, 0.03))
-                                border.width: isSelected ? 2 : 0
-                                border.color: Config.accent
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: modelData.name
-                                    color: isSelected ? Config.accent : Config.textMain
-                                    font.family: Config.sysFont
-                                    font.pixelSize: Config.size(Config.fontCaption)
-                                    font.bold: isSelected
-                                }
-
-                                TapHandler { 
-                                    onTapped: {
-                                        Config.pixelShaderSize = modelData.val
-                                        Config.updateShader()
-                                    }
-                                }
-                                HoverHandler { id: szHover; cursorShape: Qt.PointingHandCursor }
-                            }
-                        }
-                    }
-                }
-
-                // COLOR DEPTH (PIXELATE ONLY)
-                ColumnLayout {
-                    spacing: 6
-                    visible: (Config.pixelShaderMode || "pixelate") === "pixelate"
-
-                    Text {
-                        text: "COLOR DEPTH"
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                        font.bold: true
-                    }
-
-                    RowLayout {
-                        spacing: 8
-
-                        Repeater {
-                            model: [
-                                { name: "32 Steps (Clean)", val: 32.0 },
-                                { name: "16 Steps (16-Bit)", val: 16.0 },
-                                { name: "8 Steps (8-Bit)", val: 8.0 },
-                                { name: "256 (True Color)", val: 256.0 }
-                            ]
-
-                            delegate: Rectangle {
-                                required property var modelData
-                                implicitWidth: 130
-                                implicitHeight: 36
-                                radius: Config.cornerRadius / 2
-
-                                readonly property bool isSelected: (Config.pixelShaderLevels || 32.0) === modelData.val
-                                color: isSelected ? Qt.rgba(255, 255, 255, 0.12) : (clHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : Qt.rgba(255, 255, 255, 0.03))
-                                border.width: isSelected ? 2 : 0
-                                border.color: Config.accent
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: modelData.name
-                                    color: isSelected ? Config.accent : Config.textMain
-                                    font.family: Config.sysFont
-                                    font.pixelSize: Config.size(Config.fontCaption)
-                                    font.bold: isSelected
-                                }
-
-                                TapHandler { 
-                                    onTapped: {
-                                        Config.pixelShaderLevels = modelData.val
-                                        Config.updateShader()
-                                    }
-                                }
-                                HoverHandler { id: clHover; cursorShape: Qt.PointingHandCursor }
-                            }
-                        }
-                    }
-                }
-
-                // PALETTE PRESET (PIXELATE ONLY)
-                ColumnLayout {
-                    spacing: 6
-                    visible: (Config.pixelShaderMode || "pixelate") === "pixelate"
-
-                    Text {
-                        text: "COLOR PALETTE"
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                        font.bold: true
-                    }
-
-                    RowLayout {
-                        spacing: 8
-
-                        Repeater {
-                            model: [
-                                { name: "RGB True", id: "default" },
-                                { name: "Game Boy DMG", id: "gameboy" },
-                                { name: "Amber CRT", id: "amber" }
-                            ]
-
-                            delegate: Rectangle {
-                                required property var modelData
-                                implicitWidth: 130
-                                implicitHeight: 36
-                                radius: Config.cornerRadius / 2
-
-                                readonly property bool isSelected: (Config.pixelShaderPalette || "default") === modelData.id
-                                color: isSelected ? Qt.rgba(255, 255, 255, 0.12) : (palHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : Qt.rgba(255, 255, 255, 0.03))
-                                border.width: isSelected ? 2 : 0
-                                border.color: Config.accent
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: modelData.name
-                                    color: isSelected ? Config.accent : Config.textMain
-                                    font.family: Config.sysFont
-                                    font.pixelSize: Config.size(Config.fontCaption)
-                                    font.bold: isSelected
-                                }
-
-                                TapHandler { 
-                                    onTapped: {
-                                        Config.pixelShaderPalette = modelData.id
-                                        Config.updateShader()
-                                    }
-                                }
-                                HoverHandler { id: palHover; cursorShape: Qt.PointingHandCursor }
-                            }
-                        }
-                    }
-                }
-
-                // TOGGLE OPTIONS (PIXELATE ONLY)
-                ColumnLayout {
-                    spacing: 8
-                    visible: (Config.pixelShaderMode || "pixelate") === "pixelate"
-
-                    Text {
-                        text: "SHADER OPTIONS"
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                        font.bold: true
-                    }
-
-                    // BAYER DITHER
-                    SettingsToggleRow {
-                        title: "Ordered Bayer Dithering"
-                        subtitle: "Cross-hatch color transitions instead of flat banding"
-                        checked: Config.pixelShaderDither !== false
-                        onToggled: {
-                            Config.pixelShaderDither = (Config.pixelShaderDither === false)
-                            Config.updateShader()
-                        }
-                    }
-
-                    // PIXEL GRID
-                    SettingsToggleRow {
-                        title: "Pixel Grid Lines"
-                        subtitle: "Simulate physical phosphor gaps between virtual pixels"
-                        checked: Config.pixelShaderGrid === true
-                        onToggled: {
-                            Config.pixelShaderGrid = (Config.pixelShaderGrid !== true)
-                            Config.updateShader()
-                        }
-                    }
-
-                    // ARCADE CONTRAST
-                    SettingsToggleRow {
-                        title: "Arcade Contrast Boost"
-                        subtitle: "Slightly lifts saturation and contrast on dark UI elements"
-                        checked: Config.pixelShaderBoost !== false
-                        onToggled: {
-                            Config.pixelShaderBoost = (Config.pixelShaderBoost === false)
-                            Config.updateShader()
-                        }
-                    }
+            SettingsSegmented {
+                currentValue: root.shaderMode
+                model: [
+                    { label: "Pixelate / 8-Bit",  value: "pixelate", icon: "grid_view" },
+                    { label: "Arcade CRT",        value: "crt",      icon: "tv_gen" },
+                    { label: "Macintosh 1-Bit",   value: "mac1bit",  icon: "desktop_mac" }
+                ]
+                onSelected: value => {
+                    Config.pixelShaderMode = value
+                    root.apply()
                 }
             }
+        }
+    }
 
-            Item { Layout.fillHeight: true }
+    // The remaining cards drive uniforms that only the pixelate shader reads;
+    // the CRT and 1-bit presets ignore them entirely, so they collapse rather
+    // than sit there dimmed and misleading.
+    SettingsCard {
+        title: "Pixelation"
+        icon: "grid_view"
+        bodyEnabled: root.shaderEnabled
+        visible: root.shaderMode === "pixelate"
+
+        SettingsField {
+            label: "Pixel Scale"
+
+            SettingsSegmented {
+                currentValue: Config.pixelShaderSize || 2.0
+                model: [
+                    { label: "Subtle (2px)", value: 2.0 },
+                    { label: "Retro (3px)",  value: 3.0 },
+                    { label: "Chunky (4px)", value: 4.0 }
+                ]
+                onSelected: value => {
+                    Config.pixelShaderSize = value
+                    root.apply()
+                }
+            }
+        }
+
+        SettingsField {
+            label: "Colour Depth"
+
+            SettingsSegmented {
+                currentValue: Config.pixelShaderLevels || 32.0
+                model: [
+                    { label: "32 Steps (Clean)",   value: 32.0 },
+                    { label: "16 Steps (16-Bit)",  value: 16.0 },
+                    { label: "8 Steps (8-Bit)",    value: 8.0 },
+                    { label: "256 (True Colour)",  value: 256.0 }
+                ]
+                onSelected: value => {
+                    Config.pixelShaderLevels = value
+                    root.apply()
+                }
+            }
+        }
+
+        SettingsField {
+            label: "Palette"
+
+            SettingsSegmented {
+                currentValue: Config.pixelShaderPalette || "default"
+                model: [
+                    { label: "RGB True",     value: "default" },
+                    { label: "Game Boy DMG", value: "gameboy" },
+                    { label: "Amber CRT",    value: "amber" }
+                ]
+                onSelected: value => {
+                    Config.pixelShaderPalette = value
+                    root.apply()
+                }
+            }
+        }
+    }
+
+    SettingsCard {
+        title: "Shader Options"
+        icon: "tune"
+        bodyEnabled: root.shaderEnabled
+        visible: root.shaderMode === "pixelate"
+
+        SettingsToggleRow {
+            title: "Ordered Bayer Dithering"
+            subtitle: "Cross-hatch colour transitions instead of flat banding"
+            checked: Config.pixelShaderDither !== false
+            onToggled: {
+                Config.pixelShaderDither = (Config.pixelShaderDither === false)
+                root.apply()
+            }
+        }
+
+        SettingsToggleRow {
+            title: "Pixel Grid Lines"
+            subtitle: "Simulate physical phosphor gaps between virtual pixels"
+            checked: Config.pixelShaderGrid === true
+            onToggled: {
+                Config.pixelShaderGrid = (Config.pixelShaderGrid !== true)
+                root.apply()
+            }
+        }
+
+        SettingsToggleRow {
+            title: "Arcade Contrast Boost"
+            subtitle: "Slightly lifts saturation and contrast on dark UI elements"
+            checked: Config.pixelShaderBoost !== false
+            onToggled: {
+                Config.pixelShaderBoost = (Config.pixelShaderBoost === false)
+                root.apply()
+            }
         }
     }
 }

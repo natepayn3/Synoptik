@@ -1,6 +1,6 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Controls
 import Quickshell.Widgets
 import ".."
 
@@ -9,80 +9,40 @@ import ".."
 // page's own component tree gets destroyed whenever Config.closeAllPanels()
 // runs (which the polkit dialog does on every auth prompt), so anything
 // mid-flight here would die with it.
-Flickable {
+SettingsPage {
     id: root
-    Layout.fillWidth: true
-    Layout.fillHeight: true
-    contentWidth: width
-    contentHeight: contentColumn.implicitHeight + 32
-    clip: true
-    boundsBehavior: Flickable.StopAtBounds
 
-    ScrollBar.vertical: ScrollBar {
-        policy: ScrollBar.AsNeeded
-        active: root.moving || root.flicking
+    title: "Greeter"
+    description: "Theme shown on the SDDM login screen."
+    icon: "login"
+
+    headerAccessory: SettingsButton {
+        label: "Refresh"
+        icon: "refresh"
+        onClicked: {
+            Config.greeter.refreshThemes()
+            Config.greeter.refreshActiveTheme()
+        }
     }
 
-    ColumnLayout {
-        id: contentColumn
-        width: root.width
-        spacing: 16
+    SettingsNote {
+        text: Config.greeter.statusText
+        variant: Config.greeter.statusIsError ? "danger" : "info"
+        visible: Config.greeter.statusText !== ""
+    }
 
-        RowLayout {
-            Layout.fillWidth: true
-            Layout.leftMargin: 16
-            Layout.rightMargin: 16
-            Layout.topMargin: 16
-            spacing: 12
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 2
-
-                Text {
-                    text: "SDDM GREETER"
-                    color: Config.textMain
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontSubhead)
-                    font.bold: true
-                }
-
-                Text {
-                    text: "Choose the theme shown on your login screen"
-                    color: Config.textMuted
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontCaption)
-                }
-            }
-
-            PillButton {
-                label: "Refresh"
-                onClicked: { Config.greeter.refreshThemes(); Config.greeter.refreshActiveTheme() }
-            }
-        }
-
-        Text {
-            Layout.fillWidth: true
-            Layout.leftMargin: 16
-            Layout.rightMargin: 16
-            visible: Config.greeter.statusText !== ""
-            text: Config.greeter.statusText
-            color: Config.greeter.statusIsError ? "#ef4444" : Config.accent
-            font.family: Config.sysFont
-            font.pixelSize: Config.size(Config.fontCaption)
-            font.bold: true
-            wrapMode: Text.WordWrap
-        }
+    SettingsCard {
+        title: "Installed Themes"
+        icon: "wallpaper"
+        subtitle: "Themes found in /usr/share/sddm/themes"
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.leftMargin: 16
-            Layout.rightMargin: 16
-            implicitHeight: Math.max(200, themeGrid.contentHeight + 12)
-            color: Qt.rgba(0, 0, 0, 0.3)
-            radius: Config.cornerRadius / 2
+            Layout.preferredHeight: Math.max(180, themeGrid.contentHeight + 12)
+            color: SettingsStyle.controlBg
+            radius: SettingsStyle.controlRadius
             border.width: 1
-            border.color: Qt.rgba(255, 255, 255, 0.08)
+            border.color: SettingsStyle.controlBorder
             clip: true
 
             Text {
@@ -96,22 +56,29 @@ Flickable {
 
             GridView {
                 id: themeGrid
+
                 anchors.fill: parent
                 anchors.margins: 6
                 cellWidth: width / 2
                 cellHeight: Math.floor(cellWidth * (9 / 16)) + 66
 
                 clip: true
+                // The card list scrolls with the page, not on its own - a
+                // nested scroll area inside a Flickable steals wheel events
+                // and strands the rest of the page.
                 interactive: false
                 boundsBehavior: Flickable.StopAtBounds
                 model: Config.greeter.themes
 
                 delegate: Item {
                     id: card
+
+                    required property var modelData
+
                     width: themeGrid.cellWidth
                     height: themeGrid.cellHeight
 
-                    readonly property bool isActive: modelData.id === Config.greeter.activeThemeId
+                    readonly property bool isActive: card.modelData.id === Config.greeter.activeThemeId
 
                     Item {
                         anchors.fill: parent
@@ -119,17 +86,18 @@ Flickable {
 
                         ClippingRectangle {
                             id: thumb
+
                             anchors.top: parent.top
                             anchors.left: parent.left
                             anchors.right: parent.right
                             height: card.height - 58
-                            radius: Config.cornerRadius / 2
-                            color: Qt.rgba(255, 255, 255, 0.05)
+                            radius: SettingsStyle.controlRadius
+                            color: SettingsStyle.controlBg
 
                             Image {
                                 anchors.fill: parent
-                                visible: modelData.bg !== ""
-                                source: modelData.bg !== "" ? ("file://" + modelData.bg) : ""
+                                visible: card.modelData.bg !== ""
+                                source: card.modelData.bg !== "" ? ("file://" + card.modelData.bg) : ""
                                 fillMode: Image.PreserveAspectCrop
                                 sourceSize.width: 320
                                 sourceSize.height: 180
@@ -139,7 +107,7 @@ Flickable {
 
                             Text {
                                 anchors.centerIn: parent
-                                visible: modelData.bg === ""
+                                visible: card.modelData.bg === ""
                                 text: "wallpaper"
                                 font.family: "Material Symbols Outlined"
                                 font.pixelSize: 28
@@ -147,20 +115,20 @@ Flickable {
                             }
 
                             Rectangle {
+                                anchors.top: parent.top
+                                anchors.right: parent.right
+                                anchors.margins: 6
                                 width: 22
                                 height: 22
                                 radius: 11
                                 color: Config.accent
-                                anchors.top: parent.top
-                                anchors.right: parent.right
-                                anchors.margins: 6
                                 visible: card.isActive
 
                                 Text {
                                     anchors.centerIn: parent
-                                    text: "✓"
-                                    font.pixelSize: 12
-                                    font.bold: true
+                                    text: "check"
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 14
                                     color: Config.bgBase
                                 }
                             }
@@ -168,9 +136,9 @@ Flickable {
 
                         Rectangle {
                             anchors.fill: thumb
-                            radius: Config.cornerRadius / 2
+                            radius: SettingsStyle.controlRadius
                             color: "transparent"
-                            border.width: card.isActive ? 2.5 : 0
+                            border.width: card.isActive ? 2 : 0
                             border.color: Config.accent
                         }
 
@@ -183,7 +151,7 @@ Flickable {
 
                             Text {
                                 Layout.fillWidth: true
-                                text: modelData.name
+                                text: card.modelData.name
                                 color: Config.textMain
                                 font.family: Config.sysFont
                                 font.pixelSize: Config.size(Config.fontCaption)
@@ -196,22 +164,22 @@ Flickable {
 
                                 PillButton {
                                     label: "Preview"
-                                    onClicked: Config.greeter.startPreview(modelData.id)
+                                    onClicked: Config.greeter.startPreview(card.modelData.id)
                                 }
 
                                 PillButton {
                                     label: card.isActive ? "Active" : "Set as Greeter"
                                     highlighted: !card.isActive
                                     enabled: !card.isActive && Config.greeter.pendingActionId === ""
-                                    onClicked: Config.greeter.applyTheme(modelData.id)
+                                    onClicked: Config.greeter.applyTheme(card.modelData.id)
                                 }
 
                                 PillButton {
                                     label: "Delete"
                                     danger: true
-                                    visible: !modelData.protected && !card.isActive
+                                    visible: !card.modelData.protected && !card.isActive
                                     enabled: Config.greeter.pendingActionId === ""
-                                    onClicked: Config.greeter.deleteTheme(modelData.id)
+                                    onClicked: Config.greeter.deleteTheme(card.modelData.id)
                                 }
                             }
                         }
@@ -219,7 +187,5 @@ Flickable {
                 }
             }
         }
-
-        Item { Layout.fillHeight: true; implicitHeight: 20 }
     }
 }

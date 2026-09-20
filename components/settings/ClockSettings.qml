@@ -1,249 +1,113 @@
 import QtQuick
-import QtQuick.Layouts
-import Quickshell
 import ".."
 
-Item {
+SettingsPage {
     id: root
 
-    // Reusable Geometric / Square Toggle Switch Component
-    RowLayout {
-        anchors.fill: parent
-        spacing: 20
+    title: "Clock"
+    description: "Desktop clock overlay, style and time formatting."
+    icon: "schedule"
 
-        ColumnLayout {
-            Layout.fillWidth: true
-            Layout.fillHeight: true
-            Layout.alignment: Qt.AlignTop
-            spacing: 12
+    // The dead `if (typeof Config.saveConfig === "function") ...` tails that
+    // used to follow every assignment on this page are gone: neither
+    // saveConfig nor save exists on Config, so they never ran. Persistence is
+    // Config's own - DesktopWidgetsConfig fires saveSettings() from each
+    // property's onChanged handler.
+    readonly property bool clockEnabled: Config.showDesktopClock !== false
 
-            Text {
-                text: "DESKTOP CLOCK CONFIGURATION"
-                color: Config.textMain
-                font.family: Config.sysFont
-                font.pixelSize: Config.size(Config.fontSubhead)
-                font.bold: true
+    SettingsCard {
+        title: "Clock Widget"
+        icon: "schedule"
+
+        SettingsToggleRow {
+            title: "Enable Desktop Clock"
+            subtitle: "Show the desktop clock overlay on your displays"
+            checked: Config.showDesktopClock !== false
+            onToggled: Config.showDesktopClock = (Config.showDesktopClock === false)
+        }
+
+        SettingsField {
+            label: "Target Displays"
+            hint: "With none selected the clock appears on every display."
+            active: root.clockEnabled
+
+            SettingsScreenPicker {
+                enabledScreens: Config.enabledClockScreens
+                onToggle: screenName => Config.toggleClockScreen(screenName)
             }
+        }
+    }
 
-            // TOGGLE: ENABLE WIDGET
-            SettingsToggleRow {
-                title: "Enable Desktop Clock Widget"
-                subtitle: "Show the desktop clock overlay on your displays"
-                checked: Config.showDesktopClock !== false
-                onToggled: {
-                    Config.showDesktopClock = (Config.showDesktopClock === false)
-                    if (typeof Config.saveConfig === "function") Config.saveConfig()
-                    else if (typeof Config.save === "function") Config.save()
-                }
-            }
+    SettingsCard {
+        title: "Style"
+        icon: "style"
+        bodyEnabled: root.clockEnabled
 
-            // SUB-OPTIONS WRAPPER (Dims and disables interaction when clock toggle is off)
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 12
-                enabled: Config.showDesktopClock !== false
-                opacity: enabled ? 1.0 : 0.35
+        SettingsSegmented {
+            currentValue: Config.clockStyle
+            model: [
+                { label: "Digital", value: "digital", icon: "123" },
+                { label: "Modern",  value: "modern",  icon: "timer" },
+                { label: "Analog",  value: "analog",  icon: "schedule" }
+            ]
+            onSelected: value => Config.clockStyle = value
+        }
+    }
 
-                Behavior on opacity {
-                    NumberAnimation { duration: 150 }
-                }
+    SettingsCard {
+        title: "Time Format"
+        icon: "more_time"
+        bodyEnabled: root.clockEnabled
 
-                // STYLE SELECTOR
-                ColumnLayout {
-                    spacing: 6
+        SettingsToggleRow {
+            title: "Show Seconds"
+            subtitle: "Include seconds in the clock time display"
+            checked: Config.clockShowSeconds !== false
+            onToggled: Config.clockShowSeconds = (Config.clockShowSeconds === false)
+        }
 
-                    Text {
-                        text: "CLOCK STYLE"
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                        font.bold: true
-                    }
+        SettingsToggleRow {
+            title: "Use 12-Hour Format"
+            subtitle: "Display time in 12-hour instead of 24-hour format"
+            checked: Config.clockUse12Hour !== false
+            onToggled: Config.clockUse12Hour = (Config.clockUse12Hour === false)
+        }
 
-                    RowLayout {
-                        spacing: 8
+        SettingsToggleRow {
+            // AM/PM only means anything on the digital face in 12-hour mode;
+            // the modern and analog faces don't draw the indicator at all.
+            active: Config.clockUse12Hour && Config.clockStyle === "digital"
+            title: "Show AM/PM"
+            subtitle: "Show the AM/PM indicator next to the time"
+            checked: Config.clockShowAmPm !== false
+            onToggled: Config.clockShowAmPm = (Config.clockShowAmPm === false)
+        }
+    }
 
-                        Repeater {
-                            model: [
-                                { name: "Digital", style: "digital" },
-                                { name: "Modern", style: "modern" },
-                                { name: "Analog", style: "analog" }
-                            ]
+    SettingsCard {
+        title: "Appearance"
+        icon: "palette"
+        bodyEnabled: root.clockEnabled
 
-                            delegate: Rectangle {
-                                required property var modelData
-                                implicitWidth: 130
-                                implicitHeight: 36
-                                radius: Config.cornerRadius / 2
+        SettingsToggleRow {
+            title: "Show Border"
+            subtitle: "Draw a decorative border around the clock widget"
+            checked: Config.clockShowBorder !== false
+            onToggled: Config.clockShowBorder = (Config.clockShowBorder === false)
+        }
 
-                                readonly property bool isSelected: Config.clockStyle === modelData.style
-                                color: isSelected ? Qt.rgba(255, 255, 255, 0.12) : (styleHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : Qt.rgba(255, 255, 255, 0.03))
-                                border.width: isSelected ? 1 : 0
-                                border.color: Config.accent
+        SettingsToggleRow {
+            title: "Show Background"
+            subtitle: "Display a background panel behind the clock"
+            checked: Config.clockShowBackground !== false
+            onToggled: Config.clockShowBackground = (Config.clockShowBackground === false)
+        }
 
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: modelData.name
-                                    color: isSelected ? Config.accent : Config.textMain
-                                    font.family: Config.sysFont
-                                    font.pixelSize: Config.size(Config.fontCaption)
-                                    font.bold: isSelected
-                                }
-
-                                TapHandler { onTapped: Config.clockStyle = modelData.style }
-                                HoverHandler { id: styleHover; cursorShape: Qt.PointingHandCursor }
-                            }
-                        }
-                    }
-                }
-
-                // TARGET DISPLAYS SECTION
-                ColumnLayout {
-                    spacing: 8
-                    Layout.fillWidth: true
-
-                    Text {
-                        text: "SHOW CLOCK ON THESE DISPLAYS:"
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                        font.bold: true
-                    }
-
-                    RowLayout {
-                        spacing: 8
-
-                        Repeater {
-                            model: Quickshell.screens
-
-                            delegate: Rectangle {
-                                required property var modelData
-                                implicitWidth: 90
-                                implicitHeight: 32
-                                radius: Config.cornerRadius / 2
-
-                                readonly property bool isSelected: Config.enabledClockScreens.length === 0 || Config.enabledClockScreens.includes(modelData.name)
-                                color: isSelected ? Qt.rgba(255, 255, 255, 0.12) : (dispHover.hovered ? Qt.rgba(255, 255, 255, 0.06) : Qt.rgba(255, 255, 255, 0.03))
-                                border.width: isSelected ? 1 : 0
-                                border.color: Config.accent
-
-                                RowLayout {
-                                    anchors.centerIn: parent
-                                    spacing: 6
-
-                                Text {
-                                    text: modelData.name
-                                    color: isSelected ? Config.accent : Config.textMain
-                                    font.family: Config.sysFont
-                                    font.pixelSize: Config.size(Config.fontCaption)
-                                    font.bold: isSelected
-                                    elide: Text.ElideRight
-                                }
-
-                                Text {
-                                    text: isSelected ? "✓" : "+"
-                                    color: isSelected ? Config.accent : Config.textMuted
-                                    font.family: Config.sysFont
-                                    font.pixelSize: Config.size(Config.fontMicro)
-                                    font.bold: isSelected
-                                }
-                            }
-
-                            TapHandler { onTapped: Config.toggleClockScreen(modelData.name) }
-                            HoverHandler { id: dispHover; cursorShape: Qt.PointingHandCursor }
-                        }
-                    }
-                }
-            }
-
-                // DISPLAY OPTIONS
-                ColumnLayout {
-                    spacing: 8
-
-                    Text {
-                        text: "DISPLAY OPTIONS"
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                        font.bold: true
-                    }
-
-                    // TOGGLE BORDER
-                    SettingsToggleRow {
-                        title: "Show Border"
-                        subtitle: "Draw a decorative border around the clock widget"
-                        checked: Config.clockShowBorder !== false
-                        onToggled: {
-                            Config.clockShowBorder = (Config.clockShowBorder === false)
-                            if (typeof Config.saveConfig === "function") Config.saveConfig()
-                            else if (typeof Config.save === "function") Config.save()
-                        }
-                    }
-
-                    // TOGGLE BACKGROUND
-                    SettingsToggleRow {
-                        title: "Show Background"
-                        subtitle: "Display a background panel behind the clock"
-                        checked: Config.clockShowBackground !== false
-                        onToggled: {
-                            Config.clockShowBackground = (Config.clockShowBackground === false)
-                            if (typeof Config.saveConfig === "function") Config.saveConfig()
-                            else if (typeof Config.save === "function") Config.save()
-                        }
-                    }
-
-                    // TOGGLE GLOW EFFECT
-                    SettingsToggleRow {
-                        title: "Glow Effect"
-                        subtitle: "Apply a soft glow effect to the clock display"
-                        checked: Config.clockShowGlow !== false
-                        onToggled: {
-                            Config.clockShowGlow = (Config.clockShowGlow === false)
-                            if (typeof Config.saveConfig === "function") Config.saveConfig()
-                            else if (typeof Config.save === "function") Config.save()
-                        }
-                    }
-
-                    // TOGGLE SECONDS
-                    SettingsToggleRow {
-                        title: "Show Seconds"
-                        subtitle: "Include seconds in the clock time display"
-                        checked: Config.clockShowSeconds !== false
-                        onToggled: {
-                            Config.clockShowSeconds = (Config.clockShowSeconds === false)
-                            if (typeof Config.saveConfig === "function") Config.saveConfig()
-                            else if (typeof Config.save === "function") Config.save()
-                        }
-                    }
-
-                    // TOGGLE 12-HOUR FORMAT
-                    SettingsToggleRow {
-                        title: "Use 12-Hour Format"
-                        subtitle: "Display time in 12-hour instead of 24-hour format"
-                        checked: Config.clockUse12Hour !== false
-                        onToggled: {
-                            Config.clockUse12Hour = (Config.clockUse12Hour === false)
-                            if (typeof Config.saveConfig === "function") Config.saveConfig()
-                            else if (typeof Config.save === "function") Config.save()
-                        }
-                    }
-
-                    // TOGGLE AM/PM (DIGITAL & 12-HOUR ONLY)
-                    SettingsToggleRow {
-                        visible: Config.clockUse12Hour && Config.clockStyle === "digital"
-                        title: "Show AM/PM"
-                        subtitle: "Show the AM/PM indicator next to the time (digital 12-hour mode only)"
-                        checked: Config.clockShowAmPm !== false
-                        onToggled: {
-                            Config.clockShowAmPm = (Config.clockShowAmPm === false)
-                            if (typeof Config.saveConfig === "function") Config.saveConfig()
-                            else if (typeof Config.save === "function") Config.save()
-                        }
-                    }
-                }
-            }
-
-            Item { Layout.fillHeight: true }
+        SettingsToggleRow {
+            title: "Glow Effect"
+            subtitle: "Apply a soft glow effect to the clock display"
+            checked: Config.clockShowGlow !== false
+            onToggled: Config.clockShowGlow = (Config.clockShowGlow === false)
         }
     }
 }

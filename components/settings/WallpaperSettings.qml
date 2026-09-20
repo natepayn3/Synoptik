@@ -9,22 +9,14 @@ import Quickshell.Hyprland
 import Quickshell.Widgets
 import ".."
 
-Flickable {
+SettingsPage {
     id: root
-    Layout.fillWidth: true
-    Layout.fillHeight: true
-    contentWidth: width
-    contentHeight: contentColumn.implicitHeight + 32
-    clip: true
-    boundsBehavior: Flickable.StopAtBounds
 
-    ScrollBar.vertical: ScrollBar {
-        policy: ScrollBar.AsNeeded
-        active: root.moving || root.flicking
-    }
+    title: "Wallpaper"
+    description: "Background image, slideshow, transitions and online sources."
+    icon: "wallpaper"
 
     // Reusable Geometric / Square Toggle Switch Component
-    readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
 
     readonly property var awwwTransitions: [
         { name: "fade",   icon: "blur_on" },
@@ -66,1102 +58,839 @@ Flickable {
         }
     }
 
-    ColumnLayout {
-        id: contentColumn
-        width: Math.min(root.width - (root.cardMargin * 2), 620)
-        anchors.horizontalCenter: parent.horizontalCenter
-        spacing: root.cardMargin
+    // SECTION HEADER
 
-        // SECTION HEADER
-        Text {
-            Layout.fillWidth: true
-            text: "WALLPAPER & BACKGROUNDS"
-            color: Config.textMain
-            font.family: Config.sysFont
-            font.pixelSize: Config.size(Config.fontSubhead)
-            font.bold: true
-        }
 
-        Text {
-            text: "Manage active desktop wallpapers, per-monitor outputs, automated background slideshows, and smooth Wayland transitions."
-            color: Config.textMuted
-            font.family: Config.sysFont
-            font.pixelSize: Config.size(Config.fontCaption)
-            Layout.fillWidth: true
-            wrapMode: Text.WordWrap
-        }
+    // ==========================================
+    // 1. ACTIVE WALLPAPER & SLIDESHOW CARD
+    // ==========================================
+    SettingsCard {
+        id: activeCol
 
-        // ==========================================
-        // 1. ACTIVE WALLPAPER & SLIDESHOW CARD
-        // ==========================================
-        Rectangle {
-            Layout.fillWidth: true
-            implicitHeight: activeCol.implicitHeight + 28
-            radius: Config.cornerRadius
-            color: Qt.rgba(255, 255, 255, 0.05)
-            border.width: 1
-            border.color: Qt.rgba(255, 255, 255, 0.1)
-
-            ColumnLayout {
-                id: activeCol
-                anchors.fill: parent
-                anchors.margins: 14
-                spacing: 14
-
-                RowLayout {
-                    Layout.fillWidth: true
-
-                    ColumnLayout {
-                        spacing: 2
-                        Text {
-                            text: "ACTIVE WALLPAPER"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
-                            font.bold: true
-                        }
-                        Text {
-                            text: Config.activeWallpaperPath ? Config.activeWallpaperPath.split('/').pop() : "No wallpaper set"
-                            color: Config.textMuted
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontMicro)
-                            elide: Text.ElideMiddle
-                            Layout.maximumWidth: 320
-                        }
-                    }
-
-                    Item { Layout.fillWidth: true }
-
-                    // Random Shuffle Button
-                    Rectangle {
-                        Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
-                        implicitWidth: 100
-                        implicitHeight: 32
-                        radius: 16
-                        color: Config.accent
-
-                        RowLayout {
-                            anchors.centerIn: parent
-                            spacing: 5
-                            Text {
-                                text: "shuffle"
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 15
-                                color: Config.bgBase
-                            }
-                            Text {
-                                text: "Random"
-                                font.family: Config.sysFont
-                                font.pixelSize: 11
-                                font.bold: true
-                                color: Config.bgBase
-                            }
-                        }
-
-                        TapHandler { onTapped: wallpaperBackend.shuffleRandom() }
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
-                    }
-                }
-
-                // Automatic Slideshow Toggle
-                SettingsToggleRow {
-                    title: "Automatic Wallpaper Slideshow"
-                    subtitle: "Cycles randomly through your wallpaper library on a timed interval"
-                    checked: Config.slideshowActive !== false
-                    onToggled: {
-                        Config.slideshowActive = (Config.slideshowActive === false)
-                    }
-                }
-
-                // Slideshow Interval Stepper
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 10
-                    opacity: Config.slideshowActive ? 1.0 : 0.4
-
-                    Text {
-                        text: "Change every"
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontCaption)
-                    }
-
-                    Item { Layout.fillWidth: true }
+        title: "Active Wallpaper"
+        icon: "image"
+        accessory: Rectangle {
+                    Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                    implicitWidth: 100
+                    implicitHeight: 32
+                    radius: 16
+                    color: Config.accent
 
                     RowLayout {
-                        spacing: 4
-
-                        Rectangle {
-                            implicitWidth: 26; implicitHeight: 26; radius: 13
-                            color: Qt.rgba(255, 255, 255, 0.08)
-                            border.width: 1
-                            border.color: Qt.rgba(255, 255, 255, 0.1)
-                            Text {
-                                anchors.centerIn: parent
-                                text: "remove"
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 14
-                                color: Config.textMain
-                            }
-                            TapHandler {
-                                onTapped: if (Config.slideshowMinutes > 1) Config.slideshowMinutes--
-                            }
-                            HoverHandler { cursorShape: Qt.PointingHandCursor }
+                        anchors.centerIn: parent
+                        spacing: 5
+                        Text {
+                            text: "shuffle"
+                            font.family: "Material Symbols Outlined"
+                            font.pixelSize: 15
+                            color: Config.bgBase
                         }
-
-                        Rectangle {
-                            implicitWidth: 44; implicitHeight: 26; radius: 6
-                            color: Qt.rgba(0, 0, 0, 0.4)
-                            border.width: 1
-                            border.color: Config.accent
-                            Text {
-                                anchors.centerIn: parent
-                                text: Config.slideshowMinutes + "m"
-                                color: Config.accent
-                                font.family: Config.sysFont
-                                font.pixelSize: 11
-                                font.bold: true
-                            }
-                        }
-
-                        Rectangle {
-                            implicitWidth: 26; implicitHeight: 26; radius: 13
-                            color: Qt.rgba(255, 255, 255, 0.08)
-                            border.width: 1
-                            border.color: Qt.rgba(255, 255, 255, 0.1)
-                            Text {
-                                anchors.centerIn: parent
-                                text: "add"
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 14
-                                color: Config.textMain
-                            }
-                            TapHandler {
-                                onTapped: Config.slideshowMinutes++
-                            }
-                            HoverHandler { cursorShape: Qt.PointingHandCursor }
+                        Text {
+                            text: "Random"
+                            font.family: Config.sysFont
+                            font.pixelSize: 11
+                            font.bold: true
+                            color: Config.bgBase
                         }
                     }
+
+                    TapHandler { onTapped: wallpaperBackend.shuffleRandom() }
+                    HoverHandler { cursorShape: Qt.PointingHandCursor }
                 }
+
+
+
+        // Automatic Slideshow Toggle
+        SettingsToggleRow {
+            title: "Automatic Wallpaper Slideshow"
+            subtitle: "Cycles randomly through your wallpaper library on a timed interval"
+            checked: Config.slideshowActive !== false
+            onToggled: {
+                Config.slideshowActive = (Config.slideshowActive === false)
             }
         }
 
-        // ==========================================
-        // 2. WALLHAVEN ACCOUNT & SYNC CARD
-        // ==========================================
-        Rectangle {
-            id: syncCard
+        // Slideshow Interval Stepper
+        RowLayout {
             Layout.fillWidth: true
-            implicitHeight: syncCol.implicitHeight + 28
-            radius: Config.cornerRadius
-            color: Qt.rgba(255, 255, 255, 0.05)
-            border.width: 1
-            border.color: Qt.rgba(255, 255, 255, 0.1)
+            spacing: 10
+            opacity: Config.slideshowActive ? 1.0 : 0.4
 
-            // Sync state and the process itself live on Config.wallpaper (see
-            // WallpaperConfig.qml) instead of here, so the sync keeps running
-            // in the background - and its progress stays live - even after
-            // this panel is closed and reopened (the settings Loader destroys
-            // this whole page on close, which used to kill the sync with it).
-            readonly property bool isSyncing: Config.wallhavenSyncing
-            readonly property real syncProgress: Config.wallhavenSyncProgress
-            readonly property string statusMessage: Config.wallhavenSyncStatus
+            Text {
+                text: "Change every"
+                color: Config.textMuted
+                font.family: Config.sysFont
+                font.pixelSize: Config.size(Config.fontCaption)
+            }
 
-            // Same arrangement for the tag indexer, which runs as its own pass
-            // (see scripts/wallhaven_tags.sh for why it can't ride along with
-            // the sync) and is chained onto a successful sync automatically.
-            readonly property bool isTagging: Config.wallhavenTagging
-            readonly property real tagProgress: Config.wallhavenTagProgress
+            Item { Layout.fillWidth: true }
 
-            // Only wallhaven-<id>.<ext> files have an ID to look up, so a
-            // hand-added wallpaper or a screenshot is not a gap in the index -
-            // counting it as one would leave this permanently short of 100%.
-            readonly property int taggableCount: (Config.wallpapers || []).filter(
-                path => path.split("/").pop().indexOf("wallhaven-") === 0).length
-            readonly property int taggedCount: Object.keys(Config.wallpaperTagMap || {}).length
+            RowLayout {
+                spacing: 4
 
-            ColumnLayout {
-                id: syncCol
-                anchors.fill: parent
-                anchors.margins: 14
-                spacing: 12
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    ColumnLayout {
-                        spacing: 2
-                        Text {
-                            text: "WALLHAVEN SYNC"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
-                            font.bold: true
-                        }
-                        Text {
-                            id: syncSubtitle
-                            text: 'Sync wallpapers from your <a href="https://wallhaven.cc">wallhaven.cc</a> account into ~/Pictures/Wallpapers'
-                            textFormat: Text.StyledText
-                            color: Config.textMuted
-                            linkColor: Config.accent
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontMicro)
-
-                            onLinkActivated: function(link) {
-                                Qt.openUrlExternally(link)
-                            }
-
-                            HoverHandler {
-                                cursorShape: syncSubtitle.hoveredLink ? Qt.PointingHandCursor : Qt.ArrowCursor
-                            }
-                        }
-                    }
-                }
-
-                // Account Credentials
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        implicitHeight: 36
-                        radius: Config.cornerRadius / 2
-                        color: Qt.rgba(0, 0, 0, 0.4)
-                        border.width: 1
-                        border.color: userField.activeFocus ? Config.accent : (userHover.hovered ? Qt.rgba(255, 255, 255, 0.25) : Qt.rgba(255, 255, 255, 0.1))
-                        clip: true
-
-                        HoverHandler {
-                            id: userHover
-                            cursorShape: Qt.IBeamCursor
-                        }
-
-                        TextInput {
-                            id: userField
-                            anchors.fill: parent
-                            anchors.leftMargin: 10
-                            anchors.rightMargin: 10
-                            verticalAlignment: TextInput.AlignVCenter
-                            text: Config.wallhavenUsername || ""
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: 11
-                            selectByMouse: true
-
-                            Text {
-                                text: "Wallhaven Username"
-                                visible: !userField.text && !userField.activeFocus
-                                color: Config.textMuted
-                                font.family: Config.sysFont
-                                font.pixelSize: 11
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-
-                            onTextChanged: {
-                                Config.wallhavenUsername = text
-                            }
-                        }
-                    }
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        implicitHeight: 36
-                        radius: Config.cornerRadius / 2
-                        color: Qt.rgba(0, 0, 0, 0.4)
-                        border.width: 1
-                        border.color: keyField.activeFocus ? Config.accent : (keyHover.hovered ? Qt.rgba(255, 255, 255, 0.25) : Qt.rgba(255, 255, 255, 0.1))
-                        clip: true
-
-                        HoverHandler {
-                            id: keyHover
-                            cursorShape: Qt.IBeamCursor
-                        }
-
-                        TextInput {
-                            id: keyField
-                            anchors.fill: parent
-                            anchors.leftMargin: 10
-                            anchors.rightMargin: 10
-                            verticalAlignment: TextInput.AlignVCenter
-                            echoMode: TextInput.Password
-                            text: Config.wallhavenApiKey || ""
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: 11
-                            selectByMouse: true
-
-                            Text {
-                                text: "Wallhaven API Key"
-                                visible: !keyField.text && !keyField.activeFocus
-                                color: Config.textMuted
-                                font.family: Config.sysFont
-                                font.pixelSize: 11
-                                anchors.verticalCenter: parent.verticalCenter
-                            }
-
-                            onTextChanged: {
-                                Config.wallhavenApiKey = text
-                            }
-                        }
-                    }
-                }
-
-                // Sync Trigger & Progress
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 10
-
-                    Rectangle {
-                        implicitWidth: 100
-                        implicitHeight: 30
-                        radius: Config.cornerRadius / 2
-                        color: syncCard.isSyncing ? Qt.rgba(255, 255, 255, 0.1) : Config.accent
-
-                        RowLayout {
-                            anchors.centerIn: parent
-                            spacing: 4
-
-                            Text {
-                                text: syncCard.isSyncing ? "sync" : "cloud_download"
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 14
-                                color: syncCard.isSyncing ? Config.textMuted : Config.bgBase
-                            }
-
-                            Text {
-                                text: syncCard.isSyncing ? "Syncing" : "Sync"
-                                font.family: Config.sysFont
-                                font.pixelSize: 11
-                                font.bold: true
-                                color: syncCard.isSyncing ? Config.textMuted : Config.bgBase
-                            }
-                        }
-
-                        TapHandler {
-                            enabled: !syncCard.isSyncing
-                            onTapped: Config.startWallhavenSync()
-                        }
-                        HoverHandler { cursorShape: syncCard.isSyncing ? Qt.ArrowCursor : Qt.PointingHandCursor }
-                    }
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        implicitHeight: 6
-                        radius: 3
-                        color: Qt.rgba(0, 0, 0, 0.4)
-                        clip: true
-
-                        Rectangle {
-                            width: parent.width * syncCard.syncProgress
-                            height: parent.height
-                            radius: 3
-                            color: Config.accent
-
-                            Behavior on width {
-                                NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
-                            }
-                        }
-                    }
-
+                Rectangle {
+                    implicitWidth: 26; implicitHeight: 26; radius: 13
+                    color: Qt.rgba(255, 255, 255, 0.08)
+                    border.width: 1
+                    border.color: Qt.rgba(255, 255, 255, 0.1)
                     Text {
-                        text: syncCard.statusMessage
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
+                        anchors.centerIn: parent
+                        text: "remove"
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 14
+                        color: Config.textMain
                     }
+                    TapHandler {
+                        onTapped: if (Config.slideshowMinutes > 1) Config.slideshowMinutes--
+                    }
+                    HoverHandler { cursorShape: Qt.PointingHandCursor }
                 }
 
                 Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: 1
-                    color: Qt.rgba(255, 255, 255, 0.08)
-                }
-
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 2
-
+                    implicitWidth: 44; implicitHeight: 26; radius: 6
+                    color: SettingsStyle.controlBg
+                    border.width: 1
+                    border.color: Config.accent
                     Text {
-                        text: "SUBJECT TAGS"
-                        color: Config.textMain
+                        anchors.centerIn: parent
+                        text: Config.slideshowMinutes + "m"
+                        color: Config.accent
                         font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontBody)
+                        font.pixelSize: 11
                         font.bold: true
                     }
-
-                    Text {
-                        Layout.fillWidth: true
-                        wrapMode: Text.WordWrap
-                        text: "Ask Wallhaven what each image is actually of, so wallpapers can be "
-                              + "picked by subject - \"something with mountains\" - instead of only by "
-                              + "dominant colour. Runs automatically after a sync; already-tagged "
-                              + "wallpapers are skipped."
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                    }
                 }
 
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 10
-
-                    Rectangle {
-                        implicitWidth: 100
-                        implicitHeight: 30
-                        radius: Config.cornerRadius / 2
-                        color: syncCard.isTagging ? Qt.rgba(255, 255, 255, 0.1) : Config.accent
-
-                        RowLayout {
-                            anchors.centerIn: parent
-                            spacing: 4
-
-                            Text {
-                                text: syncCard.isTagging ? "sync" : "sell"
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 14
-                                color: syncCard.isTagging ? Config.textMuted : Config.bgBase
-                            }
-
-                            Text {
-                                text: syncCard.isTagging ? "Indexing" : "Index"
-                                font.family: Config.sysFont
-                                font.pixelSize: 11
-                                font.bold: true
-                                color: syncCard.isTagging ? Config.textMuted : Config.bgBase
-                            }
-                        }
-
-                        TapHandler {
-                            enabled: !syncCard.isTagging
-                            onTapped: Config.startWallhavenTagSync()
-                        }
-                        HoverHandler { cursorShape: syncCard.isTagging ? Qt.ArrowCursor : Qt.PointingHandCursor }
-                    }
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        implicitHeight: 6
-                        radius: 3
-                        color: Qt.rgba(0, 0, 0, 0.4)
-                        clip: true
-
-                        Rectangle {
-                            width: parent.width * syncCard.tagProgress
-                            height: parent.height
-                            radius: 3
-                            color: Config.accent
-
-                            Behavior on width {
-                                NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
-                            }
-                        }
-                    }
-
-                    Text {
-                        // Mid-run the script's own STATUS/PROGRESS lines are more
-                        // informative than a count that only updates every tenth
-                        // wallpaper (the cache is flushed in batches).
-                        text: syncCard.isTagging
-                            ? Config.wallhavenTagStatus
-                            : (syncCard.taggableCount > 0
-                                ? syncCard.taggedCount + " of " + syncCard.taggableCount + " tagged"
-                                : "No Wallhaven wallpapers found")
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                    }
-                }
-            }
-        }
-
-        // ==========================================
-        // 3. WALLPAPER PARALLAX & DEPTH CARD
-        // ==========================================
-        Rectangle {
-            Layout.fillWidth: true
-            implicitHeight: parallaxCol.implicitHeight + 28
-            radius: Config.cornerRadius
-            color: Qt.rgba(255, 255, 255, 0.05)
-            border.width: 1
-            border.color: Qt.rgba(255, 255, 255, 0.1)
-
-            ColumnLayout {
-                id: parallaxCol
-                anchors.fill: parent
-                anchors.margins: 14
-                spacing: 14
-
-                // Header
-                RowLayout {
-                    Layout.fillWidth: true
-                    ColumnLayout {
-                        spacing: 2
-                        Text {
-                            text: "WALLPAPER PARALLAX & DEPTH"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
-                            font.bold: true
-                        }
-                        Text {
-                            text: "Dynamic workspace shift & 3D cursor tilt motion effects"
-                            color: Config.textMuted
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontMicro)
-                        }
-                    }
-                }
-
-                // 1. Master Toggle Row
-                SettingsToggleRow {
-                    title: "Wallpaper Parallax"
-                    subtitle: "Enable depth motion and responsive canvas translation (disables transitions)"
-                    checked: Config.enableWallpaperParallax
-                    onToggled: Config.enableWallpaperParallax = !Config.enableWallpaperParallax
-                }
-
-                // 2. Workspace Switch Parallax Row
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-                    opacity: Config.enableWallpaperParallax ? 1.0 : 0.4
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        Layout.minimumWidth: 0
-                        spacing: 2
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Workspace Switch Parallax"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
-                            font.bold: true
-                            wrapMode: Text.WordWrap
-                        }
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Smoothly pans wallpaper across workspace transitions (requires Parallax)"
-                            color: Config.textMuted
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-
-                    ToggleSwitch {
-                        checked: Config.enableWallpaperParallax && Config.wallpaperWorkspaceParallax
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Config.enableWallpaperParallax ? Qt.PointingHandCursor : Qt.ArrowCursor
-                            onClicked: {
-                                if (Config.enableWallpaperParallax) Config.wallpaperWorkspaceParallax = !Config.wallpaperWorkspaceParallax
-                            }
-                        }
-                    }
-                }
-
-                // 3. Cursor Motion Parallax Row
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-                    opacity: Config.enableWallpaperParallax ? 1.0 : 0.4
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        Layout.minimumWidth: 0
-                        spacing: 2
-
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Cursor Motion Parallax"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
-                            font.bold: true
-                            wrapMode: Text.WordWrap
-                        }
-                        Text {
-                            Layout.fillWidth: true
-                            text: "Floats and tilts wallpaper depth in real-time with mouse (requires Parallax)"
-                            color: Config.textMuted
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            wrapMode: Text.WordWrap
-                        }
-                    }
-
-                    ToggleSwitch {
-                        checked: Config.enableWallpaperParallax && Config.wallpaperCursorParallax
-
-                        MouseArea {
-                            anchors.fill: parent
-                            cursorShape: Config.enableWallpaperParallax ? Qt.PointingHandCursor : Qt.ArrowCursor
-                            onClicked: {
-                                if (Config.enableWallpaperParallax) Config.wallpaperCursorParallax = !Config.wallpaperCursorParallax
-                            }
-                        }
-                    }
-                }
-
-                // 4. Intensity Stepper Row
                 Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: 44
-                    radius: Config.cornerRadius / 2
-                    opacity: Config.enableWallpaperParallax ? 1.0 : 0.4
-                    color: Qt.rgba(0, 0, 0, 0.2)
+                    implicitWidth: 26; implicitHeight: 26; radius: 13
+                    color: Qt.rgba(255, 255, 255, 0.08)
                     border.width: 1
-                    border.color: Qt.rgba(255, 255, 255, 0.08)
-
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 12; anchors.rightMargin: 12
-                        spacing: 10
-
-                        Text {
-                            text: "Parallax Intensity"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            font.bold: true
-                        }
-
-                        Item { Layout.fillWidth: true }
-
-                        RowLayout {
-                            spacing: 6
-
-                            Repeater {
-                                model: [
-                                    { label: "0.5x Subtle", val: 0.5 },
-                                    { label: "1.0x Balanced", val: 1.0 },
-                                    { label: "1.5x Dynamic", val: 1.5 },
-                                    { label: "2.0x High", val: 2.0 }
-                                ]
-
-                                Rectangle {
-                                    readonly property bool isSelected: Math.abs(Config.wallpaperParallaxIntensity - modelData.val) < 0.05
-                                    implicitWidth: intText.implicitWidth + 14
-                                    implicitHeight: 26
-                                    radius: 13
-                                    color: isSelected ? Config.accent : ((intHover.hovered && Config.enableWallpaperParallax) ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(255, 255, 255, 0.06))
-                                    border.width: isSelected ? 0 : 1
-                                    border.color: isSelected ? "transparent" : Qt.rgba(255, 255, 255, 0.1)
-
-                                    Text {
-                                        id: intText
-                                        anchors.centerIn: parent
-                                        text: modelData.label
-                                        color: isSelected ? Config.bgBase : ((intHover.hovered && Config.enableWallpaperParallax) ? Config.textMain : Config.textMuted)
-                                        font.family: Config.sysFont
-                                        font.pixelSize: Config.size(Config.fontMicro)
-                                        font.bold: isSelected
-                                    }
-
-                                    TapHandler { 
-                                        enabled: Config.enableWallpaperParallax
-                                        onTapped: Config.wallpaperParallaxIntensity = modelData.val 
-                                    }
-                                    HoverHandler { 
-                                        id: intHover
-                                        enabled: Config.enableWallpaperParallax
-                                        cursorShape: Qt.PointingHandCursor 
-                                    }
-                                }
-                            }
-                        }
+                    border.color: Qt.rgba(255, 255, 255, 0.1)
+                    Text {
+                        anchors.centerIn: parent
+                        text: "add"
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 14
+                        color: Config.textMain
                     }
+                    TapHandler {
+                        onTapped: Config.slideshowMinutes++
+                    }
+                    HoverHandler { cursorShape: Qt.PointingHandCursor }
                 }
             }
         }
+    }
 
-        // ==========================================
-        // 4. TARGET OUTPUT MONITORS CARD
-        // ==========================================
-        Rectangle {
+
+    // ==========================================
+    // 2. WALLHAVEN ACCOUNT & SYNC CARD
+    // ==========================================
+    SettingsCard {
+        id: syncCard
+
+        title: "Wallhaven Sync"
+        icon: "cloud_download"
+
+        // Sync state and the process itself live on Config.wallpaper (see
+        // WallpaperConfig.qml) instead of here, so the sync keeps running
+        // in the background - and its progress stays live - even after
+        // this panel is closed and reopened (the settings Loader destroys
+        // this whole page on close, which used to kill the sync with it).
+        readonly property bool isSyncing: Config.wallhavenSyncing
+        readonly property real syncProgress: Config.wallhavenSyncProgress
+        readonly property string statusMessage: Config.wallhavenSyncStatus
+
+        // Same arrangement for the tag indexer, which runs as its own pass
+        // (see scripts/wallhaven_tags.sh for why it can't ride along with
+        // the sync) and is chained onto a successful sync automatically.
+        readonly property bool isTagging: Config.wallhavenTagging
+        readonly property real tagProgress: Config.wallhavenTagProgress
+
+        // Only wallhaven-<id>.<ext> files have an ID to look up, so a
+        // hand-added wallpaper or a screenshot is not a gap in the index -
+        // counting it as one would leave this permanently short of 100%.
+        readonly property int taggableCount: (Config.wallpapers || []).filter(
+            path => path.split("/").pop().indexOf("wallhaven-") === 0).length
+        readonly property int taggedCount: Object.keys(Config.wallpaperTagMap || {}).length
+
+
+
+        // Account Credentials
+        RowLayout {
             Layout.fillWidth: true
-            implicitHeight: monCol.implicitHeight + 28
-            radius: Config.cornerRadius
-            color: Qt.rgba(255, 255, 255, 0.05)
-            border.width: 1
-            border.color: Qt.rgba(255, 255, 255, 0.1)
+            spacing: 8
 
-            ColumnLayout {
-                id: monCol
-                anchors.fill: parent
-                anchors.margins: 14
-                spacing: 12
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: 36
+                radius: Config.cornerRadius / 2
+                color: SettingsStyle.controlBg
+                border.width: 1
+                border.color: userField.activeFocus ? Config.accent : (userHover.hovered ? Qt.rgba(255, 255, 255, 0.25) : Qt.rgba(255, 255, 255, 0.1))
+                clip: true
 
-                RowLayout {
-                    Layout.fillWidth: true
-
-                    ColumnLayout {
-                        spacing: 2
-                        Text {
-                            text: "TARGET DISPLAYS"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
-                            font.bold: true
-                        }
-                        Text {
-                            text: "Select monitors to apply wallpapers to (unselected monitors share the global wallpaper)."
-                            color: Config.textMuted
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontMicro)
-                        }
-                    }
+                HoverHandler {
+                    id: userHover
+                    cursorShape: Qt.IBeamCursor
                 }
 
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-
-                    Repeater {
-                        model: Quickshell.screens
-
-                        delegate: Rectangle {
-                            id: monBtn
-                            required property var modelData
-                            Layout.fillWidth: true
-                            Layout.preferredWidth: 1
-                            implicitHeight: 40
-                            radius: Config.cornerRadius / 2
-
-                            readonly property bool isSelected: Config.selectedWallpaperMonitors && Config.selectedWallpaperMonitors.includes(modelData.name)
-                            color: isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.16) : (monHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
-                            border.width: isSelected ? 1.5 : 1
-                            border.color: isSelected ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
-
-                            Behavior on color { ColorAnimation { duration: 150 } }
-                            Behavior on border.color { ColorAnimation { duration: 150 } }
-
-                            RowLayout {
-                                anchors.centerIn: parent
-                                spacing: 8
-
-                                Text {
-                                    text: "desktop_windows"
-                                    font.family: "Material Symbols Outlined"
-                                    font.pixelSize: 16
-                                    color: monBtn.isSelected ? Config.accent : Config.textMuted
-                                }
-
-                                Text {
-                                    text: modelData.name
-                                    color: monBtn.isSelected ? Config.accent : Config.textMain
-                                    font.family: Config.sysFont
-                                    font.pixelSize: Config.size(Config.fontCaption)
-                                    font.bold: monBtn.isSelected
-                                }
-
-                                Rectangle {
-                                    implicitWidth: 16; implicitHeight: 16; radius: 8
-                                    color: monBtn.isSelected ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
-                                    Text {
-                                        anchors.centerIn: parent
-                                        text: monBtn.isSelected ? "✓" : "+"
-                                        font.pixelSize: 9
-                                        font.bold: true
-                                        color: monBtn.isSelected ? Config.bgBase : Config.textMuted
-                                    }
-                                }
-                            }
-
-                            MouseArea {
-                                id: monHover
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: Config.toggleWallpaperMonitor(modelData.name)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // ==========================================
-        // 5. TRANSITION EFFECT CARD
-        // ==========================================
-        Rectangle {
-            Layout.fillWidth: true
-            implicitHeight: transCol.implicitHeight + 28
-            radius: Config.cornerRadius
-            color: Qt.rgba(255, 255, 255, 0.05)
-            border.width: 1
-            border.color: Qt.rgba(255, 255, 255, 0.1)
-
-            ColumnLayout {
-                id: transCol
-                anchors.fill: parent
-                anchors.margins: 14
-                spacing: 12
-
-                Text {
-                    text: "TRANSITIONS"
+                TextInput {
+                    id: userField
+                    anchors.fill: parent
+                    anchors.leftMargin: 10
+                    anchors.rightMargin: 10
+                    verticalAlignment: TextInput.AlignVCenter
+                    text: Config.wallhavenUsername || ""
                     color: Config.textMain
                     font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontBody)
+                    font.pixelSize: 11
+                    selectByMouse: true
+
+                    Text {
+                        text: "Wallhaven Username"
+                        visible: !userField.text && !userField.activeFocus
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: 11
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    onTextChanged: {
+                        Config.wallhavenUsername = text
+                    }
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: 36
+                radius: Config.cornerRadius / 2
+                color: SettingsStyle.controlBg
+                border.width: 1
+                border.color: keyField.activeFocus ? Config.accent : (keyHover.hovered ? Qt.rgba(255, 255, 255, 0.25) : Qt.rgba(255, 255, 255, 0.1))
+                clip: true
+
+                HoverHandler {
+                    id: keyHover
+                    cursorShape: Qt.IBeamCursor
+                }
+
+                TextInput {
+                    id: keyField
+                    anchors.fill: parent
+                    anchors.leftMargin: 10
+                    anchors.rightMargin: 10
+                    verticalAlignment: TextInput.AlignVCenter
+                    echoMode: TextInput.Password
+                    text: Config.wallhavenApiKey || ""
+                    color: Config.textMain
+                    font.family: Config.sysFont
+                    font.pixelSize: 11
+                    selectByMouse: true
+
+                    Text {
+                        text: "Wallhaven API Key"
+                        visible: !keyField.text && !keyField.activeFocus
+                        color: Config.textMuted
+                        font.family: Config.sysFont
+                        font.pixelSize: 11
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+
+                    onTextChanged: {
+                        Config.wallhavenApiKey = text
+                    }
+                }
+            }
+        }
+
+        // Sync Trigger & Progress
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 10
+
+            Rectangle {
+                implicitWidth: 100
+                implicitHeight: 30
+                radius: Config.cornerRadius / 2
+                color: syncCard.isSyncing ? Qt.rgba(255, 255, 255, 0.1) : Config.accent
+
+                RowLayout {
+                    anchors.centerIn: parent
+                    spacing: 4
+
+                    Text {
+                        text: syncCard.isSyncing ? "sync" : "cloud_download"
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 14
+                        color: syncCard.isSyncing ? Config.textMuted : Config.bgBase
+                    }
+
+                    Text {
+                        text: syncCard.isSyncing ? "Syncing" : "Sync"
+                        font.family: Config.sysFont
+                        font.pixelSize: 11
+                        font.bold: true
+                        color: syncCard.isSyncing ? Config.textMuted : Config.bgBase
+                    }
+                }
+
+                TapHandler {
+                    enabled: !syncCard.isSyncing
+                    onTapped: Config.startWallhavenSync()
+                }
+                HoverHandler { cursorShape: syncCard.isSyncing ? Qt.ArrowCursor : Qt.PointingHandCursor }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: 6
+                radius: 3
+                color: SettingsStyle.trackBg
+                clip: true
+
+                Rectangle {
+                    width: parent.width * syncCard.syncProgress
+                    height: parent.height
+                    radius: 3
+                    color: Config.accent
+
+                    Behavior on width {
+                        NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+                    }
+                }
+            }
+
+            Text {
+                text: syncCard.statusMessage
+                color: Config.textMuted
+                font.family: Config.sysFont
+                font.pixelSize: Config.size(Config.fontMicro)
+            }
+        }
+
+        SettingsSeparator {}
+
+        ColumnLayout {
+            Layout.fillWidth: true
+            spacing: 2
+
+            Text {
+                text: "SUBJECT TAGS"
+                color: Config.textMain
+                font.family: Config.sysFont
+                font.pixelSize: Config.size(Config.fontBody)
+                font.bold: true
+            }
+
+            Text {
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                text: "Ask Wallhaven what each image is actually of, so wallpapers can be "
+                      + "picked by subject - \"something with mountains\" - instead of only by "
+                      + "dominant colour. Runs automatically after a sync; already-tagged "
+                      + "wallpapers are skipped."
+                color: Config.textMuted
+                font.family: Config.sysFont
+                font.pixelSize: Config.size(Config.fontMicro)
+            }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 10
+
+            Rectangle {
+                implicitWidth: 100
+                implicitHeight: 30
+                radius: Config.cornerRadius / 2
+                color: syncCard.isTagging ? Qt.rgba(255, 255, 255, 0.1) : Config.accent
+
+                RowLayout {
+                    anchors.centerIn: parent
+                    spacing: 4
+
+                    Text {
+                        text: syncCard.isTagging ? "sync" : "sell"
+                        font.family: "Material Symbols Outlined"
+                        font.pixelSize: 14
+                        color: syncCard.isTagging ? Config.textMuted : Config.bgBase
+                    }
+
+                    Text {
+                        text: syncCard.isTagging ? "Indexing" : "Index"
+                        font.family: Config.sysFont
+                        font.pixelSize: 11
+                        font.bold: true
+                        color: syncCard.isTagging ? Config.textMuted : Config.bgBase
+                    }
+                }
+
+                TapHandler {
+                    enabled: !syncCard.isTagging
+                    onTapped: Config.startWallhavenTagSync()
+                }
+                HoverHandler { cursorShape: syncCard.isTagging ? Qt.ArrowCursor : Qt.PointingHandCursor }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                implicitHeight: 6
+                radius: 3
+                color: SettingsStyle.trackBg
+                clip: true
+
+                Rectangle {
+                    width: parent.width * syncCard.tagProgress
+                    height: parent.height
+                    radius: 3
+                    color: Config.accent
+
+                    Behavior on width {
+                        NumberAnimation { duration: 140; easing.type: Easing.OutCubic }
+                    }
+                }
+            }
+
+            Text {
+                // Mid-run the script's own STATUS/PROGRESS lines are more
+                // informative than a count that only updates every tenth
+                // wallpaper (the cache is flushed in batches).
+                text: syncCard.isTagging
+                    ? Config.wallhavenTagStatus
+                    : (syncCard.taggableCount > 0
+                        ? syncCard.taggedCount + " of " + syncCard.taggableCount + " tagged"
+                        : "No Wallhaven wallpapers found")
+                color: Config.textMuted
+                font.family: Config.sysFont
+                font.pixelSize: Config.size(Config.fontMicro)
+            }
+        }
+    }
+
+
+    // ==========================================
+    // 3. WALLPAPER PARALLAX & DEPTH CARD
+    // ==========================================
+    SettingsCard {
+        id: parallaxCol
+
+        title: "Wallpaper Parallax & Depth"
+        icon: "layers"
+        subtitle: "Dynamic workspace shift & 3D cursor tilt motion effects"
+
+
+        // Header
+
+        // 1. Master Toggle Row
+        SettingsToggleRow {
+            title: "Wallpaper Parallax"
+            subtitle: "Enable depth motion and responsive canvas translation (disables transitions)"
+            checked: Config.enableWallpaperParallax
+            onToggled: Config.enableWallpaperParallax = !Config.enableWallpaperParallax
+        }
+
+        // 2. Workspace Switch Parallax Row
+        SettingsToggleRow {
+            title: "Workspace Switch Parallax"
+            subtitle: "Smoothly pans wallpaper across workspace transitions (requires Parallax)"
+            active: Config.enableWallpaperParallax
+            checked: Config.enableWallpaperParallax && Config.wallpaperWorkspaceParallax
+            onToggled: Config.wallpaperWorkspaceParallax = !Config.wallpaperWorkspaceParallax
+        }
+
+        // 3. Cursor Motion Parallax Row
+        SettingsToggleRow {
+            title: "Cursor Motion Parallax"
+            subtitle: "Floats and tilts wallpaper depth in real-time with mouse (requires Parallax)"
+            active: Config.enableWallpaperParallax
+            checked: Config.enableWallpaperParallax && Config.wallpaperCursorParallax
+            onToggled: Config.wallpaperCursorParallax = !Config.wallpaperCursorParallax
+        }
+
+        // 4. Intensity Stepper Row
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: 44
+            radius: Config.cornerRadius / 2
+            opacity: Config.enableWallpaperParallax ? 1.0 : 0.4
+            color: SettingsStyle.controlBg
+            border.width: 1
+            border.color: Qt.rgba(255, 255, 255, 0.08)
+
+            RowLayout {
+                anchors.fill: parent
+                anchors.leftMargin: 12; anchors.rightMargin: 12
+                spacing: 10
+
+                Text {
+                    text: "Parallax Intensity"
+                    color: Config.textMain
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontCaption)
                     font.bold: true
                 }
 
-                GridLayout {
-                    columns: 4
-                    rowSpacing: 8
-                    columnSpacing: 8
-                    Layout.fillWidth: true
-
-                    Repeater {
-                        model: root.awwwTransitions
-
-                        delegate: Rectangle {
-                            id: transBtn
-                            Layout.fillWidth: true
-                            implicitHeight: 34
-                            radius: Config.cornerRadius / 2
-                            readonly property bool isSelected: (Config.wallpaperTransitionType || "fade") === modelData.name
-                            color: isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.16) : (transHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
-                            border.width: isSelected ? 1.5 : 1
-                            border.color: isSelected ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
-
-                            Behavior on color { ColorAnimation { duration: 150 } }
-                            Behavior on border.color { ColorAnimation { duration: 150 } }
-
-                            RowLayout {
-                                anchors.centerIn: parent
-                                spacing: 6
-
-                                Text {
-                                    text: modelData.icon
-                                    font.family: "Material Symbols Outlined"
-                                    font.pixelSize: 14
-                                    color: transBtn.isSelected ? Config.accent : Config.textMuted
-                                }
-
-                                Text {
-                                    text: modelData.name
-                                    color: transBtn.isSelected ? Config.accent : Config.textMain
-                                    font.family: Config.sysFont
-                                    font.pixelSize: 11
-                                    font.bold: transBtn.isSelected
-                                }
-                            }
-
-                            MouseArea {
-                                id: transHover
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    Config.wallpaperTransitionType = modelData.name
-                                    if (typeof Config.saveSettings === "function") Config.saveSettings()
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // ==========================================
-        // 6. WALLPAPER LIBRARY GALLERY CARD
-        // ==========================================
-        Rectangle {
-            Layout.fillWidth: true
-            implicitHeight: Math.max(320, galleryCol.implicitHeight + 28)
-            radius: Config.cornerRadius
-            color: Qt.rgba(255, 255, 255, 0.05)
-            border.width: 1
-            border.color: Qt.rgba(255, 255, 255, 0.1)
-
-            ColumnLayout {
-                id: galleryCol
-                anchors.fill: parent
-                anchors.margins: 14
-                spacing: 12
+                Item { Layout.fillWidth: true }
 
                 RowLayout {
-                    Layout.fillWidth: true
+                    spacing: 6
 
-                    ColumnLayout {
-                        spacing: 2
-                        Text {
-                            text: "WALLPAPER GALLERY"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontBody)
-                            font.bold: true
-                        }
-                        Text {
-                            text: "~/Pictures/Wallpapers"
-                            color: Config.textMuted
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontMicro)
-                        }
-                    }
+                    Repeater {
+                        model: [
+                            { label: "0.5x Subtle", val: 0.5 },
+                            { label: "1.0x Balanced", val: 1.0 },
+                            { label: "1.5x Dynamic", val: 1.5 },
+                            { label: "2.0x High", val: 2.0 }
+                        ]
 
-                    Item { Layout.fillWidth: true }
+                        Rectangle {
+                            readonly property bool isSelected: Math.abs(Config.wallpaperParallaxIntensity - modelData.val) < 0.05
+                            implicitWidth: intText.implicitWidth + 14
+                            implicitHeight: 26
+                            radius: 13
+                            color: isSelected ? Config.accent : ((intHover.hovered && Config.enableWallpaperParallax) ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(255, 255, 255, 0.06))
+                            border.width: isSelected ? 0 : 1
+                            border.color: isSelected ? "transparent" : Qt.rgba(255, 255, 255, 0.1)
 
-                    Rectangle {
-                        implicitWidth: wpCountText.implicitWidth + 16
-                        implicitHeight: 24
-                        radius: 12
-                        color: Qt.rgba(255, 255, 255, 0.08)
-
-                        Text {
-                            id: wpCountText
-                            anchors.centerIn: parent
-                            text: ((Config.wallpapers ? Config.wallpapers.length : 0)) + " Wallpapers"
-                            font.family: Config.sysFont
-                            font.pixelSize: 11
-                            font.bold: true
-                            color: Config.textMuted
-                        }
-                    }
-                }
-
-                Rectangle {
-                    Layout.fillWidth: true
-                    implicitHeight: Math.max(260, gridView.contentHeight + 12)
-                    color: Qt.rgba(0, 0, 0, 0.3)
-                    radius: Config.cornerRadius / 2
-                    border.width: 1
-                    border.color: Qt.rgba(255, 255, 255, 0.08)
-                    clip: true
-
-                    GridView {
-                        id: gridView
-                        anchors.fill: parent
-                        anchors.margins: 6
-                        cellWidth: width / 3
-                        cellHeight: Math.floor(cellWidth * (9 / 16)) + 8
-
-                        clip: true
-                        boundsBehavior: Flickable.StopAtBounds
-                        cacheBuffer: 4000
-                        reuseItems: true
-                        model: Config.wallpapers
-
-                        delegate: Item {
-                            id: delegateItem
-                            width: gridView.cellWidth
-                            height: gridView.cellHeight
-
-                            readonly property string rawModelPath: "" + (modelData || "")
-                            readonly property string cleanPath: rawModelPath.replace(/^file:\/\//, "").trim()
-                            readonly property string fileName: cleanPath.split('/').pop()
-                            readonly property string baseName: fileName.replace(/\.[^/.]+$/, "")
-                            readonly property string fileExt: cleanPath.split('.').pop().toLowerCase()
-                            readonly property bool isVideo: fileExt === "mp4" || fileExt === "webm"
-
-                            // Extract raw active target from root or Config
-                            readonly property string rawActive: "" + (root.currentWallpaperPath || Config.activeWallpaperPath || "")
-                            readonly property string activeClean: rawActive.replace(/^file:\/\//, "").trim()
-                            readonly property string activeFileName: activeClean.split('/').pop()
-
-                            // Compare full paths OR matching basenames/filenames
-                            readonly property bool isCurrent: {
-                                if (!cleanPath || !activeClean) return false
-                                if (cleanPath === activeClean) return true
-                                if (fileName.length > 0 && activeFileName.length > 0 && fileName === activeFileName) return true
-                                return false
+                            Text {
+                                id: intText
+                                anchors.centerIn: parent
+                                text: modelData.label
+                                color: isSelected ? Config.bgBase : ((intHover.hovered && Config.enableWallpaperParallax) ? Config.textMain : Config.textMuted)
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontMicro)
+                                font.bold: isSelected
                             }
 
-                            readonly property string imageSource: isVideo ? 
-                                ("file://" + Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + baseName + ".jpg") : 
-                                ("file://" + cleanPath)
-
-                            Item {
-                                anchors.fill: parent
-                                anchors.margins: 4
-
-                                ClippingRectangle {
-                                    anchors.fill: parent
-                                    radius: Config.cornerRadius / 2
-                                    color: Qt.rgba(255, 255, 255, 0.05)
-
-                                    Image {
-                                        anchors.fill: parent
-                                        source: delegateItem.imageSource
-                                        fillMode: Image.PreserveAspectCrop
-                                        sourceSize.width: 320
-                                        sourceSize.height: 180
-                                        asynchronous: true
-                                        cache: true
-                                    }
-
-                                    Rectangle {
-                                        width: 22
-                                        height: 22
-                                        radius: 11
-                                        color: Qt.rgba(0, 0, 0, 0.7)
-                                        anchors.bottom: parent.bottom
-                                        anchors.left: parent.left
-                                        anchors.margins: 6
-                                        visible: delegateItem.isVideo
-
-                                        Text {
-                                            anchors.centerIn: parent
-                                            text: "play_arrow"
-                                            font.family: "Material Symbols Outlined"
-                                            font.pixelSize: 13
-                                            color: "#FFFFFF"
-                                        }
-                                    }
-
-                                    Rectangle {
-                                        width: 22
-                                        height: 22
-                                        radius: 11
-                                        color: Config.accent
-                                        anchors.top: parent.top
-                                        anchors.right: parent.right
-                                        anchors.margins: 6
-                                        visible: delegateItem.isCurrent
-
-                                        Text {
-                                            anchors.centerIn: parent
-                                            text: "✓"
-                                            font.pixelSize: 12
-                                            font.bold: true
-                                            color: Config.bgBase
-                                        }
-                                    }
-                                }
-
-                                Rectangle {
-                                    anchors.fill: parent
-                                    radius: Config.cornerRadius / 2
-                                    color: "transparent"
-                                    border.width: delegateItem.isCurrent ? 2.5 : (cardHover.containsMouse ? 1.5 : 0)
-                                    border.color: Config.accent
-                                }
-
-                                MouseArea {
-                                    id: cardHover
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: {
-                                        wallpaperBackend.applyWallpaper(delegateItem.cleanPath)
-                                        root.currentWallpaperPath = delegateItem.cleanPath
-                                        Config.activeWallpaperPath = delegateItem.cleanPath
-                                    }
-                                }
+                            TapHandler { 
+                                enabled: Config.enableWallpaperParallax
+                                onTapped: Config.wallpaperParallaxIntensity = modelData.val 
+                            }
+                            HoverHandler { 
+                                id: intHover
+                                enabled: Config.enableWallpaperParallax
+                                cursorShape: Qt.PointingHandCursor 
                             }
                         }
                     }
                 }
             }
         }
-
-        Item { Layout.fillHeight: true; implicitHeight: 20 }
     }
+
+
+    // ==========================================
+    // 4. TARGET OUTPUT MONITORS CARD
+    // ==========================================
+    SettingsCard {
+        id: monCol
+
+        title: "Target Displays"
+        icon: "desktop_windows"
+        subtitle: "Select monitors to apply wallpapers to (unselected monitors share the global wallpaper)."
+
+
+
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 8
+
+            Repeater {
+                model: Quickshell.screens
+
+                delegate: Rectangle {
+                    id: monBtn
+                    required property var modelData
+                    Layout.fillWidth: true
+                    Layout.preferredWidth: 1
+                    implicitHeight: 40
+                    radius: Config.cornerRadius / 2
+
+                    readonly property bool isSelected: Config.selectedWallpaperMonitors && Config.selectedWallpaperMonitors.includes(modelData.name)
+                    color: isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.16) : (monHover.containsMouse ? SettingsStyle.controlBgHover : SettingsStyle.controlBg)
+                    border.width: isSelected ? 1.5 : 1
+                    border.color: isSelected ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                    Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                    RowLayout {
+                        anchors.centerIn: parent
+                        spacing: 8
+
+                        Text {
+                            text: "desktop_windows"
+                            font.family: "Material Symbols Outlined"
+                            font.pixelSize: 16
+                            color: monBtn.isSelected ? Config.accent : Config.textMuted
+                        }
+
+                        Text {
+                            text: modelData.name
+                            color: monBtn.isSelected ? Config.accent : Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontCaption)
+                            font.bold: monBtn.isSelected
+                        }
+
+                        Rectangle {
+                            implicitWidth: 16; implicitHeight: 16; radius: 8
+                            color: monBtn.isSelected ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+                            Text {
+                                anchors.centerIn: parent
+                                text: monBtn.isSelected ? "✓" : "+"
+                                font.pixelSize: 9
+                                font.bold: true
+                                color: monBtn.isSelected ? Config.bgBase : Config.textMuted
+                            }
+                        }
+                    }
+
+                    MouseArea {
+                        id: monHover
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Config.toggleWallpaperMonitor(modelData.name)
+                    }
+                }
+            }
+        }
+    }
+
+
+    // ==========================================
+    // 5. TRANSITION EFFECT CARD
+    // ==========================================
+    SettingsCard {
+        id: transCol
+
+        title: "Transitions"
+        icon: "animation"
+
+
+        GridLayout {
+            columns: 4
+            rowSpacing: 8
+            columnSpacing: 8
+            Layout.fillWidth: true
+
+            Repeater {
+                model: root.awwwTransitions
+
+                delegate: Rectangle {
+                    id: transBtn
+                    Layout.fillWidth: true
+                    implicitHeight: 34
+                    radius: Config.cornerRadius / 2
+                    readonly property bool isSelected: (Config.wallpaperTransitionType || "fade") === modelData.name
+                    color: isSelected ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.16) : (transHover.containsMouse ? SettingsStyle.controlBgHover : SettingsStyle.controlBg)
+                    border.width: isSelected ? 1.5 : 1
+                    border.color: isSelected ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                    Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                    RowLayout {
+                        anchors.centerIn: parent
+                        spacing: 6
+
+                        Text {
+                            text: modelData.icon
+                            font.family: "Material Symbols Outlined"
+                            font.pixelSize: 14
+                            color: transBtn.isSelected ? Config.accent : Config.textMuted
+                        }
+
+                        Text {
+                            text: modelData.name
+                            color: transBtn.isSelected ? Config.accent : Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: 11
+                            font.bold: transBtn.isSelected
+                        }
+                    }
+
+                    MouseArea {
+                        id: transHover
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            Config.wallpaperTransitionType = modelData.name
+                            if (typeof Config.saveSettings === "function") Config.saveSettings()
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+    // ==========================================
+    // 6. WALLPAPER LIBRARY GALLERY CARD
+    // ==========================================
+    SettingsCard {
+        id: galleryCol
+
+        title: "Wallpaper Gallery"
+        icon: "grid_view"
+        subtitle: "~/Pictures/Wallpapers"
+        accessory: Rectangle {
+                    implicitWidth: wpCountText.implicitWidth + 16
+                    implicitHeight: 24
+                    radius: 12
+                    color: Qt.rgba(255, 255, 255, 0.08)
+
+                    Text {
+                        id: wpCountText
+                        anchors.centerIn: parent
+                        text: ((Config.wallpapers ? Config.wallpapers.length : 0)) + " Wallpapers"
+                        font.family: Config.sysFont
+                        font.pixelSize: 11
+                        font.bold: true
+                        color: Config.textMuted
+                    }
+                }
+
+
+
+        Rectangle {
+            Layout.fillWidth: true
+            implicitHeight: Math.max(260, gridView.contentHeight + 12)
+            color: SettingsStyle.controlBg
+            radius: Config.cornerRadius / 2
+            border.width: 1
+            border.color: Qt.rgba(255, 255, 255, 0.08)
+            clip: true
+
+            GridView {
+                id: gridView
+                anchors.fill: parent
+                anchors.margins: 6
+                cellWidth: width / 3
+                cellHeight: Math.floor(cellWidth * (9 / 16)) + 8
+
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                cacheBuffer: 4000
+                reuseItems: true
+                model: Config.wallpapers
+
+                delegate: Item {
+                    id: delegateItem
+                    width: gridView.cellWidth
+                    height: gridView.cellHeight
+
+                    readonly property string rawModelPath: "" + (modelData || "")
+                    readonly property string cleanPath: rawModelPath.replace(/^file:\/\//, "").trim()
+                    readonly property string fileName: cleanPath.split('/').pop()
+                    readonly property string baseName: fileName.replace(/\.[^/.]+$/, "")
+                    readonly property string fileExt: cleanPath.split('.').pop().toLowerCase()
+                    readonly property bool isVideo: fileExt === "mp4" || fileExt === "webm"
+
+                    // Extract raw active target from root or Config
+                    readonly property string rawActive: "" + (root.currentWallpaperPath || Config.activeWallpaperPath || "")
+                    readonly property string activeClean: rawActive.replace(/^file:\/\//, "").trim()
+                    readonly property string activeFileName: activeClean.split('/').pop()
+
+                    // Compare full paths OR matching basenames/filenames
+                    readonly property bool isCurrent: {
+                        if (!cleanPath || !activeClean) return false
+                        if (cleanPath === activeClean) return true
+                        if (fileName.length > 0 && activeFileName.length > 0 && fileName === activeFileName) return true
+                        return false
+                    }
+
+                    readonly property string imageSource: isVideo ? 
+                        ("file://" + Quickshell.env("HOME") + "/.cache/wallpaper-thumbs/" + baseName + ".jpg") : 
+                        ("file://" + cleanPath)
+
+                    Item {
+                        anchors.fill: parent
+                        anchors.margins: 4
+
+                        ClippingRectangle {
+                            anchors.fill: parent
+                            radius: Config.cornerRadius / 2
+                            color: Qt.rgba(255, 255, 255, 0.05)
+
+                            Image {
+                                anchors.fill: parent
+                                source: delegateItem.imageSource
+                                fillMode: Image.PreserveAspectCrop
+                                sourceSize.width: 320
+                                sourceSize.height: 180
+                                asynchronous: true
+                                cache: true
+                            }
+
+                            Rectangle {
+                                width: 22
+                                height: 22
+                                radius: 11
+                                color: Qt.rgba(0, 0, 0, 0.7)
+                                anchors.bottom: parent.bottom
+                                anchors.left: parent.left
+                                anchors.margins: 6
+                                visible: delegateItem.isVideo
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "play_arrow"
+                                    font.family: "Material Symbols Outlined"
+                                    font.pixelSize: 13
+                                    color: "#FFFFFF"
+                                }
+                            }
+
+                            Rectangle {
+                                width: 22
+                                height: 22
+                                radius: 11
+                                color: Config.accent
+                                anchors.top: parent.top
+                                anchors.right: parent.right
+                                anchors.margins: 6
+                                visible: delegateItem.isCurrent
+
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "✓"
+                                    font.pixelSize: 12
+                                    font.bold: true
+                                    color: Config.bgBase
+                                }
+                            }
+                        }
+
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: Config.cornerRadius / 2
+                            color: "transparent"
+                            border.width: delegateItem.isCurrent ? 2.5 : (cardHover.containsMouse ? 1.5 : 0)
+                            border.color: Config.accent
+                        }
+
+                        MouseArea {
+                            id: cardHover
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                wallpaperBackend.applyWallpaper(delegateItem.cleanPath)
+                                root.currentWallpaperPath = delegateItem.cleanPath
+                                Config.activeWallpaperPath = delegateItem.cleanPath
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+
+    Item { Layout.fillHeight: true; implicitHeight: 20 }
 }

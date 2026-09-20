@@ -22,11 +22,13 @@ RowLayout {
     }
 
     Rectangle {
-        implicitWidth: 22
-        implicitHeight: 22
-        radius: 11
-        color: minusHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
-        Behavior on color { ColorAnimation { duration: 150 } }
+        implicitWidth: 26
+        implicitHeight: 26
+        radius: 13
+        color: minusHover.hovered ? SettingsStyle.controlBgHover : SettingsStyle.controlBg
+        border.width: 1
+        border.color: SettingsStyle.controlBorder
+        Behavior on color { ColorAnimation { duration: SettingsStyle.animFast } }
 
         Text {
             anchors.centerIn: parent
@@ -47,12 +49,12 @@ RowLayout {
     }
 
     Rectangle {
-        implicitWidth: 54
-        implicitHeight: 22
-        radius: 6
-        color: Qt.rgba(0, 0, 0, 0.3)
+        implicitWidth: 60
+        implicitHeight: 26
+        radius: SettingsStyle.controlRadius * 0.8
+        color: SettingsStyle.controlBg
         border.width: 1
-        border.color: Config.accent
+        border.color: SettingsStyle.accentLine
 
         Text {
             anchors.centerIn: parent
@@ -60,16 +62,18 @@ RowLayout {
             color: Config.accent
             font.family: Config.sysFont
             font.bold: true
-            font.pixelSize: 10
+            font.pixelSize: Config.size(Config.fontMicro)
         }
     }
 
     Rectangle {
-        implicitWidth: 22
-        implicitHeight: 22
-        radius: 11
-        color: plusHover.hovered ? Qt.rgba(255, 255, 255, 0.15) : Qt.rgba(255, 255, 255, 0.08)
-        Behavior on color { ColorAnimation { duration: 150 } }
+        implicitWidth: 26
+        implicitHeight: 26
+        radius: 13
+        color: plusHover.hovered ? SettingsStyle.controlBgHover : SettingsStyle.controlBg
+        border.width: 1
+        border.color: SettingsStyle.controlBorder
+        Behavior on color { ColorAnimation { duration: SettingsStyle.animFast } }
 
         Text {
             anchors.centerIn: parent

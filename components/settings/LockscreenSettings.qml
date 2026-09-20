@@ -1,955 +1,289 @@
 import QtQuick
 import QtQuick.Layouts
-import QtQuick.Controls
-import Qt5Compat.GraphicalEffects
 import Quickshell
 import "../lockscreen"
 import ".."
 
-Flickable {
-    id: flickable
-    Layout.fillWidth: true
-    Layout.fillHeight: true
-    contentWidth: width
-    contentHeight: contentColumn.implicitHeight + 32
-    clip: true
-    boundsBehavior: Flickable.StopAtBounds
+SettingsPage {
+    id: root
 
-    ScrollBar.vertical: ScrollBar {
-        policy: ScrollBar.AsNeeded
-        active: flickable.moving || flickable.flicking
+    title: "Lockscreen"
+    description: "Unlock surface - password mask, clock format, wallpaper blur and what it shows."
+    icon: "lock"
+
+    // "Focused screen" plus one entry per attached output, in the one shape
+    // SettingsSegmented wants. Config stores either the literal "focused" or
+    // an output name, so the chip values are those same strings.
+    readonly property var monitorOptions: {
+        const opts = [{ label: "Focused Screen", value: "focused", icon: "center_focus_strong" }]
+        for (const screen of Quickshell.screens) {
+            if (screen && screen.name) {
+                opts.push({ label: screen.name, value: screen.name, icon: "desktop_windows" })
+            }
+        }
+        return opts
     }
 
-    readonly property real cardMargin: Config.cardMargin !== undefined ? Config.cardMargin : 12
+    readonly property string datePreview: {
+        const d = new Date()
+        const mode = Config.lockscreenDateFormat || "long"
+        if (mode === "standard") return Qt.formatDate(d, "ddd, MMM d, yyyy")
+        if (mode === "iso") return Qt.formatDate(d, "yyyy-MM-dd")
+        if (mode === "dayFirst") return Qt.formatDate(d, "d MMMM yyyy")
+        return Qt.formatDate(d, "dddd, MMMM d, yyyy")
+    }
 
-    // Reusable Geometric / Square Toggle Switch Component
-    ColumnLayout {
-        id: contentColumn
-        width: Math.min(flickable.width - (flickable.cardMargin * 2), 620)
-        anchors.horizontalCenter: parent.horizontalCenter
-        spacing: flickable.cardMargin
+    SettingsCard {
+        title: "Live Password Bar"
+        icon: "password"
+        subtitle: "Type below to test the glyphs, animations and clearing behaviour."
 
-        Text {
-            Layout.fillWidth: true
-            text: "LOCKSCREEN CONFIGURATION"
-            color: Config.textMain
-            font.family: Config.sysFont
-            font.pixelSize: Config.size(Config.fontSubhead)
-            font.bold: true
+        accessory: SettingsButton {
+            label: "Test Lock"
+            icon: "lock"
+            variant: "accent"
+            onClicked: Config.sessionLocked = true
         }
 
-        Text {
-            text: "Configure the Wayland session lockscreen, active monitor destination, randomized shape password bar, clock typography, and display toggles."
-            color: Config.textMuted
-            font.family: Config.sysFont
-            font.pixelSize: Config.size(Config.fontCaption)
+        LockscreenPasswordBar {
+            id: previewPassBar
             Layout.fillWidth: true
-            wrapMode: Text.WordWrap
-        }
+            Layout.alignment: Qt.AlignHCenter
+            maskStyle: Config.lockscreenMaskStyle || "shapes"
+            paletteMode: Config.lockscreenShapePalette || "vibrant"
+            placeholderText: "Type to test password bar..."
 
-        // ==========================================
-        // 1. INTERACTIVE LIVE PREVIEW CARD
-        // ==========================================
-        Rectangle {
-            Layout.fillWidth: true
-            implicitHeight: previewCol.implicitHeight + 28
-            radius: Config.cornerRadius
-            color: Qt.rgba(255, 255, 255, 0.05)
-            border.width: 1
-            border.color: Qt.rgba(255, 255, 255, 0.1)
-
-            ColumnLayout {
-                id: previewCol
-                anchors.fill: parent
-                anchors.margins: 14
-                spacing: 12
-
-                RowLayout {
-                    Layout.fillWidth: true
-
-                    Text {
-                        text: "LIVE PASSWORD BAR PREVIEW"
-                        color: Config.textMuted
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontMicro)
-                        font.bold: true
-                        Layout.fillWidth: true
-                        elide: Text.ElideRight
-                    }
-
-                    // RELIABLE TEST LOCK BUTTON
-                    Rectangle {
-                        id: testLockBtn
-                        implicitWidth: testLockRow.implicitWidth + 16
-                        implicitHeight: 30
-                        radius: 15
-                        color: testLockMouse.containsMouse ? Config.accent : Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.18)
-                        border.width: 1.5
-                        border.color: Config.accent
-
-                        Behavior on color { ColorAnimation { duration: 150 } }
-
-                        RowLayout {
-                            id: testLockRow
-                            anchors.centerIn: parent
-                            spacing: 6
-
-                            Text {
-                                text: "lock"
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 15
-                                color: testLockMouse.containsMouse ? Config.bgBase : Config.accent
-                                verticalAlignment: Text.AlignVCenter
-                            }
-
-                            Text {
-                                text: "Test Lock Now"
-                                font.family: Config.sysFont
-                                font.pixelSize: 11
-                                font.bold: true
-                                color: testLockMouse.containsMouse ? Config.bgBase : Config.accent
-                                verticalAlignment: Text.AlignVCenter
-                                horizontalAlignment: Text.AlignHCenter
-                            }
-                        }
-
-                        MouseArea {
-                            id: testLockMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                Config.sessionLocked = true
-                            }
-                        }
-                    }
-                }
-
-                Text {
-                    Layout.fillWidth: true
-                    text: "Type below to test live glyphs, animations, and clearing mechanics:"
-                    color: Config.textMuted
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontCaption)
-                    wrapMode: Text.WordWrap
-                }
-
-                LockscreenPasswordBar {
-                    id: previewPassBar
-                    Layout.fillWidth: true
-                    Layout.alignment: Qt.AlignHCenter
-                    maskStyle: Config.lockscreenMaskStyle || "shapes"
-                    paletteMode: Config.lockscreenShapePalette || "vibrant"
-                    placeholderText: "Type to test password bar..."
-
-                    onSubmitPassword: (pass) => {
-                        previewPassBar.isAuthenticating = true
-                        previewSimTimer.restart()
-                    }
-                }
-
-                Timer {
-                    id: previewSimTimer
-                    interval: 500
-                    onTriggered: {
-                        previewPassBar.isAuthenticating = false
-                        previewPassBar.isSuccess = true
-                        previewResetTimer.restart()
-                    }
-                }
-
-                Timer {
-                    id: previewResetTimer
-                    interval: 700
-                    onTriggered: {
-                        previewPassBar.isSuccess = false
-                        previewPassBar.clearInput()
-                    }
-                }
+            onSubmitPassword: (pass) => {
+                previewPassBar.isAuthenticating = true
+                previewSimTimer.restart()
             }
         }
 
-        // ==========================================
-        // 2. TARGET MONITOR SELECTION CARD
-        // ==========================================
-        Rectangle {
+        Timer {
+            id: previewSimTimer
+            interval: 500
+            onTriggered: {
+                previewPassBar.isAuthenticating = false
+                previewPassBar.isSuccess = true
+                previewResetTimer.restart()
+            }
+        }
+
+        Timer {
+            id: previewResetTimer
+            interval: 700
+            onTriggered: {
+                previewPassBar.isSuccess = false
+                previewPassBar.clearInput()
+            }
+        }
+    }
+
+    SettingsCard {
+        title: "Active Display"
+        icon: "desktop_windows"
+        subtitle: "Which display renders the unlock UI. Every other display stays solid black."
+
+        SettingsSegmented {
+            currentValue: Config.lockscreenTargetMonitor || "focused"
+            model: root.monitorOptions
+            onSelected: value => Config.lockscreenTargetMonitor = value
+        }
+    }
+
+    SettingsCard {
+        title: "Password Mask"
+        icon: "more_horiz"
+
+        SettingsTileGrid {
+            currentValue: Config.lockscreenMaskStyle || "shapes"
+            columns: 4
+            model: [
+                { label: "Shapes",        value: "shapes",    icon: "category",            desc: "16 vector shapes",  preview: "\u25c6 \u25b2 \u25a0" },
+                { label: "Dots",          value: "dots",      icon: "fiber_manual_record", desc: "Bullet discs",      preview: "\u25cf \u25cf \u25cf" },
+                { label: "Asterisks",     value: "asterisks", icon: "emergency",           desc: "Classic asterisks", preview: "\u2731 \u2731 \u2731" },
+                { label: "Special Chars", value: "special",   icon: "code",                desc: "Random symbols",    preview: "! @ # \u2605" }
+            ]
+            onSelected: value => Config.lockscreenMaskStyle = value
+        }
+    }
+
+    SettingsCard {
+        title: "Shape Palette"
+        icon: "palette"
+        subtitle: "Colour set the randomised mask glyphs are drawn from."
+
+        Flow {
             Layout.fillWidth: true
-            implicitHeight: monitorCol.implicitHeight + 28
-            radius: Config.cornerRadius
-            color: Qt.rgba(255, 255, 255, 0.05)
-            border.width: 1
-            border.color: Qt.rgba(255, 255, 255, 0.1)
+            Layout.preferredHeight: implicitHeight
+            spacing: SettingsStyle.tightGap
 
-            ColumnLayout {
-                id: monitorCol
-                anchors.fill: parent
-                anchors.margins: 14
-                spacing: 12
+            Repeater {
+                model: [
+                    { id: "vibrant",    label: "Vibrant",    desc: "Cyber tones",  previewColor: "#00f0ff" },
+                    { id: "accent",     label: "Accent",     desc: "Theme match",  previewColor: Config.accent },
+                    { id: "neon",       label: "Neon High",  desc: "High contrast", previewColor: "#ff0055" },
+                    { id: "pastel",     label: "Pastel",     desc: "Soft hues",    previewColor: "#c4b5fd" },
+                    { id: "monochrome", label: "Monochrome", desc: "Silver/grey",  previewColor: "#ffffff" }
+                ]
 
-                Text {
-                    text: "ACTIVE LOCKSCREEN DISPLAY"
-                    color: Config.textMuted
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontMicro)
-                    font.bold: true
-                }
+                delegate: Rectangle {
+                    id: paletteChip
 
-                Text {
-                    text: "Select which display renders the active unlock UI. All other displays will remain solid black."
-                    color: Config.textMuted
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontCaption)
-                    Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
-                }
+                    required property var modelData
 
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
+                    readonly property bool isSelected:
+                        (Config.lockscreenShapePalette || "vibrant") === paletteChip.modelData.id
 
-                    // Option: Hyprland Focused Monitor
-                    Rectangle {
-                        id: focusedPill
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        Layout.minimumWidth: 0
-                        implicitHeight: 36
-                        radius: Config.cornerRadius / 2
+                    implicitWidth: paletteRow.implicitWidth + 24
+                    implicitHeight: 44
+                    radius: SettingsStyle.controlRadius
+                    color: paletteChip.isSelected
+                        ? SettingsStyle.accentSoft
+                        : (paletteHover.hovered ? SettingsStyle.controlBgHover : SettingsStyle.controlBg)
+                    border.width: 1
+                    border.color: paletteChip.isSelected ? SettingsStyle.accentLine : SettingsStyle.controlBorder
 
-                        readonly property bool isSelected: (Config.lockscreenTargetMonitor || "focused") === "focused"
+                    Behavior on color { ColorAnimation { duration: SettingsStyle.animFast } }
 
-                        color: isSelected 
-                            ? Config.accent 
-                            : (focusedMonHover.containsMouse ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(0, 0, 0, 0.2))
-                        border.width: isSelected ? 1.5 : 1
-                        border.color: isSelected ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
+                    RowLayout {
+                        id: paletteRow
+                        anchors.centerIn: parent
+                        spacing: 8
 
-                        Behavior on color { ColorAnimation { duration: 150 } }
+                        Rectangle {
+                            implicitWidth: 16
+                            implicitHeight: 16
+                            radius: 8
+                            color: paletteChip.modelData.previewColor
+                            border.width: 1
+                            border.color: Qt.rgba(1, 1, 1, 0.25)
+                        }
 
-                        RowLayout {
-                            anchors.centerIn: parent
-                            spacing: 6
+                        ColumnLayout {
+                            spacing: 0
 
                             Text {
-                                text: "center_focus_strong"
-                                font.family: "Material Symbols Outlined"
-                                font.pixelSize: 16
-                                color: focusedPill.isSelected ? Config.bgBase : Config.accent
-                                verticalAlignment: Text.AlignVCenter
-                            }
-
-                            Text {
-                                text: "Focused Screen"
+                                text: paletteChip.modelData.label
                                 font.family: Config.sysFont
                                 font.pixelSize: Config.size(Config.fontCaption)
                                 font.bold: true
-                                color: focusedPill.isSelected ? Config.bgBase : Config.textMain
-                                verticalAlignment: Text.AlignVCenter
+                                color: paletteChip.isSelected ? Config.accent : Config.textMain
                             }
-                        }
-
-                        MouseArea {
-                            id: focusedMonHover
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                Config.lockscreenTargetMonitor = "focused"
-                                if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                else if (typeof Config.save === "function") Config.save()
-                            }
-                        }
-                    }
-
-                    // Dynamic attached monitor pills from Quickshell
-                    Repeater {
-                        model: Quickshell.screens
-
-                        delegate: Rectangle {
-                            id: monitorPill
-                            Layout.fillWidth: true
-                            Layout.preferredWidth: 1
-                            Layout.minimumWidth: 0
-                            implicitHeight: 36
-                            radius: Config.cornerRadius / 2
-
-                            readonly property string scrName: (modelData && modelData.name) ? modelData.name : ""
-                            readonly property bool isSelected: Config.lockscreenTargetMonitor === scrName
-
-                            color: isSelected 
-                                ? Config.accent 
-                                : (scrHover.containsMouse ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(0, 0, 0, 0.2))
-                            border.width: isSelected ? 1.5 : 1
-                            border.color: isSelected ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
-
-                            Behavior on color { ColorAnimation { duration: 150 } }
-
-                            RowLayout {
-                                anchors.centerIn: parent
-                                spacing: 6
-
-                                Text {
-                                    text: "desktop_windows"
-                                    font.family: "Material Symbols Outlined"
-                                    font.pixelSize: 16
-                                    color: monitorPill.isSelected ? Config.bgBase : Config.accent
-                                    verticalAlignment: Text.AlignVCenter
-                                }
-
-                                Text {
-                                    text: monitorPill.scrName
-                                    font.family: Config.sysFont
-                                    font.pixelSize: Config.size(Config.fontCaption)
-                                    font.bold: true
-                                    color: monitorPill.isSelected ? Config.bgBase : Config.textMain
-                                    verticalAlignment: Text.AlignVCenter
-                                }
-                            }
-
-                            MouseArea {
-                                id: scrHover
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    if (monitorPill.scrName !== "") {
-                                        Config.lockscreenTargetMonitor = monitorPill.scrName
-                                        if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                        else if (typeof Config.save === "function") Config.save()
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // ==========================================
-        // 3. PASSWORD MASK STYLE SELECTOR
-        // ==========================================
-        Rectangle {
-            Layout.fillWidth: true
-            implicitHeight: maskStyleCol.implicitHeight + 28
-            radius: Config.cornerRadius
-            color: Qt.rgba(255, 255, 255, 0.05)
-            border.width: 1
-            border.color: Qt.rgba(255, 255, 255, 0.1)
-
-            ColumnLayout {
-                id: maskStyleCol
-                anchors.fill: parent
-                anchors.margins: 14
-                spacing: 12
-
-                Text {
-                    text: "PASSWORD MASK STYLE"
-                    color: Config.textMuted
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontMicro)
-                    font.bold: true
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-
-                    Repeater {
-                        model: [
-                            { id: "shapes",    label: "Shapes",        icon: "category",            desc: "16 vector shapes", preview: "◆ ▲ ■" },
-                            { id: "dots",      label: "Dots",          icon: "fiber_manual_record", desc: "Bullet discs",     preview: "● ● ●" },
-                            { id: "asterisks", label: "Asterisks",     icon: "emergency",           desc: "Classic asterisks", preview: "✱ ✱ ✱" },
-                            { id: "special",   label: "Special Chars", icon: "code",                desc: "Random symbols",   preview: "! @ # ★" }
-                        ]
-
-                        delegate: Rectangle {
-                            id: maskPill
-                            Layout.fillWidth: true
-                            Layout.preferredWidth: 1
-                            Layout.minimumWidth: 0
-                            implicitHeight: 68
-                            radius: Config.cornerRadius / 2
-
-                            readonly property bool isSelected: (Config.lockscreenMaskStyle || "shapes") === modelData.id
-
-                            color: isSelected 
-                                ? Qt.rgba(255, 255, 255, 0.14) 
-                                : (maskHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
-                            border.width: isSelected ? 1.5 : 1
-                            border.color: isSelected ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
-
-                            Behavior on color { ColorAnimation { duration: 150 } }
-
-                            ColumnLayout {
-                                anchors.centerIn: parent
-                                spacing: 4
-
-                                RowLayout {
-                                    Layout.alignment: Qt.AlignHCenter
-                                    spacing: 6
-
-                                    Text {
-                                        text: modelData.icon
-                                        font.family: "Material Symbols Outlined"
-                                        font.pixelSize: 16
-                                        color: maskPill.isSelected ? Config.accent : Config.textMuted
-                                        verticalAlignment: Text.AlignVCenter
-                                    }
-
-                                    Text {
-                                        text: modelData.label
-                                        font.family: Config.sysFont
-                                        font.pixelSize: Config.size(Config.fontCaption)
-                                        font.bold: true
-                                        color: maskPill.isSelected ? Config.accent : Config.textMain
-                                        verticalAlignment: Text.AlignVCenter
-                                        horizontalAlignment: Text.AlignHCenter
-                                    }
-                                }
-
-                                Text {
-                                    text: modelData.preview
-                                    font.family: Config.sysFont
-                                    font.pixelSize: 11
-                                    font.bold: true
-                                    color: maskPill.isSelected ? Config.accent : Qt.rgba(255, 255, 255, 0.5)
-                                    Layout.alignment: Qt.AlignHCenter
-                                    horizontalAlignment: Text.AlignHCenter
-                                }
-                            }
-
-                            MouseArea {
-                                id: maskHover
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    Config.lockscreenMaskStyle = modelData.id
-                                    previewPassBar.maskStyle = modelData.id
-                                    if (typeof previewPassBar.shuffleShapes === "function") {
-                                        previewPassBar.shuffleShapes()
-                                    }
-                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                    else if (typeof Config.save === "function") Config.save()
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // ==========================================
-        // 4. PALETTE & COLOR THEME
-        // ==========================================
-        Rectangle {
-            Layout.fillWidth: true
-            implicitHeight: paletteCol.implicitHeight + 28
-            radius: Config.cornerRadius
-            color: Qt.rgba(255, 255, 255, 0.05)
-            border.width: 1
-            border.color: Qt.rgba(255, 255, 255, 0.1)
-
-            ColumnLayout {
-                id: paletteCol
-                anchors.fill: parent
-                anchors.margins: 14
-                spacing: 12
-
-                Text {
-                    text: "RANDOMIZED SHAPE PALETTE"
-                    color: Config.textMuted
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontMicro)
-                    font.bold: true
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-
-                    Repeater {
-                        model: [
-                            { id: "vibrant", label: "Vibrant", desc: "Cyber tones", previewColor: "#00f0ff" },
-                            { id: "accent", label: "Accent", desc: "Theme match", previewColor: Config.accent },
-                            { id: "neon", label: "Neon High", desc: "High contrast", previewColor: "#ff0055" },
-                            { id: "pastel", label: "Pastel", desc: "Soft hues", previewColor: "#c4b5fd" },
-                            { id: "monochrome", label: "Monochrome", desc: "Silver/Grey", previewColor: "#ffffff" }
-                        ]
-
-                        delegate: Rectangle {
-                            id: palPill
-                            Layout.fillWidth: true
-                            Layout.preferredWidth: 1
-                            Layout.minimumWidth: 0
-                            implicitHeight: 64
-                            radius: Config.cornerRadius / 2
-
-                            readonly property bool isSelected: (Config.lockscreenShapePalette || "vibrant") === modelData.id
-
-                            color: isSelected 
-                                ? Qt.rgba(255, 255, 255, 0.14) 
-                                : (palHover.containsMouse ? Qt.rgba(255, 255, 255, 0.08) : Qt.rgba(0, 0, 0, 0.2))
-                            border.width: isSelected ? 1.5 : 1
-                            border.color: isSelected ? Config.accent : Qt.rgba(255, 255, 255, 0.08)
-
-                            Behavior on color { ColorAnimation { duration: 150 } }
-
-                            ColumnLayout {
-                                anchors.centerIn: parent
-                                spacing: 4
-
-                                RowLayout {
-                                    Layout.alignment: Qt.AlignHCenter
-                                    spacing: 5
-
-                                    Rectangle {
-                                        implicitWidth: 10
-                                        implicitHeight: 10
-                                        radius: 5
-                                        color: modelData.previewColor
-                                        Layout.alignment: Qt.AlignVCenter
-                                    }
-
-                                    Text {
-                                        text: modelData.label
-                                        font.family: Config.sysFont
-                                        font.pixelSize: Config.size(Config.fontCaption)
-                                        font.bold: true
-                                        color: palPill.isSelected ? Config.accent : Config.textMain
-                                        verticalAlignment: Text.AlignVCenter
-                                        horizontalAlignment: Text.AlignHCenter
-                                    }
-                                }
-
-                                Text {
-                                    text: modelData.desc
-                                    font.family: Config.sysFont
-                                    font.pixelSize: 10
-                                    color: Config.textMuted
-                                    Layout.alignment: Qt.AlignHCenter
-                                    horizontalAlignment: Text.AlignHCenter
-                                }
-                            }
-
-                            MouseArea {
-                                id: palHover
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    Config.lockscreenShapePalette = modelData.id
-                                    if (typeof previewPassBar.shuffleShapes === "function") {
-                                        previewPassBar.shuffleShapes()
-                                    }
-                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                    else if (typeof Config.save === "function") Config.save()
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // ==========================================
-        // 5. TIME & DATE FORMAT CONFIGURATION
-        // ==========================================
-        Rectangle {
-            Layout.fillWidth: true
-            implicitHeight: timeFormatCol.implicitHeight + 28
-            radius: Config.cornerRadius
-            color: Qt.rgba(255, 255, 255, 0.05)
-            border.width: 1
-            border.color: Qt.rgba(255, 255, 255, 0.1)
-
-            ColumnLayout {
-                id: timeFormatCol
-                anchors.fill: parent
-                anchors.margins: 14
-                spacing: 14
-
-                Text {
-                    text: "TIME & DATE FORMAT"
-                    color: Config.textMuted
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontMicro)
-                    font.bold: true
-                }
-
-                // TIME FORMAT (12-HOUR VS 24-HOUR) & CLOCK SIZE
-                RowLayout {
-                    Layout.fillWidth: true
-                    Layout.alignment: Qt.AlignHCenter
-                    spacing: 16
-
-                    // 12-Hour vs 24-Hour Compact Pills
-                    RowLayout {
-                        Layout.fillWidth: true
-                        Layout.preferredWidth: 1
-                        spacing: 8
-
-                        Text {
-                            text: "Time Mode:"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            font.bold: true
-                        }
-
-                        Repeater {
-                            model: [
-                                { label: "12-Hour", use12: true, icon: "schedule" },
-                                { label: "24-Hour", use12: false, icon: "military_tech" }
-                            ]
-
-                            delegate: Rectangle {
-                                id: hourPill
-                                Layout.fillWidth: true
-                                Layout.preferredWidth: 1
-                                Layout.minimumWidth: 0
-                                implicitHeight: 30
-                                radius: 15
-
-                                readonly property bool isSelected: (Config.lockscreenUse12Hour !== false) === modelData.use12
-
-                                color: isSelected 
-                                    ? Config.accent 
-                                    : (hourModeHover.containsMouse ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(0, 0, 0, 0.2))
-
-                                Behavior on color { ColorAnimation { duration: 150 } }
-
-                                RowLayout {
-                                    anchors.centerIn: parent
-                                    spacing: 6
-
-                                    Text {
-                                        text: modelData.icon
-                                        font.family: "Material Symbols Outlined"
-                                        font.pixelSize: 15
-                                        color: hourPill.isSelected ? Config.bgBase : Config.accent
-                                        verticalAlignment: Text.AlignVCenter
-                                    }
-
-                                    Text {
-                                        text: modelData.label
-                                        font.family: Config.sysFont
-                                        font.pixelSize: 11
-                                        font.bold: true
-                                        color: hourPill.isSelected ? Config.bgBase : Config.textMain
-                                        verticalAlignment: Text.AlignVCenter
-                                        horizontalAlignment: Text.AlignHCenter
-                                    }
-                                }
-
-                                MouseArea {
-                                    id: hourModeHover
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: {
-                                        Config.lockscreenUse12Hour = modelData.use12
-                                        if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                        else if (typeof Config.save === "function") Config.save()
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    // CLOCK TYPOGRAPHY SIZE
-                    RowLayout {
-                        spacing: 8
-                        Layout.alignment: Qt.AlignRight
-
-                        Text {
-                            text: "Clock Size:"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            font.bold: true
-                        }
-
-                        Repeater {
-                            model: [
-                                { label: "100px", size: 100 },
-                                { label: "150px", size: 150 },
-                                { label: "200px", size: 200 }
-                            ]
-
-                            delegate: Rectangle {
-                                id: clockPill
-                                implicitWidth: sizeText.implicitWidth + 20
-                                implicitHeight: 30
-                                radius: 15
-                                readonly property bool isSelected: (Config.lockscreenClockSize || 150) === modelData.size
-                                color: isSelected ? Config.accent : (sizeHover.containsMouse ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(0, 0, 0, 0.2))
-
-                                Text {
-                                    id: sizeText
-                                    anchors.centerIn: parent
-                                    text: modelData.label
-                                    font.family: Config.sysFont
-                                    font.pixelSize: 11
-                                    font.bold: true
-                                    color: clockPill.isSelected ? Config.bgBase : Config.textMain
-                                    horizontalAlignment: Text.AlignHCenter
-                                    verticalAlignment: Text.AlignVCenter
-                                }
-
-                                MouseArea {
-                                    id: sizeHover
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: {
-                                        Config.lockscreenClockSize = modelData.size
-                                        if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                        else if (typeof Config.save === "function") Config.save()
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                // TIME DISPLAY TOGGLES (SECONDS & AM/PM)
-                // SHOW SECONDS
-                SettingsToggleRow {
-                    title: "Show Seconds"
-                    subtitle: "Display seconds in the clock (e.g. 10:42:30)."
-                    checked: Config.lockscreenShowSeconds !== false
-                    onToggled: {
-                        Config.lockscreenShowSeconds = (Config.lockscreenShowSeconds === false)
-                        if (typeof Config.saveConfig === "function") Config.saveConfig()
-                        else if (typeof Config.save === "function") Config.save()
-                    }
-                }
-
-                // SHOW AM/PM BADGE
-                SettingsToggleRow {
-                    visible: Config.lockscreenUse12Hour !== false
-                    title: "Show AM/PM Badge"
-                    subtitle: "Display the AM/PM indicator alongside the 12-hour clock."
-                    checked: Config.lockscreenShowAmPm !== false
-                    onToggled: {
-                        Config.lockscreenShowAmPm = (Config.lockscreenShowAmPm === false)
-                        if (typeof Config.saveConfig === "function") Config.saveConfig()
-                        else if (typeof Config.save === "function") Config.save()
-                    }
-                }
-
-                // DATE FORMAT SELECTOR
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-
-                    RowLayout {
-                        Layout.fillWidth: true
-
-                        Text {
-                            text: "Date Display Style:"
-                            color: Config.textMain
-                            font.family: Config.sysFont
-                            font.pixelSize: Config.size(Config.fontCaption)
-                            font.bold: true
-                        }
-
-                        Item { Layout.fillWidth: true }
-
-                        // Live Date Preview String
-                        RowLayout {
-                            spacing: 6
 
                             Text {
-                                text: "Preview:"
+                                text: paletteChip.modelData.desc
+                                font.family: Config.sysFont
+                                font.pixelSize: Config.size(Config.fontMicro)
                                 color: Config.textMuted
-                                font.family: Config.sysFont
-                                font.pixelSize: 11
-                            }
-
-                            Text {
-                                text: {
-                                    let d = new Date()
-                                    let mode = Config.lockscreenDateFormat || "long"
-                                    if (mode === "standard") return Qt.formatDate(d, "ddd, MMM d, yyyy")
-                                    if (mode === "iso") return Qt.formatDate(d, "yyyy-MM-dd")
-                                    if (mode === "dayFirst") return Qt.formatDate(d, "d MMMM yyyy")
-                                    return Qt.formatDate(d, "dddd, MMMM d, yyyy")
-                                }
-                                color: Config.accent
-                                font.family: Config.sysFont
-                                font.pixelSize: 11
-                                font.bold: true
                             }
                         }
                     }
 
-                    // Compact Segmented Pills
-                    RowLayout {
-                        Layout.fillWidth: true
-                        spacing: 8
-
-                        Repeater {
-                            model: [
-                                { id: "long", label: "Long" },
-                                { id: "standard", label: "Standard" },
-                                { id: "dayFirst", label: "Day First" },
-                                { id: "iso", label: "ISO 8601" }
-                            ]
-
-                            delegate: Rectangle {
-                                id: datePill
-                                Layout.fillWidth: true
-                                Layout.preferredWidth: 1
-                                Layout.minimumWidth: 0
-                                implicitHeight: 32
-                                radius: 16
-
-                                readonly property bool isSelected: (Config.lockscreenDateFormat || "long") === modelData.id
-                                color: isSelected ? Config.accent : (dateHover.containsMouse ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(0, 0, 0, 0.2))
-
-                                Behavior on color { ColorAnimation { duration: 150 } }
-
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: modelData.label
-                                    font.family: Config.sysFont
-                                    font.pixelSize: 11
-                                    font.bold: true
-                                    color: datePill.isSelected ? Config.bgBase : Config.textMain
-                                    horizontalAlignment: Text.AlignHCenter
-                                    verticalAlignment: Text.AlignVCenter
-                                }
-
-                                MouseArea {
-                                    id: dateHover
-                                    anchors.fill: parent
-                                    hoverEnabled: true
-                                    cursorShape: Qt.PointingHandCursor
-                                    onClicked: {
-                                        Config.lockscreenDateFormat = modelData.id
-                                        if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                        else if (typeof Config.save === "function") Config.save()
-                                    }
-                                }
-                            }
-                        }
-                    }
+                    TapHandler { onTapped: Config.lockscreenShapePalette = paletteChip.modelData.id }
+                    HoverHandler { id: paletteHover; cursorShape: Qt.PointingHandCursor }
                 }
             }
         }
+    }
 
-        // ==========================================
-        // 6. LOCKSCREEN VISUALS & TOGGLES
-        // ==========================================
-        Rectangle {
-            Layout.fillWidth: true
-            implicitHeight: togglesCol.implicitHeight + 28
-            radius: Config.cornerRadius
-            color: Qt.rgba(255, 255, 255, 0.05)
-            border.width: 1
-            border.color: Qt.rgba(255, 255, 255, 0.1)
+    SettingsCard {
+        title: "Time & Date"
+        icon: "schedule"
 
-            ColumnLayout {
-                id: togglesCol
-                anchors.fill: parent
-                anchors.margins: 14
-                spacing: 12
+        SettingsField {
+            label: "Time Mode"
 
-                Text {
-                    text: "LOCKSCREEN DISPLAY OPTIONS"
-                    color: Config.textMuted
-                    font.family: Config.sysFont
-                    font.pixelSize: Config.size(Config.fontMicro)
-                    font.bold: true
-                }
-
-                // TOGGLE 1: MEDIA CONTROLLER
-                SettingsToggleRow {
-                    title: "Show Media Player Mini Controller"
-                    subtitle: "Display currently playing track metadata and playback controls on the lock screen."
-                    checked: Config.lockscreenShowMedia !== false
-                    onToggled: {
-                        Config.lockscreenShowMedia = (Config.lockscreenShowMedia === false)
-                        if (typeof Config.saveConfig === "function") Config.saveConfig()
-                        else if (typeof Config.save === "function") Config.save()
-                    }
-                }
-
-                // TOGGLE 2: POWER CONTROLS
-                SettingsToggleRow {
-                    title: "Show Power Actions on Lockscreen"
-                    subtitle: "Allow suspending, rebooting, and powering off the system directly from the lock surface."
-                    checked: Config.lockscreenShowPower !== false
-                    onToggled: {
-                        Config.lockscreenShowPower = (Config.lockscreenShowPower === false)
-                        if (typeof Config.saveConfig === "function") Config.saveConfig()
-                        else if (typeof Config.save === "function") Config.save()
-                    }
-                }
-
-                // BLUR RADIUS PRESETS
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12
-
-                    Text {
-                        text: "Wallpaper Blur Effect:"
-                        color: Config.textMain
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontCaption)
-                        font.bold: true
-                    }
-
-                    Repeater {
-                        model: [
-                            { label: "Light (18px)", value: 18 },
-                            { label: "Medium (36px)", value: 36 },
-                            { label: "Heavy (60px)", value: 60 }
-                        ]
-
-                        delegate: Rectangle {
-                            id: blurPill
-                            Layout.fillWidth: true
-                            Layout.preferredWidth: 1
-                            Layout.minimumWidth: 0
-                            implicitHeight: 30
-                            radius: 15
-                            readonly property bool isSelected: (Config.lockscreenBlurRadius || 36) === modelData.value
-                            color: isSelected ? Config.accent : (blurHover.containsMouse ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(0, 0, 0, 0.2))
-
-                            Text {
-                                anchors.centerIn: parent
-                                text: modelData.label
-                                font.family: Config.sysFont
-                                font.pixelSize: 11
-                                font.bold: true
-                                color: blurPill.isSelected ? Config.bgBase : Config.textMain
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                            }
-
-                            MouseArea {
-                                id: blurHover
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: {
-                                    Config.lockscreenBlurRadius = modelData.value
-                                    if (typeof Config.saveConfig === "function") Config.saveConfig()
-                                    else if (typeof Config.save === "function") Config.save()
-                                }
-                            }
-                        }
-                    }
-                }
+            SettingsSegmented {
+                currentValue: Config.lockscreenUse12Hour !== false
+                itemWidth: 130
+                model: [
+                    { label: "12-Hour", value: true,  icon: "schedule" },
+                    { label: "24-Hour", value: false, icon: "military_tech" }
+                ]
+                onSelected: value => Config.lockscreenUse12Hour = value
             }
         }
 
-        Item {
-            Layout.fillHeight: true
-            implicitHeight: 20
+        SettingsField {
+            label: "Clock Size"
+
+            SettingsSegmented {
+                currentValue: Config.lockscreenClockSize || 150
+                itemWidth: 100
+                model: [
+                    { label: "100px", value: 100 },
+                    { label: "150px", value: 150 },
+                    { label: "200px", value: 200 }
+                ]
+                onSelected: value => Config.lockscreenClockSize = value
+            }
+        }
+
+        SettingsToggleRow {
+            title: "Show Seconds"
+            subtitle: "Include seconds in the lockscreen clock"
+            checked: Config.lockscreenShowSeconds !== false
+            onToggled: Config.lockscreenShowSeconds = (Config.lockscreenShowSeconds === false)
+        }
+
+        SettingsToggleRow {
+            title: "Show AM/PM"
+            subtitle: "Show the AM/PM indicator beside the time"
+            active: Config.lockscreenUse12Hour !== false
+            checked: Config.lockscreenShowAmPm !== false
+            onToggled: Config.lockscreenShowAmPm = (Config.lockscreenShowAmPm === false)
+        }
+
+        SettingsField {
+            label: "Date Style"
+            hint: "Preview: " + root.datePreview
+
+            SettingsSegmented {
+                currentValue: Config.lockscreenDateFormat || "long"
+                itemWidth: 130
+                model: [
+                    { label: "Long",      value: "long" },
+                    { label: "Standard",  value: "standard" },
+                    { label: "Day First", value: "dayFirst" },
+                    { label: "ISO 8601",  value: "iso" }
+                ]
+                onSelected: value => Config.lockscreenDateFormat = value
+            }
+        }
+    }
+
+    SettingsCard {
+        title: "Display Options"
+        icon: "tune"
+
+        SettingsToggleRow {
+            title: "Show Media Player Mini Controller"
+            subtitle: "Currently playing track metadata and playback controls on the lock screen"
+            checked: Config.lockscreenShowMedia !== false
+            onToggled: Config.lockscreenShowMedia = (Config.lockscreenShowMedia === false)
+        }
+
+        SettingsToggleRow {
+            title: "Show Power Actions"
+            subtitle: "Suspend, reboot and power off directly from the lock surface"
+            checked: Config.lockscreenShowPower !== false
+            onToggled: Config.lockscreenShowPower = (Config.lockscreenShowPower === false)
+        }
+
+        SettingsField {
+            label: "Wallpaper Blur"
+
+            SettingsSegmented {
+                currentValue: Config.lockscreenBlurRadius || 36
+                itemWidth: 150
+                model: [
+                    { label: "Light (18px)",  value: 18 },
+                    { label: "Medium (36px)", value: 36 },
+                    { label: "Heavy (60px)",  value: 60 }
+                ]
+                onSelected: value => Config.lockscreenBlurRadius = value
+            }
         }
     }
 }
