@@ -510,7 +510,16 @@ Item {
                         ColumnLayout {
                             // While filtering, groups auto-open so matches are visible
                             // without the user having to expand each one by hand.
-                            visible: settingsRoot.navFiltering || settingsRoot.visualsExpanded
+                            // The `length > 0` guard is what keeps a filtered
+                            // sidebar tight. A nested ColumnLayout that empties out
+                            // reports implicitHeight 0, but Qt leaves its actual
+                            // height at whatever it last measured, so the parent
+                            // kept reserving the full expanded group - searching
+                            // "network" left ~300px of dead space between the search
+                            // box and the one result. An invisible child is dropped
+                            // from the layout entirely, so the space goes with it.
+                            visible: (settingsRoot.navFiltering || settingsRoot.visualsExpanded)
+                                && settingsRoot.sectionsFor("VISUALS").length > 0
                             Layout.fillWidth: true
                             Layout.leftMargin: 4
                             spacing: 3
@@ -643,7 +652,16 @@ Item {
                         ColumnLayout {
                             // While filtering, groups auto-open so matches are visible
                             // without the user having to expand each one by hand.
-                            visible: settingsRoot.navFiltering || settingsRoot.connectivityExpanded
+                            // The `length > 0` guard is what keeps a filtered
+                            // sidebar tight. A nested ColumnLayout that empties out
+                            // reports implicitHeight 0, but Qt leaves its actual
+                            // height at whatever it last measured, so the parent
+                            // kept reserving the full expanded group - searching
+                            // "network" left ~300px of dead space between the search
+                            // box and the one result. An invisible child is dropped
+                            // from the layout entirely, so the space goes with it.
+                            visible: (settingsRoot.navFiltering || settingsRoot.connectivityExpanded)
+                                && settingsRoot.sectionsFor("CONNECTIVITY").length > 0
                             Layout.fillWidth: true
                             Layout.leftMargin: 4
                             spacing: 3
@@ -776,7 +794,16 @@ Item {
                         ColumnLayout {
                             // While filtering, groups auto-open so matches are visible
                             // without the user having to expand each one by hand.
-                            visible: settingsRoot.navFiltering || settingsRoot.widgetsExpanded
+                            // The `length > 0` guard is what keeps a filtered
+                            // sidebar tight. A nested ColumnLayout that empties out
+                            // reports implicitHeight 0, but Qt leaves its actual
+                            // height at whatever it last measured, so the parent
+                            // kept reserving the full expanded group - searching
+                            // "network" left ~300px of dead space between the search
+                            // box and the one result. An invisible child is dropped
+                            // from the layout entirely, so the space goes with it.
+                            visible: (settingsRoot.navFiltering || settingsRoot.widgetsExpanded)
+                                && settingsRoot.sectionsFor("WIDGETS").length > 0
                             Layout.fillWidth: true
                             Layout.leftMargin: 4
                             spacing: 3
@@ -909,7 +936,16 @@ Item {
                         ColumnLayout {
                             // While filtering, groups auto-open so matches are visible
                             // without the user having to expand each one by hand.
-                            visible: settingsRoot.navFiltering || settingsRoot.systemExpanded
+                            // The `length > 0` guard is what keeps a filtered
+                            // sidebar tight. A nested ColumnLayout that empties out
+                            // reports implicitHeight 0, but Qt leaves its actual
+                            // height at whatever it last measured, so the parent
+                            // kept reserving the full expanded group - searching
+                            // "network" left ~300px of dead space between the search
+                            // box and the one result. An invisible child is dropped
+                            // from the layout entirely, so the space goes with it.
+                            visible: (settingsRoot.navFiltering || settingsRoot.systemExpanded)
+                                && settingsRoot.sectionsFor("SYSTEM").length > 0
                             Layout.fillWidth: true
                             Layout.leftMargin: 4
                             spacing: 3
