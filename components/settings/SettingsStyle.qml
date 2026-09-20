@@ -68,6 +68,22 @@ QtObject {
     readonly property int animFast: 140
     readonly property int animMed: 220
 
+    // Hover lift. Every card grows a touch under the pointer and catches a
+    // moving highlight; these are the knobs for the whole module, so the
+    // effect can be dialled back - or switched off with hoverScale: 1 and
+    // sheenAlpha: 0 - in one place rather than across 86 card instances.
+    //
+    // Deliberately small. At 720px wide the card gains about 9px, which
+    // registers as the card coming forward without shoving its neighbours
+    // around or making the text visibly resample.
+    readonly property real hoverScale: 1.012
+
+    // Peak alpha of the specular band that tracks the pointer, and how far
+    // it reaches to either side as a fraction of card width. Wide and faint:
+    // tighter than this and it reads as a streak rather than a sheen.
+    readonly property real sheenAlpha: 0.04
+    readonly property real sheenSpread: 0.34
+
     // Opacity applied to a card body whose parent toggle is off. Kept here so
     // the "this section is inactive" signal is identical everywhere instead of
     // the 0.35 / 0.4 / 0.5 mix the pages had grown.
