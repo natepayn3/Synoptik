@@ -1549,11 +1549,16 @@ PanelWindow {
         Config.appendAssistantMessage("error", "Cancelled.")
     }
 
+    // A new message - the user's own or the reply - pulls the view to its
+    // top, even if they'd scrolled up to re-read something. ListView won't
+    // scroll past the end of its content, so a reply short enough to fit
+    // simply sits at the bottom of the pane the way it used to.
     Connections {
         target: Config
         function onAssistantMessagesChanged() {
             Qt.callLater(function() {
-                if (typeof messageList !== "undefined") messageList.positionViewAtEnd()
+                if (typeof messageList === "undefined") return
+                messageList.pinToTop(messageList.count - 1)
             })
         }
     }
@@ -2896,6 +2901,79 @@ PanelWindow {
                         clip: true
                         model: Config.assistantMessages || []
 
+                        // The message whose top edge is held at the top of
+                        // the pane, or -1 once the user takes the scrolling
+                        // over themselves. Anchoring the top rather than
+                        // jumping to the bottom means a reply taller than the
+                        // pane starts where it should be read from instead of
+                        // at its last line.
+                        property int pinnedIndex: -1
+
+                        // "index" holds pinnedIndex's top edge, "top" and
+                        // "bottom" hold the two ends of the conversation, and
+                        // "none" means the user is scrolling themselves and
+                        // the view is left alone.
+                        property string anchorMode: "none"
+
+                        // positionViewAtBeginning/End work off the heights of
+                        // the delegates that happen to exist right now and
+                        // estimate the rest, so on their own they land near
+                        // an end rather than on it. Finishing with an
+                        // explicit contentY puts the view on the actual flick
+                        // bound - the position call first, because it's what
+                        // realises the delegates down there and corrects
+                        // contentHeight for them.
+                        function applyAnchor() {
+                            if (anchorMode === "top") {
+                                positionViewAtBeginning()
+                                contentY = originY
+                            } else if (anchorMode === "bottom") {
+                                positionViewAtEnd()
+                                contentY = Math.max(originY, originY + contentHeight - height)
+                            } else if (anchorMode === "index" && pinnedIndex >= 0 && pinnedIndex < count) {
+                                positionViewAtIndex(pinnedIndex, ListView.Beginning)
+                            }
+                        }
+
+                        function pinToTop(index) {
+                            if (index < 0 || index >= count) return
+                            pinnedIndex = index
+                            anchorMode = "index"
+                            applyAnchor()
+                        }
+
+                        function jumpToTop() {
+                            anchorMode = "top"
+                            applyAnchor()
+                        }
+
+                        function jumpToBottom() {
+                            anchorMode = "bottom"
+                            applyAnchor()
+                        }
+
+                        // A just-appended bubble doesn't know its own height
+                        // yet - the wrapped Text inside it is only laid out
+                        // on the next polish pass - so a single position call
+                        // fired off the model change acts on a contentHeight
+                        // that's still missing most of the new reply and
+                        // lands in the wrong place. Re-applying the anchor on
+                        // every contentHeight change rides each of those
+                        // settling steps, including bubbles above this one
+                        // growing and shoving it down. The two ends need it
+                        // just as much: walking towards either one realises
+                        // delegates that were only estimated, which moves the
+                        // end that was being aimed at.
+                        onContentHeightChanged: applyAnchor()
+
+                        // Scrolling by hand drops the anchor, so nothing
+                        // yanks the view away from what's being read. The
+                        // wheel counts - Flickable reports it as movement
+                        // like any drag - while positionViewAt* and a direct
+                        // contentY don't, so our own anchoring never clears
+                        // it.
+                        onMovementEnded: anchorMode = "none"
+
                         delegate: Item {
                             readonly property bool isUser: modelData.role === "user"
                             readonly property bool isError: modelData.role === "error"
@@ -2930,6 +3008,14 @@ PanelWindow {
                                         : (isError ? Qt.rgba(1, 0.6, 0.3, 0.12) : (isInfo ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.1) : Qt.rgba(255, 255, 255, 0.06)))
 
                                     HoverHandler { id: bubbleHover }
+
+                                    // Re-reading an older long reply: tapping
+                                    // its bubble brings its top edge up to the
+                                    // top of the pane, the same anchor a new
+                                    // reply gets. The copy button above is a
+                                    // child of this rectangle, so its own
+                                    // TapHandler takes that press first.
+                                    TapHandler { onTapped: messageList.pinToTop(index) }
 
                                     ColumnLayout {
                                         id: bubbleContent
@@ -3032,7 +3118,7 @@ PanelWindow {
                             color: Config.textMuted
                         }
 
-                        TapHandler { onTapped: messageList.positionViewAtBeginning() }
+                        TapHandler { onTapped: messageList.jumpToTop() }
                         HoverHandler { id: scrollTopIconHover; cursorShape: Qt.PointingHandCursor }
                     }
 
@@ -3055,7 +3141,7 @@ PanelWindow {
                             color: Config.textMuted
                         }
 
-                        TapHandler { onTapped: messageList.positionViewAtEnd() }
+                        TapHandler { onTapped: messageList.jumpToBottom() }
                         HoverHandler { id: scrollBottomIconHover; cursorShape: Qt.PointingHandCursor }
                     }
                 }
