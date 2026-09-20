@@ -283,12 +283,19 @@ Item {
         id: forecastCard
         anchors.fill: parent
         implicitHeight: 92
-        color: Qt.rgba(1, 1, 1, 0.08)
+        // Matches the ControlCenter cards: the panel sits a shade
+        // darker until the pointer is over it. These were pinned at
+        // the hovered value with no handler to change them, so the
+        // idle tone drops rather than the hover being layered on top.
+        color: forecastHover.hovered ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.04)
         radius: Config.cornerRadius
         border.width: 1
-        border.color: Qt.rgba(255, 255, 255, 0.1)
+        border.color: forecastHover.hovered ? Qt.rgba(1, 1, 1, 0.18) : Qt.rgba(1, 1, 1, 0.1)
 
+        Behavior on color { ColorAnimation { duration: 150 } }
         Behavior on border.color { ColorAnimation { duration: 150 } }
+
+        HoverHandler { id: forecastHover }
 
         Watermark {
             icon: Config.weather.glyph
@@ -392,12 +399,19 @@ Item {
             // Rectangle.clip only clips to the square bounding box.
             ClippingRectangle {
                 anchors.fill: parent
-                color: Qt.rgba(1, 1, 1, 0.08)
+                // Matches the ControlCenter cards: the panel sits a shade
+                // darker until the pointer is over it. These were pinned at
+                // the hovered value with no handler to change them, so the
+                // idle tone drops rather than the hover being layered on top.
+                color: clockWeatherHover.hovered ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.04)
                 radius: Config.cornerRadius
                 border.width: 1
-                border.color: Qt.rgba(255, 255, 255, 0.1)
+                border.color: clockWeatherHover.hovered ? Qt.rgba(1, 1, 1, 0.18) : Qt.rgba(1, 1, 1, 0.1)
 
+                Behavior on color { ColorAnimation { duration: 150 } }
                 Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                HoverHandler { id: clockWeatherHover }
 
                 // MASSIVE GRAPHIC WEATHER WATERMARK
                 Watermark {
@@ -545,12 +559,19 @@ Item {
             // Rectangle.clip only clips to the square bounding box.
             ClippingRectangle {
                 anchors.fill: parent
-                color: Qt.rgba(1, 1, 1, 0.08)
+                // Matches the ControlCenter cards: the panel sits a shade
+                // darker until the pointer is over it. These were pinned at
+                // the hovered value with no handler to change them, so the
+                // idle tone drops rather than the hover being layered on top.
+                color: notesHover.hovered ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.04)
                 radius: Config.cornerRadius
                 border.width: 1
-                border.color: Qt.rgba(255, 255, 255, 0.1)
+                border.color: notesHover.hovered ? Qt.rgba(1, 1, 1, 0.18) : Qt.rgba(1, 1, 1, 0.1)
 
+                Behavior on color { ColorAnimation { duration: 150 } }
                 Behavior on border.color { ColorAnimation { duration: 150 } }
+
+                HoverHandler { id: notesHover }
 
                 // GRAPHIC NOTES WATERMARK
                 Watermark {
@@ -716,12 +737,19 @@ Item {
 
         ClippingRectangle {
             anchors.fill: parent
-            color: Qt.rgba(1, 1, 1, 0.08)
+            // Matches the ControlCenter cards: the panel sits a shade
+            // darker until the pointer is over it. These were pinned at
+            // the hovered value with no handler to change them, so the
+            // idle tone drops rather than the hover being layered on top.
+            color: calendarHover.hovered ? Qt.rgba(1, 1, 1, 0.08) : Qt.rgba(1, 1, 1, 0.04)
             radius: Config.cornerRadius
             border.width: 1
-            border.color: Qt.rgba(255, 255, 255, 0.1)
+            border.color: calendarHover.hovered ? Qt.rgba(1, 1, 1, 0.18) : Qt.rgba(1, 1, 1, 0.1)
 
+            Behavior on color { ColorAnimation { duration: 150 } }
             Behavior on border.color { ColorAnimation { duration: 150 } }
+
+            HoverHandler { id: calendarHover }
 
             // GRAPHIC CALENDAR WATERMARK
             Watermark {
@@ -840,7 +868,13 @@ Item {
                         property bool isSelected: cellKey === root.selectedKey
                         property bool hasReminders: (root.allReminders[cellKey] || []).length > 0
 
-                        color: isSelected ? Config.accent : (model.today ? Qt.rgba(255, 255, 255, 0.05) : "transparent")
+                        // Hover sits between "today" and selected: it must
+                        // read as reachable without competing with the accent
+                        // fill that marks the day actually chosen.
+                        color: isSelected
+                            ? Config.accent
+                            : (dayHover.hovered ? Qt.rgba(1, 1, 1, 0.12)
+                                                : (model.today ? Qt.rgba(1, 1, 1, 0.05) : "transparent"))
                         border.color: isSelected ? Config.accent : (hasReminders ? Config.textMuted : (model.today ? Config.accent : "transparent"))
                         border.width: isSelected || hasReminders || model.today ? 1 : 0
 
@@ -860,6 +894,7 @@ Item {
                         }
 
                         HoverHandler {
+                            id: dayHover
                             cursorShape: Qt.PointingHandCursor
                         }
                     }
