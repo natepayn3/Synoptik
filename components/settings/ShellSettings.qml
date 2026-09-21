@@ -54,9 +54,14 @@ SettingsPage {
             root.buildBranch = (parts[0] || "").trim()
             root.buildCommit = (parts[1] || "").trim()
             root.isGitInstall = (parts[2] || "").trim() === "1"
+            // Deliberately does not name pacman -Syu: a package built with
+            // makepkg is foreign to pacman, so a plain -Syu never updates it,
+            // and even from the AUR it takes a helper (paru/yay) rather than
+            // pacman itself. Naming the tool that cannot do the job is worse
+            // than naming none.
             root.statusText = root.isGitInstall
                 ? "Ready"
-                : "Installed as a package — update with your package manager (pacman -Syu)."
+                : "Updates are handled by whatever you installed this with (an AUR helper, or rebuilding with makepkg) — not from here."
         }
     }
 

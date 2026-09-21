@@ -1014,7 +1014,7 @@ QtObject {
     // commit. Bumped by hand when a release is tagged; the git tag is the real
     // source of truth, this is just what the shell can report about itself
     // without shelling out. Keep it matching the most recent tag on main.
-    readonly property string shellVersion: "1.0.1"
+    readonly property string shellVersion: "1.0.2"
 
     // The mascot is a fixed, bundled character - there is no user-upload path
     // for it any more (see mascotClips below). These are the only clips that
