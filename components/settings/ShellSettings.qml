@@ -20,6 +20,30 @@ SettingsPage {
 
     readonly property string repoDir: Qt.resolvedUrl(".").toString().replace(/^file:\/\//, "")
 
+    // Live branch + short commit of the running checkout, read once at load.
+    // Config.shellVersion alone says which release this claims to be; these
+    // two say what is actually checked out, which is the part that matters in
+    // a bug report from someone tracking a development branch.
+    property string buildBranch: ""
+    property string buildCommit: ""
+
+    Process {
+        id: gitDescribe
+        running: true
+        command: ["sh", "-c",
+            "cd '" + root.repoDir + "' 2>/dev/null || exit 1; " +
+            "printf '%s\\n%s' \"$(git rev-parse --abbrev-ref HEAD 2>/dev/null)\" \"$(git rev-parse --short HEAD 2>/dev/null)\""]
+
+        stdout: StdioCollector { id: describeOut }
+
+        onExited: (code) => {
+            if (code !== 0) return
+            let parts = describeOut.text.trim().split("\n")
+            root.buildBranch = (parts[0] || "").trim()
+            root.buildCommit = (parts[1] || "").trim()
+        }
+    }
+
     Process {
         id: gitChecker
         running: false
@@ -109,16 +133,35 @@ SettingsPage {
                     Layout.fillWidth: true
                     spacing: 1
 
-                    Text {
-                        text: "GitHub Repository"
-                        color: Config.textMain
-                        font.family: Config.sysFont
-                        font.pixelSize: Config.size(Config.fontBody)
-                        font.bold: true
+                    RowLayout {
+                        spacing: 7
+
+                        Text {
+                            text: "GitHub Repository"
+                            color: Config.textMain
+                            font.family: Config.sysFont
+                            font.pixelSize: Config.size(Config.fontBody)
+                            font.bold: true
+                        }
+
+                        SettingsBadge {
+                            text: "v" + Config.shellVersion
+                            highlighted: true
+                        }
+
+                        // Only worth showing once it is known, and only when it
+                        // is not the stable branch - on main the version badge
+                        // above already says everything.
+                        SettingsBadge {
+                            visible: root.buildBranch.length > 0 && root.buildBranch !== "main"
+                            text: root.buildBranch
+                            icon: "call_split"
+                        }
                     }
 
                     Text {
                         text: "github.com/natepayn3/Synoptik"
+                             + (root.buildCommit.length > 0 ? "  ·  " + root.buildCommit : "")
                         color: Config.textMuted
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontCaption)
