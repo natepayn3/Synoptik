@@ -1,0 +1,104 @@
+# Maintainer: natepayn3 <natepayn3@gmail.com>
+
+pkgname=synoptik
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="A fluid, morphing desktop shell for Hyprland, built in Quickshell"
+arch=('any')
+url="https://github.com/natepayn3/Synoptik"
+license=('MIT')
+
+# The shell itself is QML interpreted by quickshell at runtime, so everything
+# here is a runtime dependency - there is nothing to compile.
+depends=(
+    'quickshell-git'
+    'hyprland'
+    'qt6-base'
+    'qt6-declarative'
+    'qt6-5compat'
+    'qt6-multimedia'
+    'qt6-imageformats'
+    'fish'
+    'python'
+    'ttf-material-symbols-variable-git'
+    'wireplumber'
+    'pipewire'
+    'pipewire-pulse'
+    'networkmanager'
+    'bluez-utils'
+    'brightnessctl'
+    'playerctl'
+    'wl-clipboard'
+    'libnotify'
+    'polkit'
+    'curl'
+    'jq'
+)
+
+optdepends=(
+    'cava: desktop audio visualizer'
+    'awww: wallpaper switching with transitions'
+    'mpvpaper: animated/video wallpapers'
+    'cliphist: clipboard history'
+    'iris-colors: derive the colour scheme from the current wallpaper'
+    'sddm: to use the bundled Synoptik login greeter'
+    'hypridle: idle handling and screen locking'
+    'grim: screenshots'
+    'slurp: region selection for screenshots'
+    'satty: screenshot annotation'
+    'wf-recorder: screen recording'
+    'showmethekey: on-screen key display'
+    'power-profiles-daemon: power profile switching from the control center'
+    'qt6-webview: in-shell web views'
+    'qt6-multimedia-ffmpeg: wider media format support'
+    'gst-plugins-good: additional media codecs'
+    'gst-plugins-bad: additional media codecs'
+    'gst-plugin-pipewire: PipeWire media backend'
+    'v4l-utils: webcam support for the Mirror widget'
+    'python-gobject: helper scripts that use GObject introspection'
+    'noto-fonts-emoji: emoji rendering in the launcher and notifications'
+    'libcanberra: system sound effects'
+    'ffmpeg: media thumbnailing and conversion'
+)
+
+source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
+sha256sums=('4aa3a7723777a9a394bfc38cf9bc297d0bef88ad4152143e6c04c751d47685ee')
+
+package() {
+    cd "$srcdir/Synoptik-$pkgver"
+
+    # Quickshell discovers named configurations under each XDG config directory,
+    # so installing here makes `qs -c Synoptik` work with no per-user setup and
+    # no copy into $HOME. The shell writes its own state to
+    # XDG_CONFIG_HOME/synoptik and XDG_STATE_HOME/synoptik, never next to
+    # itself, which is what lets this directory be root-owned.
+    local shelldir="$pkgdir/etc/xdg/quickshell/Synoptik"
+    install -dm755 "$shelldir"
+
+    install -Dm644 shell.qml "$shelldir/shell.qml"
+    install -Dm644 hypridle.conf "$shelldir/hypridle.conf"
+
+    cp -r components "$shelldir/components"
+    cp -r assets "$shelldir/assets"
+    cp -r scripts "$shelldir/scripts"
+
+    # Helper scripts are executed by the shell, so they keep their exec bit;
+    # everything else is read-only data.
+    find "$shelldir" -type d -exec chmod 755 {} +
+    find "$shelldir" -type f -exec chmod 644 {} +
+    find "$shelldir/scripts" -type f -exec chmod 755 {} +
+
+    # Per-user setup: the hyprland.lua integration and greeter activation that a
+    # package cannot do from a pacman hook. Users run this once after install.
+    install -Dm755 scripts/synoptik-setup "$pkgdir/usr/bin/synoptik-setup"
+
+    # The greeter runs as the sddm user before any session exists, so it has to
+    # live in the system theme directory rather than under /etc/xdg.
+    install -dm755 "$pkgdir/usr/share/sddm/themes/synoptik"
+    cp -r sddm-theme/synoptik/. "$pkgdir/usr/share/sddm/themes/synoptik/"
+    find "$pkgdir/usr/share/sddm/themes/synoptik" -type d -exec chmod 755 {} +
+    find "$pkgdir/usr/share/sddm/themes/synoptik" -type f -exec chmod 644 {} +
+
+    install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
+    install -Dm644 README.md "$pkgdir/usr/share/doc/$pkgname/README.md"
+}

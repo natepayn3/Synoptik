@@ -84,3 +84,45 @@ curl -fsSL https://raw.githubusercontent.com/natepayn3/Synoptik/main/install.sh 
 ```
 
 and there is also an uninstall.sh that can be run directly
+
+---
+
+## 📦 Install as a package
+
+Instead of the script, Synoptik can be built and installed as a proper Arch
+package. This installs the shell to `/etc/xdg/quickshell/Synoptik` rather than
+into your home directory, so `pacman` owns the files and can cleanly remove
+them again.
+
+```bash
+git clone https://github.com/natepayn3/Synoptik.git
+cd Synoptik/packaging
+makepkg -si
+```
+
+Then, once per user:
+
+```bash
+synoptik-setup
+```
+
+That creates the state directories, wires `hypr_style` into your
+`hyprland.lua`, adds the Media Card float rule, activates the greeter, and
+starts the shell. It takes a timestamped backup of every file it edits, and is
+safe to re-run — each step is skipped if it is already done. Use
+`synoptik-setup --dry-run` to see what it would change, or `--no-greeter` /
+`--no-restart` to skip those steps.
+
+The package tracks tagged releases, not `main`, so it updates when a new
+version is tagged rather than on every commit. Not yet on the AUR.
+
+### Where your settings live
+
+| | |
+|---|---|
+| `~/.config/synoptik/` | `settings.json`, saved profiles |
+| `~/.local/state/synoptik/` | notification history, reminders, assistant undo |
+
+Both installation methods use the same locations, so you can switch between
+them without losing your configuration.
+
