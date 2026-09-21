@@ -14,7 +14,8 @@ Item {
 
     LoginPanel {
         anchors.right: parent.right
-        anchors.verticalCenter: parent.verticalCenter
-        anchors.rightMargin: root.width * 0.08
+        anchors.bottom: parent.bottom
+        anchors.rightMargin: root.width * 0.06
+        anchors.bottomMargin: root.height * 0.08
     }
 }
