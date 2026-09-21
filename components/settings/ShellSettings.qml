@@ -27,12 +27,24 @@ SettingsPage {
     property string buildBranch: ""
     property string buildCommit: ""
 
+    // False for a packaged install: the shell then lives somewhere root-owned
+    // like /etc/xdg/quickshell/Synoptik, which is not a git checkout and could
+    // not be written to even if it were. The Updates card below reads this to
+    // avoid offering a self-update that can only fail - package installs are
+    // updated through pacman instead.
+    property bool isGitInstall: false
+
     Process {
         id: gitDescribe
         running: true
         command: ["sh", "-c",
             "cd '" + root.repoDir + "' 2>/dev/null || exit 1; " +
-            "printf '%s\\n%s' \"$(git rev-parse --abbrev-ref HEAD 2>/dev/null)\" \"$(git rev-parse --short HEAD 2>/dev/null)\""]
+            "printf '%s\\n%s\\n%s' " +
+            "\"$(git rev-parse --abbrev-ref HEAD 2>/dev/null)\" " +
+            "\"$(git rev-parse --short HEAD 2>/dev/null)\" " +
+            // Both halves matter. A packaged install fails the first test; a
+            // checkout someone copied to a read-only location fails the second.
+            "\"$(git rev-parse --is-inside-work-tree >/dev/null 2>&1 && [ -w . ] && echo 1 || echo 0)\""]
 
         stdout: StdioCollector { id: describeOut }
 
@@ -41,6 +53,10 @@ SettingsPage {
             let parts = describeOut.text.trim().split("\n")
             root.buildBranch = (parts[0] || "").trim()
             root.buildCommit = (parts[1] || "").trim()
+            root.isGitInstall = (parts[2] || "").trim() === "1"
+            root.statusText = root.isGitInstall
+                ? "Ready"
+                : "Installed as a package — update with your package manager (pacman -Syu)."
         }
     }
 
@@ -215,7 +231,7 @@ SettingsPage {
 
                     Text {
                         anchors.centerIn: parent
-                        text: root.isBusy ? "sync" : "system_update"
+                        text: root.isBusy ? "sync" : (root.isGitInstall ? "system_update" : "inventory_2")
                         color: Config.accent
                         font.family: "Material Symbols Outlined"
                         font.pixelSize: 18
@@ -235,7 +251,8 @@ SettingsPage {
                     spacing: 2
 
                     Text {
-                        text: root.isBusy ? "Checking Upstream..." : "Repository Status"
+                        text: root.isBusy ? "Checking Upstream..."
+                            : (root.isGitInstall ? "Repository Status" : "Package Install")
                         color: Config.textMain
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontBody)
@@ -288,7 +305,13 @@ SettingsPage {
                         HoverHandler { id: reloadBtnHover }
                     }
 
+                    // Nothing for this button to do when the shell was not
+                    // installed from a checkout - see root.isGitInstall. Reload
+                    // beside it stays useful either way, since it only restarts
+                    // the running process.
                     Rectangle {
+                        visible: root.isGitInstall
+
                         implicitWidth: 120
                         implicitHeight: 32
                         radius: Config.cornerRadius / 2
