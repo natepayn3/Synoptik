@@ -131,6 +131,16 @@ if [ "$DRY_RUN" -eq 1 ]; then
         echo "[enable]  systemd service: sddm.service (becomes the active display manager, replacing any other enabled one)"
     fi
 
+    syn_cfg="${XDG_CONFIG_HOME:-$HOME/.config}/synoptik"
+    syn_state="${XDG_STATE_HOME:-$HOME/.local/state}/synoptik"
+    if [ -s "$TARGET_DIR/settings.json" ] && [ ! -s "$syn_cfg/settings.json" ]; then
+        echo "[migrate] pre-1.0.0 state found in $TARGET_DIR — would copy to:"
+        echo "            $syn_cfg      (settings.json, profiles/)"
+        echo "            $syn_state    (reminders, notification history, assistant undo)"
+        echo "          (copied, not moved — the originals would be left in place)"
+    else
+        echo "[ok]      user state already under $syn_cfg — nothing to migrate"
+    fi
     if [ -d "$TARGET_DIR/.git" ]; then
         echo "[sync]    $TARGET_DIR exists as a git checkout — would git fetch + reset --hard origin/main"
         echo "          (any local, uncommitted edits under this directory would be discarded)"
@@ -307,6 +317,32 @@ sudo systemctl enable --now bluetooth.service
 or exit 1
 
 set TARGET_DIR "$SYN_TARGET_DIR"
+# --- Pre-1.0.0 state migration ---
+# Before 1.0.0 the shell kept settings.json, profiles/, reminders.json,
+# notification_history.json and .assistant-undo/ inside the checkout itself.
+# Anything packaged installs the shell somewhere root-owned, so state now
+# lives under XDG directories instead. This has to run before the sync below
+# touches anything: the non-git branch of that block does `rm -rf $TARGET_DIR`
+# and would take the old state with it.
+#
+# Copies rather than moves, and only when the destination is empty - re-running
+# the installer can never overwrite settings made since the migration.
+set -l SYN_CFG "$HOME/.config/synoptik"
+set -l SYN_STATE "$HOME/.local/state/synoptik"
+test -n "$XDG_CONFIG_HOME"; and set SYN_CFG "$XDG_CONFIG_HOME/synoptik"
+test -n "$XDG_STATE_HOME"; and set SYN_STATE "$XDG_STATE_HOME/synoptik"
+
+mkdir -p "$SYN_CFG" "$SYN_STATE"
+
+if test -s "$TARGET_DIR/settings.json"; and not test -s "$SYN_CFG/settings.json"
+    say "Migrating pre-1.0.0 settings to $SYN_CFG..."
+    cp -f "$TARGET_DIR/settings.json" "$SYN_CFG/settings.json"
+    test -s "$TARGET_DIR/reminders.json"; and cp -f "$TARGET_DIR/reminders.json" "$SYN_STATE/reminders.json"
+    test -s "$TARGET_DIR/notification_history.json"; and cp -f "$TARGET_DIR/notification_history.json" "$SYN_STATE/notification_history.json"
+    test -d "$TARGET_DIR/profiles"; and cp -rf "$TARGET_DIR/profiles" "$SYN_CFG/profiles"
+    test -d "$TARGET_DIR/.assistant-undo"; and cp -rf "$TARGET_DIR/.assistant-undo" "$SYN_STATE/assistant-undo"
+end
+
 say "Deploying Synoptik Shell files..."
 
 mkdir -p "$HOME/.config/quickshell"

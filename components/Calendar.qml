@@ -57,7 +57,7 @@ Item {
     property var allReminders: ({})
 
     // Persistence
-    readonly property string storagePath: Config.shellDir + "/reminders.json"
+    readonly property string storagePath: Config.userStateDir + "/reminders.json"
 
     function saveReminders() {
         var currentList = []

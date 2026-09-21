@@ -1023,7 +1023,33 @@ QtObject {
     readonly property string builtinMascotDir: root.shellDir + "/assets/mascot"
     readonly property var builtinMascotStates: ["idle", "dancing", "charging", "charged", "notify", "poke"]
 
-    readonly property string settingsPath: root.shellDir + "/settings.json"
+    // --- USER STATE LOCATIONS ---
+    // State used to live inside shellDir, i.e. inside the checkout itself.
+    // That works for a git-clone install and nothing else: a packaged install
+    // puts the shell under a root-owned prefix, where the shell cannot write
+    // its own settings. Split along the usual XDG lines instead - things you
+    // would back up or copy to another machine in config, machine-generated
+    // history and scratch state in state.
+    //
+    // Legacy files are migrated by install.sh before the shell restarts, and
+    // by the settings-load fallback below for anyone who updates with a plain
+    // git pull. See migrateLegacyState() / settingsRecoveryProc.
+    readonly property string configHome: {
+        let v = Quickshell.env("XDG_CONFIG_HOME")
+        return (v && v.length > 0) ? v : (Quickshell.env("HOME") + "/.config")
+    }
+    readonly property string stateHome: {
+        let v = Quickshell.env("XDG_STATE_HOME")
+        return (v && v.length > 0) ? v : (Quickshell.env("HOME") + "/.local/state")
+    }
+
+    readonly property string userConfigDir: root.configHome + "/synoptik"
+    readonly property string userStateDir: root.stateHome + "/synoptik"
+
+    // Where state lived before 1.0.0 - read only by the migration paths.
+    readonly property string legacyStateDir: root.shellDir
+
+    readonly property string settingsPath: root.userConfigDir + "/settings.json"
 
     // Every plain key persisted to settings.json - shared by both the save and load
     // directions below via settingsAdapter. This used to be two independently
@@ -1547,7 +1573,7 @@ QtObject {
     // reason Synoptik exists (bar on the left on one machine, a collapsed
     // auto-hiding pill on the other) - previously that meant reconfiguring by
     // hand every time.
-    readonly property string profilesDir: root.shellDir + "/profiles"
+    readonly property string profilesDir: root.userConfigDir + "/profiles"
     property var profileNames: []
     property string pendingProfileSave: ""
 
@@ -1675,7 +1701,7 @@ QtObject {
     // real profiles, just this feature's own scratch state, and would leave
     // the "Active: ..." label there naming one of those instead of whatever
     // profile the user actually has loaded.
-    readonly property string assistantUndoDir: root.shellDir + "/.assistant-undo"
+    readonly property string assistantUndoDir: root.userStateDir + "/assistant-undo"
     property string pendingUndoSnapshotSave: ""
 
     function saveAssistantUndoSnapshot(name) {
@@ -1803,16 +1829,52 @@ QtObject {
 
     // Exits 0 only when a backup was actually restored, so the reload below
     // (and the notification) fire only in the real recovery case.
+    // Runs on any settings load failure, which covers three different
+    // situations that all look identical from QML's side - an unreadable file,
+    // a pre-1.0.0 layout with state still inside the checkout, and a genuine
+    // first run. Distinguished by exit code rather than by three separate
+    // Processes, so the directory creation at the top happens exactly once
+    // whichever branch is taken:
+    //
+    //   2  migrated from the pre-1.0.0 in-checkout location
+    //   0  restored a corrupt settings.json from its .bak
+    //   1  nothing to do - fresh install, or nothing left to recover
+    //
+    // Paths are single-quoted throughout: they are interpolated into a shell
+    // command and $HOME can legitimately contain spaces.
     property Process settingsRecoveryProc: Process {
         id: settingsRecoveryProc
         running: false
         command: ["sh", "-c",
-            "f=" + root.settingsPath + "; " +
+            "cfg='" + root.userConfigDir + "'; " +
+            "st='" + root.userStateDir + "'; " +
+            "old='" + root.legacyStateDir + "'; " +
+            "f='" + root.settingsPath + "'; " +
+            "mkdir -p \"$cfg\" \"$st\" || exit 1; " +
+            // Migration first: a legacy settings.json is only interesting while
+            // the new location has nothing, so this can never clobber settings
+            // the user has already made under the new layout.
+            "if [ ! -s \"$f\" ] && [ -s \"$old/settings.json\" ]; then " +
+            "  cp -f \"$old/settings.json\" \"$f\"; " +
+            "  [ -s \"$old/reminders.json\" ] && cp -f \"$old/reminders.json\" \"$st/reminders.json\"; " +
+            "  [ -s \"$old/notification_history.json\" ] && cp -f \"$old/notification_history.json\" \"$st/notification_history.json\"; " +
+            "  [ -d \"$old/profiles\" ] && cp -rf \"$old/profiles\" \"$cfg/profiles\"; " +
+            "  [ -d \"$old/.assistant-undo\" ] && cp -rf \"$old/.assistant-undo\" \"$st/assistant-undo\"; " +
+            "  exit 2; " +
+            "fi; " +
             "if [ -s \"$f.bak\" ] && [ -s \"$f\" ]; then " +
             "  cp -f \"$f\" \"$f.corrupt\"; cp -f \"$f.bak\" \"$f\"; exit 0; " +
             "fi; exit 1"]
         onExited: (exitCode) => {
-            if (exitCode === 0) {
+            if (exitCode === 2) {
+                // Copies, not moves - the originals stay in the checkout so a
+                // downgrade still finds them, and so a migration that goes
+                // wrong has left nothing destroyed. install.sh is what
+                // eventually clears them out.
+                Quickshell.execDetached(["notify-send", "-u", "normal", "Synoptik",
+                    "Settings moved to ~/.config/synoptik and ~/.local/state/synoptik. The old copies inside the shell folder are no longer read."])
+                settingsFileImpl.reload()
+            } else if (exitCode === 0) {
                 Quickshell.execDetached(["notify-send", "-u", "critical", "Synoptik",
                     "settings.json was unreadable and has been restored from the last good backup. The unreadable copy was kept as settings.json.corrupt."])
                 settingsFileImpl.reload()

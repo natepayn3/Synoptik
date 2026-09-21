@@ -20,12 +20,16 @@ QtObject {
     property var entries: [] // newest first
     property bool isLoaded: false
 
-    // Deliberately NOT Config.shellDir: this service is constructed *by* the
-    // Config singleton, so a binding that reads Config evaluates before the
-    // singleton finishes constructing and throws "Config is not defined".
-    // Quickshell.shellDir is the same value without the cycle.
-    readonly property string historyPath:
-        Quickshell.shellDir.toString().replace(/^file:\/\//, "") + "/notification_history.json"
+    // Deliberately NOT Config.userStateDir: this service is constructed *by*
+    // the Config singleton, so a binding that reads Config evaluates before
+    // the singleton finishes constructing and throws "Config is not defined".
+    // Resolving XDG_STATE_HOME here reaches the same directory Config does,
+    // without the cycle - keep the two in step if either ever moves.
+    readonly property string historyPath: {
+        let st = Quickshell.env("XDG_STATE_HOME")
+        if (!st || st.length === 0) st = Quickshell.env("HOME") + "/.local/state"
+        return st + "/synoptik/notification_history.json"
+    }
 
     function record(notif) {
         if (!notif) return
