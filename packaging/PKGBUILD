@@ -1,7 +1,7 @@
 # Maintainer: natepayn3 <natepayn3@gmail.com>
 
 pkgname=synoptik
-pkgver=1.0.1
+pkgver=1.0.2
 pkgrel=1
 pkgdesc="A fluid, morphing desktop shell for Hyprland, built in Quickshell"
 arch=('any')
@@ -62,7 +62,7 @@ optdepends=(
 )
 
 source=("$pkgname-$pkgver.tar.gz::$url/archive/refs/tags/v$pkgver.tar.gz")
-sha256sums=('2e4eeacbe6ac7b6499180ce8e4a423f4a7718d018d9556992a842db4eb75d461')
+sha256sums=('42b36456254a90cd3b019a03b442c6eb0a711a04b7a6e3d4f6cc30944203a61b')
 
 package() {
     cd "$srcdir/Synoptik-$pkgver"

@@ -1,6 +1,6 @@
 pkgbase = synoptik
 	pkgdesc = A fluid, morphing desktop shell for Hyprland, built in Quickshell
-	pkgver = 1.0.1
+	pkgver = 1.0.2
 	pkgrel = 1
 	url = https://github.com/natepayn3/Synoptik
 	arch = any
@@ -50,7 +50,7 @@ pkgbase = synoptik
 	optdepends = noto-fonts-emoji: emoji rendering in the launcher and notifications
 	optdepends = libcanberra: system sound effects
 	optdepends = ffmpeg: media thumbnailing and conversion
-	source = synoptik-1.0.1.tar.gz::https://github.com/natepayn3/Synoptik/archive/refs/tags/v1.0.1.tar.gz
-	sha256sums = 2e4eeacbe6ac7b6499180ce8e4a423f4a7718d018d9556992a842db4eb75d461
+	source = synoptik-1.0.2.tar.gz::https://github.com/natepayn3/Synoptik/archive/refs/tags/v1.0.2.tar.gz
+	sha256sums = 42b36456254a90cd3b019a03b442c6eb0a711a04b7a6e3d4f6cc30944203a61b
 
 pkgname = synoptik
