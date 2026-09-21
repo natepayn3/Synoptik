@@ -23,7 +23,7 @@ SettingsPage {
         }
 
         SettingsNote {
-            text: "Click and drag anywhere on the widget to reposition it. Scroll directly on it to scale."
+            text: "Drag the widget to reposition it, or scroll on it to resize. Click it to reveal its handles: drag any edge or corner to resize, or the handle above it to rotate to any angle; it snaps to 15° steps as it passes them. Position, size and rotation are remembered per display."
         }
     }
 

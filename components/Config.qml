@@ -477,11 +477,13 @@ QtObject {
     property alias cavaShowGlow: root.desktopWidgets.cavaShowGlow
     property alias cavaShowBackground: root.desktopWidgets.cavaShowBackground
     property alias cavaShowBorder: root.desktopWidgets.cavaShowBorder
+    property alias cavaRotations: root.desktopWidgets.cavaRotations
     property alias cavaRotation: root.desktopWidgets.cavaRotation
     property alias cavaPositions: root.desktopWidgets.cavaPositions
     property alias cavaScales: root.desktopWidgets.cavaScales
     property alias enabledCavaScreens: root.desktopWidgets.enabledCavaScreens
-    function rotateCava(direction) { desktopWidgets.rotateCava(direction) }
+    function getCavaRotation(screenName) { return desktopWidgets.getCavaRotation(screenName) }
+    function saveCavaRotation(screenName, degrees) { desktopWidgets.saveCavaRotation(screenName, degrees) }
     function getCavaPosition(screenName, defaultX, defaultY) { return desktopWidgets.getCavaPosition(screenName, defaultX, defaultY) }
     function saveCavaPosition(screenName, x, y) { desktopWidgets.saveCavaPosition(screenName, x, y) }
     function getCavaScale(screenName) { return desktopWidgets.getCavaScale(screenName) }
@@ -1061,7 +1063,7 @@ QtObject {
         "cavaGradientStart", "cavaGradientEnd", "cavaSolidColor", "cavaRainbowSpeed", "cavaBars",
         "cavaFramerate", "cavaSensitivity", "cavaSmoothing", "ambientBreatheEnabled",
         "ambientBreatheIntensity", "cavaBarWidth", "cavaBarGap", "cavaBarRadius", "cavaMaxHeight",
-        "cavaRingRadius", "cavaShowGlow", "cavaShowBackground", "cavaShowBorder", "cavaRotation",
+        "cavaRingRadius", "cavaShowGlow", "cavaShowBackground", "cavaShowBorder", "cavaRotations",
         "cavaPositions", "cavaScales", "enabledCavaScreens", "lockscreenBlurRadius",
         "lockscreenShowMedia", "lockscreenShowPower", "lockscreenMaskStyle", "lockscreenShapePalette",
         "lockscreenUse12Hour", "lockscreenShowSeconds", "lockscreenShowAmPm", "lockscreenDateFormat",
@@ -1261,7 +1263,8 @@ QtObject {
             property var cavaShowGlow
             property var cavaShowBackground
             property var cavaShowBorder
-            property var cavaRotation
+            property var cavaRotations
+            property var cavaRotation  // legacy pre-cavaRotations key, load-only migration
             property var cavaPositions
             property var cavaScales
             property var enabledCavaScreens
@@ -1376,6 +1379,22 @@ QtObject {
                 // null from reading as a real legacy value.
                 if (settingsAdapter.isFloatingBar != null && settingsAdapter.barFrameStyle === undefined) {
                     root.barFrameStyle = settingsAdapter.isFloatingBar ? "floating" : "edge"
+                }
+
+                // cavaRotation was one global angle for every display; it is now
+                // per-screen (cavaRotations), matching cavaPositions/cavaScales.
+                // Seed the new map from the old value so an existing install keeps
+                // the rotation it had rather than snapping back to upright - on
+                // every screen, since the old value applied to all of them.
+                // cavaRotation is off persistedKeys now, so nothing writes it back
+                // and this stops firing once cavaRotations exists. Same loose
+                // `!= null` as above: JsonAdapter keeps re-serializing the declared
+                // legacy property as null forever once it has been seen.
+                if (settingsAdapter.cavaRotation != null && settingsAdapter.cavaRotation !== 0
+                        && settingsAdapter.cavaRotations === undefined) {
+                    let seeded = {}
+                    Quickshell.screens.forEach(s => { seeded[s.name] = settingsAdapter.cavaRotation })
+                    root.cavaRotations = seeded
                 }
 
                 // assistantModel and assistantOllamaModel used to be the

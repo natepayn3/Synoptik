@@ -210,16 +210,20 @@ QtObject {
     property bool cavaShowBackground: true
     property bool cavaShowBorder: true
 
-    // Rotation is controlled directly on the widget (click it to reveal rotate
-    // buttons), not from the Settings page -- still persisted like position/scale.
-    property int cavaRotation: 0
+    // Rotation is controlled directly on the widget (click it, then drag the
+    // handle above it), not from the Settings page -- and per-screen, for the
+    // same reason position and scale are: one visualizer per display, each
+    // with its own idea of which way is up.
+    //
+    // Values are stored unwrapped (not mod 360) so the widget's rotation
+    // Behavior always animates the short way around instead of spinning back
+    // through the whole circle when crossing the 0/360 boundary.
+    property var cavaRotations: ({})
 
-    function rotateCava(direction) {
-        // Deliberately left unbounded (not wrapped mod 360) so the widget's rotation
-        // Behavior always animates the short way around instead of spinning back
-        // through the whole circle when crossing the 0/360 boundary.
-        cavaRotation += direction === "cw" ? 90 : -90
-    }
+    // Legacy pre-cavaRotations key: a single global angle shared by every
+    // screen. Load-only, migrated in Config.applyLoadedSettings() and never
+    // written back -- see the note there.
+    property int cavaRotation: 0
 
     property var cavaPositions: ({})
     property var cavaScales: ({})
@@ -250,6 +254,20 @@ QtObject {
         let current = Object.assign({}, cavaScales)
         current[screenName] = scale
         cavaScales = current
+        if (configRef) configRef.saveSettings()
+    }
+
+    function getCavaRotation(screenName) {
+        if (cavaRotations && cavaRotations[screenName] !== undefined) {
+            return cavaRotations[screenName]
+        }
+        return 0
+    }
+
+    function saveCavaRotation(screenName, degrees) {
+        let current = Object.assign({}, cavaRotations)
+        current[screenName] = degrees
+        cavaRotations = current
         if (configRef) configRef.saveSettings()
     }
 
