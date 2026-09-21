@@ -405,86 +405,24 @@ for id in $SDDM_THEME_IDS
 end
 
 if test $INSTALLED_ANY_THEME -eq 1
-    sudo mkdir -p (dirname "$SDDM_CONF_FILE")
-
-    # Avoid clobbering a greeter the user already picked (via Settings) among
-    # the themes we ship - only fall back to the default on a fresh config
-    # or one pointed at something outside our set.
-    set CURRENT_VAL ""
-    if test -f "$SDDM_CONF_FILE"
-        set CURRENT_VAL (grep -h '\''^Current='\'' $SDDM_CONF_FILE 2>/dev/null | tail -1 | cut -d= -f2)
-    end
-    set ALREADY_OURS 0
-    for id in $SDDM_THEME_IDS
-        if test "$CURRENT_VAL" = "$id"
-            set ALREADY_OURS 1
-        end
-    end
-
-    if test $ALREADY_OURS -eq 0
-        if test -f "$SDDM_CONF_FILE"; and grep -q '\''^Current='\'' "$SDDM_CONF_FILE"
-            sudo sed -i "s/^Current=.*/Current=$SDDM_THEME_ID/" "$SDDM_CONF_FILE"
-        else
-            printf '\''[Theme]\nCurrent=%s\n'\'' "$SDDM_THEME_ID" | sudo tee "$SDDM_CONF_FILE" >/dev/null
-        end
-    end
-
     say "Enabling sddm.service..."
     sudo systemctl enable --now sddm.service
     or exit 1
 end
 
-set HYPR_LUA "$SYN_HYPR_LUA"
-set LUA_DIRECTIVE "-- Load custom isolated dynamic border style configuration\nrequire(\"hypr_style\")"
-
-say "Updating Hyprland Lua configuration..."
-mkdir -p "$HOME/.config/hypr"
-touch "$HYPR_LUA"
-
-# Append the directive only if it does not already exist in the file
-if not grep -q "require(\"hypr_style\")" "$HYPR_LUA"
-    # Back up before mutating so the change is trivially reversible
-    cp "$HYPR_LUA" "$HYPR_LUA.bak-"(date +%Y%m%d%H%M%S)
-    # Ensure file ends with a newline before appending logic
-    test -s "$HYPR_LUA"; and test (tail -c 1 "$HYPR_LUA" | wc -l) -eq 0; and echo "" >> "$HYPR_LUA"
-    echo -e "\n$LUA_DIRECTIVE" >> "$HYPR_LUA"
-    say "Appended hypr_style require directive to $HYPR_LUA (backup saved alongside it)"
-else
-    say "Directive already present in $HYPR_LUA, skipping."
-end
-
-# The detached Media Card widget is a real floating (xdg-toplevel) window,
-# not a layer-shell panel, so Hyprland tiles it like any other app window
-# unless a rule says otherwise - without this it opens tiled into whatever
-# workspace layout is active instead of floating where it was dropped.
-set HYPR_STYLE "$SYN_HYPR_STYLE"
-# Double-quoted (not single-quoted, like LUA_DIRECTIVE above) - this whole
-# fish script is itself embedded in a single-quoted bash string, so a raw
-# single quote in here would terminate that outer string early.
-set MEDIA_CARD_RULE "hl.window_rule({\n    name  = \"float-synoptik-media-card\",\n    match = { title = \"^Synoptik Media Card\$\" },\n    float = true,\n})"
-
-say "Ensuring Synoptik Media Card float rule exists in hypr_style.lua..."
-mkdir -p "$HOME/.config/hypr"
-touch "$HYPR_STYLE"
-
-if not grep -q "float-synoptik-media-card" "$HYPR_STYLE"
-    # Back up before mutating so the change is trivially reversible
-    cp "$HYPR_STYLE" "$HYPR_STYLE.bak-"(date +%Y%m%d%H%M%S)
-    test -s "$HYPR_STYLE"; and test (tail -c 1 "$HYPR_STYLE" | wc -l) -eq 0; and echo "" >> "$HYPR_STYLE"
-    echo -e "\n$MEDIA_CARD_RULE" >> "$HYPR_STYLE"
-    say "Appended Synoptik Media Card float rule to $HYPR_STYLE (backup saved alongside it)"
-else
-    say "Float rule already present in $HYPR_STYLE, skipping."
-end
-
-say "Restarting quickshell..."
-# Suppress error outputs if no instances were running
-killall quickshell >/dev/null 2>&1
-killall qs >/dev/null 2>&1
-
-# Launch new instance and disown job
-qs -c Synoptik >/dev/null 2>&1 &
-disown
+# Everything that configures *this user* rather than the machine - state
+# directories, the hyprland.lua and hypr_style.lua edits, activating the
+# greeter, launching the shell - lives in scripts/synoptik-setup, because the
+# AUR package needs exactly the same steps and cannot run them from a pacman
+# hook. One implementation, called from both paths.
+#
+# The one thing not delegated is the pre-1.0.0 state migration further up: it
+# has to run before the repo sync, since the non-git branch of that sync
+# replaces $TARGET_DIR wholesale. synoptik-setup does the same migration for
+# package installs, and re-running it here is a no-op.
+say "Running per-user setup..."
+"$TARGET_DIR/scripts/synoptik-setup"
+or exit 1
 
 echo ""
 say "Done! Synoptik Shell is ready and running."

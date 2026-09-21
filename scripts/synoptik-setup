@@ -1,0 +1,209 @@
+#!/usr/bin/env bash
+#
+# Synoptik per-user setup.
+#
+# A package can install files; it cannot edit a user's Hyprland config, and it
+# must not touch $HOME from a pacman hook. Everything that has to happen once
+# per user, rather than once per machine, lives here.
+#
+# Run it after installing the synoptik package:
+#
+#     synoptik-setup
+#
+# Idempotent - re-running it is a no-op once everything is in place, so it is
+# safe to run again after an upgrade.
+#
+# install.sh calls this as its final step, so the git-clone install and the
+# packaged install run the same code rather than drifting apart.
+
+set -euo pipefail
+
+DRY_RUN=0
+DO_GREETER=1
+DO_RESTART=1
+
+usage() {
+    cat <<'EOF'
+Usage: synoptik-setup [options]
+
+  --dry-run      Show what would change without changing anything.
+  --no-greeter   Skip activating the Synoptik SDDM greeter (needs sudo).
+  --no-restart   Do not start or restart the shell at the end.
+  -h, --help     Show this help.
+EOF
+}
+
+for arg in "$@"; do
+    case "$arg" in
+        --dry-run)    DRY_RUN=1 ;;
+        --no-greeter) DO_GREETER=0 ;;
+        --no-restart) DO_RESTART=0 ;;
+        -h|--help)    usage; exit 0 ;;
+        *)            echo "Unknown option: $arg (see --help)" >&2; exit 1 ;;
+    esac
+done
+
+if [ "$(id -u)" -eq 0 ]; then
+    echo "Don't run this as root - it configures the invoking user's home directory." >&2
+    exit 1
+fi
+
+CONFIG_HOME="${XDG_CONFIG_HOME:-$HOME/.config}"
+STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}"
+
+SYN_CFG="$CONFIG_HOME/synoptik"
+SYN_STATE="$STATE_HOME/synoptik"
+
+# Where state lived before 1.0.0: inside the git checkout itself.
+LEGACY_DIR="$CONFIG_HOME/quickshell/Synoptik"
+
+HYPR_DIR="$CONFIG_HOME/hypr"
+HYPR_LUA="$HYPR_DIR/hyprland.lua"
+HYPR_STYLE="$HYPR_DIR/hypr_style.lua"
+
+SDDM_THEME_ID="synoptik"
+SDDM_CONF_FILE="/etc/sddm.conf.d/theme.conf"
+
+say()  { printf '==> %s\n' "$1"; }
+skip() { printf '    %s\n' "$1"; }
+plan() { printf '[dry-run] %s\n' "$1"; }
+
+run() {
+    if [ "$DRY_RUN" -eq 1 ]; then
+        plan "$*"
+    else
+        "$@"
+    fi
+}
+
+# --- 1. State directories -------------------------------------------------
+# The shell writes here rather than next to itself, which is what lets it be
+# installed into a root-owned prefix at all.
+
+if [ -d "$SYN_CFG" ] && [ -d "$SYN_STATE" ]; then
+    skip "state directories already exist"
+else
+    say "Creating state directories"
+    run mkdir -p "$SYN_CFG" "$SYN_STATE"
+fi
+
+# --- 2. Pre-1.0.0 state migration ----------------------------------------
+# Only relevant to someone moving off a git-clone install; a first-time
+# package user has no legacy directory and falls straight through.
+#
+# Copied rather than moved, and only when the destination is empty, so this
+# can never overwrite settings made since a previous migration.
+
+if [ -s "$LEGACY_DIR/settings.json" ] && [ ! -s "$SYN_CFG/settings.json" ]; then
+    say "Migrating pre-1.0.0 state out of $LEGACY_DIR"
+    run cp -f "$LEGACY_DIR/settings.json" "$SYN_CFG/settings.json"
+    [ -s "$LEGACY_DIR/reminders.json" ] && \
+        run cp -f "$LEGACY_DIR/reminders.json" "$SYN_STATE/reminders.json"
+    [ -s "$LEGACY_DIR/notification_history.json" ] && \
+        run cp -f "$LEGACY_DIR/notification_history.json" "$SYN_STATE/notification_history.json"
+    [ -d "$LEGACY_DIR/profiles" ] && \
+        run cp -rf "$LEGACY_DIR/profiles" "$SYN_CFG/profiles"
+    [ -d "$LEGACY_DIR/.assistant-undo" ] && \
+        run cp -rf "$LEGACY_DIR/.assistant-undo" "$SYN_STATE/assistant-undo"
+    skip "originals left in place - delete $LEGACY_DIR yourself once you are happy"
+else
+    skip "no pre-1.0.0 state to migrate"
+fi
+
+# --- 3. Hyprland integration ---------------------------------------------
+# Both edits are append-only, guarded by a grep for their own marker, and take
+# a timestamped backup first - so running this twice changes nothing and a bad
+# edit is trivially reversible.
+
+append_once() {
+    local file="$1" marker="$2" block="$3" what="$4"
+
+    if [ -f "$file" ] && grep -q "$marker" "$file"; then
+        skip "$what already present in $file"
+        return 0
+    fi
+
+    say "Adding $what to $file"
+    if [ "$DRY_RUN" -eq 1 ]; then
+        plan "back up $file, then append the $what block"
+        return 0
+    fi
+
+    mkdir -p "$(dirname "$file")"
+    touch "$file"
+    cp "$file" "$file.bak-$(date +%Y%m%d%H%M%S)"
+
+    # Guarantee the file ends in a newline before appending, or the block runs
+    # onto the end of whatever the last line was.
+    if [ -s "$file" ] && [ -n "$(tail -c 1 "$file")" ]; then
+        printf '\n' >> "$file"
+    fi
+    printf '\n%s\n' "$block" >> "$file"
+}
+
+append_once "$HYPR_LUA" 'require("hypr_style")' \
+'-- Load custom isolated dynamic border style configuration
+require("hypr_style")' \
+    "hypr_style require directive"
+
+# The detached Media Card is a real xdg-toplevel window, not a layer-shell
+# panel, so Hyprland tiles it into the active layout unless a rule says
+# otherwise - it would not stay where it was dropped without this.
+append_once "$HYPR_STYLE" 'float-synoptik-media-card' \
+'hl.window_rule({
+    name  = "float-synoptik-media-card",
+    match = { title = "^Synoptik Media Card$" },
+    float = true,
+})' \
+    "Media Card float rule"
+
+# --- 4. SDDM greeter ------------------------------------------------------
+# The package installs the theme itself; only pointing SDDM at it needs root,
+# so this is the one step that asks for sudo, and it is skippable.
+
+if [ "$DO_GREETER" -eq 1 ]; then
+    if [ ! -d "/usr/share/sddm/themes/$SDDM_THEME_ID" ]; then
+        skip "greeter theme not installed at /usr/share/sddm/themes/$SDDM_THEME_ID, skipping"
+    elif [ -f "$SDDM_CONF_FILE" ] && grep -q "^Current=$SDDM_THEME_ID\$" "$SDDM_CONF_FILE"; then
+        skip "SDDM greeter already set to $SDDM_THEME_ID"
+    else
+        say "Activating the $SDDM_THEME_ID SDDM greeter (needs sudo)"
+        if [ "$DRY_RUN" -eq 1 ]; then
+            plan "set Current=$SDDM_THEME_ID in $SDDM_CONF_FILE"
+        else
+            sudo mkdir -p "$(dirname "$SDDM_CONF_FILE")"
+            if [ -f "$SDDM_CONF_FILE" ] && grep -q '^Current=' "$SDDM_CONF_FILE"; then
+                sudo sed -i "s/^Current=.*/Current=$SDDM_THEME_ID/" "$SDDM_CONF_FILE"
+            else
+                printf '[Theme]\nCurrent=%s\n' "$SDDM_THEME_ID" | sudo tee "$SDDM_CONF_FILE" >/dev/null
+            fi
+        fi
+    fi
+else
+    skip "greeter activation skipped (--no-greeter)"
+fi
+
+# --- 5. Start the shell ---------------------------------------------------
+
+if [ "$DO_RESTART" -eq 1 ]; then
+    say "Starting Synoptik"
+    if [ "$DRY_RUN" -eq 1 ]; then
+        plan "kill any running quickshell instance, then launch: qs -c Synoptik"
+    else
+        killall quickshell >/dev/null 2>&1 || true
+        killall qs >/dev/null 2>&1 || true
+        # Detached so the shell survives this script exiting.
+        setsid qs -c Synoptik >/dev/null 2>&1 &
+        disown 2>/dev/null || true
+    fi
+else
+    skip "shell restart skipped (--no-restart)"
+fi
+
+echo
+if [ "$DRY_RUN" -eq 1 ]; then
+    say "Dry run complete - nothing was changed."
+else
+    say "Done. Synoptik is set up for $USER."
+    skip "Reload your Hyprland config (or log out and back in) to pick up the Lua changes."
+fi
