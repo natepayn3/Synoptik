@@ -74,6 +74,31 @@ ClippingRectangle {
 
     Behavior on border.color { ColorAnimation { duration: 150 } }
 
+    // --- PANEL DEPTH ---
+    // Flat bgPanel fill reads as a paper cutout at this size. A vertical
+    // sheen (bright at the top, sinking to a shadow at the bottom) plus a
+    // 1px catch-light on the top edge is the cheapest way to make it read as
+    // a lit surface. Declared before Watermark and col so it sits under both.
+    Rectangle {
+        anchors.fill: parent
+        // menu.radius, not parent.radius: `parent` is typed as a bare Item
+        // here, so ClippingRectangle's own radius isn't reachable through it
+        // and comes back undefined.
+        radius: menu.radius
+        gradient: Gradient {
+            GradientStop { position: 0.0;  color: Qt.rgba(255, 255, 255, 0.07) }
+            GradientStop { position: 0.45; color: Qt.rgba(255, 255, 255, 0.015) }
+            GradientStop { position: 1.0;  color: Qt.rgba(0, 0, 0, 0.18) }
+        }
+    }
+
+    Rectangle {
+        anchors { top: parent.top; left: parent.left; right: parent.right; margins: 1 }
+        height: 1
+        color: Qt.rgba(255, 255, 255, 0.18)
+        visible: menu.heightFactor > 0.5
+    }
+
     // GRAPHIC WATERMARK (same ambient background glyph the other module
     // cards - Battery, Notifications, TaskOverflow - use behind their content)
     Watermark {
@@ -181,6 +206,18 @@ ClippingRectangle {
         { id: "mirror",  icon: "photo_camera",  label: "Mirror" },
         { id: "appdock", icon: "dock_to_bottom", label: "App Dock" }
     ]
+
+    // Drives the header chip. Depends on all seven Config properties, which
+    // is fine for a label - unlike widgetDefs itself (see its note above),
+    // re-evaluating this never touches the Repeater's model, so no delegate
+    // is ever torn down and no ToggleSwitch replays its bounce.
+    readonly property int enabledCount: {
+        let n = 0
+        for (let i = 0; i < widgetDefs.length; i++) {
+            if (isEnabled(widgetDefs[i].id)) n++
+        }
+        return n
+    }
 
     function isEnabled(id) {
         if (id === "clock") return Config.showDesktopClock
@@ -315,46 +352,145 @@ ClippingRectangle {
                     font.italic: true
                 }
             }
+
+            // How many widgets are live, without having to count toggles.
+            Rectangle {
+                Layout.alignment: Qt.AlignVCenter
+                implicitWidth: countText.implicitWidth + 14
+                implicitHeight: 20
+                radius: 10
+                color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.18)
+                border.width: 1
+                border.color: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.45)
+
+                Text {
+                    id: countText
+                    anchors.centerIn: parent
+                    text: menu.enabledCount + "/" + menu.widgetDefs.length
+                    font.family: Config.sysFont
+                    font.pixelSize: Config.size(Config.fontMicro)
+                    font.bold: true
+                    color: Config.accent
+                }
+            }
         }
 
         Repeater {
             model: menu.widgetDefs
 
             delegate: Rectangle {
+                id: rowRoot
+                required property int index
+                required property var modelData
+
+                readonly property bool isOn: menu.isEnabled(modelData.id)
+                readonly property color accentTint: Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 1.0)
+
+                // CASCADE: each row rides the menu's own open progress rather
+                // than firing a one-shot animation of its own, offset by its
+                // index so the list unfurls top-to-bottom. Two things fall out
+                // of driving it off progress: it reverses for free on close,
+                // and it can never desync from the card's pop the way a
+                // separate timer would. The 0.45 divisor is the slice of the
+                // open each row spends fading in; 0.07 per index is the gap
+                // between neighbours.
+                readonly property real appear: Math.max(0, Math.min(1, (menu.progress - index * 0.07) / 0.45))
+
                 Layout.fillWidth: true
                 implicitWidth: rowLayout.implicitWidth + 24
                 implicitHeight: 44
                 radius: Config.cornerRadius / 2
-                color: rowHover.hovered ? Qt.rgba(255, 255, 255, 0.12) : Qt.rgba(0, 0, 0, 0.25)
+
+                opacity: appear
+
+                // Two transforms, not one summed expression: the hover nudge
+                // wants easing, the cascade slide does not (appear is already
+                // smooth, and a Behavior on top of it visibly drags the
+                // stagger). Separate Translates keep the Behavior off the
+                // cascade.
+                transform: [
+                    Translate { x: (1 - rowRoot.appear) * -18 },
+                    Translate {
+                        x: rowHover.hovered ? 3 : 0
+                        Behavior on x { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+                    }
+                ]
+
+                // An enabled row used to be indistinguishable from a disabled
+                // one apart from the toggle itself - seven identical slabs.
+                // Live rows now carry an accent wash; hover deepens it.
+                color: rowHover.hovered
+                     ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, rowRoot.isOn ? 0.24 : 0.12)
+                     : (rowRoot.isOn ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.14)
+                                     : Qt.rgba(0, 0, 0, 0.25))
 
                 Behavior on color { ColorAnimation { duration: 120 } }
+
+                // Accent rail on the leading edge, growing out of nothing when
+                // the widget switches on - the at-a-glance "this one is live"
+                // marker that scanning seven toggles otherwise requires.
+                Rectangle {
+                    anchors.left: parent.left
+                    anchors.leftMargin: 4
+                    anchors.verticalCenter: parent.verticalCenter
+                    width: 3
+                    radius: 1.5
+                    height: rowRoot.isOn ? parent.height - 16 : 0
+                    color: Config.accent
+                    opacity: rowRoot.isOn ? 1.0 : 0.0
+
+                    Behavior on height { NumberAnimation { duration: 220; easing.type: Easing.OutBack; easing.overshoot: 1.8 } }
+                    Behavior on opacity { NumberAnimation { duration: 160 } }
+                }
 
                 RowLayout {
                     id: rowLayout
                     anchors.fill: parent
                     anchors.leftMargin: 12
                     anchors.rightMargin: 12
-                    spacing: 14
+                    spacing: 12
 
-                    Text {
-                        text: modelData.icon
-                        font.family: "Material Symbols Outlined"
-                        font.pixelSize: 19
-                        color: menu.isEnabled(modelData.id) ? Config.accent : Config.textMuted
+                    // Icon chip - gives the list a launcher rhythm and carries
+                    // the on/off state a second time, in colour rather than
+                    // position, so it survives a glance that skips the toggle.
+                    Rectangle {
+                        implicitWidth: 30
+                        implicitHeight: 30
+                        radius: 9
+                        color: rowRoot.isOn ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.22)
+                                            : Qt.rgba(255, 255, 255, 0.06)
+                        border.width: 1
+                        border.color: rowRoot.isOn ? Qt.rgba(Config.accent.r, Config.accent.g, Config.accent.b, 0.5)
+                                                   : Qt.rgba(255, 255, 255, 0.08)
+
+                        Behavior on color { ColorAnimation { duration: 160 } }
+                        Behavior on border.color { ColorAnimation { duration: 160 } }
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: rowRoot.modelData.icon
+                            font.family: "Material Symbols Outlined"
+                            font.pixelSize: 18
+                            color: rowRoot.isOn ? Config.accent : Config.textMuted
+                            Behavior on color { ColorAnimation { duration: 160 } }
+                        }
                     }
 
                     Text {
-                        text: modelData.label
+                        text: rowRoot.modelData.label
                         font.family: Config.sysFont
                         font.pixelSize: Config.size(Config.fontCaption) + 1
                         font.bold: true
                         color: Config.textMain
+                        opacity: rowRoot.isOn ? 1.0 : 0.72
                         Layout.fillWidth: true
+
+                        Behavior on opacity { NumberAnimation { duration: 160 } }
                     }
 
                     // Same shared switch every Settings page uses, bounce and all.
                     ToggleSwitch {
-                        checked: menu.isEnabled(modelData.id)
+                        checked: rowRoot.isOn
                     }
                 }
 
@@ -367,9 +503,9 @@ ClippingRectangle {
                         // (a different widget, or turning one on) never disturbs
                         // this menu's container, so it stays open and the user
                         // can flip several toggles from one right-click.
-                        let closesOwnHost = (modelData.id === menu.hostWidgetId)
+                        let closesOwnHost = (rowRoot.modelData.id === menu.hostWidgetId)
                         if (closesOwnHost) menu.close()
-                        menu.toggle(modelData.id)
+                        menu.toggle(rowRoot.modelData.id)
                     }
                 }
                 HoverHandler { id: rowHover }
