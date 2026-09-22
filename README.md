@@ -94,7 +94,18 @@ package. This installs the shell to `/etc/xdg/quickshell/Synoptik` rather than
 into your home directory, so `pacman` owns the files and can cleanly remove
 them again.
 
+Building requires the `base-devel` group (for `fakeroot`, `debugedit`, etc.),
+which isn't installed by default on a minimal Arch system. Two dependencies —
+`quickshell-git` and `ttf-material-symbols-variable-git` — are AUR-only, so
+plain `makepkg -si` can't resolve them on its own; install those first with an
+AUR helper such as [`yay`](https://github.com/Jguer/yay) or
+[`paru`](https://github.com/Morganamilo/paru), then `makepkg -si` will find
+them already satisfied:
+
 ```bash
+sudo pacman -S --needed base-devel
+yay -S --needed quickshell-git ttf-material-symbols-variable-git
+
 git clone https://github.com/natepayn3/Synoptik.git
 cd Synoptik/packaging
 makepkg -si
